@@ -509,3 +509,44 @@ Build `bin\0.1.0-20261110-014952`; `sw_status` reports `serverVersion`
    full path repeated in every view. No `sw_help`.
 
 Sorted into S3, closed (1); S22 (2, 4); S19, S5, S21, S17 (3); S9 (4).
+
+**2026-11-10: scenario test of build 024431 (dimensions to circular edges checked)**
+
+Build `bin\0.1.0-20261110-024431`; `sw_status` reports `serverVersion`
+`0.1.0-sw2023-20261110-024431`, tag `build-20261110-024431` on `f07c42e` (code `8c88427`).
+
+1. **S20 held.** On a copy of a finished drawing, the nine plan-view dimensions that came
+   back unchecked in build `…-204719` were deleted and added again with the same calls
+   (`horizontal` and `vertical`, a line to a hole edge or two hole edges). All nine now
+   carry `expected` equal to `value` and a check naming how the circle was measured
+   (`value 100 mm matches the geometry ('b' to its centre)`, `('a' to its centre, 'b' to
+   its centre)`). Values right by the design; the exported PDF shows them where asked.
+2. **A single circle with `linear` warns, as designed, but the warning reads garbled and
+   the value could be checked.** SOLIDWORKS made it a diameter (Ø4.5 in the PDF); the result
+   has `kind: linear`, no `expected`, and the warning "the expected linear between the
+   circle alone is not computed here". The circle's diameter is known, so this one could be
+   compared like `diameter`. Reported success, value right.
+3. **An edge-on circle (not yet run by the live tests).** In a section view a hole's edge
+   is seen edge-on as a line. `vertical` from a vertex to it: `expected 2`, `('b' to its
+   centre)`, right. `horizontal` with the same two entities: SOLIDWORKS made 2 mm (the
+   vertical distance, it seems) and the tool refused `VERIFY_FAILED` against the expected
+   57 to the centre and removed it: the right outcome. The hint ("pass textAtMm next to the
+   quantity … or use kind horizontal / vertical") was already followed by the call and does
+   not say that SOLIDWORKS could not make that direction to an edge-on circle (S17).
+   A near or far arc condition was not tried: no tool sets one.
+4. **`drw_annotation_edit` delete moved other dimensions, unreported.** Three horizontal
+   dimensions were stacked below the view (text at y 109, 101, 93). After the one at 109
+   was deleted, the `before` of the next two deletes gave both at y 109: SOLIDWORKS had
+   closed up the stack. The delete result says only the count went down by one and the
+   name is no longer listed. Here they were deleted too, so no harm; in a drawing that
+   keeps them, the layout changes without a word. Bears on S3.
+5. **Short checks.** In a new part `doc_undo` after a boss extrude removed it (volume →
+   0). STEP AP214 export reported `solids: 1`; `doc_open` of it gave 16 surface bodies, no
+   solid (S5, met again). An assembly opened `readOnly:true` was `dirty: true` after only
+   `asm_interference` (0 at the saved position); closed with `discard:true` up front
+   (S21, met again). Every `doc_open` warned `Double 2` changed, each time another value;
+   `doc_close` of the drawing and of the assembly listed `also closed: .` and `, .`
+   (S17, met again).
+6. **Calls**: 42 for the whole test, 21.2k characters of results, 1 error (the
+   `VERIFY_FAILED` in 3). The drawing took 27: nine deletes and nine adds, one at a time,
+   ~290 and ~590 characters each. No `sw_help`.
