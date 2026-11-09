@@ -517,7 +517,7 @@ public sealed partial class PropertiesService(SwSession session)
         (int)swCustomInfoType_e.swCustomInfoDouble => "double",
         (int)swCustomInfoType_e.swCustomInfoYesOrNo => "yesno",
         (int)swCustomInfoType_e.swCustomInfoDate => "date",
-        (int)swCustomInfoType_e.swCustomInfoEquation => "equation",
+        // sw2023: swCustomInfoEquation does not exist in the SW 2023 interop (the type came later).
         _ => "unknown",
     };
 

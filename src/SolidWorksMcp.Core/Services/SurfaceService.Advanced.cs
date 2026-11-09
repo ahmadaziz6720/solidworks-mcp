@@ -325,7 +325,7 @@ public sealed partial class SurfaceService
         var before = Snapshot.Take(d);
         d.ClearSelection2(true);
         BodyKit.SelectAll(d, items, 0);
-        var api = (object?)d.FeatureManager.InsertUntrimSurface2(faceType, (int)swEdgeUntrimType_e.swEdgeUntrimTypeExtendEdges, dist, true, false);
+        var api = (object?)d.FeatureManager.InsertUntrimSurface(faceType, (int)swEdgeUntrimType_e.swEdgeUntrimTypeExtendEdges, dist, true) /* sw2023: InsertUntrimSurface2 missing */;
         d.ClearSelection2(true);
         var o = BodyKit.Verify(ctx, d, before, UntrimSpec, (main, after, checks) =>
         {
