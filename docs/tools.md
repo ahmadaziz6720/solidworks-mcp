@@ -1635,7 +1635,7 @@ Model items / auto dimensions: inserts the model's sketch and feature dimensions
 
 ### `drw_info` — Drawing info (read-only, idempotent)
 
-Drawing overview: sheets (size, scale, projection, format) and their views (name, type, orientation, scale, centerMm, boundsMm, modelBoxMm, model, configuration, parent) with annotation counts (dimensions, notes, tables, center marks). Positions are sheet mm from the lower-left corner.
+Drawing overview: sheets (size, scale, projection, format) and their views (name, type, orientation, scale, centerMm, boundsMm, modelBoxMm, model, configuration, parent) with annotation counts (dimensions, notes, tables, center marks; a view's own label as viewLabels, not a note). Positions are sheet mm from the lower-left corner.
 
 | Parameter | Type | Required | Description |
 |---|---|---|---|

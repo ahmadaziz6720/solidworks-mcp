@@ -175,8 +175,7 @@ public sealed partial class DrawingService
                 {
                     text = Safe(() => n.GetText(), null)?.Replace("\r\n", "\n");
                     if (Safe(() => n.IsBomBalloon(), false)) kind = "balloon";
-                    // A view's label ("SECTION A-A") reads " " through GetText; its linked text holds <VLNAME> / <VLLABEL> (2023 SP3).
-                    else if (Safe(() => n.PropertyLinkedText, null) is { } linked && (linked.Contains("<VLNAME>") || linked.Contains("<VLLABEL>")))
+                    else if (IsViewLabel(n))
                     {
                         kind = "view_label";
                         text = LabelWords(n) is { Length: > 0 } words ? words : $"label of '{view}'";
@@ -226,6 +225,12 @@ public sealed partial class DrawingService
 
     /// <summary>A text over 80 characters cut to its first line's start and its length.</summary>
     private static string Cut(string t) => t.Length > 80 ? $"{t[..60].Split('\n')[0]}… ({t.Length} characters)" : t;
+
+    /// <summary>
+    /// A view's label ("SECTION A-A"): it reads " " through GetText; its linked text holds &lt;VLNAME&gt; / &lt;VLLABEL&gt; (2023 SP3).
+    /// </summary>
+    private static bool IsViewLabel(INote? n) =>
+        n is not null && Safe(() => n.PropertyLinkedText, null) is { } linked && (linked.Contains("<VLNAME>") || linked.Contains("<VLLABEL>"));
 
     /// <summary>A view label's words from the note's text parts (GetText reads " " for it), or null.</summary>
     private static string? LabelWords(INote n)
@@ -512,6 +517,7 @@ public sealed partial class DrawingService
         {
             Dimensions = l.Sum(c => Math.Max(0, c.Dimensions)), Notes = l.Sum(c => Math.Max(0, c.Notes)), Tables = l.Sum(c => Math.Max(0, c.Tables)),
             CenterMarks = l.Sum(c => Math.Max(0, c.CenterMarks)), Other = l.Sum(c => Math.Max(0, c.Other)),
+            ViewLabels = l.Sum(c => c.ViewLabels ?? 0) is > 0 and var labels ? labels : null,
         };
     }
 }

@@ -865,6 +865,12 @@ public class DrawingLiveTests(LiveFixture fx) : LiveTest(fx)
         Assert.Contains("A-A", label.Text);
         Assert.DoesNotContain("label of", label.Text); // its own wording, e.g. "SECTION A-A"
 
+        // drw_info counts it apart, not as a note: the scenario test of build 010708 read notes 1 for each section view
+        // while the list held no note there.
+        var secCounts = (await Drw.InfoAsync(drw)).Sheets[0].Views!.Single(v => v.Name == sec.Name).Annotations!;
+        Assert.Equal(0, secCounts.Notes);
+        Assert.Equal(1, secCounts.ViewLabels);
+
         var ex = await Fails(ErrorCodes.InvalidArgument, () => Drw.ViewDeleteAsync(front.Name, drw));
         Assert.Contains(sec.Name, ex.Message);
         Assert.Contains("withChildren", ex.Hint!);
@@ -874,7 +880,8 @@ public class DrawingLiveTests(LiveFixture fx) : LiveTest(fx)
         Assert.Equal(2, del.Removed.Count);
         Assert.Contains(sec.Name, del.Removed);
         Assert.Equal(1, del.Annotations!.Dimensions);
-        Assert.True(del.Annotations.Notes >= 1, "the section's label counts among the notes that went");
+        Assert.Equal(1, del.Annotations.ViewLabels); // the section's label went with it, counted apart from the notes
+        Assert.Equal(0, del.Annotations.Notes);
         Assert.DoesNotContain(del.Warnings ?? [], w => w.Contains("also removed"));
         Assert.Equal(0, await ViewCountAsync(drw));
     }
