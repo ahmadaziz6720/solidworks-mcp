@@ -200,7 +200,8 @@ notes (`notes: 1` for each section view, the list with `kind: note` 0). Fixed in
 `59a15f4`: a label is left out of `notes` and counted apart as `viewLabels` (present
 when a view has one), in `drw_info` and in `drw_view_delete`'s summed counts. The label
 live test reads the section view's counts (notes 0, viewLabels 1) and fails without it;
-Drawing and Contract live tests on 2023 SP3: 50 of 50. Not yet in a build.
+Drawing and Contract live tests on 2023 SP3: 50 of 50. In build `…-20261110-014952` (tag
+`build-20261110-014952`).
 Usage: moving a parent moves every view aligned with it, a section placed beside it too
 (point 7). Upstream: not sent yet; a PR branch from `upstream/main` would take `cc685a9`
 alone (`ddca400` stands on PR #8). Editing a dimension's value (T10.4) stays out: a drawing
