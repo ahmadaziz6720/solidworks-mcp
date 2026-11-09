@@ -73,7 +73,7 @@ limit mate; an A3 working drawing of the tray with two sections, made twice.
    raised past a later cut's profile); seen only as `bodies: 2`. Issue #4.
 8. **A fully defined sketch costs about 15 calls**: `sketch_relation_add` and
    `sketch_dimension_add` take one relation or dimension each. The tray's geometry took
-   ≈53 calls against 26 for hjbaard's unparametric build, with about the same result text.
+   ≈53 calls, two sketches of ≈15 calls each.
 9. **Five `sw_help` calls at session start read 23.5k characters**, the largest result of
    the modelling session. A session that knows the tools does not need them.
 10. **Drawing output that needs manual work**: dimensions as `100,00` (2 decimals, decimal
@@ -102,3 +102,121 @@ limit mate; an A3 working drawing of the tray with two sections, made twice.
 Sorted into S1 (1); S2 (2); S3 (3); S4 (4); S5 (5); S6 (6); S7 (7); S8 (8); S9 (9);
 S10 (10); S11 (11); S12 (12). Held: (13), (14), kept here as notes. Not filed (15): minor,
 seen once.
+
+**2026-11-09: drawing and setup lessons from the first tests, moved here from a memory**
+
+Builds `0.1.0-20261109-145700` and `…-163234`. These were kept as a memory in the testing
+workspace; they are workarounds for the server, so they belong here. Point 6 is the
+baseline for S8 and S9, measured before any fix, to compare against after.
+
+1. **`drw_dimensions_auto` is not usable.** On a part whose sketches are fully defined it
+   gave 25 dimensions: construction dimensions of a cut profile and of an extrude height
+   that only serves a later cut, two of the same length, overlapping texts, some off the
+   sheet, and none for features whose sketches had no dimensions. With no tool to remove
+   them (S3) the drawing was restarted. Reported as success. Workaround: manual
+   `drw_dimension_add` only.
+2. **Which model axis points where on the sheet is not reported.** In a top view model −Z
+   points up the sheet. `textAtMm` for an angular is placed by that sign; guessed wrong,
+   the dimension came out as the supplement (S4). Proposal: the view's model-to-sheet axes
+   in the `drw_view_add` / `drw_info` result.
+3. **The sheet format's drawable area is not reported.** The ISO A3 format's left border is
+   at x ≈ 19 mm; a note placed at x = 18 overwrote the zone letters. Proposal: border and
+   title block rectangles in `drw_info`.
+4. **A projected side view from a top view came rotated 90°** (model Y horizontal), not
+   usable as a side view, with no option to rotate it (upstream ROADMAP T10.10).
+5. **Hole callouts follow the model, with no override**: `n×` only when the holes are one
+   feature patterned, "through" only for through holes. Holes made one feature each, blind
+   to the plate's thickness, gave `Ø4,50 ↧5,00` without a count (S10). Usage until then:
+   model holes as one feature plus a pattern, end condition through.
+6. **Baseline before S8/S9, build `…-163234`**: tool schemas 161 tools, 247 690 characters
+   (median 1 355, `sketch_add` 4 407); server instructions 2 786. A part with two fully
+   defined sketches, shell, mirror and two Hole Wizard holes: ≈53 calls for the geometry,
+   ≈35k characters of results, 560–750 characters per call on average; each fully defined
+   sketch ≈15 calls. Five `sw_help` calls at the start: 23.5k characters. A two-section A3
+   drawing: ≈45–68 calls in a clean run, ≈160 with four restarts (S2, S3).
+7. **Setup**: `tools\install.ps1` without `-NoRegister` registers the server at user scope
+   under the name `solidworks`, which clashes with any other server of that name. Register
+   by hand at local scope instead.
+
+**2026-11-09: which build a session is running cannot be told from inside it**
+
+Builds `…-163234` (running) and `…-181555` (registered).
+
+1. **`sw_status` reports `"serverVersion":"0.1.0"` only**, with no build stamp and no commit.
+   A session that was open while the server was rebuilt and registered again under a new
+   name kept running the old process (the old name, build `…-163234`), while
+   `claude mcp list` already showed the new exe (`…-181555`). Nothing inside the session
+   shows the difference. Entries here are asked to name the build, and test results are
+   kept per build, so a wrong guess pins a result to the wrong commit. Proposal: the build
+   stamp and the commit in `serverVersion` (for example `0.1.0-20261109-181555+18cbc57`,
+   from the publish folder name and `SourceRevisionId` / `InformationalVersion`), and a
+   `-dirty` mark when built from a tree with uncommitted changes.
+
+**2026-11-09: scenario test of the angular fix: a shelled part with two fully defined sketches, mirror and Hole Wizard holes, then a two-section A3 drawing**
+
+Build `…-181555` (`18cbc57`, from the registration; `sw_status` shows `0.1.0` only).
+
+1. **S6 held.** `sketch_dimension_add` angular between a flat line and a slope rising 7.5°
+   from its end (shared vertex), `textAt` inside the 7.5°, `valueDeg` 7.5: accepted at once,
+   checks `"textAt lies in the supplementary angle, so 7.5° is dimensioned, not the 172.5°
+   between the rays"`, sketch fully defined without the construction line. The cut gave
+   the same volume as before, and later `dimension_set` 7.5 → 10 → 7.5 on that dimension
+   rebuilt clean with one body. The other side still works: `textAt` in the obtuse sector
+   with `valueDeg` 170 was accepted and measured 170. That sketch now takes 11 calls (16
+   with the workaround).
+2. **Angular without `textAt` on the same pair of lines, `valueDeg` 10: refused with a hint
+   that points the wrong way.** `VERIFY_FAILED: After setting 10°, the geometry measures
+   170° (the sketch did not solve to it); the old value was restored and it was removed.
+   Hint: Other relations or dimensions may fix this geometry; check sketch_info.` The
+   sketch had no relations or dimensions at all. The default text point lies in the ray
+   angle (172.5°), so the obtuse one was dimensioned and the value given was the acute one.
+   Correctly refused and rolled back; only the hint misleads. Proposal: when `textAt` is
+   absent and `valueDeg` is nearer the supplement than the ray angle, either take the
+   supplement or say "pass textAt inside the angle you mean". Bears on S6.
+3. **S2, met again**, and its hint is wrong: `doc_undo` after `drw_view_section` →
+   `SKETCH_STATE: Sketch 'Sketch3' is open; undo would act on the sketch edits. Hint: The
+   user is editing it; ask them to exit the sketch first.` Nobody was: the section call
+   left the view sketch open (`sw_status` `openSketch`).
+4. **`feature_mirror` warns on a correct result**: mirroring a boss whose base face merges
+   into a face of the body gave `"The new faces' area is 1.05 x 1 seed copies: instances
+   overlap, merge or are clipped."` Volume and 9/9 reflected faces were right; same warning
+   in build `…-145700`. Noise that a session has to read past.
+5. **Calls (S8/S9, before S8 is built)**: no `sw_help` call at all, the session followed a
+   recorded call sequence. Part geometry, material, properties and the design-intent
+   changes: 47 calls, 25.8k characters of results (baseline ≈53 and ≈35k plus 23.5k for
+   `sw_help`). The drawing with two sections, up to the failed undo: 12 calls, 6.8k.
+   Sections: both lines in plain sheet mm, cut where drawn, 1 and 3 hatched faces (S1 holds).
+
+**2026-11-09: moving a part with its drawings, and an assembly with its parts, to new folders by Pack and Go**
+
+Build `bin\0.1.0-20261109-181555`.
+
+1. **`doc_pack` from a document opened with `doc_open readOnly:true` left every copy
+   referencing the originals.** Three runs: a drawing whose views all show one part, a
+   second drawing of the same part, and an assembly of two parts, each into a new folder,
+   no prefix or suffix. Each time the copies were written and the call failed with
+   `VERIFY_FAILED: Some copies still reference other files: <drawing> → <original part path>`.
+   The error is honest (the hint says the copies exist), but it does not say why, and
+   read-only is the likely cause (not tested with a writable open). Workaround that held:
+   close everything, remove the originals, reopen the copies. SOLIDWORKS then found each
+   reference in the referencing document's folder, no missing-reference warning, so the
+   copies work, though the paths stored in them are still the old ones. Proposal: refuse a
+   read-only source up front, or reopen it writable for the pack, or name read-only as the
+   cause in the error.
+2. **`doc_pack includeDrawings:true` on a part whose drawings lie in another folder copied
+   no drawing and reported success** (`1 file(s) written`). Pack and Go only looks for
+   drawings next to the model, which the description does not say. Proposal: say so in the
+   description, and add `noDrawingsFound` (or similar) to the result when the flag was set
+   and none was copied.
+3. **Missing: renaming a file with its references.** `doc_pack` only adds a prefix or
+   suffix, so a part and its drawings cannot be given new names (e.g. a suffix dropped)
+   without breaking the references. A rename tool, or `doc_pack` taking new names per file,
+   would cover it.
+4. **Every `doc_open` of a native part, drawing or assembly warned that system option
+   `Double 2` changed** (e.g. `0.000131… → 0.0000787…`, a different value per document),
+   telling the session to tell the user. So far it was noted only for STEP imports (S5).
+   The value moving per opened document suggests SOLIDWORKS sets it itself (a view or
+   zoom value), in which case the warning is noise on every open. Worth checking what
+   `Double 2` is before keeping the warning. Bears on S5.
+5. **`doc_close` of an assembly warned `SOLIDWORKS also closed: , .`**: the closed
+   components' names are blank. Same on closing a drawing (`also closed: .`).

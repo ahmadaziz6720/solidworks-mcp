@@ -69,10 +69,12 @@ merged or refused; if merged, the local commits drop out at the next rebase. Not
 **S6. `sketch_dimension_add` angular refused the acute angle at a shared vertex.** Local:
 `18cbc57` on `sw2023`. The supplement is kept when `textAt` lies in its sector, and the value
 set after it is checked against the supplement. New live test fails without the fix;
-`SketchEditLiveTests` 58/58 on 2023 SP3. In build `…-181555`, not yet run in a session.
+`SketchEditLiveTests` 58/58 on 2023 SP3. Held in the scenario test of build `…-181555`.
 Upstream: PR #6 (branch `fix/angular-supplement`, one commit `dce4afe`, "Fixes #3"). Closes
-when the fix has held in a session and PR #6 is merged or refused. Until then, if needed:
-a construction line collinear with the first line, the other way.
+when PR #6 is merged or refused. **Next:** the scenario entry's point 2. Without `textAt`,
+a `valueDeg` nearer the supplement is refused with a misleading hint. Fix it as a second
+commit on `fix/angular-supplement`, which joins PR #6, and on `sw2023`, with its own live
+test.
 
 ## Closed
 
