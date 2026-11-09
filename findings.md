@@ -314,3 +314,6 @@ Build `bin\0.1.0-20261109-204719` (`44fb220`, from the registration and `open_it
    this test's undo, status, rebuild and count probes and the note added again; the drawing itself followed a
    recorded call sequence, no `sw_help`, nothing rebuilt. Whole session 79 calls, 43.9k.
    STEP export and import still give 16 surface bodies and no solid (S5).
+
+Sorted into S2, S1 (1); S19 (2); S20 (3); S17 (4); S21 (5); S22 (6); S8, S9, S5 (7). The
+build line: S16.

@@ -10,10 +10,10 @@ Three sections: **Open**, not yet fixed; **Waiting**, fixed and not yet settled 
 merged, a fix not yet run in a session); **Closed**, merged upstream, run and held, or
 decided against, with the record.
 
-**Open: S3 to S5, S7 to S19.** Highest value to build locally, for working drawings and
-tokens: S3 first (with S19, undo in drawings), then S8. S5 and S7 wait a while for
-upstream's answer to issues #2 and #4. S16 is small and makes every later test result
-traceable to a commit.
+**Open: S3 to S5, S7 to S22.** Next: S19, decided (refuse `doc_undo` in drawings), since
+it can remove work while reporting failure. Then, for working drawings and tokens: S3, S20,
+then S8. S5 and S7 wait a while for upstream's answer to issues #2 and #4. S16 is small and
+makes every later test result traceable to a commit.
 
 ---
 
@@ -28,7 +28,8 @@ then PR. With S19, every placement error means rebuilding the drawing.
 
 **S5. `doc_open` STEP imports surfaces with 3D Interconnect forced off, reported `ok`.**
 Upstream: issue #2. Usage until fixed: import by File > Open and `doc_activate`, or check
-`solidBodies` after `doc_open`.
+`solidBodies` after `doc_open`. Still so in build `…-204719`: a STEP round trip gave 16
+surface bodies and no solid.
 
 **S7. `dimension_set` accepts a change that splits the body.** Upstream: issue #4. Usage:
 read `bodies` in the result after each `dimension_set`.
@@ -38,13 +39,14 @@ relations and dimensions in `sketch_add` or a batch tool, each still verified. U
 no item for it; PR when built. Baseline to compare a fix against: findings 2026-11-09,
 "drawing and setup lessons", point 6 (build `…-163234`, ≈53 calls and ≈35k characters for
 the test part's geometry). In build `…-181555`, without a fix: 47 calls, 25.8k. In build
-`…-195750`: 51 calls, 27.4k (the slope sketch 12, one a deliberate refusal).
+`…-195750`: 51 calls, 27.4k (the slope sketch 12, one a deliberate refusal). In build
+`…-204719`: a two-section A3 drawing in 50 calls, 30.8k, 16 of them the test's own probes.
 
 **S9. `sw_help` at session start reads ≈23.5k characters.** Usage: a short note of the tools
 and conventions the sessions here use, read instead. Where the note lives (a skill, the
 global `CLAUDE.md`, a memory) is the owner's call. The scenario test of build `…-181555`
-followed a recorded call sequence and made no `sw_help` call at all; so did that of
-`…-195750`.
+followed a recorded call sequence and made no `sw_help` call at all; so did those of
+`…-195750` and `…-204719`.
 
 **S10. Drawing format and title block.** Precision and decimal separator of drawing
 dimensions, parentheses for reference dimensions, `n×` in hole callouts, DWG NO from a
@@ -85,8 +87,8 @@ the registration already shows the new exe, and a test result gets pinned to the
 build. Local: the build stamp and commit in `serverVersion` (e.g.
 `0.1.0-20261109-181555+18cbc57`, `-dirty` from an uncommitted tree), from
 `InformationalVersion` / `SourceRevisionId`; the stamp part may stay local, the commit
-part could go upstream. Met again in the test of `…-195750`, whose build was read from
-the registration.
+part could go upstream. Met again in the tests of `…-195750` and `…-204719`, whose builds
+were read from the registration.
 
 **S17. Warnings and texts that are noise.** `feature_mirror` warns "instances overlap,
 merge or are clipped" on a correct mirror whose base face merges into the body (area ratio
@@ -96,7 +98,8 @@ the same warning on STEP imports). `Double 2` is `swSTLDeviation`, coupled with 
 quality; SOLIDWORKS derives it from the opened model's size, and `doc_open` does not write
 it. Proposal: leave the coupled STL group out of the after-call comparison unless the call
 itself wrote it. `doc_close` lists the components it also closed with blank names
-(`also closed: , .`). Local, small; then PR.
+(`also closed: , .`). Local, small; then PR. Both warnings met again in build `…-204719`,
+`Double 2` on every `doc_open` (drawing, part, assembly, STEP import).
 
 **S18. `doc_pack` faults.** (1) From a document opened `readOnly:true`, the copies still
 reference the originals (`VERIFY_FAILED: Some copies still reference other files`), three
@@ -114,10 +117,35 @@ update stamp hardly moves with drawing changes (one step for the standard views,
 projected view or a note), so the server's record of its own writes stays empty; the text
 then blames the user. After `drw_view_section` there is a step on record, and `EditUndo2`
 changes nothing: the section view stays (`VERIFY_FAILED: Nothing changed`). A raw
-`EditUndo2` does take back a standard view and a projected view. Local: track drawing
-changes another way (view and annotation counts) and verify the undo by them, or refuse
-`doc_undo` in drawings with a text that says so. Not yet decided. With S3 open, a
-misplaced drawing item means rebuilding the drawing.
+`EditUndo2` does take back a standard view and a projected view. Worse, in the scenario
+test of build `…-204719`: with a section on record, `drw_note_add` then `doc_undo` answered
+`VERIFY_FAILED: Nothing changed` while the note was gone from the sheet (notes 65 → 64),
+twice; a session that trusts the error goes on without the note. The hint names
+`feature_list`, which says nothing about drawing annotations. Decided by the owner on
+2026-11-09: refuse `doc_undo` in drawings (`NOT_SUPPORTED`, a text that says why and what
+to do instead) before calling `EditUndo2`, until an undo there can be verified; then PR.
+Tracking drawing changes by view and annotation counts stays a later option. With S3 open,
+a misplaced drawing item means rebuilding the drawing.
+
+**S20. `drw_dimension_add` returns some dimensions without a value check, silently.** In the
+scenario test of build `…-204719`, 9 of 23: every one with a circular edge in it (a line to
+a hole edge, two hole edges, `vertical` or `horizontal`). Their results carry no
+`expected` and no "matches the geometry" check, and no warning that the value was not
+compared, while the tool says each value is verified or removed. The other 14 carry the
+check. The 9 values were right by the design; a wrong pick would be kept the same way.
+Bears on S4. Local: compare those too, or warn that the value was not checked; then PR.
+
+**S21. A document opened `readOnly:true` becomes dirty without an edit.** An assembly after
+only `asm_interference`, `model_info` and `view_screenshot`; a drawing after
+`doc_rebuild`. `doc_close` then refuses `DIRTY` and needs `discard:true`, one extra call
+each. Found in the scenario test of build `…-204719`. Not yet decided: let `doc_close`
+discard a read-only document's changes, or say in the result which call dirtied it.
+
+**S22. Results that repeat what the caller already has.** `drw_note_add` echoes the whole
+note text (1.4k characters back for a 1.4k note); `sw_status` repeats ten `recentOps`
+with their full error texts, up to 2.6k characters per call. Found in the scenario test of
+build `…-204719`. Local, small: a length and the first line for the note, error codes only
+in `recentOps`; then PR. Bears on S8 and S9 (tokens).
 
 ## Waiting
 
@@ -126,8 +154,8 @@ misplaced drawing item means rebuilding the drawing.
 PR #1 (branch `fix/section-sheet-coords`, one commit `81475a5`), tested on 2023 SP3 only;
 on 2025 the mapping may be wrong if sheet coordinates work there. Closes when PR #1 is
 merged or refused; if merged, the local commits drop out at the next rebase. Held again
-in build `…-195750` (two sections, cut where drawn). Not yet run: `drw_view_detail`, views
-at an angle. Not yet checked: `drw_view_edit broken_out` passes its circle in sheet
+in builds `…-195750` and `…-204719` (two sections, cut where drawn). Not yet run:
+`drw_view_detail`, views at an angle. Not yet checked: `drw_view_edit broken_out` passes its circle in sheet
 coordinates straight into the active view (its comment says sketch coordinates are the
 sheet's there), which S1 found false for sections and details; its live test only counts
 the cut, so a circle landing elsewhere on the part would pass.
@@ -146,9 +174,13 @@ Contract live tests 83/86 on 2023 SP3; the three that fail are not this fix's: M
 revision check expects 2025 (`33.`), and auto dimensions and center marks inserted
 nothing, also without the fix, in a SOLIDWORKS session open since 18:05
 (`drw_dimensions_auto`'s hint says a long session can stop inserting model annotations).
-Build `…-204719`, not yet run in a scenario test. Undoing drawing work still does not
-work, for other reasons: S19. Upstream: a PR from `upstream/main` once the scenario test
-held. Closes when that test held and the PR is settled.
+Held in the scenario test of build `…-204719`: no open sketch in a new drawing, after a
+standard view, after each of two sections and in a saved drawing opened read-only;
+`doc_rebuild` runs; in a part a real open sketch is still reported and refused. Undoing
+drawing work still does not work, for other reasons: S19. Upstream: branch
+`fix/drawing-sketch` (one commit `3bde32f`, cherry-picked onto `upstream/main`), pushed;
+the compare link was handed to the owner, PR not yet opened. Closes when the PR is
+settled.
 
 **S6. `sketch_dimension_add` angular refused the acute angle at a shared vertex.** Local:
 `18cbc57` on `sw2023`. The supplement is kept when `textAt` lies in its sector, and the value
