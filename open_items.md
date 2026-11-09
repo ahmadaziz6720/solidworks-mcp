@@ -24,8 +24,8 @@ makes every later test result traceable to a commit.
 **S5. `doc_open` STEP imports surfaces with 3D Interconnect forced off, reported `ok`.**
 Upstream: issue #2. Usage until fixed: import by File > Open and `doc_activate`, or check
 `solidBodies` after `doc_open`. Still so in builds `…-204719`, `…-215810` and `…-230924`:
-a STEP round trip gave 16 surface bodies and no solid. Again in `…-235702` and
-`…-010708` (export `solids: 1`, import 16 surface bodies).
+a STEP round trip gave 16 surface bodies and no solid. Again in `…-235702`,
+`…-010708` and `…-014952` (export `solids: 1`, import 16 surface bodies).
 
 **S7. `dimension_set` accepts a change that splits the body.** Upstream: issue #4. Usage:
 read `bodies` in the result after each `dimension_set`.
@@ -45,7 +45,7 @@ followed a recorded call sequence and made no `sw_help` call at all; so did thos
 `…-195750`, `…-204719` and `…-215810` (28 calls, 13.2k characters for the whole test), and
 `…-230924` (41 calls, 43.2k characters; 44% of them the sheet's note list and three note
 edits, S3 and S22), `…-235702` (33 calls, 27.1k) and `…-010708` (28 calls, 16.0k; two
-full sheet lists and two `drw_info` calls 42% of them).
+full sheet lists and two `drw_info` calls 42% of them) and `…-014952` (28 calls, 16.5k).
 
 **S10. Drawing format and title block.** Precision and decimal separator of drawing
 dimensions, parentheses for reference dimensions, `n×` in hole callouts, DWG NO from a
@@ -114,7 +114,8 @@ itself wrote it. `doc_close` lists the components it also closed with blank name
 (`also closed: , .`). Local, small; then PR. Both warnings met again in builds `…-204719`
 and `…-215810`, `Double 2` on every `doc_open` (drawing, part, assembly, STEP import), and
 `also closed: .` for a new drawing with no components. Again in `…-230924` and `…-235702`
-(`also closed: .` and `, .` for a drawing and an assembly), and in `…-010708`.
+(`also closed: .` and `, .` for a drawing and an assembly), and in `…-010708` and
+`…-014952`.
 
 **S18. `doc_pack` faults.** (1) From a document opened `readOnly:true`, the copies still
 reference the originals (`VERIFY_FAILED: Some copies still reference other files`), three
@@ -138,8 +139,8 @@ only `asm_interference`, `model_info` and `view_screenshot`; a drawing after
 `doc_rebuild`. `doc_close` then refuses `DIRTY` and needs `discard:true`, one extra call
 each. Found in the scenario test of build `…-204719`. Not yet decided: let `doc_close`
 discard a read-only document's changes, or say in the result which call dirtied it. Met
-again in builds `…-215810`, `…-230924`, `…-235702` and `…-010708`: the assembly, after
-only `asm_interference`.
+again in builds `…-215810`, `…-230924`, `…-235702`, `…-010708` and `…-014952`: the
+assembly, after only `asm_interference`.
 
 **S22. Results that repeat what the caller already has.** `drw_note_add` echoes the whole
 note text (1.4k characters back for a 1.4k note); `sw_status` repeats ten `recentOps`
@@ -151,7 +152,9 @@ characters per call; that echo cut to 80 characters in `79c7b4b` (S3). `drw_note
 echo and `sw_status`'s `recentOps` stay; the first cut in `c5df767` (S3 f). Build
 `…-235702`'s scenario test: the one `format:true` list 10.5k, 39% of its characters.
 `drw_note_add`'s cut held in `…-010708` (S3 f); `drw_annotation_list` still gives a
-note's text in full (a sheet list 1.6k to 2.0k, mostly the 1.4k note).
+note's text in full (a sheet list 1.6k to 2.0k, mostly the 1.4k note); again in `…-014952`,
+`kind: note` 1.6k for the one note. Also there: `drw_info` repeats the model's full path in
+every view, 1.6k for three views.
 
 **S23. `Tolerances_read_back_and_fits_follow_the_ISO_tables` fails on 2023 SP3.** A
 FeatureManagement live test: `Expected: 0,021`, `Actual: 0`. Seen 2026-11-09 while fixing
@@ -159,53 +162,6 @@ S19, with and without that fix, in a SOLIDWORKS session open since 18:05. Not ye
 into: a long session, a 2023 difference in reading tolerances or fits, or the test.
 
 ## Waiting
-
-**S3. No tool deleted or moved a drawing view, dimension or note.** Upstream ROADMAP T10.4
-(🟡). Local: `cc685a9` on `sw2023`. `drw_annotation_list` (current sheet or one view: name,
-kind, view, text or value, position, attachment), `drw_annotation_edit` (move, delete, a
-note's text; each read back, a move or text that does not read back is put back and
-refused), `drw_view_edit` kind `move` (aligned views follow and are named; a projected view
-moved off its parent's alignment is put back and refused) and `drw_view_delete` (the views
-that went, and the children that stay: a projected view stays when its parent goes). And
-`ddca400`: `doc_undo`'s refusal in drawings points to these tools. Four new live tests;
-Drawing and Contract live tests on 2023 SP3: 49 of 49. In build `…-230924` (tag
-`build-20261109-230924`). Held in its scenario test (findings 2026-11-09, build
-`…-230924`, point 1) on a finished drawing: list per view, a dimension and the sheet note
-moved, a dimension deleted, the parent moved with both sections following, a section moved
-off its alignment refused and put back, a section deleted, the PDF showing every change.
-Follow-ups from that test: (a) action `text` wrote a typed `\n` as two characters and
-reported `text read back` (`drw_note_add` the same); (b) `drw_view_delete` of a parent took
-its section view too, against the description, and `annotations` counted the named view's
-only; (c) the sheet's list held the sheet format's notes (64 of 65: border zones, title
-block), unmarked, and an edit moved a zone letter; (d) a section view's label was listed
-as a note with text " "; (e) S22's echo. Fixed in `79c7b4b`: a typed `\n` is a line
-break in both tools; `drw_view_delete` refuses a view holding a section, detail or
-auxiliary view's cut unless `withChildren`, and sums the counts of every view that went;
-the format's notes (`IAnnotation.OwnerType` 2) are left out unless `format=true`, marked,
-and refused by the edit; `view_label` is a kind; texts over 80 characters come back cut in
-edit results. Each has an assertion that fails without it; Drawing and Contract live tests
-on 2023 SP3: 50 of 50. In build `…-235702` (tag `build-20261109-235702`). Held in its
-scenario test (findings 2026-11-10, point 1): all five. Small follow-ups from it: (f) `drw_note_add`'s result gives the input text, not the text read back (a
-typed `\n` shown as typed while the note holds a line break), and in full (S22); (g) a view
-label's `text` is a placeholder, not its wording; (h) `drw_info` counts the sheet format's
-notes among the sheet's (65 against the list's 1). Fixed in `c5df767`: the text read back,
-cut over 80 characters; the label's words from `INote.GetTextAtIndex` ("SECTION A-A");
-the template's annotations left out of the count. Drawing and Contract live tests: 50 of
-50. In build `…-20261110-010708` (tag `build-20261110-010708`). Held in its scenario test
-(findings 2026-11-10, build `…-010708`, point 1): all three; a typed `\n` came back as a
-line break, a 134-character note as its first 60 characters and the count; the labels
-read `SECTION A-A` and `SECTION B-B`; the sheet's `notes` equal to the list's (1, then 3).
-Follow-up from it, small: (i) `drw_info` still counted a view's label among that view's
-notes (`notes: 1` for each section view, the list with `kind: note` 0). Fixed in
-`59a15f4`: a label is left out of `notes` and counted apart as `viewLabels` (present
-when a view has one), in `drw_info` and in `drw_view_delete`'s summed counts. The label
-live test reads the section view's counts (notes 0, viewLabels 1) and fails without it;
-Drawing and Contract live tests on 2023 SP3: 50 of 50. In build `…-20261110-014952` (tag
-`build-20261110-014952`).
-Usage: moving a parent moves every view aligned with it, a section placed beside it too
-(point 7). Upstream: not sent yet; a PR branch from `upstream/main` would take `cc685a9`
-alone (`ddca400` stands on PR #8). Editing a dimension's value (T10.4) stays out: a drawing
-dimension's value follows the model.
 
 **S1. `drw_view_section` / `drw_view_detail` drew in view-sketch coordinates.** Local:
 `1de5067` + `3f43c50` on `sw2023`, run and held 2026-11-09 in build `…-163234`. Upstream:
@@ -261,7 +217,7 @@ back a boss extrude. Closes when PR #8 is settled. Tracking drawing changes by v
 annotation counts stays a later option. A misplaced drawing item is moved or removed with
 S3's tools (Waiting) instead of an undo. Held again in build `…-230924`: refused in a
 drawing, the hint naming the three edit tools; in a part an undo took back a boss
-extrude.
+extrude. In a part again in `…-014952`.
 
 **S6. `sketch_dimension_add` angular refused the acute angle at a shared vertex.** Local:
 `18cbc57` on `sw2023`. The supplement is kept when `textAt` lies in its sector, and the value
@@ -282,7 +238,57 @@ refused.
 
 ## Closed
 
-None yet.
+**S3. No tool deleted or moved a drawing view, dimension or note.** Upstream ROADMAP T10.4
+(🟡). Local: `cc685a9` on `sw2023`. `drw_annotation_list` (current sheet or one view: name,
+kind, view, text or value, position, attachment), `drw_annotation_edit` (move, delete, a
+note's text; each read back, a move or text that does not read back is put back and
+refused), `drw_view_edit` kind `move` (aligned views follow and are named; a projected view
+moved off its parent's alignment is put back and refused) and `drw_view_delete` (the views
+that went, and the children that stay: a projected view stays when its parent goes). And
+`ddca400`: `doc_undo`'s refusal in drawings points to these tools. Four new live tests;
+Drawing and Contract live tests on 2023 SP3: 49 of 49. In build `…-230924` (tag
+`build-20261109-230924`). Held in its scenario test (findings 2026-11-09, build
+`…-230924`, point 1) on a finished drawing: list per view, a dimension and the sheet note
+moved, a dimension deleted, the parent moved with both sections following, a section moved
+off its alignment refused and put back, a section deleted, the PDF showing every change.
+Follow-ups from that test: (a) action `text` wrote a typed `\n` as two characters and
+reported `text read back` (`drw_note_add` the same); (b) `drw_view_delete` of a parent took
+its section view too, against the description, and `annotations` counted the named view's
+only; (c) the sheet's list held the sheet format's notes (64 of 65: border zones, title
+block), unmarked, and an edit moved a zone letter; (d) a section view's label was listed
+as a note with text " "; (e) S22's echo. Fixed in `79c7b4b`: a typed `\n` is a line
+break in both tools; `drw_view_delete` refuses a view holding a section, detail or
+auxiliary view's cut unless `withChildren`, and sums the counts of every view that went;
+the format's notes (`IAnnotation.OwnerType` 2) are left out unless `format=true`, marked,
+and refused by the edit; `view_label` is a kind; texts over 80 characters come back cut in
+edit results. Each has an assertion that fails without it; Drawing and Contract live tests
+on 2023 SP3: 50 of 50. In build `…-235702` (tag `build-20261109-235702`). Held in its
+scenario test (findings 2026-11-10, point 1): all five. Small follow-ups from it: (f) `drw_note_add`'s result gives the input text, not the text read back (a
+typed `\n` shown as typed while the note holds a line break), and in full (S22); (g) a view
+label's `text` is a placeholder, not its wording; (h) `drw_info` counts the sheet format's
+notes among the sheet's (65 against the list's 1). Fixed in `c5df767`: the text read back,
+cut over 80 characters; the label's words from `INote.GetTextAtIndex` ("SECTION A-A");
+the template's annotations left out of the count. Drawing and Contract live tests: 50 of
+50. In build `…-20261110-010708` (tag `build-20261110-010708`). Held in its scenario test
+(findings 2026-11-10, build `…-010708`, point 1): all three; a typed `\n` came back as a
+line break, a 134-character note as its first 60 characters and the count; the labels
+read `SECTION A-A` and `SECTION B-B`; the sheet's `notes` equal to the list's (1, then 3).
+Follow-up from it, small: (i) `drw_info` still counted a view's label among that view's
+notes (`notes: 1` for each section view, the list with `kind: note` 0). Fixed in
+`59a15f4`: a label is left out of `notes` and counted apart as `viewLabels` (present
+when a view has one), in `drw_info` and in `drw_view_delete`'s summed counts. The label
+live test reads the section view's counts (notes 0, viewLabels 1) and fails without it;
+Drawing and Contract live tests on 2023 SP3: 50 of 50. In build `…-20261110-014952` (tag
+`build-20261110-014952`). Held in its scenario test (findings 2026-11-10, build `…-014952`,
+point 1): each section view `notes: 0, viewLabels: 1`, the plan view and the sheet with no
+`viewLabels`, equal to the list; after a note added, `notes: 1, viewLabels: 1`; and
+`drw_view_delete` with `withChildren` summed `viewLabels: 2` with the other counts. Closed
+2026-11-10 on the owner's word: every follow-up, (a) to (i), ran and held, and nothing was
+sent upstream.
+Usage: moving a parent moves every view aligned with it, a section placed beside it too
+(point 7). Upstream: not sent yet; a PR branch from `upstream/main` would take `cc685a9`
+alone (`ddca400` stands on PR #8). Editing a dimension's value (T10.4) stays out: a drawing
+dimension's value follows the model.
 
 ## Carried, not items
 

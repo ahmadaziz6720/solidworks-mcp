@@ -507,3 +507,5 @@ Build `bin\0.1.0-20261110-014952`; `sw_status` reports `serverVersion`
 4. **Calls**: 28 for the whole test, 16.5k characters of results, 1 error (the `DIRTY`
    above). The drawing took 11 calls. Each `drw_info` is 1.6k for three views, the model's
    full path repeated in every view. No `sw_help`.
+
+Sorted into S3, closed (1); S22 (2, 4); S19, S5, S21, S17 (3); S9 (4).
