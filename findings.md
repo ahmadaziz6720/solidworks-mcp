@@ -553,3 +553,41 @@ Build `bin\0.1.0-20261110-024431`; `sw_status` reports `serverVersion`
 
 Sorted into S20, held, stays Waiting (1, 3); S20 follow-ups (a) and (b) (2, 3); S24, new
 (4); S19, S5, S21, S17 (5); S9, S8 (6).
+
+**2026-11-10: scenario test of build 034022 (S20 follow-ups: linear on one circle, edge-on hint)**
+
+Build `bin\0.1.0-20261110-034022`; `sw_status` reports `serverVersion`
+`0.1.0-sw2023-20261110-034022`, tag `build-20261110-034022` on `0ac1b7a` (code `8b0fbbd`).
+
+1. **S20 follow-up (a) held.** On a copy of a finished drawing, `drw_dimension_add` `linear`
+   on a single hole edge seen face-on: `kind: diameter`, `expected` equal to `value`, checks
+   "SOLIDWORKS made a diameter dimension of the circle for kind linear" and "value … matches
+   the geometry". The PDF shows it as a diameter, as asked.
+2. **S20 follow-up (b) held.** In a section view, `horizontal` from a vertex to a hole edge
+   seen edge-on: refused `VERIFY_FAILED` (SOLIDWORKS made 2 mm, the vertical distance) and
+   removed, hint "SOLIDWORKS did not make a horizontal dimension to the centre of edge E2,
+   a circle seen edge-on in this view. Dimension to a vertex or a straight edge instead, or
+   in a view where the circle is seen face-on." Right and actionable. `vertical` with the
+   same two entities is still checked (`expected 2`, `('b' to its centre)`), and a
+   `horizontal` from a straight edge to a face-on hole edge still carries `expected` and
+   `('b' to its centre)`. Not run: the hint for a mismatch with no edge-on circle (no case
+   found that SOLIDWORKS gets wrong), and a near or far arc condition (no tool sets one).
+3. **`linear` on a single edge-on circle: the warning now reads clearly, but SOLIDWORKS
+   draws it as a diameter.** The result has `kind: linear`, no `expected`, and the warning
+   "no expected linear value is computed for a circle seen edge-on alone in this view".
+   The value is the circle's diameter, and the PDF prints it with a Ø prefix: SOLIDWORKS
+   made a linear diameter dimension of the edge-on hole. The diameter is known, so it
+   could be compared as in 1, and `kind` could say what the sheet shows. Reported success,
+   value right. Small; bears on S20.
+4. **A dimension laid on another accepted without a word.** A `horizontal` given
+   `textAtMm` on the row of an existing dimension from the same edge: its dimension line
+   lies on the other's, the two texts side by side, `textAtMm` echoed, no warning. Placed
+   so by the call; the result does not show the clash. Bears on S14.
+5. **Short checks.** In a new part `doc_undo` after a boss extrude removed it (volume → 0).
+   STEP AP214 export reported `solids: 1`; `doc_open` of it gave 16 surface bodies, no
+   solid (S5, met again). An assembly opened `readOnly:true` was `dirty: true` after only
+   `asm_interference` (0 at the saved position) (S21, met again). Every `doc_open` warned
+   `Double 2` changed; `doc_close` of the drawing and of the assembly listed `also closed:
+   .` and `, .` (S17, met again).
+6. **Calls**: 25 for the whole test, 11.6k characters of results, 1 error (the intended
+   `VERIFY_FAILED` in 2). The drawing took 10. No `sw_help`.
