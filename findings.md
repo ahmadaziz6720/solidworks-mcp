@@ -266,3 +266,6 @@ Build `bin\0.1.0-20261109-195750` (`f87a3df`, from the registration and `open_it
    27.4k characters of results, no `sw_help` (the slope sketch 12 calls, one of them the
    deliberate refusal). The bare two-line check 8 calls; the drawing with both sections 8
    calls, 3.7k. Both sections cut where drawn, 1 and 3 hatched faces (S1 holds).
+
+Sorted into S6 (1, 2); S17 (3); S8, S9, S1 (4). The build line: S16. Point 4 of the
+`…-181555` entry, rewritten in the same session: S17.

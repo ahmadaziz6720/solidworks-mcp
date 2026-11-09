@@ -44,12 +44,14 @@ read `bodies` in the result after each `dimension_set`.
 relations and dimensions in `sketch_add` or a batch tool, each still verified. Upstream has
 no item for it; PR when built. Baseline to compare a fix against: findings 2026-11-09,
 "drawing and setup lessons", point 6 (build `…-163234`, ≈53 calls and ≈35k characters for
-the test part's geometry). In build `…-181555`, without a fix: 47 calls, 25.8k.
+the test part's geometry). In build `…-181555`, without a fix: 47 calls, 25.8k. In build
+`…-195750`: 51 calls, 27.4k (the slope sketch 12, one a deliberate refusal).
 
 **S9. `sw_help` at session start reads ≈23.5k characters.** Usage: a short note of the tools
 and conventions the sessions here use, read instead. Where the note lives (a skill, the
 global `CLAUDE.md`, a memory) is the owner's call. The scenario test of build `…-181555`
-followed a recorded call sequence and made no `sw_help` call at all.
+followed a recorded call sequence and made no `sw_help` call at all; so did that of
+`…-195750`.
 
 **S10. Drawing format and title block.** Precision and decimal separator of drawing
 dimensions, parentheses for reference dimensions, `n×` in hole callouts, DWG NO from a
@@ -90,14 +92,17 @@ the registration already shows the new exe, and a test result gets pinned to the
 build. Local: the build stamp and commit in `serverVersion` (e.g.
 `0.1.0-20261109-181555+18cbc57`, `-dirty` from an uncommitted tree), from
 `InformationalVersion` / `SourceRevisionId`; the stamp part may stay local, the commit
-part could go upstream.
+part could go upstream. Met again in the test of `…-195750`, whose build was read from
+the registration.
 
 **S17. Warnings and texts that are noise.** `feature_mirror` warns "instances overlap,
 merge or are clipped" on a correct mirror whose base face merges into the body (area ratio
-1.05; seen in builds `…-145700` and `…-181555`). Every `doc_open` of a native document
-warns that system option `Double 2` changed, a different value each time, which SOLIDWORKS
-likely sets itself: find what `Double 2` is before keeping the warning (S5 has the same
-warning on STEP imports). `doc_close` lists the components it also closed with blank names
+1.05; seen in builds `…-145700`, `…-181555` and `…-195750`). Every `doc_open` of a native
+document warns that system option `Double 2` changed, a different value each time (S5 has
+the same warning on STEP imports). `Double 2` is `swSTLDeviation`, coupled with the STL
+quality; SOLIDWORKS derives it from the opened model's size, and `doc_open` does not write
+it. Proposal: leave the coupled STL group out of the after-call comparison unless the call
+itself wrote it. `doc_close` lists the components it also closed with blank names
 (`also closed: , .`). Local, small; then PR.
 
 **S18. `doc_pack` faults.** (1) From a document opened `readOnly:true`, the copies still
@@ -115,8 +120,9 @@ then PR. (3) not yet decided.
 `1de5067` + `3f43c50` on `sw2023`, run and held 2026-11-09 in build `…-163234`. Upstream:
 PR #1 (branch `fix/section-sheet-coords`, one commit `81475a5`), tested on 2023 SP3 only;
 on 2025 the mapping may be wrong if sheet coordinates work there. Closes when PR #1 is
-merged or refused; if merged, the local commits drop out at the next rebase. Not yet run:
-`drw_view_detail`, views at an angle.
+merged or refused; if merged, the local commits drop out at the next rebase. Held again
+in build `…-195750` (two sections, cut where drawn). Not yet run: `drw_view_detail`, views
+at an angle.
 
 **S6. `sketch_dimension_add` angular refused the acute angle at a shared vertex.** Local:
 `18cbc57` on `sw2023`. The supplement is kept when `textAt` lies in its sector, and the value
@@ -126,9 +132,14 @@ Upstream: PR #6 (branch `fix/angular-supplement`, `dce4afe`, "Fixes #3"). Second
 scenario entry's point 2: without `textAt`, a value that lands in the angle across the
 vertex was refused with a hint to look for other relations. Still refused and rolled back,
 now saying so, with a hint that gives a `textAt` inside the other angle. Local: `f87a3df`
-on `sw2023`; on `fix/angular-supplement` as `ec2c32b`, not yet pushed to PR #6. New live
-test fails without it; `SketchEditLiveTests` 59/59 on 2023 SP3. In build `…-195750`, not
-yet run in a scenario test. Closes when that test held and PR #6 is merged or refused.
+on `sw2023`; on `fix/angular-supplement` as `ec2c32b`, pushed to PR #6. New live test
+fails without it; `SketchEditLiveTests` 59/59 on 2023 SP3. Held in the scenario test of
+build `…-195750`, in a real sketch and in the bare two-line repro (one extra call over a
+sketch made with `textAt` from the start). Left open from that test, local and small, for
+PR #6 too: the hint and the accepted call's check name the acute angle by its current
+size (`To set the 7.5° angle` when 10° was asked), which reads like a value to use; say
+"the angle that is now 7.5°". Closes when that wording is in and PR #6 is merged or
+refused.
 
 ## Closed
 
