@@ -443,3 +443,5 @@ Build `bin\0.1.0-20261109-235702`; `sw_status` reports `serverVersion`
 7. **Calls**: 33 for the whole test, 27.1k characters of results, 3 errors (the two
    intended refusals and the `DIRTY` above). The drawing 17 calls; the one `format:true`
    list is 10.5k, 39% of the characters. No `sw_help`.
+
+Sorted into S3 (1, 2, 3, 5); S22 (2, 7); S14 (4); S5, S21, S17 (6); S9 (7).
