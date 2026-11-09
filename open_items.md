@@ -10,9 +10,9 @@ Three sections: **Open**, not yet fixed; **Waiting**, fixed and not yet settled 
 merged, a fix not yet run in a session); **Closed**, merged upstream, run and held, or
 decided against, with the record.
 
-**Open: S4, S5, S7 to S18, S20 to S23.** Next, for working drawings and tokens: S20, then
-S8. S5 and S7 wait a while for upstream's answer to issues #2 and #4. S16 is small and
-makes every later test result traceable to a commit.
+**Open: S4, S5, S7 to S18, S21 to S23.** Next, for working drawings and tokens: S8. S5 and
+S7 wait a while for upstream's answer to issues #2 and #4. S16 is small and makes every
+later test result traceable to a commit.
 
 ---
 
@@ -126,14 +126,6 @@ looks next to the model. (3) Missing: new names per file (only prefix or suffix)
 refuse or reopen a read-only source, report `noDrawingsFound`, say both in the description;
 then PR. (3) not yet decided.
 
-**S20. `drw_dimension_add` returns some dimensions without a value check, silently.** In the
-scenario test of build `…-204719`, 9 of 23: every one with a circular edge in it (a line to
-a hole edge, two hole edges, `vertical` or `horizontal`). Their results carry no
-`expected` and no "matches the geometry" check, and no warning that the value was not
-compared, while the tool says each value is verified or removed. The other 14 carry the
-check. The 9 values were right by the design; a wrong pick would be kept the same way.
-Bears on S4. Local: compare those too, or warn that the value was not checked; then PR.
-
 **S21. A document opened `readOnly:true` becomes dirty without an edit.** An assembly after
 only `asm_interference`, `model_info` and `view_screenshot`; a drawing after
 `doc_rebuild`. `doc_close` then refuses `DIRTY` and needs `discard:true`, one extra call
@@ -235,6 +227,21 @@ PR #6 too: the hint and the accepted call's check name the acute angle by its cu
 size (`To set the 7.5° angle` when 10° was asked), which reads like a value to use; say
 "the angle that is now 7.5°". Closes when that wording is in and PR #6 is merged or
 refused.
+
+**S20. `drw_dimension_add` returned some dimensions without a value check, silently.** In the
+scenario test of build `…-204719`, 9 of 23: every one with a circular edge in it (a line to
+a hole edge, two hole edges, `vertical` or `horizontal`). Their results carried no
+`expected` and no "matches the geometry" check, and no warning, while the tool says each
+value is verified or removed. Bears on S4. Local: `8c88427` on `sw2023`. A circle among the
+two entities is measured as the dimension does: at its centre, or face-on at its near or
+far side, from the arc end conditions read back from the dimension (two circles: the other
+order if the first does not fit). What still cannot be compared (an assembly view, a
+curve, a single circle with `linear`) comes with a warning "not compared with the
+geometry"; the tool description says both. New live test (six dimensions to hole edges:
+a line to a hole, two holes, `horizontal`, `vertical`, `linear`) fails without it
+(`horizontal: expected none, wanted 50`). Drawing live tests 44/44 and unit tests 248/248
+on 2023 SP3. Not yet run: a near or far side (no tool sets one), an edge-on circle. Not
+yet in a build. Upstream: PR when held.
 
 ## Closed
 
