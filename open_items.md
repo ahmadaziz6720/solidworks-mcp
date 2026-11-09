@@ -24,7 +24,8 @@ makes every later test result traceable to a commit.
 **S5. `doc_open` STEP imports surfaces with 3D Interconnect forced off, reported `ok`.**
 Upstream: issue #2. Usage until fixed: import by File > Open and `doc_activate`, or check
 `solidBodies` after `doc_open`. Still so in builds `…-204719`, `…-215810` and `…-230924`:
-a STEP round trip gave 16 surface bodies and no solid. Again in `…-235702`.
+a STEP round trip gave 16 surface bodies and no solid. Again in `…-235702` and
+`…-010708` (export `solids: 1`, import 16 surface bodies).
 
 **S7. `dimension_set` accepts a change that splits the body.** Upstream: issue #4. Usage:
 read `bodies` in the result after each `dimension_set`.
@@ -43,7 +44,8 @@ global `CLAUDE.md`, a memory) is the owner's call. The scenario test of build `�
 followed a recorded call sequence and made no `sw_help` call at all; so did those of
 `…-195750`, `…-204719` and `…-215810` (28 calls, 13.2k characters for the whole test), and
 `…-230924` (41 calls, 43.2k characters; 44% of them the sheet's note list and three note
-edits, S3 and S22), and `…-235702` (33 calls, 27.1k).
+edits, S3 and S22), `…-235702` (33 calls, 27.1k) and `…-010708` (28 calls, 16.0k; two
+full sheet lists and two `drw_info` calls 42% of them).
 
 **S10. Drawing format and title block.** Precision and decimal separator of drawing
 dimensions, parentheses for reference dimensions, `n×` in hole callouts, DWG NO from a
@@ -79,7 +81,10 @@ while the moved section view's label sat on the letter of another section line i
 parent view; the check covers view bounds only, not labels, section letters or
 dimensions. Again in `…-235702`: `drw_annotation_edit` moved a section label 4.3 mm onto
 the other section line's letter, `position read back`, no warning; moving a label is the
-easiest way to land one on another view's annotation.
+easiest way to land one on another view's annotation. Again in `…-010708`: `drw_note_add`
+120 mm from the sheet's right edge with a first line ≈180 mm long, `position read back`, no
+warning, the line cut off at the page edge in the PDF; the result gives the position, not
+the note's extent.
 
 **S15. `tools\install.ps1` registers at user scope under the name `solidworks`.** That
 clashes with any other server of that name. Usage: `-NoRegister`, and register by hand at
@@ -109,7 +114,7 @@ itself wrote it. `doc_close` lists the components it also closed with blank name
 (`also closed: , .`). Local, small; then PR. Both warnings met again in builds `…-204719`
 and `…-215810`, `Double 2` on every `doc_open` (drawing, part, assembly, STEP import), and
 `also closed: .` for a new drawing with no components. Again in `…-230924` and `…-235702`
-(`also closed: .` and `, .` for a drawing and an assembly).
+(`also closed: .` and `, .` for a drawing and an assembly), and in `…-010708`.
 
 **S18. `doc_pack` faults.** (1) From a document opened `readOnly:true`, the copies still
 reference the originals (`VERIFY_FAILED: Some copies still reference other files`), three
@@ -133,8 +138,8 @@ only `asm_interference`, `model_info` and `view_screenshot`; a drawing after
 `doc_rebuild`. `doc_close` then refuses `DIRTY` and needs `discard:true`, one extra call
 each. Found in the scenario test of build `…-204719`. Not yet decided: let `doc_close`
 discard a read-only document's changes, or say in the result which call dirtied it. Met
-again in builds `…-215810`, `…-230924` and `…-235702`: the assembly, after only
-`asm_interference`.
+again in builds `…-215810`, `…-230924`, `…-235702` and `…-010708`: the assembly, after
+only `asm_interference`.
 
 **S22. Results that repeat what the caller already has.** `drw_note_add` echoes the whole
 note text (1.4k characters back for a 1.4k note); `sw_status` repeats ten `recentOps`
@@ -145,6 +150,8 @@ in `recentOps`; then PR. Bears on S8 and S9 (tokens). Met again in build `…-23
 characters per call; that echo cut to 80 characters in `79c7b4b` (S3). `drw_note_add`'s
 echo and `sw_status`'s `recentOps` stay; the first cut in `c5df767` (S3 f). Build
 `…-235702`'s scenario test: the one `format:true` list 10.5k, 39% of its characters.
+`drw_note_add`'s cut held in `…-010708` (S3 f); `drw_annotation_list` still gives a
+note's text in full (a sheet list 1.6k to 2.0k, mostly the 1.4k note).
 
 **S23. `Tolerances_read_back_and_fits_follow_the_ISO_tables` fails on 2023 SP3.** A
 FeatureManagement live test: `Expected: 0,021`, `Actual: 0`. Seen 2026-11-09 while fixing
@@ -184,8 +191,13 @@ label's `text` is a placeholder, not its wording; (h) `drw_info` counts the shee
 notes among the sheet's (65 against the list's 1). Fixed in `c5df767`: the text read back,
 cut over 80 characters; the label's words from `INote.GetTextAtIndex` ("SECTION A-A");
 the template's annotations left out of the count. Drawing and Contract live tests: 50 of
-50. In build `…-20261110-010708` (tag `build-20261110-010708`); not yet run in a scenario
-test.
+50. In build `…-20261110-010708` (tag `build-20261110-010708`). Held in its scenario test
+(findings 2026-11-10, build `…-010708`, point 1): all three; a typed `\n` came back as a
+line break, a 134-character note as its first 60 characters and the count; the labels
+read `SECTION A-A` and `SECTION B-B`; the sheet's `notes` equal to the list's (1, then 3).
+Follow-up from it, small and not yet fixed: (i) `drw_info` still counts a view's label
+among that view's notes (`notes: 1` for each section view, the list with `kind: note` 0):
+count labels apart or leave them out, as the format's notes are.
 Usage: moving a parent moves every view aligned with it, a section placed beside it too
 (point 7). Upstream: not sent yet; a PR branch from `upstream/main` would take `cc685a9`
 alone (`ddca400` stands on PR #8). Editing a dimension's value (T10.4) stays out: a drawing
