@@ -1006,7 +1006,8 @@ public sealed partial class FeatureManagementService(SwSession session)
                 throw new SwException(ErrorCodes.NotSupported,
                     $"doc_undo doesn't undo in drawings ('{entry.Title}'): the server can't tell which drawing changes are its own " +
                     "undo steps, nor check what an undo took back (a view, a dimension, a note).",
-                    "Ask the user to undo in SOLIDWORKS (Ctrl+Z), then read the drawing back with drw_info; or make the drawing again.");
+                    "Remove or move what went wrong with drw_annotation_edit, drw_view_edit (move) or drw_view_delete; or ask the user to " +
+                    "undo in SOLIDWORKS (Ctrl+Z), then read the drawing back with drw_info.");
             if (entry.Class is not (DocClass.Owned or DocClass.Adopted))
                 throw new SwException(ErrorCodes.NotOwned, $"'{entry.Title}' is the user's document; the server doesn't undo in it.");
             RequireNoOpenSketch(ctx, d, "undo would act on the sketch edits");
