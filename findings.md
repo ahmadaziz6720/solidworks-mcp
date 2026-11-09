@@ -317,3 +317,25 @@ Build `bin\0.1.0-20261109-204719` (`44fb220`, from the registration and `open_it
 
 Sorted into S2, S1 (1); S19 (2); S20 (3); S17 (4); S21 (5); S22 (6); S8, S9, S5 (7). The
 build line: S16.
+
+**2026-11-09: scenario test of the drawing-undo refusal: undo tried in a new drawing before and after a section, and in a part; short checks of a STEP round trip and an assembly**
+
+Build `bin\0.1.0-20261109-215810`; `sw_status` reports `serverVersion`
+`0.1.0-sw2023-20261109-215810`, tag `build-20261109-215810` on `6bb5d94`.
+
+1. **S19 held.** `doc_undo` in a drawing refused `NOT_SUPPORTED` before anything was
+   undone, both after a plan view and a note (no section yet) and after a section and a
+   second note. `drw_info` read back the same views and every note: 2 views, the second
+   note still there (sheet notes up by one, not down as in build `…-204719`). The hint
+   (undo in SOLIDWORKS with Ctrl+Z, then `drw_info`) is clear and blames no one. In a
+   new part, `doc_undo` after a boss extrude still removed it (volume back to 0).
+2. **S16, the stamp part held.** `sw_status` names the build without the registration
+   being read. The commit is still not in it; it came from the tag.
+3. **S17, met again.** Each `doc_open` (a part read-only, a STEP import, an assembly
+   read-only) warned that `Double 2` changed, each time another value. `doc_close` of a
+   new drawing warned `also closed: .`, of the assembly `also closed: , .`.
+4. **S21, met again.** An assembly opened `readOnly:true` was dirty after only
+   `asm_interference`; closed with `discard:true`.
+5. **S5, met again.** STEP AP214 export then `doc_open`: 16 surface bodies, no solid.
+6. **Calls**: 28 for the whole test, 13.2k characters of results, 2 errors (the two
+   intended refusals). No `sw_help`.
