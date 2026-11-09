@@ -11,7 +11,10 @@ code, its conventions and its tests are upstream's: read `CONTRIBUTING.md`,
 `docs/DESIGN.md` and `ROADMAP.md` before changing it.
 
 **Read [`open_items.md`](open_items.md) before assuming the server works for a task.** What
-sessions found is in [`findings.md`](findings.md).
+sessions found is in [`findings.md`](findings.md). `python board.py` shows both as a page
+(read-only, on `127.0.0.1:8766`); `python board.py --check` lists what does not parse,
+including an `**Open: …**` line that no longer matches the Open section: run it after
+editing either file.
 
 ## Branches and remotes
 
@@ -23,9 +26,10 @@ fork: the owner opens it from the compare link `soheil-mp/solidworks-mcp/compare
 - `origin` = the fork `ahmadaziz6720/solidworks-mcp`, `upstream` = `soheil-mp/solidworks-mcp`.
 - `main` tracks `upstream/main` and carries nothing of ours.
 - `sw2023` is what is built and run here: upstream plus the 2023 interop patch, local fixes,
-  and this file, `findings.md` and `open_items.md`.
+  and this file, `findings.md`, `open_items.md` and `board.py`.
 - **A PR branch starts from `upstream/main`** and holds only the fix (cherry-picked or
-  squashed from `sw2023`). The interop patch and these three files never go upstream.
+  squashed from `sw2023`). The interop patch, these three files and `board.py` never go
+  upstream.
 - Update: `git fetch upstream`, `git rebase upstream/main` on `sw2023`, then build (below).
   A member missing in the 2023 interop shows as a compile error.
 
