@@ -821,7 +821,7 @@ public sealed partial class DrawingService(SwSession session)
                 // Informational: GetFaceHatchCount / GetSolidHatchCount read 0 for a hatched section of a solid block live, so a
                 // zero proves nothing; the view's direction (above) and extents (modelBoxMm) are the checks.
                 if (hatches > 0) checks.Add($"{hatches} hatched cut face(s)");
-                else ctx.Warn($"'{info.Name}' reads no hatched cut faces; check in a screenshot that the cut line crosses the part (sw2023 patch).");
+                else ctx.Warn($"'{info.Name}' reads no hatched cut faces; check in a screenshot that the cut line crosses the part.");
                 OverlapCheck(ctx, sheet, [sv], checks);
                 return new DrwViewResult { Doc = ctx.Title(d), View = info with { Parent = hit.Name }, Label = lb, Checks = checks };
             }
@@ -1847,16 +1847,16 @@ public sealed partial class DrawingService(SwSession session)
     }
 
     /// <summary>
-    /// Draws a sketch entity in the active view at sheet coordinates. The verified recipe passes sheet coordinates; when
-    /// the view's sketch has its own transform, a selection at the sheet point tells which interpretation SOLIDWORKS used,
-    /// and the entity is redrawn through the transform if needed.
+    /// Draws a sketch entity in the active view at sheet coordinates: the caller's sheet points are mapped into the view
+    /// sketch's coordinates (<see cref="SheetToViewSketch"/>) before SOLIDWORKS sees them.
     /// </summary>
     private static ISketchSegment DrawInView(SwContext ctx, IModelDoc2 d, ViewHit hit, string what, Func<Xform, ISketchSegment?> draw,
         (double X, double Y) probe, List<string> checks)
     {
-        // sw2023 patch: with the view active and AddToDB on, SOLIDWORKS 2023 SP3 takes the entities in the view sketch's
-        // coordinates, (sheet - IView.Position) / view scale, not in sheet coordinates (checked live: a cut asked at
-        // sheet x = 215 + 105 landed there only when passed as 105 at 1:1). Map the sheet points into the view sketch.
+        // With the view active and AddToDB on, SOLIDWORKS takes the entities in the view sketch's coordinates,
+        // (sheet - IView.Position) / view scale, not in sheet coordinates (checked live in 2023 SP3: a cut line asked
+        // at sheet x = 320 in a 1:1 view centred at x = 215 landed there only when passed as x = 105). A section of a
+        // uniform block hides this, since its extents are the same wherever the cut lands.
         // A selection pick at the sheet point to confirm the segment (SelectByID2) deactivated the view live, so the
         // next entities and the section or detail command lost it: the segment's owner sketch is compared with the
         // view's instead.
