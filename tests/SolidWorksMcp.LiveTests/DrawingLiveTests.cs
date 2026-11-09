@@ -501,6 +501,38 @@ public class DrawingLiveTests(LiveFixture fx) : LiveTest(fx)
         Assert.Contains("part", model.Hint);
     }
 
+    [Fact]
+    public async Task Dimensions_to_hole_edges_are_checked_at_the_hole_centres()
+    {
+        // S20: a dimension with a circular edge in it came back with no expected value and no warning. The block with its
+        // Ø20 hole at the origin, plus a Ø6 x 10 drill on the front face at (30, 15).
+        var (doc, path) = await BlockAsync("drw_dim_holes", hole: true);
+        await new PartFeatureService(S).HoleAsync(new HoleRequest { Doc = doc, Points = [[30, 15, 20]], Type = "drill", DiameterMm = 6, End = "blind", DepthMm = 10 });
+        await Docs.SaveAsync(doc, "inPlace", null, false);
+        string drw = await DrawingAsync("drw_dim_holes");
+        var front = (await Drw.ViewsStandardAsync(path, ["front"], null, drw)).Views.Single().Name;
+        var right = new EntityRef { Type = "edge", At = [50, 0, 20] };
+        var top = new EntityRef { Type = "edge", At = [0, 30, 20] };
+        var big = new EntityRef { Type = "edge", At = [10, 0, 20] };
+        var small = new EntityRef { Type = "edge", At = [33, 15, 20] };
+
+        async Task Checked(EntityRef a, EntityRef b, string kind, double mm, string arcs)
+        {
+            var r = await Drw.DimensionAddAsync(front, a, b, kind, null, drw);
+            Assert.Equal(mm, r.Value, 1e-6);
+            Assert.True(r.Expected is double e && Math.Abs(e - mm) < 1e-6, $"{kind}: expected {r.Expected?.ToString() ?? "none"}, wanted {mm}");
+            Assert.Contains(r.Checks!, c => c.Contains("matches the geometry") && c.Contains(arcs));
+            Assert.DoesNotContain(r.Warnings ?? [], w => w.Contains("not compared"));
+        }
+
+        await Checked(right, big, "horizontal", 50, "'b' to its centre");          // a line to a hole edge
+        await Checked(top, small, "vertical", 15, "'b' to its centre");
+        await Checked(big, top, "linear", 30, "'a' to its centre");
+        await Checked(big, small, "horizontal", 30, "'a' to its centre, 'b' to its centre"); // two hole edges
+        await Checked(big, small, "vertical", 15, "'a' to its centre, 'b' to its centre");
+        await Checked(big, small, "linear", Math.Sqrt(30 * 30 + 15 * 15), "'a' to its centre, 'b' to its centre");
+    }
+
     // ------------------------------------------------------------------ M8 WP2: sheets, flat-pattern / auxiliary views, breaks
 
     [Fact]
