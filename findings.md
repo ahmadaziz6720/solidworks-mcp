@@ -637,3 +637,5 @@ Build `bin\0.1.0-20261110-064352`; `sw_status` reports `serverVersion`
    `VERIFY_FAILED` in 2, the `FEATURE_FAILED` probe in 3, the centre pick in 5). The
    drawing took 13, of them 8 dimension adds at ~110–600 characters each and one
    `drw_info` (1.6k) to read the second section's orientation. No `sw_help`.
+
+Sorted into S20, held, follow-up (d) new (1, 2, 3); S14 (4); S25 new (5); S19, S5, S21, S17 (6); S9 (7).

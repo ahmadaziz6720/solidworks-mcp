@@ -10,7 +10,7 @@ Three sections: **Open**, not yet fixed; **Waiting**, fixed and not yet settled 
 merged, a fix not yet run in a session); **Closed**, merged upstream, run and held, or
 decided against, with the record.
 
-**Open: S4, S5, S7 to S18, S21 to S24.** Next, for working drawings and tokens: S8. S5 and
+**Open: S4, S5, S7 to S18, S21 to S25.** Next, for working drawings and tokens: S8. S5 and
 S7 wait a while for upstream's answer to issues #2 and #4. S16 is small and makes every
 later test result traceable to a commit.
 
@@ -25,8 +25,8 @@ later test result traceable to a commit.
 Upstream: issue #2. Usage until fixed: import by File > Open and `doc_activate`, or check
 `solidBodies` after `doc_open`. Still so in builds `…-204719`, `…-215810` and `…-230924`:
 a STEP round trip gave 16 surface bodies and no solid. Again in `…-235702`,
-`…-010708`, `…-014952`, `…-024431` and `…-034022` (export `solids: 1`, import 16 surface
-bodies).
+`…-010708`, `…-014952`, `…-024431`, `…-034022` and `…-064352` (export `solids: 1`, import 16
+surface bodies).
 
 **S7. `dimension_set` accepts a change that splits the body.** Upstream: issue #4. Usage:
 read `bodies` in the result after each `dimension_set`.
@@ -49,7 +49,9 @@ followed a recorded call sequence and made no `sw_help` call at all; so did thos
 `…-230924` (41 calls, 43.2k characters; 44% of them the sheet's note list and three note
 edits, S3 and S22), `…-235702` (33 calls, 27.1k) and `…-010708` (28 calls, 16.0k; two
 full sheet lists and two `drw_info` calls 42% of them), `…-014952` (28 calls, 16.5k),
-`…-024431` (42 calls, 21.2k) and `…-034022` (25 calls, 11.6k).
+`…-024431` (42 calls, 21.2k), `…-034022` (25 calls, 11.6k) and `…-064352` (28 calls, 13.2k;
+8 dimension adds at ≈110–600 characters each, one `drw_info` of 1.6k to read a section's
+orientation).
 
 **S10. Drawing format and title block.** Precision and decimal separator of drawing
 dimensions, parentheses for reference dimensions, `n×` in hole callouts, DWG NO from a
@@ -91,7 +93,8 @@ warning, the line cut off at the page edge in the PDF; the result gives the posi
 the note's extent. Again in `…-034022`: `drw_dimension_add` `horizontal` with `textAtMm` on
 the row of an existing dimension from the same edge, its dimension line on the other's and
 the two texts side by side, `textAtMm` echoed, no warning; the result does not show a clash
-with the view's other dimensions.
+with the view's other dimensions. Again in `…-064352`: a dimension's `textAtMm` at y 292 on an
+A3 sheet (297 high) put the text over the border's zone strip, `textAtMm` echoed, no warning.
 
 **S15. `tools\install.ps1` registers at user scope under the name `solidworks`.** That
 clashes with any other server of that name. Usage: `-NoRegister`, and register by hand at
@@ -122,7 +125,7 @@ itself wrote it. `doc_close` lists the components it also closed with blank name
 and `…-215810`, `Double 2` on every `doc_open` (drawing, part, assembly, STEP import), and
 `also closed: .` for a new drawing with no components. Again in `…-230924` and `…-235702`
 (`also closed: .` and `, .` for a drawing and an assembly), and in `…-010708`,
-`…-014952`, `…-024431` and `…-034022`.
+`…-014952`, `…-024431`, `…-034022` and `…-064352`.
 
 **S18. `doc_pack` faults.** (1) From a document opened `readOnly:true`, the copies still
 reference the originals (`VERIFY_FAILED: Some copies still reference other files`), three
@@ -139,7 +142,7 @@ only `asm_interference`, `model_info` and `view_screenshot`; a drawing after
 each. Found in the scenario test of build `…-204719`. Not yet decided: let `doc_close`
 discard a read-only document's changes, or say in the result which call dirtied it. Met
 again in builds `…-215810`, `…-230924`, `…-235702`, `…-010708`, `…-014952`,
-`…-024431` and `…-034022`: the assembly, after only `asm_interference`.
+`…-024431`, `…-034022` and `…-064352`: the assembly, after only `asm_interference`.
 
 **S22. Results that repeat what the caller already has.** `drw_note_add` echoes the whole
 note text (1.4k characters back for a 1.4k note); `sw_status` repeats ten `recentOps`
@@ -168,6 +171,15 @@ went down by one and the name is no longer listed; in a drawing that keeps them,
 layout changes without a word. Bears on S3 (Closed), whose tool it is. Local: read the
 view's other annotations' positions before and after a delete and name each that moved.
 Not yet decided whether to put them back as well.
+
+**S25. A point at a hole's centre resolves to the hole's edge with a bare distance.** In the
+scenario test of build `…-064352` (point 5): a dimension's entity given at a hole's centre
+resolved to the hole's edge with "no edge exactly at …; used the nearest one, 2.25 mm away"
+(the radius), and `strict: true` refused it `ENTITY_NOT_FOUND`. Both right, since the centre
+is not on the edge; but a session that thinks in hole centres reads the warning as a near
+miss. Local, small: when the point is a circular edge's centre, the warning says so
+(`used the circle centred there`). Usage until then: pick a hole's edge on the circle. Then
+PR with other resolver work; not yet decided.
 
 ## Waiting
 
@@ -225,7 +237,7 @@ back a boss extrude. Closes when PR #8 is settled. Tracking drawing changes by v
 annotation counts stays a later option. A misplaced drawing item is moved or removed with
 S3's tools (Waiting) instead of an undo. Held again in build `…-230924`: refused in a
 drawing, the hint naming the three edit tools; in a part an undo took back a boss
-extrude. In a part again in `…-014952`, `…-024431` and `…-034022`.
+extrude. In a part again in `…-014952`, `…-024431`, `…-034022` and `…-064352`.
 
 **S6. `sketch_dimension_add` angular refused the acute angle at a shared vertex.** Local:
 `18cbc57` on `sw2023`. The supplement is kept when `textAt` lies in its sector, and the value
@@ -308,9 +320,21 @@ at an angle keeps the warning, which now says "a circle seen at an angle". New l
 fails without it (`linear: expected none, wanted 20`); Drawing and Contract live tests 54/54
 on 2023 SP3, unit tests 248/248. Not run: a section whose cut leaves the hole's axis
 oblique on the sheet (`horizontal` there would be checked against the projected share). In
-build `…-064352` (tag `build-20261110-064352`).
-
-## Closed
+build `…-064352` (tag `build-20261110-064352`). Held in its scenario test (findings
+2026-11-10, build `…-064352`, points 1 and 2): (c) `linear` and `horizontal` on a hole edge
+seen edge-on and drawn horizontally, alone, each `expected` equal to `value` (the diameter),
+with the Ø check and no warning; in a second section rotated so the edge is drawn
+vertically, `vertical` on it alone checked too; the PDF prints all three as Ø with the
+diameter. (a) and (b) held again. Still not run: an oblique edge-on hole, a near or far
+side. Follow-up from it, small, not in the PR (point 3): (d) `vertical` on an edge-on circle
+drawn horizontally is refused `FEATURE_FAILED` with the generic hint "Check that the
+entities can carry this kind of dimension (… a circle for radial/diameter)", which reads as
+if it should have worked; the server knows the circle is seen edge-on and its drawn
+direction, so the hint can say so and point to `linear` or the other direction. Nothing
+made, the failure reported honestly. Upstream: branch `fix/dimension-circles` (one commit
+`5a54b9f`, `8c88427`, `8b0fbbd` and `23bd0d7` squashed onto `upstream/main`), its link
+handed over 2026-11-10; Drawing and Contract live tests 46/46 on it on 2023 SP3 (the
+interop patch on top, uncommitted). Closes when that PR is settled.
 
 **S3. No tool deleted or moved a drawing view, dimension or note.** Upstream ROADMAP T10.4
 (🟡). Local: `cc685a9` on `sw2023`. `drw_annotation_list` (current sheet or one view: name,
@@ -358,11 +382,18 @@ point 1): each section view `notes: 0, viewLabels: 1`, the plan view and the she
 `viewLabels`, equal to the list; after a note added, `notes: 1, viewLabels: 1`; and
 `drw_view_delete` with `withChildren` summed `viewLabels: 2` with the other counts. Closed
 2026-11-10 on the owner's word: every follow-up, (a) to (i), ran and held, and nothing was
-sent upstream.
+sent upstream. Back to Waiting the same day, when it was sent (below).
 Usage: moving a parent moves every view aligned with it, a section placed beside it too
-(point 7). Upstream: not sent yet; a PR branch from `upstream/main` would take `cc685a9`
-alone (`ddca400` stands on PR #8). Editing a dimension's value (T10.4) stays out: a drawing
-dimension's value follows the model.
+(point 7). Upstream: branch `feat/drawing-edit` (one commit `d406f45`, `cc685a9`,
+`79c7b4b`, `c5df767` and `59a15f4` squashed onto `upstream/main`, its live tests moved to
+the end of the class so it merges clean with PR #8), its link handed over 2026-11-10;
+Drawing and Contract live tests 47/47 on it on 2023 SP3. `ddca400` stays local, as it
+stands on PR #8. Editing a dimension's value (T10.4) stays out: a drawing
+dimension's value follows the model. Closes when that PR is settled.
+
+## Closed
+
+None at present: S3 went back to Waiting when it was sent upstream.
 
 ## Carried, not items
 
