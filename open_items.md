@@ -10,8 +10,9 @@ Three sections: **Open**, not yet fixed; **Waiting**, fixed and not yet settled 
 merged, a fix not yet run in a session); **Closed**, merged upstream, run and held, or
 decided against, with the record.
 
-**Open: S2 to S12.** Highest value to build locally, for working drawings and tokens: S2
-and S3 first, then S8. S5 to S7 wait a while for upstream's answer to issues #2 to #4.
+**Open: S2 to S5, S7 to S12.** Highest value to build locally, for working drawings and
+tokens: S2 and S3 first, then S8. S5 and S7 wait a while for upstream's answer to issues #2
+and #4.
 
 ---
 
@@ -32,9 +33,6 @@ then PR. With S2, every placement error means rebuilding the drawing.
 **S5. `doc_open` STEP imports surfaces with 3D Interconnect forced off, reported `ok`.**
 Upstream: issue #2. Usage until fixed: import by File > Open and `doc_activate`, or check
 `solidBodies` after `doc_open`.
-
-**S6. `sketch_dimension_add` angular refuses the acute angle at a shared vertex.** Upstream:
-issue #3. Usage: a construction line collinear with the first line, the other way.
 
 **S7. `dimension_set` accepts a change that splits the body.** Upstream: issue #4. Usage:
 read `bodies` in the result after each `dimension_set`.
@@ -67,6 +65,14 @@ PR #1 (branch `fix/section-sheet-coords`, one commit `81475a5`), tested on 2023 
 on 2025 the mapping may be wrong if sheet coordinates work there. Closes when PR #1 is
 merged or refused; if merged, the local commits drop out at the next rebase. Not yet run:
 `drw_view_detail`, views at an angle.
+
+**S6. `sketch_dimension_add` angular refused the acute angle at a shared vertex.** Local:
+`18cbc57` on `sw2023`. The supplement is kept when `textAt` lies in its sector, and the value
+set after it is checked against the supplement. New live test fails without the fix;
+`SketchEditLiveTests` 58/58 on 2023 SP3. In build `…-181555`, not yet run in a session.
+Upstream: PR #6 (branch `fix/angular-supplement`, one commit `dce4afe`, "Fixes #3"). Closes
+when the fix has held in a session and PR #6 is merged or refused. Until then, if needed:
+a construction line collinear with the first line, the other way.
 
 ## Closed
 
