@@ -23,8 +23,8 @@ makes every later test result traceable to a commit.
 
 **S5. `doc_open` STEP imports surfaces with 3D Interconnect forced off, reported `ok`.**
 Upstream: issue #2. Usage until fixed: import by File > Open and `doc_activate`, or check
-`solidBodies` after `doc_open`. Still so in builds `…-204719` and `…-215810`: a STEP round
-trip gave 16 surface bodies and no solid.
+`solidBodies` after `doc_open`. Still so in builds `…-204719`, `…-215810` and `…-230924`:
+a STEP round trip gave 16 surface bodies and no solid.
 
 **S7. `dimension_set` accepts a change that splits the body.** Upstream: issue #4. Usage:
 read `bodies` in the result after each `dimension_set`.
@@ -41,7 +41,9 @@ the test part's geometry). In build `…-181555`, without a fix: 47 calls, 25.8k
 and conventions the sessions here use, read instead. Where the note lives (a skill, the
 global `CLAUDE.md`, a memory) is the owner's call. The scenario test of build `…-181555`
 followed a recorded call sequence and made no `sw_help` call at all; so did those of
-`…-195750`, `…-204719` and `…-215810` (28 calls, 13.2k characters for the whole test).
+`…-195750`, `…-204719` and `…-215810` (28 calls, 13.2k characters for the whole test), and
+`…-230924` (41 calls, 43.2k characters; 44% of them the sheet's note list and three note
+edits, S3 and S22).
 
 **S10. Drawing format and title block.** Precision and decimal separator of drawing
 dimensions, parentheses for reference dimensions, `n×` in hole callouts, DWG NO from a
@@ -71,7 +73,11 @@ axis points where on the sheet (in a top view model −Z points up) decides the 
 angular's `textAtMm`, guessed wrong it gives the supplement (S4). The format's border and
 title block are not reported either: a note at x = 18 mm overwrote the zone letters of the
 ISO A3 border at ≈19 mm. Local: model-to-sheet axes in the `drw_view_add` / `drw_info`
-result, border and title block rectangles in `drw_info`; then PR.
+result, border and title block rectangles in `drw_info`; then PR. Met again in the scenario
+test of build `…-230924`: `drw_view_edit` move reported "no overlaps with other views"
+while the moved section view's label sat on the letter of another section line in the
+parent view; the check covers view bounds only, not labels, section letters or
+dimensions.
 
 **S15. `tools\install.ps1` registers at user scope under the name `solidworks`.** That
 clashes with any other server of that name. Usage: `-NoRegister`, and register by hand at
@@ -100,7 +106,8 @@ it. Proposal: leave the coupled STL group out of the after-call comparison unles
 itself wrote it. `doc_close` lists the components it also closed with blank names
 (`also closed: , .`). Local, small; then PR. Both warnings met again in builds `…-204719`
 and `…-215810`, `Double 2` on every `doc_open` (drawing, part, assembly, STEP import), and
-`also closed: .` for a new drawing with no components.
+`also closed: .` for a new drawing with no components. Again in `…-230924` (`also closed:
+.` and `, .` for a drawing and an assembly).
 
 **S18. `doc_pack` faults.** (1) From a document opened `readOnly:true`, the copies still
 reference the originals (`VERIFY_FAILED: Some copies still reference other files`), three
@@ -124,13 +131,15 @@ only `asm_interference`, `model_info` and `view_screenshot`; a drawing after
 `doc_rebuild`. `doc_close` then refuses `DIRTY` and needs `discard:true`, one extra call
 each. Found in the scenario test of build `…-204719`. Not yet decided: let `doc_close`
 discard a read-only document's changes, or say in the result which call dirtied it. Met
-again in build `…-215810`: the assembly, after only `asm_interference`.
+again in builds `…-215810` and `…-230924`: the assembly, after only `asm_interference`.
 
 **S22. Results that repeat what the caller already has.** `drw_note_add` echoes the whole
 note text (1.4k characters back for a 1.4k note); `sw_status` repeats ten `recentOps`
 with their full error texts, up to 2.6k characters per call. Found in the scenario test of
 build `…-204719`. Local, small: a length and the first line for the note, error codes only
-in `recentOps`; then PR. Bears on S8 and S9 (tokens).
+in `recentOps`; then PR. Bears on S8 and S9 (tokens). Met again in build `…-230924`:
+`drw_annotation_edit` on the 1.4k note returned its text twice (`before` and `after`), 3.2k
+characters per call; fixed with S3's follow-ups below.
 
 **S23. `Tolerances_read_back_and_fits_follow_the_ISO_tables` fails on 2023 SP3.** A
 FeatureManagement live test: `Expected: 0,021`, `Actual: 0`. Seen 2026-11-09 while fixing
@@ -148,9 +157,20 @@ moved off its parent's alignment is put back and refused) and `drw_view_delete` 
 that went, and the children that stay: a projected view stays when its parent goes). And
 `ddca400`: `doc_undo`'s refusal in drawings points to these tools. Four new live tests;
 Drawing and Contract live tests on 2023 SP3: 49 of 49. In build `…-230924` (tag
-`build-20261109-230924`); not yet run in a scenario test. Upstream: not sent yet; a PR branch from `upstream/main` would
-take `cc685a9` alone (`ddca400` stands on PR #8). Editing a dimension's value (T10.4) stays
-out: a drawing dimension's value follows the model.
+`build-20261109-230924`). Held in its scenario test (findings 2026-11-09, build
+`…-230924`, point 1) on a finished drawing: list per view, a dimension and the sheet note
+moved, a dimension deleted, the parent moved with both sections following, a section moved
+off its alignment refused and put back, a section deleted, the PDF showing every change.
+Follow-ups from that test, local, being fixed: (a) action `text` wrote a typed `\n` as
+two characters and reported `text read back` (`drw_note_add` the same); (b)
+`drw_view_delete` of a parent took its section view too, against the description, and
+`annotations` counted the named view's only; (c) the sheet's list holds the sheet
+format's notes (64 of 65: border zones, title block), unmarked, and an edit moved a zone
+letter; (d) a section view's label is listed as a note with text " "; (e) S22's echo.
+Usage: moving a parent moves every view aligned with it, a section placed beside it too
+(point 7). Upstream: not sent yet; a PR branch from `upstream/main` would take `cc685a9`
+alone (`ddca400` stands on PR #8). Editing a dimension's value (T10.4) stays out: a drawing
+dimension's value follows the model.
 
 **S1. `drw_view_section` / `drw_view_detail` drew in view-sketch coordinates.** Local:
 `1de5067` + `3f43c50` on `sw2023`, run and held 2026-11-09 in build `…-163234`. Upstream:
@@ -204,7 +224,9 @@ refused `NOT_SUPPORTED` after a view and a note and again after a section and a 
 note, with the views and every note kept (`drw_info`); in a part, `doc_undo` still took
 back a boss extrude. Closes when PR #8 is settled. Tracking drawing changes by view and
 annotation counts stays a later option. A misplaced drawing item is moved or removed with
-S3's tools (Waiting) instead of an undo.
+S3's tools (Waiting) instead of an undo. Held again in build `…-230924`: refused in a
+drawing, the hint naming the three edit tools; in a part an undo took back a boss
+extrude.
 
 **S6. `sketch_dimension_add` angular refused the acute angle at a shared vertex.** Local:
 `18cbc57` on `sw2023`. The supplement is kept when `textAt` lies in its sector, and the value

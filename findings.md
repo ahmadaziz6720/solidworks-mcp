@@ -400,3 +400,5 @@ Build `bin\0.1.0-20261109-230924`; `sw_status` reports `serverVersion`
     intended refusals and the `DIRTY` above). The drawing edits 25 calls; the sheet's note
     list (9.5k) and the three note edits (3.2k each) are 44% of the characters. No
     `sw_help`.
+
+Sorted into S3 (1, 2, 4 to 7); S14 (3); S22 (8); S19, S21, S5, S17 (9); S9 (10).
