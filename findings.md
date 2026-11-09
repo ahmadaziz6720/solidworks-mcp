@@ -269,3 +269,48 @@ Build `bin\0.1.0-20261109-195750` (`f87a3df`, from the registration and `open_it
 
 Sorted into S6 (1, 2); S17 (3); S8, S9, S1 (4). The build line: S16. Point 4 of the
 `…-181555` entry, rewritten in the same session: S17.
+
+**2026-11-09: scenario test of the drawing-sketch fix: a two-section A3 drawing of a shelled part with 23 dimensions, two hole callouts and notes, with undo tried after each kind of step; short checks of a part, a STEP round trip and an assembly**
+
+Build `bin\0.1.0-20261109-204719` (`44fb220`, from the registration and `open_items.md`;
+`sw_status` shows `0.1.0` only).
+
+1. **S2 held.** `sw_status` and `model_info` show no open sketch in a drawing: a new one,
+   after a standard view, after each of two `drw_view_section`, and in a saved drawing with
+   two sections opened read-only. `doc_rebuild` runs in both (it refused with
+   `SKETCH_STATE` before), and `doc_undo` after a section no longer refuses for a sketch.
+   In a part a real open sketch is still reported (`openSketch: Sketch1`) and
+   `doc_rebuild` still refuses it; after `sketch_finish`, `doc_undo` of a boss extrude
+   took it back (−1 617 000 mm³). Both sections cut where drawn, 3 and 1 hatched faces
+   (S1 holds).
+2. **S19, met again, and worse than refusing: `doc_undo` removed a sheet note while
+   reporting that nothing changed.** With a section on record, `drw_note_add` then
+   `doc_undo` answered `VERIFY_FAILED: Nothing changed: SOLIDWORKS had nothing to undo, or
+   the last step can't be undone. Hint: Check the model with feature_list.`, while
+   `drw_info` counted the sheet's notes 65 before and 64 after; the note was gone from the
+   sheet. Seen twice: once with a 17-line note, once with a one-word probe note, counted
+   before and after. A session that trusts the error goes on without the note. Also as
+   S19 says: `doc_undo` after `drw_views_standard` and after a `drw_dimension_add` (no
+   section yet) refuses `NOT_OWNED`, and after a section `VERIFY_FAILED` with the section
+   kept. The hint names `feature_list`, which says nothing about drawing annotations.
+3. **`drw_dimension_add` returned 9 of 23 dimensions without a value check, silently.**
+   Every one with a circular edge in it (a line to a hole edge, two hole edges, `vertical`
+   or `horizontal`): the result has no `expected` and no "matches the geometry" among the
+   checks, and no warning that the value was not compared, while the tool says each value
+   is verified or removed. The other 14 (lines, vertices, angles, single edges, both
+   callouts) carry the check. Here all 9 values were right by the design; with a wrong
+   pick they would have been kept the same way. Bears on S4.
+4. **S17, met again.** Every `doc_open` (drawing, part, assembly, STEP import) warned that
+   system option `Double 2` changed, each time another value. `doc_close` listed the
+   documents it also closed with blank names (`also closed: .` / `, .`).
+5. **A document opened `readOnly:true` became dirty without an edit**: an assembly after
+   only `asm_interference`, `model_info` and `view_screenshot`; a drawing after
+   `doc_rebuild`. `doc_close` then refused with `DIRTY` and needed `discard:true`: one extra
+   call each.
+6. **Large results read once**: `drw_note_add` echoes the whole note text (1.4k characters
+   back for a 1.4k note); `sw_status` repeats ten `recentOps` with their full error texts,
+   up to 2.6k characters per call.
+7. **Calls (S8/S9)**: the drawing 50 calls, 30.8k characters of results, of which 16 were
+   this test's undo, status, rebuild and count probes and the note added again; the drawing itself followed a
+   recorded call sequence, no `sw_help`, nothing rebuilt. Whole session 79 calls, 43.9k.
+   STEP export and import still give 16 surface bodies and no solid (S5).
