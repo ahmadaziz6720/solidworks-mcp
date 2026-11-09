@@ -10,17 +10,13 @@ Three sections: **Open**, not yet fixed; **Waiting**, fixed and not yet settled 
 merged, a fix not yet run in a session); **Closed**, merged upstream, run and held, or
 decided against, with the record.
 
-**Open: S3 to S5, S7 to S18, S20 to S23.** Next, for working drawings and tokens: S3, S20,
-then S8. S5 and S7 wait a while for upstream's answer to issues #2 and #4. S16 is small and
+**Open: S4, S5, S7 to S18, S20 to S23.** Next, for working drawings and tokens: S20, then
+S8. S5 and S7 wait a while for upstream's answer to issues #2 and #4. S16 is small and
 makes every later test result traceable to a commit.
 
 ---
 
 ## Open
-
-**S3. No tool deletes or moves a drawing view, dimension or note.** Upstream ROADMAP T10.4
-(🟡). Local: `drw_annotation_list` / move / delete and a view delete, with read-back checks,
-then PR. With S19, every placement error means rebuilding the drawing.
 
 **S4. `drw_dimension_add` keeps wrong values** (supplement reported as a match; an angle for
 `vertical`). Upstream: issue #5.
@@ -65,7 +61,8 @@ when PR #1 is settled.
 **S13. `drw_dimensions_auto` gives dimensions that cannot be used, reported as success.**
 On a part with fully defined sketches: 25 dimensions, construction ones among them,
 duplicates, overlapping texts, some off the sheet, none for features whose sketches had
-none. With S3 open they cannot be removed, so the drawing was restarted. Usage: manual
+none. Without a delete tool they could not be removed, so the drawing was restarted; with
+S3's `drw_annotation_edit` (Waiting) they can be deleted one by one. Usage: manual
 `drw_dimension_add` only. Not yet decided whether to fix, or to say in the description
 that the result needs cleaning.
 
@@ -142,6 +139,19 @@ into: a long session, a 2023 difference in reading tolerances or fits, or the te
 
 ## Waiting
 
+**S3. No tool deleted or moved a drawing view, dimension or note.** Upstream ROADMAP T10.4
+(🟡). Local: `cc685a9` on `sw2023`. `drw_annotation_list` (current sheet or one view: name,
+kind, view, text or value, position, attachment), `drw_annotation_edit` (move, delete, a
+note's text; each read back, a move or text that does not read back is put back and
+refused), `drw_view_edit` kind `move` (aligned views follow and are named; a projected view
+moved off its parent's alignment is put back and refused) and `drw_view_delete` (the views
+that went, and the children that stay: a projected view stays when its parent goes). And
+`ddca400`: `doc_undo`'s refusal in drawings points to these tools. Four new live tests;
+Drawing and Contract live tests on 2023 SP3: 49 of 49. Not yet in a registered build, not
+yet run in a scenario test. Upstream: not sent yet; a PR branch from `upstream/main` would
+take `cc685a9` alone (`ddca400` stands on PR #8). Editing a dimension's value (T10.4) stays
+out: a drawing dimension's value follows the model.
+
 **S1. `drw_view_section` / `drw_view_detail` drew in view-sketch coordinates.** Local:
 `1de5067` + `3f43c50` on `sw2023`, run and held 2026-11-09 in build `…-163234`. Upstream:
 PR #1 (branch `fix/section-sheet-coords`, one commit `81475a5`), tested on 2023 SP3 only;
@@ -193,8 +203,8 @@ build `…-215810` (tag `build-20261109-215810`). Held in its scenario test: in 
 refused `NOT_SUPPORTED` after a view and a note and again after a section and a second
 note, with the views and every note kept (`drw_info`); in a part, `doc_undo` still took
 back a boss extrude. Closes when PR #8 is settled. Tracking drawing changes by view and
-annotation counts stays a later option. With S3 open, a misplaced drawing item still means
-rebuilding the drawing.
+annotation counts stays a later option. A misplaced drawing item is moved or removed with
+S3's tools (Waiting) instead of an undo.
 
 **S6. `sketch_dimension_add` angular refused the acute angle at a shared vertex.** Local:
 `18cbc57` on `sw2023`. The supplement is kept when `textAt` lies in its sector, and the value
