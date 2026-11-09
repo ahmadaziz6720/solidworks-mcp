@@ -138,6 +138,8 @@ baseline for S8 and S9, measured before any fix, to compare against after.
    under the name `solidworks`, which clashes with any other server of that name. Register
    by hand at local scope instead.
 
+Sorted into S13 (1); S14 (2, 3); S10 (4, 5); S8, S9 (6); S15 (7).
+
 **2026-11-09: which build a session is running cannot be told from inside it**
 
 Builds `…-163234` (running) and `…-181555` (registered).
@@ -151,6 +153,8 @@ Builds `…-163234` (running) and `…-181555` (registered).
    stamp and the commit in `serverVersion` (for example `0.1.0-20261109-181555+18cbc57`,
    from the publish folder name and `SourceRevisionId` / `InformationalVersion`), and a
    `-dirty` mark when built from a tree with uncommitted changes.
+
+Sorted into S16 (1).
 
 **2026-11-09: scenario test of the angular fix: a shelled part with two fully defined sketches, mirror and Hole Wizard holes, then a two-section A3 drawing**
 
@@ -187,6 +191,8 @@ Build `…-181555` (`18cbc57`, from the registration; `sw_status` shows `0.1.0` 
    `sw_help`). The drawing with two sections, up to the failed undo: 12 calls, 6.8k.
    Sections: both lines in plain sheet mm, cut where drawn, 1 and 3 hatched faces (S1 holds).
 
+Sorted into S6 (1, 2); S2 (3); S17 (4); S8, S9, S1 (5).
+
 **2026-11-09: moving a part with its drawings, and an assembly with its parts, to new folders by Pack and Go**
 
 Build `bin\0.1.0-20261109-181555`.
@@ -220,3 +226,5 @@ Build `bin\0.1.0-20261109-181555`.
    `Double 2` is before keeping the warning. Bears on S5.
 5. **`doc_close` of an assembly warned `SOLIDWORKS also closed: , .`**: the closed
    components' names are blank. Same on closing a drawing (`also closed: .`).
+
+Sorted into S18 (1, 2, 3); S17 (4, 5).
