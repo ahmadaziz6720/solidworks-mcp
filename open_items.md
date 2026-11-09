@@ -195,9 +195,12 @@ the template's annotations left out of the count. Drawing and Contract live test
 (findings 2026-11-10, build `…-010708`, point 1): all three; a typed `\n` came back as a
 line break, a 134-character note as its first 60 characters and the count; the labels
 read `SECTION A-A` and `SECTION B-B`; the sheet's `notes` equal to the list's (1, then 3).
-Follow-up from it, small and not yet fixed: (i) `drw_info` still counts a view's label
-among that view's notes (`notes: 1` for each section view, the list with `kind: note` 0):
-count labels apart or leave them out, as the format's notes are.
+Follow-up from it, small: (i) `drw_info` still counted a view's label among that view's
+notes (`notes: 1` for each section view, the list with `kind: note` 0). Fixed in
+`59a15f4`: a label is left out of `notes` and counted apart as `viewLabels` (present
+when a view has one), in `drw_info` and in `drw_view_delete`'s summed counts. The label
+live test reads the section view's counts (notes 0, viewLabels 1) and fails without it;
+Drawing and Contract live tests on 2023 SP3: 50 of 50. Not yet in a build.
 Usage: moving a parent moves every view aligned with it, a section placed beside it too
 (point 7). Upstream: not sent yet; a PR branch from `upstream/main` would take `cc685a9`
 alone (`ddca400` stands on PR #8). Editing a dimension's value (T10.4) stays out: a drawing
