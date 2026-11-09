@@ -575,6 +575,33 @@ public class DrawingLiveTests(LiveFixture fx) : LiveTest(fx)
         Assert.DoesNotContain("use kind horizontal / vertical", ex.Hint);
     }
 
+    [Fact]
+    public async Task A_single_circle_seen_edge_on_is_checked_as_its_diameter()
+    {
+        // S20 (c): in a section view the Ø20 hole's back edge is drawn as a segment of its diameter. SOLIDWORKS makes linear
+        // and horizontal on it a linear dimension with Ø (live: Type2 linear, prefix <MOD-DIAM>, 20 mm); they came back
+        // unchecked with a warning.
+        var (drw, r) = await ViewsAsync("drw_dim_edge_on_circle", ["front"], hole: true);
+        var front = r.Views[0];
+        var b = front.ModelBoxMm!;
+        double cy = (b[1] + b[3]) / 2;
+        var sec = (await Drw.SectionAsync(front.Name, [b[0] - 10, cy], [b[2] + 10, cy], null, null, drw)).View;
+        Assert.True(sec.Orientation is "top" or "bottom", $"the section looks {sec.Orientation ?? "along another direction"}");
+        double side = sec.Orientation == "top" ? -1 : 1;
+        var back = new EntityRef { Type = "edge", At = [0, 10 * side, 0] };
+
+        foreach (var kind in new[] { "linear", "horizontal" })
+        {
+            var dim = await Drw.DimensionAddAsync(sec.Name, back, null, kind, null, drw);
+            Assert.Equal(kind, dim.Kind);
+            Assert.Equal(20, dim.Value, 1e-6);
+            Assert.True(dim.Expected is double e && Math.Abs(e - 20) < 1e-6, $"{kind}: expected {dim.Expected?.ToString() ?? "none"}, wanted 20");
+            Assert.Contains(dim.Checks!, c => c.Contains("matches the geometry"));
+            Assert.Contains(dim.Checks!, c => c.Contains("with Ø across the circle, seen edge-on"));
+            Assert.DoesNotContain(dim.Warnings ?? [], w => w.Contains("not compared"));
+        }
+    }
+
     // ------------------------------------------------------------------ M8 WP2: sheets, flat-pattern / auxiliary views, breaks
 
     [Fact]

@@ -990,11 +990,17 @@ public sealed partial class DrawingService(SwSession session)
 
     // ================================================================== drw_dimension_add
 
-    /// <summary>An entity of the view's model seen on the sheet (m): a point, a line, a circle or another curve.</summary>
-    private sealed record OnSheet(string Kind, Vec3 P0, Vec3 P1, Vec3 Mid, Vec3? Center, double? Radius, bool FaceOn, string Label)
+    /// <summary>
+    /// An entity of the view's model seen on the sheet (m): a point, a line, a circle or another curve. A circle's
+    /// <paramref name="Axis"/> is its axis on the sheet, a unit vector.
+    /// </summary>
+    private sealed record OnSheet(string Kind, Vec3 P0, Vec3 P1, Vec3 Mid, Vec3? Center, double? Radius, bool FaceOn, string Label,
+        Vec3? Axis = null)
     {
         public Vec3 Pick => Kind == "point" ? P0 : Mid;
         public (double X, double Y) Dir2 => (P1.X - P0.X, P1.Y - P0.Y);
+        /// <summary>A circle seen exactly edge-on, its axis in the sheet plane: drawn as a straight segment of its diameter.</summary>
+        public bool EdgeOn => Kind == "circle" && Axis is Vec3 ax && Math.Abs(ax.Z) < 1e-6;
     }
 
     public Task<DrwDimensionResult> DimensionAddAsync(string? view, EntityRef? a, EntityRef? b, string? kind, double[]? textAtMm, string? doc,
@@ -1102,6 +1108,11 @@ public sealed partial class DrawingService(SwSession session)
                 expected = m == "diameter" ? 2 * r : r;
                 checks.Add($"SOLIDWORKS made a {m} dimension of the circle for kind {k}");
             }
+            else if (gb is null && ga.EdgeOn && expected is not null && ShowsDiameter(dd))
+            {
+                // A circle seen edge-on is drawn as a segment of its diameter: SOLIDWORKS makes a linear dimension with Ø (S20 c).
+                checks.Add($"SOLIDWORKS made a {k} dimension with Ø across the circle, seen edge-on");
+            }
             if (expected is double e)
             {
                 if (!Matches(e))
@@ -1118,7 +1129,8 @@ public sealed partial class DrawingService(SwSession session)
             else
             {
                 // Say so rather than return an unchecked value as if it were checked (S20).
-                static string Of(OnSheet g) => g.Kind == "circle" && !g.FaceOn ? "a circle seen edge-on" : $"a {g.Kind}";
+                static string Of(OnSheet g) => g.Kind != "circle" || g.FaceOn ? $"a {g.Kind}"
+                    : g.EdgeOn ? "a circle seen edge-on" : "a circle seen at an angle";
                 ctx.Warn($"The value {Show(v, angular)} was not compared with the geometry: no expected {made} value is computed for " +
                          $"{(gb is null ? $"{Of(ga)} alone" : $"{Of(ga)} and {Of(gb)}")} in this view. Check it against the model.");
             }
@@ -1197,8 +1209,9 @@ public sealed partial class DrawingService(SwSession session)
                 }
                 if (g.Curve == "circle" && g.Center is Vec3 c && g.Axis is Vec3 ax)
                 {
-                    bool faceOn = Math.Abs(t.ApplyVector(ax).Normalized().Z) > 1 - 1e-6;
-                    return new OnSheet("circle", p0, p1, m, t.ApplyPoint(c), g.Radius, faceOn, r.Label);
+                    var axis = t.ApplyVector(ax).Normalized();
+                    bool faceOn = Math.Abs(axis.Z) > 1 - 1e-6;
+                    return new OnSheet("circle", p0, p1, m, t.ApplyPoint(c), g.Radius, faceOn, r.Label, axis);
                 }
                 return new OnSheet("curve", p0, p1, m, null, null, false, r.Label);
             }
@@ -1262,6 +1275,22 @@ public sealed partial class DrawingService(SwSession session)
         }
     }
 
+    /// <summary>True when the dimension's text carries the diameter sign (&lt;MOD-DIAM&gt;, read live as its prefix).</summary>
+    private static bool ShowsDiameter(IDisplayDimension dd)
+    {
+        foreach (var which in new[] { swDimensionTextParts_e.swDimensionTextPrefix, swDimensionTextParts_e.swDimensionTextAll })
+        {
+            try
+            {
+                if (dd.GetText((int)which) is { } t && t.Contains("<MOD-DIAM>", StringComparison.OrdinalIgnoreCase)) return true;
+            }
+            catch (COMException e) when (!ComArgs.IsDisconnect(e))
+            {
+            }
+        }
+        return false;
+    }
+
     /// <summary>
     /// The hint of a dimension whose value does not match the geometry. A horizontal or vertical one already says its
     /// direction, so it is not told to use one: with a circle seen edge-on, SOLIDWORKS did not measure that direction to it.
@@ -1321,6 +1350,17 @@ public sealed partial class DrawingService(SwSession session)
         }
         if (b is null)
         {
+            if (a.EdgeOn && a.Radius is double r && a.Axis is Vec3 ax)
+            {
+                // Seen edge-on, a circle is a segment of its diameter across its axis on the sheet: (-ay, ax) (S20 c).
+                double n = Math.Sqrt(ax.X * ax.X + ax.Y * ax.Y);
+                return kind switch
+                {
+                    "horizontal" => 2 * r * Math.Abs(ax.Y) / n,
+                    "vertical" => 2 * r * Math.Abs(ax.X) / n,
+                    _ => 2 * r,
+                };
+            }
             if (a.Kind != "line") return null;
             return kind switch
             {
