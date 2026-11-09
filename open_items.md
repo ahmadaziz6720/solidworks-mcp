@@ -147,8 +147,8 @@ refused), `drw_view_edit` kind `move` (aligned views follow and are named; a pro
 moved off its parent's alignment is put back and refused) and `drw_view_delete` (the views
 that went, and the children that stay: a projected view stays when its parent goes). And
 `ddca400`: `doc_undo`'s refusal in drawings points to these tools. Four new live tests;
-Drawing and Contract live tests on 2023 SP3: 49 of 49. Not yet in a registered build, not
-yet run in a scenario test. Upstream: not sent yet; a PR branch from `upstream/main` would
+Drawing and Contract live tests on 2023 SP3: 49 of 49. In build `…-230924` (tag
+`build-20261109-230924`); not yet run in a scenario test. Upstream: not sent yet; a PR branch from `upstream/main` would
 take `cc685a9` alone (`ddca400` stands on PR #8). Editing a dimension's value (T10.4) stays
 out: a drawing dimension's value follows the model.
 
