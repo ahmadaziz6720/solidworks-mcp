@@ -1569,25 +1569,26 @@ GD&T and symbols in a view, on an edge of the view's model (model mm): datum fea
 
 ### `drw_annotation_edit` — Move, delete or retext an annotation (destructive)
 
-Moves a drawing dimension, note or symbol to atMm, deletes it (doc_undo does not work in drawings), or changes a note's text. Verified: the position or text read back (else put back), or the annotation no longer listed.
+Moves a drawing dimension, note, view label or symbol to atMm, deletes it (doc_undo does not work in drawings), or changes a note's text. The sheet format's notes are refused. Verified: the position or text read back (else put back), or the annotation no longer listed.
 
 | Parameter | Type | Required | Description |
 |---|---|---|---|
 | `name` | string | yes | Annotation name from drw_annotation_list, drw_dimension_add (e.g. "RD1@Drawing View1") or drw_note_add. |
 | `action` | string | yes | move \| delete \| text |
 | `atMm` | array |  | move: new position [x,y] sheet mm (a dimension's or note's text). |
-| `text` | string |  | text: the note's new text; \n starts a new line. |
+| `text` | string |  | text: the note's new text; a line break or \n starts a new line. |
 | `view` | string |  | The view (or sheet name) that holds it, when the name alone is ambiguous; default: the current sheet. |
 | `doc` | string |  | Drawing (handle, title or path); default: the target document. |
 
 ### `drw_annotation_list` — List drawing annotations (read-only, idempotent)
 
-Lists the dimensions, notes, balloons, symbols, tables and center marks of the current sheet or one view: name, kind, view, text or value, position (sheet mm) and attachment. The names are what drw_annotation_edit takes.
+Lists the dimensions, notes, balloons, view labels, symbols, tables and center marks of the current sheet or one view: name, kind, view, text or value, position (sheet mm) and attachment. The sheet format's notes (border, title block) are left out unless format=true. The names are what drw_annotation_edit takes.
 
 | Parameter | Type | Required | Description |
 |---|---|---|---|
 | `view` | string |  | One view, or the sheet's name for the notes on the sheet itself; default: the current sheet and all its views. |
-| `kind` | string |  | Only this kind: dimension \| hole_callout \| note \| balloon \| table \| center_mark \| center_line \| datum \| surface_finish \| gtol \| weld \| other |
+| `kind` | string |  | Only this kind: dimension \| hole_callout \| note \| balloon \| view_label \| table \| center_mark \| center_line \| datum \| surface_finish \| gtol \| weld \| other |
+| `format` | boolean |  | Also list the sheet format's notes (marked format; not editable here). Default: `false`. |
 | `doc` | string |  | Drawing (handle, title or path); default: the target document. |
 
 ### `drw_bom_add` — Bill of materials
@@ -1642,7 +1643,7 @@ Drawing overview: sheets (size, scale, projection, format) and their views (name
 
 ### `drw_note_add` — Drawing note
 
-Note / text on the sheet, or in a view (it then moves with the view), at [x,y] sheet mm; \n starts a new line. Verified: text and position read back.
+Note / text on the sheet, or in a view (it then moves with the view), at [x,y] sheet mm; a line break or \n starts a new line. Verified: text and position read back.
 
 | Parameter | Type | Required | Description |
 |---|---|---|---|
@@ -1717,11 +1718,12 @@ Adds a flat-pattern view of a saved sheet-metal part (the blank, with bend lines
 
 ### `drw_view_delete` — Delete drawing view (destructive)
 
-Deletes a drawing view with its dimensions and notes (doc_undo does not work in drawings). Verified: the view is no longer listed; returns every view that went and the child views (projected, section, detail) that stay.
+Deletes a drawing view with its dimensions and notes (doc_undo does not work in drawings). Section, detail and auxiliary views cut from it go with it, so they are refused unless withChildren; projected views stay. Verified: the views no longer listed; returns every view that went and their annotation counts.
 
 | Parameter | Type | Required | Description |
 |---|---|---|---|
 | `view` | string | yes | The view (drw_info). |
+| `withChildren` | boolean |  | Also delete the section, detail and auxiliary views cut from it. Default: `false`. |
 | `doc` | string |  | Drawing (handle, title or path); default: the target document. |
 
 ### `drw_view_detail` — Detail view

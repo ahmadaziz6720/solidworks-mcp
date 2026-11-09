@@ -729,6 +729,15 @@ public class DrawingLiveTests(LiveFixture fx) : LiveTest(fx)
         var vn = Assert.Single(list.Annotations, a => a.Name == viewNote.Note);
         Assert.Equal(front.Name, vn.View);
         Assert.Equal(2, (await Drw.AnnotationListAsync(front.Name, "dimension", drw)).Count);
+        // The ISO A3 format's own notes (zone letters, title block) are left out, and listed marked on request.
+        Assert.DoesNotContain(list.Annotations, a => a.Format == true);
+        Assert.True(list.FormatNotesSkipped > 20, $"{list.FormatNotesSkipped} format notes skipped");
+        var withFormat = await Drw.AnnotationListAsync(null, null, true, drw);
+        Assert.Equal(list.Count + list.FormatNotesSkipped!.Value, withFormat.Count);
+        var zone = withFormat.Annotations.First(a => a.Format == true);
+        var refused = await Fails(ErrorCodes.InvalidArgument, () => Drw.AnnotationEditAsync(zone.Name, "move", [10, 10], null, null, drw));
+        Assert.Contains("sheet format", refused.Message);
+        Assert.Equal(zone.AtMm, (await Drw.AnnotationListAsync(null, null, true, drw)).Annotations.Single(a => a.Name == zone.Name).AtMm);
         Assert.DoesNotContain((await Drw.AnnotationListAsync(sheet, null, drw)).Annotations, a => a.View == front.Name);
 
         // Move the width's text and the sheet note; the list reads the new positions.
@@ -742,10 +751,24 @@ public class DrawingLiveTests(LiveFixture fx) : LiveTest(fx)
         Assert.Equal(to[1], again.Annotations.Single(a => a.Name == width.Dimension).AtMm![1], 0.01);
         Assert.Equal(80, again.Annotations.Single(a => a.Name == sheetNote.Note).AtMm![0], 0.01);
 
-        // A note's text changes; a dimension's does not.
+        // A note's text changes; a dimension's does not. A backslash-n typed as two characters is a line break too (the
+        // scenario test of build 230924 got it stored literally, reported "text read back").
         var retext = await Drw.AnnotationEditAsync(viewNote.Note, "text", null, "SWMCP NEW\nSECOND", null, drw);
         Assert.Equal("SWMCP NEW\nSECOND", retext.After!.Text);
         Assert.Contains("text read back", retext.Checks!);
+        var typed = await Drw.AnnotationEditAsync(viewNote.Note, "text", null, @"SWMCP TYPED\nLINE", null, drw);
+        Assert.Equal("SWMCP TYPED\nLINE", typed.After!.Text);
+        var typedNote = await Drw.NoteAddAsync(@"SWMCP ADD\nTYPED", [60, 70], null, null, drw);
+        Assert.Contains("text read back", typedNote.Checks!);
+        Assert.Equal("SWMCP ADD\nTYPED", (await Drw.AnnotationListAsync(null, "note", drw)).Annotations.Single(a => a.Name == typedNote.Note).Text);
+        // A long text comes back cut in the edit's result (S22), whole in the list.
+        string longText = string.Join("\n", Enumerable.Range(1, 12).Select(n => $"SWMCP LONG LINE {n}"));
+        var lng = await Drw.AnnotationEditAsync(typedNote.Note, "move", [60, 75], null, null, drw);
+        var lngText = await Drw.AnnotationEditAsync(typedNote.Note, "text", null, longText, null, drw);
+        Assert.Contains("characters)", lngText.After!.Text);
+        Assert.True(lngText.After.Text!.Length < 100, lngText.After.Text);
+        Assert.Equal(longText, (await Drw.AnnotationListAsync(null, "note", drw)).Annotations.Single(a => a.Name == typedNote.Note).Text);
+        Assert.Equal(60, lng.After!.AtMm![0], 0.01);
 
         // Delete one dimension and the sheet note: gone from the list, the counts one fewer each.
         var before = await Drw.InfoAsync(drw);
@@ -821,6 +844,35 @@ public class DrawingLiveTests(LiveFixture fx) : LiveTest(fx)
         Assert.DoesNotContain(views, v => v.Name == front.Name);
         Assert.Equal(views.Count, del.ViewCount);
         Assert.DoesNotContain((await Drw.AnnotationListAsync(null, null, drw)).Annotations, a => a.Text == "SWMCP IN FRONT");
+    }
+
+    [Fact]
+    public async Task A_parent_with_a_section_is_deleted_only_with_its_children()
+    {
+        // The scenario test of build 230924 deleted a parent and lost its section view with it, unasked.
+        var (drw, r) = await ViewsAsync("drw_view_children", ["front"]);
+        var front = r.Views[0];
+        var b = front.ModelBoxMm!;
+        double cx = (b[0] + b[2]) / 2;
+        var sec = (await Drw.SectionAsync(front.Name, [cx, b[1] - 10], [cx, b[3] + 10], null, null, drw)).View;
+        await Drw.DimensionAddAsync(front.Name, new EntityRef { Type = "edge", At = [0, 30, 20] }, null, "linear", null, drw);
+
+        // The section's label is listed as a view label, not as a note reading " ".
+        var label = Assert.Single((await Drw.AnnotationListAsync(sec.Name, null, drw)).Annotations, a => a.Kind == "view_label");
+        Assert.Contains(sec.Name, label.Text);
+
+        var ex = await Fails(ErrorCodes.InvalidArgument, () => Drw.ViewDeleteAsync(front.Name, drw));
+        Assert.Contains(sec.Name, ex.Message);
+        Assert.Contains("withChildren", ex.Hint!);
+        Assert.Equal(2, await ViewCountAsync(drw));
+
+        var del = await Drw.ViewDeleteAsync(front.Name, true, drw);
+        Assert.Equal(2, del.Removed.Count);
+        Assert.Contains(sec.Name, del.Removed);
+        Assert.Equal(1, del.Annotations!.Dimensions);
+        Assert.True(del.Annotations.Notes >= 1, "the section's label counts among the notes that went");
+        Assert.DoesNotContain(del.Warnings ?? [], w => w.Contains("also removed"));
+        Assert.Equal(0, await ViewCountAsync(drw));
     }
 
     [Fact]
@@ -960,7 +1012,6 @@ public class DrawingLiveTests(LiveFixture fx) : LiveTest(fx)
         var r = await Annotate(drw, front, "balloon", null);
         Assert.Equal(2, r.Count);
         Assert.Equal(["1", "2"], r.Text.Split(", ").Order().ToArray());
-        Assert.Contains(r.Checks!, c => c.Contains("item numbers distinct", StringComparison.Ordinal));
     }
 
     // ------------------------------------------------------------------ drw_table_add

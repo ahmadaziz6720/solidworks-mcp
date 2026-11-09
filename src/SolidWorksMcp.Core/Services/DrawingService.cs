@@ -1376,7 +1376,7 @@ public sealed partial class DrawingService(SwSession session)
         var at = Sheet2(atMm, "atMm");
         if (heightMm is double hm && (!double.IsFinite(hm) || hm < 0.5 || hm > 500))
             throw SwException.InvalidArgument($"heightMm must be between 0.5 and 500 (got {hm}).");
-        string apiText = text.Replace("\r\n", "\n").Replace("\n", "\r\n");
+        string apiText = NoteLines(text).Replace("\n", "\r\n");
         return session.RunAsync("drw_note_add", ctx =>
         {
             var d = ctx.Doc;
@@ -1396,7 +1396,7 @@ public sealed partial class DrawingService(SwSession session)
             d.ClearSelection2(true);
 
             string got = (note.GetText() ?? "").Replace("\r\n", "\n");
-            string want = text.Replace("\r\n", "\n");
+            string want = NoteLines(text);
             if (got != want)
             {
                 // Property links ($PRP:...) and formatting tags read back evaluated; plain text must match exactly.

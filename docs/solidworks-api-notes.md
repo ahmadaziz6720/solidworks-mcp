@@ -564,10 +564,15 @@ type libraries and writes `sldworks_api.txt`, `swconst_enums.txt`, `swcommands.t
   `INote` (`GetName`, `DetailItem…`). `SetPosition2(x, y, 0)` (sheet m) moves a dimension's text or a note and reads back
   exactly through `GetPosition`; `Select2(false, 0)` and `DeleteSelection2(0)` delete one. `INote.SetText` changes a
   note's text (`\r\n` between lines).
+  - The sheet's own view also lists the **sheet format's notes** (an ISO A3 format: 64, the border zone letters and the
+    title block's labels and fields): `IAnnotation.OwnerType` is `swAnnotationOwner_DrawingTemplate` (2) for them, 1
+    for a note on the sheet, 0 for one in a view.
+  - A **view label** ("SECTION A-A") is an `INote` whose `GetText` reads `" "`; its `PropertyLinkedText` holds
+    `<VLNAME>` / `<VLLABEL>`.
 - **Moving and deleting views** (VERIFIED 2026-11-09, 2023 SP3). Setting `IView.Position` moves a view; a projected view
   aligned to it moves with it, and a projected view set off its parent's alignment is kept on it (the position read
   back differs). `SelectByID2(name, "DRAWINGVIEW")` and `DeleteSelection2(0)` delete a view with its annotations; a
-  projected view whose parent was deleted stays.
+  projected view whose parent was deleted stays, a section view goes with its parent (its cut line is in the parent).
 - **Center marks** (VERIFIED). `ActivateView`, then `IView.AutoInsertCenterMarks2(1 /*holes*/, 0, true, true, true, 0.0025,
   0.0005, true, false, 0)`.
 - **Section view** (VERIFIED). Activate the parent view, set `AddToDB = true`, `CreateLine` in **sheet coordinates**,

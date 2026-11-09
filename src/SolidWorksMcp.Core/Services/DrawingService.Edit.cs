@@ -16,7 +16,10 @@ public sealed class DrwAnnotationItem
     /// "DetailItem12" (as drw_note_add returns it), else the annotation's own name.
     /// </summary>
     public required string Name { get; init; }
-    /// <summary>dimension | hole_callout | note | balloon | table | center_mark | center_line | datum | surface_finish | gtol | weld | other.</summary>
+    /// <summary>
+    /// dimension | hole_callout | note | balloon | view_label (a section, detail or view label) | table | center_mark |
+    /// center_line | datum | surface_finish | gtol | weld | other.
+    /// </summary>
     public required string Kind { get; init; }
     /// <summary>The view it belongs to, or the sheet's name for an annotation on the sheet itself.</summary>
     public required string View { get; init; }
@@ -30,6 +33,8 @@ public sealed class DrwAnnotationItem
     public double[]? AtMm { get; init; }
     /// <summary>How many model entities it is attached to (0: free-standing); absent when not known.</summary>
     public int? AttachedTo { get; init; }
+    /// <summary>True for the sheet format's own notes (border zones, title block), which are listed only on request and not edited.</summary>
+    public bool? Format { get; init; }
 }
 
 public sealed class DrwAnnotationListResult : ToolResult
@@ -38,6 +43,8 @@ public sealed class DrwAnnotationListResult : ToolResult
     public required string Sheet { get; init; }
     public int Count { get; init; }
     public required IReadOnlyList<DrwAnnotationItem> Annotations { get; init; }
+    /// <summary>The sheet format's notes left out (format=false).</summary>
+    public int? FormatNotesSkipped { get; init; }
     public bool? Truncated { get; init; }
 }
 
@@ -57,7 +64,7 @@ public sealed class DrwViewDeleteResult : ToolResult
     public required string View { get; init; }
     /// <summary>Every view that is gone after the call (the one asked for, and any SOLIDWORKS took with it).</summary>
     public required IReadOnlyList<string> Removed { get; init; }
-    /// <summary>The annotations the view held, which went with it.</summary>
+    /// <summary>The annotations the removed views held, which went with them.</summary>
     public DrwCounts? Annotations { get; init; }
     /// <summary>Views whose parent was the deleted view and that are still there.</summary>
     public IReadOnlyList<string>? ChildrenKept { get; init; }
@@ -73,7 +80,10 @@ public sealed partial class DrawingService
 
     // ================================================================== drw_annotation_list
 
-    public Task<DrwAnnotationListResult> AnnotationListAsync(string? view, string? kind, string? doc, CancellationToken ct = default)
+    public Task<DrwAnnotationListResult> AnnotationListAsync(string? view, string? kind, string? doc, CancellationToken ct = default) =>
+        AnnotationListAsync(view, kind, false, doc, ct);
+
+    public Task<DrwAnnotationListResult> AnnotationListAsync(string? view, string? kind, bool format, string? doc, CancellationToken ct = default)
     {
         string? k = DrawingLayout.Norm(kind);
         if (k is not null && !AnnotationKinds.Contains(k))
@@ -82,20 +92,23 @@ public sealed partial class DrawingService
         {
             var drw = ctx.Drawing();
             var (scope, sheet) = Scope(ctx, drw, view);
-            var all = Annotations(scope, sheet).Where(a => k is null || a.Item.Kind == k).Select(a => a.Item).ToList();
+            var read = Annotations(scope, sheet).Where(a => k is null || a.Item.Kind == k).Select(a => a.Item).ToList();
+            var all = format ? read : read.Where(i => i.Format != true).ToList();
+            int skipped = read.Count - all.Count;
             return new DrwAnnotationListResult
             {
                 Doc = ctx.Title(ctx.Doc),
                 Sheet = sheet,
                 Count = all.Count,
                 Annotations = all.Take(MaxAnnotations).ToList(),
+                FormatNotesSkipped = skipped > 0 ? skipped : null,
                 Truncated = all.Count > MaxAnnotations ? true : null,
             };
         }, RunOptions.Read(doc), ct);
     }
 
     private static readonly string[] AnnotationKinds =
-        ["dimension", "hole_callout", "note", "balloon", "table", "center_mark", "center_line", "datum", "surface_finish", "gtol", "weld", "other"];
+        ["dimension", "hole_callout", "note", "balloon", "view_label", "table", "center_mark", "center_line", "datum", "surface_finish", "gtol", "weld", "other"];
 
     /// <summary>The views to read: one view (its sheet made current), or the current sheet's own view and its model views.</summary>
     private static (List<ViewHit> Views, string Sheet) Scope(SwContext ctx, IDrawingDoc drw, string? view)
@@ -160,8 +173,14 @@ public sealed partial class DrawingService
                 kind = "note";
                 if (spec is INote n)
                 {
-                    if (Safe(() => n.IsBomBalloon(), false)) kind = "balloon";
                     text = Safe(() => n.GetText(), null)?.Replace("\r\n", "\n");
+                    if (Safe(() => n.IsBomBalloon(), false)) kind = "balloon";
+                    // A view's label ("SECTION A-A") reads " " through GetText; its linked text holds <VLNAME> / <VLLABEL> (2023 SP3).
+                    else if (Safe(() => n.PropertyLinkedText, null) is { } linked && (linked.Contains("<VLNAME>") || linked.Contains("<VLLABEL>")))
+                    {
+                        kind = "view_label";
+                        text = $"label of '{view}'";
+                    }
                     if (Safe(() => n.GetName(), null) is { Length: > 0 } nn) name = nn;
                 }
                 break;
@@ -180,6 +199,8 @@ public sealed partial class DrawingService
         }
         var pos = Safe(() => a.DrwPosition(), []);
         int attached = Safe(() => a.GetAttachedEntityCount3(), -1);
+        // The sheet format's own notes (border zone letters, title block labels and fields) are owned by the template.
+        bool inFormat = Safe(() => a.OwnerType, -1) == (int)swAnnotationOwner_e.swAnnotationOwner_DrawingTemplate;
         return new DrwAnnotationItem
         {
             Name = name,
@@ -191,8 +212,23 @@ public sealed partial class DrawingService
             Unit = unit,
             AtMm = pos.Length >= 2 ? [Math.Round(pos[0] * 1000, 3), Math.Round(pos[1] * 1000, 3)] : null,
             AttachedTo = attached >= 0 ? attached : null,
+            Format = inFormat ? true : null,
         };
     }
+
+    /// <summary>The item with a long text cut to its start and its length, for results that echo it (S22).</summary>
+    private static DrwAnnotationItem Brief(DrwAnnotationItem i) =>
+        i.Text is { Length: > 80 } t ? new DrwAnnotationItem
+        {
+            Name = i.Name, Kind = i.Kind, View = i.View, Sheet = i.Sheet, Text = $"{t[..60].Split('\n')[0]}… ({t.Length} characters)",
+            Value = i.Value, Unit = i.Unit, AtMm = i.AtMm, AttachedTo = i.AttachedTo, Format = i.Format,
+        } : i;
+
+    /// <summary>
+    /// A note's text as SOLIDWORKS takes it: line breaks as \n, and a backslash-n typed as two characters taken as a line
+    /// break too (the scenario test of build 230924 stored it literally and the check passed, comparing it with itself).
+    /// </summary>
+    internal static string NoteLines(string text) => text.Replace("\r\n", "\n").Replace("\\n", "\n");
 
     /// <summary>The annotation named <paramref name="name"/> (the listed name, or SOLIDWORKS' own) in the scope; one, or a typed error.</summary>
     private static Ann FindAnnotation(List<Ann> all, string name, string? view, string sheet)
@@ -200,7 +236,11 @@ public sealed partial class DrawingService
         string n = name.Trim();
         var hits = all.Where(a => string.Equals(a.Item.Name, n, StringComparison.OrdinalIgnoreCase) ||
                                   string.Equals(Safe(() => a.A.GetName(), ""), n, StringComparison.OrdinalIgnoreCase)).ToList();
+        if (hits.Count == 1 && hits[0].Item.Format == true)
+            throw SwException.InvalidArgument($"'{n}' is part of the sheet format (border or title block: '{Clip(hits[0].Item.Text ?? "", 40)}'); it is not edited here.",
+                "Title block fields follow the drawing's properties (prop_set); the format itself is edited in SOLIDWORKS.");
         if (hits.Count == 1) return hits[0];
+        all = all.Where(a => a.Item.Format != true).ToList();
         string where = view is null ? $"sheet '{sheet}'" : $"'{view}'";
         if (hits.Count == 0)
             throw new SwException(ErrorCodes.EntityNotFound, $"No annotation named '{n}' in {where}.",
@@ -271,8 +311,8 @@ public sealed partial class DrawingService
         {
             Doc = ctx.Title(d),
             Action = "move",
-            Before = hit.Item,
-            After = Item(hit.A, hit.Item.View, hit.Item.Sheet),
+            Before = Brief(hit.Item),
+            After = Brief(Item(hit.A, hit.Item.View, hit.Item.Sheet)),
             Checks = checks,
         };
     }
@@ -293,7 +333,7 @@ public sealed partial class DrawingService
         if (countAfter == countBefore - 1) checks.Add($"'{hit.Item.View}' went from {countBefore} to {countAfter} annotation(s)");
         else ctx.Warn($"'{hit.Item.View}' went from {countBefore} to {countAfter} annotation(s), not one fewer.");
         checks.Add("no longer listed");
-        return new DrwAnnotationEditResult { Doc = ctx.Title(d), Action = "delete", Before = hit.Item, Checks = checks };
+        return new DrwAnnotationEditResult { Doc = ctx.Title(d), Action = "delete", Before = Brief(hit.Item), Checks = checks };
     }
 
     /// <summary>INote.SetText on a note; verified by reading the text back, else the old text is put back.</summary>
@@ -303,7 +343,7 @@ public sealed partial class DrawingService
             throw SwException.InvalidArgument($"'{hit.Item.Name}' is a {hit.Item.Kind.Replace('_', ' ')}; action 'text' changes notes only.",
                 hit.Item.Kind is "dimension" or "hole_callout" ? "A drawing dimension's value follows the model; tolerances: dimension_tolerance_set." : null);
         string old = note.GetText() ?? "";
-        string want = text.Replace("\r\n", "\n");
+        string want = NoteLines(text);
         bool set = note.SetText(want.Replace("\n", "\r\n"));
         d.GraphicsRedraw2();
         string got = (note.GetText() ?? "").Replace("\r\n", "\n");
@@ -322,8 +362,8 @@ public sealed partial class DrawingService
         {
             Doc = ctx.Title(d),
             Action = "text",
-            Before = hit.Item,
-            After = Item(hit.A, hit.Item.View, hit.Item.Sheet),
+            Before = Brief(hit.Item),
+            After = Brief(Item(hit.A, hit.Item.View, hit.Item.Sheet)),
             Checks = checks,
         };
     }
@@ -382,7 +422,15 @@ public sealed partial class DrawingService
 
     // ================================================================== drw_view_delete
 
-    public Task<DrwViewDeleteResult> ViewDeleteAsync(string? view, string? doc, CancellationToken ct = default)
+    public Task<DrwViewDeleteResult> ViewDeleteAsync(string? view, string? doc, CancellationToken ct = default) =>
+        ViewDeleteAsync(view, false, doc, ct);
+
+    /// <summary>
+    /// Deletes a view. A section, detail or auxiliary view drawn from it goes with it in SOLIDWORKS (its cut line or circle
+    /// is in the parent: the scenario test of build 230924 lost a section that way), so such children are refused unless
+    /// withChildren; projected views stay (checked live on 2023 SP3).
+    /// </summary>
+    public Task<DrwViewDeleteResult> ViewDeleteAsync(string? view, bool withChildren, string? doc, CancellationToken ct = default)
     {
         if (string.IsNullOrWhiteSpace(view)) throw SwException.InvalidArgument("'view' is required (drw_info lists the views).");
         return session.RunAsync("drw_view_delete", ctx =>
@@ -392,23 +440,40 @@ public sealed partial class DrawingService
             var hit = FindView(ctx, drw, view, "view");
             if (hit.View.Type == (int)swDrawingViewTypes_e.swDrawingSheet)
                 throw SwException.InvalidArgument($"'{hit.Name}' is a sheet, not a view; sheets are not deleted by this tool.");
-            var counts = Count(hit.View);
-            var beforeNames = ModelViews(drw).Select(h => h.Name).ToList();
-            var children = ModelViews(drw).Where(h => h.Name != hit.Name && string.Equals(h.View.DrwBaseView()?.GetName2(), hit.Name, StringComparison.OrdinalIgnoreCase))
-                .Select(h => h.Name).ToList();
+            var before = ModelViews(drw);
+            var beforeNames = before.Select(h => h.Name).ToList();
+            var counts = before.ToDictionary(h => h.Name, h => Count(h.View), StringComparer.OrdinalIgnoreCase);
+            var childHits = before.Where(h => h.Name != hit.Name && string.Equals(h.View.DrwBaseView()?.GetName2(), hit.Name, StringComparison.OrdinalIgnoreCase)).ToList();
+            var children = childHits.Select(h => h.Name).ToList();
+            var dependent = childHits.Where(h => h.View.Type is (int)swDrawingViewTypes_e.swDrawingSectionView or (int)swDrawingViewTypes_e.swDrawingDetailView
+                                                     or (int)swDrawingViewTypes_e.swDrawingAuxiliaryView).Select(h => h.Name).ToList();
+            if (dependent.Count > 0 && !withChildren)
+                throw SwException.InvalidArgument(
+                    $"'{hit.Name}' holds the cut line or circle of {string.Join(", ", dependent.Select(n => $"'{n}'"))}, which SOLIDWORKS deletes with it; nothing was deleted.",
+                    "Pass withChildren=true to delete them too (there is no undo in drawings), or delete or keep the view as it is.");
             d.ClearSelection2(true);
             if (!d.Extension.SelectByID2(hit.Name, "DRAWINGVIEW", 0, 0, 0, false, 0, null, 0))
                 throw new SwException(ErrorCodes.FeatureFailed, $"Could not select view '{hit.Name}'.");
             bool deleted = d.Extension.DeleteSelection2(0);
             d.ClearSelection2(true);
-            d.GraphicsRedraw2();
             var afterNames = ModelViews(drw).Select(h => h.Name).ToList();
+            if (withChildren && dependent.Any(n => afterNames.Contains(n, StringComparer.OrdinalIgnoreCase)))
+            {
+                // The children SOLIDWORKS left are deleted by name, as asked.
+                DeleteViews(d, dependent.Where(n => afterNames.Contains(n, StringComparer.OrdinalIgnoreCase)).ToList());
+                afterNames = ModelViews(drw).Select(h => h.Name).ToList();
+            }
+            d.GraphicsRedraw2();
             if (afterNames.Contains(hit.Name, StringComparer.OrdinalIgnoreCase))
                 throw new SwException(ErrorCodes.FeatureFailed, $"View '{hit.Name}' is still there{(deleted ? "" : " (DeleteSelection2 returned false)")}.");
             var removed = beforeNames.Where(n => !afterNames.Contains(n, StringComparer.OrdinalIgnoreCase)).ToList();
             var checks = new List<string> { $"'{hit.Name}' no longer listed", $"{afterNames.Count} view(s) left" };
             var others = removed.Where(n => !string.Equals(n, hit.Name, StringComparison.OrdinalIgnoreCase)).ToList();
-            if (others.Count > 0) ctx.Warn($"SOLIDWORKS also removed {string.Join(", ", others)}.");
+            var unasked = others.Where(n => !dependent.Contains(n, StringComparer.OrdinalIgnoreCase)).ToList();
+            if (unasked.Count > 0) ctx.Warn($"SOLIDWORKS also removed {string.Join(", ", unasked)}.");
+            if (others.Count > unasked.Count) checks.Add($"removed with it (withChildren): {string.Join(", ", others.Except(unasked))}");
+            var left = dependent.Where(n => afterNames.Contains(n, StringComparer.OrdinalIgnoreCase)).ToList();
+            if (left.Count > 0) ctx.Warn($"{string.Join(", ", left)} could not be removed (delete them in SOLIDWORKS).");
             var kept = children.Where(c => afterNames.Contains(c, StringComparer.OrdinalIgnoreCase)).ToList();
             if (kept.Count > 0) ctx.Warn($"{string.Join(", ", kept)} had '{hit.Name}' as parent and stay{(kept.Count == 1 ? "s" : "")}.");
             return new DrwViewDeleteResult
@@ -416,11 +481,21 @@ public sealed partial class DrawingService
                 Doc = ctx.Title(d),
                 View = hit.Name,
                 Removed = removed,
-                Annotations = counts,
+                Annotations = Sum(removed.Select(n => counts.TryGetValue(n, out var c) ? c : null).OfType<DrwCounts>()),
                 ChildrenKept = kept.Count > 0 ? kept : null,
                 ViewCount = afterNames.Count,
                 Checks = checks,
             };
         }, RunOptions.Write(doc), ct);
+    }
+
+    private static DrwCounts Sum(IEnumerable<DrwCounts> all)
+    {
+        var l = all.ToList();
+        return new DrwCounts
+        {
+            Dimensions = l.Sum(c => Math.Max(0, c.Dimensions)), Notes = l.Sum(c => Math.Max(0, c.Notes)), Tables = l.Sum(c => Math.Max(0, c.Tables)),
+            CenterMarks = l.Sum(c => Math.Max(0, c.CenterMarks)), Other = l.Sum(c => Math.Max(0, c.Other)),
+        };
     }
 }

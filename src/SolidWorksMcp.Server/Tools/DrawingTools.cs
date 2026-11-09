@@ -108,13 +108,15 @@ public sealed class DrawingTools(SwSession session)
         }, cancellationToken));
 
     [McpServerTool(Name = "drw_view_delete", Title = "Delete drawing view", ReadOnly = false, Destructive = true, Idempotent = false, OpenWorld = false)]
-    [Description("Deletes a drawing view with its dimensions and notes (doc_undo does not work in drawings). Verified: the view is no " +
-                 "longer listed; returns every view that went and the child views (projected, section, detail) that stay.")]
+    [Description("Deletes a drawing view with its dimensions and notes (doc_undo does not work in drawings). Section, detail and " +
+                 "auxiliary views cut from it go with it, so they are refused unless withChildren; projected views stay. Verified: " +
+                 "the views no longer listed; returns every view that went and their annotation counts.")]
     public async Task<string> DrwViewDelete(
         [Description("The view (drw_info).")] string view,
+        [Description("Also delete the section, detail and auxiliary views cut from it.")] bool withChildren = false,
         [Description(DocDesc)] string? doc = null,
         CancellationToken cancellationToken = default) =>
-        ResultJson.Serialize(await _svc.ViewDeleteAsync(view, doc, cancellationToken));
+        ResultJson.Serialize(await _svc.ViewDeleteAsync(view, withChildren, doc, cancellationToken));
 
     [McpServerTool(Name = "drw_views_standard", Title = "Standard drawing views", ReadOnly = false, Destructive = false, Idempotent = false, OpenWorld = false)]
     [Description("Standard / orthographic views (front, top, right, iso, ...) of a saved part or assembly, laid out for the sheet's " +
@@ -196,7 +198,7 @@ public sealed class DrawingTools(SwSession session)
         ResultJson.Serialize(await _svc.DimensionAddAsync(view, a, b, kind, textAtMm, doc, cancellationToken));
 
     [McpServerTool(Name = "drw_note_add", Title = "Drawing note", ReadOnly = false, Destructive = false, Idempotent = false, OpenWorld = false)]
-    [Description("Note / text on the sheet, or in a view (it then moves with the view), at [x,y] sheet mm; \\n starts a new line. " +
+    [Description("Note / text on the sheet, or in a view (it then moves with the view), at [x,y] sheet mm; a line break or \\n starts a new line. " +
                  "Verified: text and position read back.")]
     public async Task<string> DrwNoteAdd(
         [Description("Note text.")] string text,
@@ -241,23 +243,26 @@ public sealed class DrawingTools(SwSession session)
         }, cancellationToken));
 
     [McpServerTool(Name = "drw_annotation_list", Title = "List drawing annotations", ReadOnly = true, Destructive = false, Idempotent = true, OpenWorld = false)]
-    [Description("Lists the dimensions, notes, balloons, symbols, tables and center marks of the current sheet or one view: name, " +
-                 "kind, view, text or value, position (sheet mm) and attachment. The names are what drw_annotation_edit takes.")]
+    [Description("Lists the dimensions, notes, balloons, view labels, symbols, tables and center marks of the current sheet or one " +
+                 "view: name, kind, view, text or value, position (sheet mm) and attachment. The sheet format's notes (border, title " +
+                 "block) are left out unless format=true. The names are what drw_annotation_edit takes.")]
     public async Task<string> DrwAnnotationList(
         [Description("One view, or the sheet's name for the notes on the sheet itself; default: the current sheet and all its views.")] string? view = null,
-        [Description("Only this kind: dimension | hole_callout | note | balloon | table | center_mark | center_line | datum | surface_finish | gtol | weld | other")] string? kind = null,
+        [Description("Only this kind: dimension | hole_callout | note | balloon | view_label | table | center_mark | center_line | datum | surface_finish | gtol | weld | other")] string? kind = null,
+        [Description("Also list the sheet format's notes (marked format; not editable here).")] bool format = false,
         [Description(DocDesc)] string? doc = null,
         CancellationToken cancellationToken = default) =>
-        ResultJson.Serialize(await _svc.AnnotationListAsync(view, kind, doc, cancellationToken));
+        ResultJson.Serialize(await _svc.AnnotationListAsync(view, kind, format, doc, cancellationToken));
 
     [McpServerTool(Name = "drw_annotation_edit", Title = "Move, delete or retext an annotation", ReadOnly = false, Destructive = true, Idempotent = false, OpenWorld = false)]
-    [Description("Moves a drawing dimension, note or symbol to atMm, deletes it (doc_undo does not work in drawings), or changes a " +
-                 "note's text. Verified: the position or text read back (else put back), or the annotation no longer listed.")]
+    [Description("Moves a drawing dimension, note, view label or symbol to atMm, deletes it (doc_undo does not work in drawings), or " +
+                 "changes a note's text. The sheet format's notes are refused. Verified: the position or text read back (else put " +
+                 "back), or the annotation no longer listed.")]
     public async Task<string> DrwAnnotationEdit(
         [Description("Annotation name from drw_annotation_list, drw_dimension_add (e.g. \"RD1@Drawing View1\") or drw_note_add.")] string name,
         [Description("move | delete | text")] string action,
         [Description("move: new position [x,y] sheet mm (a dimension's or note's text).")] double[]? atMm = null,
-        [Description("text: the note's new text; \\n starts a new line.")] string? text = null,
+        [Description("text: the note's new text; a line break or \\n starts a new line.")] string? text = null,
         [Description("The view (or sheet name) that holds it, when the name alone is ambiguous; default: the current sheet.")] string? view = null,
         [Description(DocDesc)] string? doc = null,
         CancellationToken cancellationToken = default) =>
