@@ -184,7 +184,8 @@ label's `text` is a placeholder, not its wording; (h) `drw_info` counts the shee
 notes among the sheet's (65 against the list's 1). Fixed in `c5df767`: the text read back,
 cut over 80 characters; the label's words from `INote.GetTextAtIndex` ("SECTION A-A");
 the template's annotations left out of the count. Drawing and Contract live tests: 50 of
-50. Not yet in a registered build.
+50. In build `…-20261110-010708` (tag `build-20261110-010708`); not yet run in a scenario
+test.
 Usage: moving a parent moves every view aligned with it, a section placed beside it too
 (point 7). Upstream: not sent yet; a PR branch from `upstream/main` would take `cc685a9`
 alone (`ddca400` stands on PR #8). Editing a dimension's value (T10.4) stays out: a drawing
