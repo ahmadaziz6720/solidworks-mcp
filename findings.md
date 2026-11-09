@@ -402,3 +402,44 @@ Build `bin\0.1.0-20261109-230924`; `sw_status` reports `serverVersion`
     `sw_help`.
 
 Sorted into S3 (1, 2, 4 to 7); S14 (3); S22 (8); S19, S21, S5, S17 (9); S9 (10).
+
+**2026-11-10: scenario test of the drawing edit tools' follow-ups: a literal backslash-n in a note, deleting a parent view, the sheet format's notes, a section view's label and the cut echo, in a finished drawing (a plan view and two section views, 21 dimensions, 2 hole callouts, a 17-line sheet note); short checks of undo in a part, a STEP round trip and an assembly**
+
+Build `bin\0.1.0-20261109-235702`; `sw_status` reports `serverVersion`
+`0.1.0-sw2023-20261109-235702`, tag `build-20261109-235702` on `3926863` (code `79c7b4b`).
+
+1. **S3's five follow-ups held.** (a) `drw_note_add` with `\` `n` typed as two characters
+   stored three lines (read back by `drw_annotation_list`, and the PDF shows them);
+   `drw_annotation_edit` action `text` the same, two lines. (b) `drw_view_delete` of the
+   parent was refused `INVALID_ARGUMENT`, naming both section views, nothing deleted; with
+   `withChildren:true` all three went, `removed` lists them, and `annotations` summed every
+   view (15 + 5 + 3 = 23 dimensions, 2 labels, 10 center marks); the sheet's notes stayed.
+   (c) The sheet's list returned the one note the session made, `formatNotesSkipped: 64`;
+   with `format:true` the 64 are marked `format: true`; a move of a border zone letter was
+   refused with a hint pointing to `prop_set` for the title block. (d) A section view's
+   label is `kind: view_label`, and a move of it read back. (e) A move of the 1.4k note
+   echoed `NOTES… (1405 characters)` in `before` and `after`, 371 characters for the call.
+2. **`drw_note_add` echoes its input, not what was stored.** With `\n` typed as two
+   characters the result's `text` held the backslash and the n (shown escaped in the JSON),
+   next to `text read back`, while the note held real line breaks. A caller reading the
+   result would think the backslash went in. `drw_annotation_edit`'s `after` shows the
+   read-back text; `drw_note_add` could do the same (and cut it as in edits, S22).
+3. **A view label's `text` is a placeholder**, `"label of 'Section View X-X'"`, not the
+   label's own text (`SECTION X-X` on the sheet). Enough to tell which view it belongs to;
+   the label's wording cannot be read.
+4. **S14, met again, for an annotation move.** `drw_annotation_edit` moved a section view's
+   label 4.3 mm down, `position read back`, no warning; on the PDF the label's first letters
+   sit on the arrow letter of the other section line in the parent view. Moving a label is
+   new in this build, so it is the easiest way to land one on another view's annotation.
+5. **`drw_info` still counts the sheet format's notes.** It reported `notes: 65` for the
+   sheet (66 after one note was added) while `drw_annotation_list` reported 1 (2) with 64
+   skipped. The two tools disagree on what a sheet note is.
+6. **Short checks.** In a new part `doc_undo` after a boss extrude removed it (volume →
+   0). STEP AP214 export reported `solids: 1`; `doc_open` of it gave 16 surface bodies, no
+   solid (S5, met again). An assembly opened `readOnly:true`: `asm_interference` 0 at the
+   saved position, then `doc_close` refused `DIRTY` (S21, met again). Every `doc_open`
+   warned `Double 2` changed, each time another value; `doc_close` of the drawing and of
+   the assembly listed `also closed: .` and `, .` (S17, met again).
+7. **Calls**: 33 for the whole test, 27.1k characters of results, 3 errors (the two
+   intended refusals and the `DIRTY` above). The drawing 17 calls; the one `format:true`
+   list is 10.5k, 39% of the characters. No `sw_help`.
