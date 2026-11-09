@@ -27,8 +27,8 @@ then PR. With S19, every placement error means rebuilding the drawing.
 
 **S5. `doc_open` STEP imports surfaces with 3D Interconnect forced off, reported `ok`.**
 Upstream: issue #2. Usage until fixed: import by File > Open and `doc_activate`, or check
-`solidBodies` after `doc_open`. Still so in build `…-204719`: a STEP round trip gave 16
-surface bodies and no solid.
+`solidBodies` after `doc_open`. Still so in builds `…-204719` and `…-215810`: a STEP round
+trip gave 16 surface bodies and no solid.
 
 **S7. `dimension_set` accepts a change that splits the body.** Upstream: issue #4. Usage:
 read `bodies` in the result after each `dimension_set`.
@@ -45,7 +45,7 @@ the test part's geometry). In build `…-181555`, without a fix: 47 calls, 25.8k
 and conventions the sessions here use, read instead. Where the note lives (a skill, the
 global `CLAUDE.md`, a memory) is the owner's call. The scenario test of build `…-181555`
 followed a recorded call sequence and made no `sw_help` call at all; so did those of
-`…-195750` and `…-204719`.
+`…-195750`, `…-204719` and `…-215810` (28 calls, 13.2k characters for the whole test).
 
 **S10. Drawing format and title block.** Precision and decimal separator of drawing
 dimensions, parentheses for reference dimensions, `n×` in hole callouts, DWG NO from a
@@ -89,7 +89,9 @@ build. Local: the build stamp and commit in `serverVersion` (e.g.
 part could go upstream. Met again in the tests of `…-195750` and `…-204719`, whose builds
 were read from the registration. The stamp part needs no code: the release rule in
 `CLAUDE.md` (2026-11-09) publishes with `-p:Version=<v>-sw2023-<stamp>`, a clean tree
-and a `build-<stamp>` tag on the commit. The commit part in `serverVersion` stays open.
+and a `build-<stamp>` tag on the commit. Held in the scenario test of build `…-215810`,
+the first so built: `sw_status` named the build. The commit part in `serverVersion` stays
+open.
 
 **S17. Warnings and texts that are noise.** `feature_mirror` warns "instances overlap,
 merge or are clipped" on a correct mirror whose base face merges into the body (area ratio
@@ -99,8 +101,9 @@ the same warning on STEP imports). `Double 2` is `swSTLDeviation`, coupled with 
 quality; SOLIDWORKS derives it from the opened model's size, and `doc_open` does not write
 it. Proposal: leave the coupled STL group out of the after-call comparison unless the call
 itself wrote it. `doc_close` lists the components it also closed with blank names
-(`also closed: , .`). Local, small; then PR. Both warnings met again in build `…-204719`,
-`Double 2` on every `doc_open` (drawing, part, assembly, STEP import).
+(`also closed: , .`). Local, small; then PR. Both warnings met again in builds `…-204719`
+and `…-215810`, `Double 2` on every `doc_open` (drawing, part, assembly, STEP import), and
+`also closed: .` for a new drawing with no components.
 
 **S18. `doc_pack` faults.** (1) From a document opened `readOnly:true`, the copies still
 reference the originals (`VERIFY_FAILED: Some copies still reference other files`), three
@@ -123,7 +126,8 @@ Bears on S4. Local: compare those too, or warn that the value was not checked; t
 only `asm_interference`, `model_info` and `view_screenshot`; a drawing after
 `doc_rebuild`. `doc_close` then refuses `DIRTY` and needs `discard:true`, one extra call
 each. Found in the scenario test of build `…-204719`. Not yet decided: let `doc_close`
-discard a read-only document's changes, or say in the result which call dirtied it.
+discard a read-only document's changes, or say in the result which call dirtied it. Met
+again in build `…-215810`: the assembly, after only `asm_interference`.
 
 **S22. Results that repeat what the caller already has.** `drw_note_add` echoes the whole
 note text (1.4k characters back for a 1.4k note); `sw_status` repeats ten `recentOps`
@@ -167,9 +171,8 @@ Held in the scenario test of build `…-204719`: no open sketch in a new drawing
 standard view, after each of two sections and in a saved drawing opened read-only;
 `doc_rebuild` runs; in a part a real open sketch is still reported and refused. Undoing
 drawing work still does not work, for other reasons: S19. Upstream: branch
-`fix/drawing-sketch` (one commit `3bde32f`, cherry-picked onto `upstream/main`), pushed;
-the compare link was handed to the owner, PR not yet opened. Closes when the PR is
-settled.
+`fix/drawing-sketch` (one commit `3bde32f`, cherry-picked onto `upstream/main`), PR #7.
+Closes when PR #7 is settled.
 
 **S19. `doc_undo` did not work in drawings, and removed work while reporting failure.**
 Found while fixing S2, live on 2023 SP3: after `drw_views_standard`, `drw_view_projected`
@@ -185,11 +188,13 @@ read the drawing back with `drw_info`; the tool description says so. New live te
 section, a note, then `doc_undo`: refused, views and notes as before) fails without it with
 that `VERIFY_FAILED`. Drawing, FeatureManagement and Contract live tests on 2023 SP3: 94,
 all passing but S23's, which fails without the fix too. Upstream: branch
-`fix/drawing-undo` (one commit `b4cc3e4`, cherry-picked onto `upstream/main`), pushed. In
-build `…-215810` (tag `build-20261109-215810`, registered). To check in the scenario test: `doc_undo` in a drawing refuses `NOT_SUPPORTED` and the sheet keeps its
-notes and views; in a part it still undoes. Closes when that held and the PR is settled.
-Tracking drawing changes by view and annotation counts stays a later option. With S3 open,
-a misplaced drawing item still means rebuilding the drawing.
+`fix/drawing-undo` (one commit `b4cc3e4`, cherry-picked onto `upstream/main`), PR #8. In
+build `…-215810` (tag `build-20261109-215810`). Held in its scenario test: in a drawing,
+refused `NOT_SUPPORTED` after a view and a note and again after a section and a second
+note, with the views and every note kept (`drw_info`); in a part, `doc_undo` still took
+back a boss extrude. Closes when PR #8 is settled. Tracking drawing changes by view and
+annotation counts stays a later option. With S3 open, a misplaced drawing item still means
+rebuilding the drawing.
 
 **S6. `sketch_dimension_add` angular refused the acute angle at a shared vertex.** Local:
 `18cbc57` on `sw2023`. The supplement is kept when `textAt` lies in its sector, and the value

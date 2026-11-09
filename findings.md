@@ -339,3 +339,5 @@ Build `bin\0.1.0-20261109-215810`; `sw_status` reports `serverVersion`
 5. **S5, met again.** STEP AP214 export then `doc_open`: 16 surface bodies, no solid.
 6. **Calls**: 28 for the whole test, 13.2k characters of results, 2 errors (the two
    intended refusals). No `sw_help`.
+
+Sorted into S19 (1); S16 (2); S17 (3); S21 (4); S5 (5); S9 (6).
