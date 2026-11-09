@@ -558,6 +558,16 @@ type libraries and writes `sldworks_api.txt`, `swconst_enums.txt`, `swcommands.t
   - Sheet position: the view center is the model bounding-box center times the view scale. The robust mapping is
     `IView.ModelToViewTransform`.
 - **Note** (VERIFIED). `InsertNote(text)`, then `.GetAnnotation().SetPosition2(x, y, 0)`.
+- **Listing, moving and deleting annotations** (VERIFIED 2026-11-09, 2023 SP3). `IView.GetAnnotations` on the views of the
+  `GetFirstView` / `GetNextView` walk (the sheet's own view first, for the notes on the sheet); `IAnnotation.GetType`
+  and `GetSpecificAnnotation` give the `IDisplayDimension` (name: `GetDimension2(0).FullName`, `RD1@Drawing View1`) or
+  `INote` (`GetName`, `DetailItem…`). `SetPosition2(x, y, 0)` (sheet m) moves a dimension's text or a note and reads back
+  exactly through `GetPosition`; `Select2(false, 0)` and `DeleteSelection2(0)` delete one. `INote.SetText` changes a
+  note's text (`\r\n` between lines).
+- **Moving and deleting views** (VERIFIED 2026-11-09, 2023 SP3). Setting `IView.Position` moves a view; a projected view
+  aligned to it moves with it, and a projected view set off its parent's alignment is kept on it (the position read
+  back differs). `SelectByID2(name, "DRAWINGVIEW")` and `DeleteSelection2(0)` delete a view with its annotations; a
+  projected view whose parent was deleted stays.
 - **Center marks** (VERIFIED). `ActivateView`, then `IView.AutoInsertCenterMarks2(1 /*holes*/, 0, true, true, true, 0.0025,
   0.0005, true, false, 0)`.
 - **Section view** (VERIFIED). Activate the parent view, set `AddToDB = true`, `CreateLine` in **sheet coordinates**,
