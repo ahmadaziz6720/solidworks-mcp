@@ -729,8 +729,10 @@ public class DrawingLiveTests(LiveFixture fx) : LiveTest(fx)
         var vn = Assert.Single(list.Annotations, a => a.Name == viewNote.Note);
         Assert.Equal(front.Name, vn.View);
         Assert.Equal(2, (await Drw.AnnotationListAsync(front.Name, "dimension", drw)).Count);
-        // The ISO A3 format's own notes (zone letters, title block) are left out, and listed marked on request.
+        // The ISO A3 format's own notes (zone letters, title block) are left out, and listed marked on request; drw_info
+        // counts the sheet's notes the same way.
         Assert.DoesNotContain(list.Annotations, a => a.Format == true);
+        Assert.Equal(list.Annotations.Count(a => a.View == sheet && a.Kind == "note"), (await Drw.InfoAsync(drw)).Sheets[0].Annotations!.Notes);
         Assert.True(list.FormatNotesSkipped > 20, $"{list.FormatNotesSkipped} format notes skipped");
         var withFormat = await Drw.AnnotationListAsync(null, null, true, drw);
         Assert.Equal(list.Count + list.FormatNotesSkipped!.Value, withFormat.Count);
@@ -760,6 +762,7 @@ public class DrawingLiveTests(LiveFixture fx) : LiveTest(fx)
         Assert.Equal("SWMCP TYPED\nLINE", typed.After!.Text);
         var typedNote = await Drw.NoteAddAsync(@"SWMCP ADD\nTYPED", [60, 70], null, null, drw);
         Assert.Contains("text read back", typedNote.Checks!);
+        Assert.Equal("SWMCP ADD\nTYPED", typedNote.Text); // what the note holds, not the input as typed
         Assert.Equal("SWMCP ADD\nTYPED", (await Drw.AnnotationListAsync(null, "note", drw)).Annotations.Single(a => a.Name == typedNote.Note).Text);
         // A long text comes back cut in the edit's result (S22), whole in the list.
         string longText = string.Join("\n", Enumerable.Range(1, 12).Select(n => $"SWMCP LONG LINE {n}"));
@@ -859,7 +862,8 @@ public class DrawingLiveTests(LiveFixture fx) : LiveTest(fx)
 
         // The section's label is listed as a view label, not as a note reading " ".
         var label = Assert.Single((await Drw.AnnotationListAsync(sec.Name, null, drw)).Annotations, a => a.Kind == "view_label");
-        Assert.Contains(sec.Name, label.Text);
+        Assert.Contains("A-A", label.Text);
+        Assert.DoesNotContain("label of", label.Text); // its own wording, e.g. "SECTION A-A"
 
         var ex = await Fails(ErrorCodes.InvalidArgument, () => Drw.ViewDeleteAsync(front.Name, drw));
         Assert.Contains(sec.Name, ex.Message);

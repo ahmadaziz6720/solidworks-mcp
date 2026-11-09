@@ -568,7 +568,8 @@ type libraries and writes `sldworks_api.txt`, `swconst_enums.txt`, `swcommands.t
     title block's labels and fields): `IAnnotation.OwnerType` is `swAnnotationOwner_DrawingTemplate` (2) for them, 1
     for a note on the sheet, 0 for one in a view.
   - A **view label** ("SECTION A-A") is an `INote` whose `GetText` reads `" "`; its `PropertyLinkedText` holds
-    `<VLNAME>` / `<VLLABEL>`.
+    `<VLNAME>` / `<VLLABEL>`, and `GetTextCount` / `GetTextAtIndex` give its words.
+  - `IView.GetNoteCount` on the sheet's view counts the format's notes too.
 - **Moving and deleting views** (VERIFIED 2026-11-09, 2023 SP3). Setting `IView.Position` moves a view; a projected view
   aligned to it moves with it, and a projected view set off its parent's alignment is kept on it (the position read
   back differs). `SelectByID2(name, "DRAWINGVIEW")` and `DeleteSelection2(0)` delete a view with its annotations; a

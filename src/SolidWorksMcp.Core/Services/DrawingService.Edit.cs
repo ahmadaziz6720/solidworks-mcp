@@ -179,7 +179,7 @@ public sealed partial class DrawingService
                     else if (Safe(() => n.PropertyLinkedText, null) is { } linked && (linked.Contains("<VLNAME>") || linked.Contains("<VLLABEL>")))
                     {
                         kind = "view_label";
-                        text = $"label of '{view}'";
+                        text = LabelWords(n) is { Length: > 0 } words ? words : $"label of '{view}'";
                     }
                     if (Safe(() => n.GetName(), null) is { Length: > 0 } nn) name = nn;
                 }
@@ -220,9 +220,25 @@ public sealed partial class DrawingService
     private static DrwAnnotationItem Brief(DrwAnnotationItem i) =>
         i.Text is { Length: > 80 } t ? new DrwAnnotationItem
         {
-            Name = i.Name, Kind = i.Kind, View = i.View, Sheet = i.Sheet, Text = $"{t[..60].Split('\n')[0]}… ({t.Length} characters)",
+            Name = i.Name, Kind = i.Kind, View = i.View, Sheet = i.Sheet, Text = Cut(t),
             Value = i.Value, Unit = i.Unit, AtMm = i.AtMm, AttachedTo = i.AttachedTo, Format = i.Format,
         } : i;
+
+    /// <summary>A text over 80 characters cut to its first line's start and its length.</summary>
+    private static string Cut(string t) => t.Length > 80 ? $"{t[..60].Split('\n')[0]}… ({t.Length} characters)" : t;
+
+    /// <summary>A view label's words from the note's text parts (GetText reads " " for it), or null.</summary>
+    private static string? LabelWords(INote n)
+    {
+        int count = Safe(() => n.GetTextCount(), 0);
+        var parts = new List<string>();
+        for (int i = 0; i <= count; i++)
+        {
+            int at = i;
+            if (Safe(() => n.GetTextAtIndex(at), null) is { } p && p.Trim().Length > 0) parts.Add(p.Trim());
+        }
+        return parts.Count > 0 ? string.Join(" ", parts) : null;
+    }
 
     /// <summary>
     /// A note's text as SOLIDWORKS takes it: line breaks as \n, and a backslash-n typed as two characters taken as a line
