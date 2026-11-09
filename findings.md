@@ -481,3 +481,29 @@ Build `bin\0.1.0-20261110-010708`; `sw_status` reports `serverVersion`
    No `sw_help`.
 
 Sorted into S3 (1, 2); S14 (3); S5, S21, S17 (4); S9 (5).
+
+**2026-11-10: scenario test of build 014952 (a view's label counted apart in drw_info)**
+
+Build `bin\0.1.0-20261110-014952`; `sw_status` reports `serverVersion`
+`0.1.0-sw2023-20261110-014952`, tag `build-20261110-014952` on `a0d55c5` (code `59a15f4`).
+
+1. **S3's follow-up (i) held.** On a copy of a finished drawing (a plan view, two section
+   views cut from it), `drw_info` gives each section view `notes: 0, viewLabels: 1`; the plan
+   view and the sheet carry no `viewLabels` field. `drw_annotation_list` agrees: `kind:
+   view_label` 2 (`SECTION A-A`, `SECTION B-B`), `kind: note` 1 (the sheet's own note). After
+   `drw_note_add` into one section view, that view reads `dimensions: 5, notes: 1,
+   viewLabels: 1`, the same as its list (5 dimensions, 1 `view_label`, 1 `note`). Then
+   `drw_view_delete` of the plan with `withChildren` removed all three views and summed
+   `dimensions: 23, notes: 1, centerMarks: 10, viewLabels: 2`, each matching the counts
+   read before. Reported success throughout, and correct.
+2. **S22, met again.** The sheet's `drw_annotation_list` with `kind: note` returned the
+   one sheet note's 1.4k text in full (1.6k characters for one annotation).
+3. **Short checks.** In a new part `doc_undo` after a boss extrude removed it (volume →
+   0). STEP AP214 export reported `solids: 1`; `doc_open` of it gave 16 surface bodies, no
+   solid (S5, met again). An assembly opened `readOnly:true`: `asm_interference` 0 at the
+   saved position, then `doc_close` refused `DIRTY` (S21, met again). Every `doc_open`
+   warned `Double 2` changed, each time another value; `doc_close` of the drawing and of
+   the assembly listed `also closed: .` and `, .` (S17, met again).
+4. **Calls**: 28 for the whole test, 16.5k characters of results, 1 error (the `DIRTY`
+   above). The drawing took 11 calls. Each `drw_info` is 1.6k for three views, the model's
+   full path repeated in every view. No `sw_help`.
