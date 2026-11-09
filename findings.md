@@ -591,3 +591,5 @@ Build `bin\0.1.0-20261110-034022`; `sw_status` reports `serverVersion`
    .` and `, .` (S17, met again).
 6. **Calls**: 25 for the whole test, 11.6k characters of results, 1 error (the intended
    `VERIFY_FAILED` in 2). The drawing took 10. No `sw_help`.
+
+Sorted into S20, held, follow-up (c) new (1, 2, 3); S14 (4); S5, S21, S17, S19 (5); S9 (6).

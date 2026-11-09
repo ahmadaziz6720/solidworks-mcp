@@ -25,7 +25,8 @@ later test result traceable to a commit.
 Upstream: issue #2. Usage until fixed: import by File > Open and `doc_activate`, or check
 `solidBodies` after `doc_open`. Still so in builds `…-204719`, `…-215810` and `…-230924`:
 a STEP round trip gave 16 surface bodies and no solid. Again in `…-235702`,
-`…-010708`, `…-014952` and `…-024431` (export `solids: 1`, import 16 surface bodies).
+`…-010708`, `…-014952`, `…-024431` and `…-034022` (export `solids: 1`, import 16 surface
+bodies).
 
 **S7. `dimension_set` accepts a change that splits the body.** Upstream: issue #4. Usage:
 read `bodies` in the result after each `dimension_set`.
@@ -47,8 +48,8 @@ followed a recorded call sequence and made no `sw_help` call at all; so did thos
 `…-195750`, `…-204719` and `…-215810` (28 calls, 13.2k characters for the whole test), and
 `…-230924` (41 calls, 43.2k characters; 44% of them the sheet's note list and three note
 edits, S3 and S22), `…-235702` (33 calls, 27.1k) and `…-010708` (28 calls, 16.0k; two
-full sheet lists and two `drw_info` calls 42% of them), `…-014952` (28 calls, 16.5k) and
-`…-024431` (42 calls, 21.2k).
+full sheet lists and two `drw_info` calls 42% of them), `…-014952` (28 calls, 16.5k),
+`…-024431` (42 calls, 21.2k) and `…-034022` (25 calls, 11.6k).
 
 **S10. Drawing format and title block.** Precision and decimal separator of drawing
 dimensions, parentheses for reference dimensions, `n×` in hole callouts, DWG NO from a
@@ -87,7 +88,10 @@ the other section line's letter, `position read back`, no warning; moving a labe
 easiest way to land one on another view's annotation. Again in `…-010708`: `drw_note_add`
 120 mm from the sheet's right edge with a first line ≈180 mm long, `position read back`, no
 warning, the line cut off at the page edge in the PDF; the result gives the position, not
-the note's extent.
+the note's extent. Again in `…-034022`: `drw_dimension_add` `horizontal` with `textAtMm` on
+the row of an existing dimension from the same edge, its dimension line on the other's and
+the two texts side by side, `textAtMm` echoed, no warning; the result does not show a clash
+with the view's other dimensions.
 
 **S15. `tools\install.ps1` registers at user scope under the name `solidworks`.** That
 clashes with any other server of that name. Usage: `-NoRegister`, and register by hand at
@@ -118,7 +122,7 @@ itself wrote it. `doc_close` lists the components it also closed with blank name
 and `…-215810`, `Double 2` on every `doc_open` (drawing, part, assembly, STEP import), and
 `also closed: .` for a new drawing with no components. Again in `…-230924` and `…-235702`
 (`also closed: .` and `, .` for a drawing and an assembly), and in `…-010708`,
-`…-014952` and `…-024431`.
+`…-014952`, `…-024431` and `…-034022`.
 
 **S18. `doc_pack` faults.** (1) From a document opened `readOnly:true`, the copies still
 reference the originals (`VERIFY_FAILED: Some copies still reference other files`), three
@@ -134,8 +138,8 @@ only `asm_interference`, `model_info` and `view_screenshot`; a drawing after
 `doc_rebuild`. `doc_close` then refuses `DIRTY` and needs `discard:true`, one extra call
 each. Found in the scenario test of build `…-204719`. Not yet decided: let `doc_close`
 discard a read-only document's changes, or say in the result which call dirtied it. Met
-again in builds `…-215810`, `…-230924`, `…-235702`, `…-010708`, `…-014952` and
-`…-024431`: the assembly, after only `asm_interference`.
+again in builds `…-215810`, `…-230924`, `…-235702`, `…-010708`, `…-014952`,
+`…-024431` and `…-034022`: the assembly, after only `asm_interference`.
 
 **S22. Results that repeat what the caller already has.** `drw_note_add` echoes the whole
 note text (1.4k characters back for a 1.4k note); `sw_status` repeats ten `recentOps`
@@ -221,7 +225,7 @@ back a boss extrude. Closes when PR #8 is settled. Tracking drawing changes by v
 annotation counts stays a later option. A misplaced drawing item is moved or removed with
 S3's tools (Waiting) instead of an undo. Held again in build `…-230924`: refused in a
 drawing, the hint naming the three edit tools; in a part an undo took back a boss
-extrude. In a part again in `…-014952` and `…-024431`.
+extrude. In a part again in `…-014952`, `…-024431` and `…-034022`.
 
 **S6. `sketch_dimension_add` angular refused the acute angle at a shared vertex.** Local:
 `18cbc57` on `sw2023`. The supplement is kept when `textAt` lies in its sector, and the value
@@ -278,7 +282,20 @@ circle no longer says to use horizontal / vertical either. Two new live tests fa
 it (`kind linear`; the old hint); Drawing and Contract live tests 51/53 on 2023 SP3, the two
 that fail are auto dimensions and center marks inserting nothing, also without the fix (a
 long SOLIDWORKS session, as under S2); unit tests 248/248. In build `…-034022` (tag
-`build-20261110-034022`). Upstream: PR when (a) and (b) have held in a scenario test.
+`build-20261110-034022`). Held in its scenario test (findings 2026-11-10, build
+`…-034022`, points 1 and 2): (a) `linear` on a single hole edge seen face-on came back
+`kind: diameter`, `expected` equal to `value`, with the check that SOLIDWORKS made a
+diameter, and the PDF shows a diameter; (b) in a section view, `horizontal` from a vertex
+to a hole edge seen edge-on refused `VERIFY_FAILED` (2 mm made), removed, with the new
+hint; `vertical` with the same two entities and a `horizontal` from a straight edge to a
+face-on hole edge still checked. Not run: the hint for a mismatch with no edge-on circle
+(no case found that SOLIDWORKS gets wrong), a near or far side. Follow-up from it, small
+(point 3): (c) `linear` on a single circle seen edge-on comes back `kind: linear`, no
+`expected`, with the new warning, while SOLIDWORKS made a linear diameter dimension (Ø in
+the PDF, the value the circle's diameter); the diameter is known, so it can be compared as
+in (a). Reported success, value right. Upstream: PR when (a) and (b) have held in a
+scenario test, which they now have; (c) goes in first (the owner, 2026-11-10), then the PR
+from `upstream/main` with `8c88427`, `8b0fbbd` and (c)'s fix.
 
 ## Closed
 
