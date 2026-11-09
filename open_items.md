@@ -265,8 +265,20 @@ Follow-ups from it, small, before the PR (the owner, 2026-11-10): (a) a single c
 alone is not computed here"); the circle's diameter is known, so it can be compared as
 `diameter` is. (b) The `horizontal` refusal's hint says to pass `textAtMm` or use
 `horizontal` / `vertical`, which the call already did; it should say that SOLIDWORKS did
-not make that direction to an edge-on circle. Upstream: PR when (a) and (b) are in and
-held.
+not make that direction to an edge-on circle. Fixed in `8b0fbbd` on `sw2023`: (a) a
+distance on a single circle that SOLIDWORKS makes a diameter or a radius
+(`IDisplayDimension.Type2`) is compared with the circle's diameter or radius, `kind` says
+what was made and a check says so (`SOLIDWORKS made a diameter dimension of the circle for
+kind linear`); the warning for a value still not compared reads "no expected linear value
+is computed for a circle seen edge-on alone in this view". (b) A `horizontal` or
+`vertical` that does not match, with a circle seen edge-on among the two, has the hint
+"SOLIDWORKS did not make a horizontal dimension to the centre of …, a circle seen edge-on
+in this view", pointing to a vertex, a straight edge or a face-on view; one with no such
+circle no longer says to use horizontal / vertical either. Two new live tests fail without
+it (`kind linear`; the old hint); Drawing and Contract live tests 51/53 on 2023 SP3, the two
+that fail are auto dimensions and center marks inserting nothing, also without the fix (a
+long SOLIDWORKS session, as under S2); unit tests 248/248. Upstream: PR when (a) and (b)
+have held in a scenario test.
 
 ## Closed
 
