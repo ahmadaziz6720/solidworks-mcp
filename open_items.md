@@ -295,7 +295,19 @@ face-on hole edge still checked. Not run: the hint for a mismatch with no edge-o
 the PDF, the value the circle's diameter); the diameter is known, so it can be compared as
 in (a). Reported success, value right. Upstream: PR when (a) and (b) have held in a
 scenario test, which they now have; (c) goes in first (the owner, 2026-11-10), then the PR
-from `upstream/main` with `8c88427`, `8b0fbbd` and (c)'s fix.
+from `upstream/main` with `8c88427`, `8b0fbbd` and (c)'s fix. (c) fixed in `23bd0d7` on
+`sw2023`. Probed live first (a block with the Ø20 hole, a section through its centre, the
+hole's back edge alone): `linear` and `horizontal` give `Type2` linear (not diameter), the
+prefix `<MOD-DIAM>`, value 20; `vertical` is not made (`FEATURE_FAILED`). A single circle
+seen exactly edge-on (its axis in the sheet plane) is now compared with its projection
+(`linear` the diameter, `horizontal` / `vertical` the diameter times the projected
+direction's share), and a check says the dimension carries the Ø (`SOLIDWORKS made a linear
+dimension with Ø across the circle, seen edge-on`). `kind` stays what SOLIDWORKS made
+(`linear` / `horizontal`), since `Type2` reads linear; the Ø is in the check. A circle seen
+at an angle keeps the warning, which now says "a circle seen at an angle". New live test
+fails without it (`linear: expected none, wanted 20`); Drawing and Contract live tests 54/54
+on 2023 SP3, unit tests 248/248. Not run: a section whose cut leaves the hole's axis
+oblique on the sheet (`horizontal` there would be checked against the projected share).
 
 ## Closed
 
