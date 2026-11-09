@@ -143,7 +143,7 @@ build `…-204719`. Local, small: a length and the first line for the note, erro
 in `recentOps`; then PR. Bears on S8 and S9 (tokens). Met again in build `…-230924`:
 `drw_annotation_edit` on the 1.4k note returned its text twice (`before` and `after`), 3.2k
 characters per call; that echo cut to 80 characters in `79c7b4b` (S3). `drw_note_add`'s
-echo and `sw_status`'s `recentOps` stay; the first being fixed with S3 (f). Build
+echo and `sw_status`'s `recentOps` stay; the first cut in `c5df767` (S3 f). Build
 `…-235702`'s scenario test: the one `format:true` list 10.5k, 39% of its characters.
 
 **S23. `Tolerances_read_back_and_fits_follow_the_ISO_tables` fails on 2023 SP3.** A
@@ -178,11 +178,13 @@ the format's notes (`IAnnotation.OwnerType` 2) are left out unless `format=true`
 and refused by the edit; `view_label` is a kind; texts over 80 characters come back cut in
 edit results. Each has an assertion that fails without it; Drawing and Contract live tests
 on 2023 SP3: 50 of 50. In build `…-235702` (tag `build-20261109-235702`). Held in its
-scenario test (findings 2026-11-10, point 1): all five. Small follow-ups from it, local,
-being fixed: (f) `drw_note_add`'s result gives the input text, not the text read back (a
+scenario test (findings 2026-11-10, point 1): all five. Small follow-ups from it: (f) `drw_note_add`'s result gives the input text, not the text read back (a
 typed `\n` shown as typed while the note holds a line break), and in full (S22); (g) a view
 label's `text` is a placeholder, not its wording; (h) `drw_info` counts the sheet format's
-notes among the sheet's (65 against the list's 1).
+notes among the sheet's (65 against the list's 1). Fixed in `c5df767`: the text read back,
+cut over 80 characters; the label's words from `INote.GetTextAtIndex` ("SECTION A-A");
+the template's annotations left out of the count. Drawing and Contract live tests: 50 of
+50. Not yet in a registered build.
 Usage: moving a parent moves every view aligned with it, a section placed beside it too
 (point 7). Upstream: not sent yet; a PR branch from `upstream/main` would take `cc685a9`
 alone (`ddca400` stands on PR #8). Editing a dimension's value (T10.4) stays out: a drawing
