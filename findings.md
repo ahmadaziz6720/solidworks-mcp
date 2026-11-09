@@ -221,10 +221,48 @@ Build `bin\0.1.0-20261109-181555`.
 4. **Every `doc_open` of a native part, drawing or assembly warned that system option
    `Double 2` changed** (e.g. `0.000131… → 0.0000787…`, a different value per document),
    telling the session to tell the user. So far it was noted only for STEP imports (S5).
-   The value moving per opened document suggests SOLIDWORKS sets it itself (a view or
-   zoom value), in which case the warning is noise on every open. Worth checking what
-   `Double 2` is before keeping the warning. Bears on S5.
+   `Double 2` is `swSTLDeviation` (`SystemPrefIds.StlDeviation`), coupled with the STL
+   quality. The values scale with the opened model (in metres: ≈0.13 mm for the largest
+   part, ≈0.028 mm for the smallest assembly), which fits SOLIDWORKS deriving the deviation
+   from the model size while the STL quality is a preset. `doc_open` does not write it, so
+   SOLIDWORKS changes it on its own and the warning is noise on every open, asking the
+   session to bother the user about an STL export setting. Proposal: leave the coupled STL
+   group out of the after-call comparison unless the call itself wrote it. Bears on S5.
 5. **`doc_close` of an assembly warned `SOLIDWORKS also closed: , .`**: the closed
    components' names are blank. Same on closing a drawing (`also closed: .`).
 
 Sorted into S18 (1, 2, 3); S17 (4, 5).
+
+**2026-11-09: scenario test of the angular hint without textAt: the shelled part with two fully defined sketches, holes and design-intent changes, then two drawing sections**
+
+Build `bin\0.1.0-20261109-195750` (`f87a3df`, from the registration and `open_items.md`;
+`sw_status` shows `0.1.0` only).
+
+1. **S6, second part, held in a real sketch.** In the slope-cut sketch (closed profile, a
+   horizontal line, two verticals, a vertical point relation and one dimension already in
+   it), `sketch_dimension_add` angular between the flat line and the slope sharing its end,
+   `valueDeg` 7.5, no `textAt`: `VERIFY_FAILED: After setting 7.5°, the lines make 172.5°
+   between the rays, so 7.5° went to the angle across the vertex; the dimension was on the
+   172.5° between the rays, not the 7.5°; … Hint: To set the 7.5° angle, pass textAt inside
+   it, e.g. textAt [60.388, 38.958] (sketch mm).` The point lies on the bisector of the
+   acute wedge. The same call with that `textAt` was accepted (`textAt lies in the
+   supplementary angle`), the sketch went fully defined, and every later check of the
+   part came out as before (cut volume, holes, mass, the angle driven 7.5 → 10 → 7.5 with
+   one body). In a bare sketch of two free lines, the earlier repro (`valueDeg` 10, no
+   `textAt`) gave the same message and hint, and following the hint set 10° (geometry
+   measures 10°). The plain case is unchanged: 170° without `textAt` on a second pair was
+   accepted and measured 170°. One extra call over a sketch made with `textAt` from the
+   start.
+2. **The texts name the acute angle by its current size, which reads like a value when
+   another one is asked.** With `valueDeg` 10 the hint says `To set the 7.5° angle, pass
+   textAt…`, and the accepted call then checks `"so 7.5° is dimensioned, not the 172.5°
+   between the rays"` while the value set and measured is 10°. A session can take 7.5 for
+   a value to use. Proposal: "the acute angle (now 7.5°)" or "the angle that is now 7.5°".
+   Wording only; the server reported correctly. Bears on S6.
+3. **S17, met again**: `feature_mirror` of the two ear bosses still warns `"The new faces'
+   area is 1.05 x 1 seed copies: instances overlap, merge or are clipped."` on a correct
+   result (volume and 9/9 reflected faces right).
+4. **Calls (S8/S9)**: part geometry, material, properties and design intent 51 calls,
+   27.4k characters of results, no `sw_help` (the slope sketch 12 calls, one of them the
+   deliberate refusal). The bare two-line check 8 calls; the drawing with both sections 8
+   calls, 3.7k. Both sections cut where drawn, 1 and 3 hatched faces (S1 holds).
