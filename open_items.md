@@ -122,11 +122,13 @@ merged or refused; if merged, the local commits drop out at the next rebase. Not
 `18cbc57` on `sw2023`. The supplement is kept when `textAt` lies in its sector, and the value
 set after it is checked against the supplement. New live test fails without the fix;
 `SketchEditLiveTests` 58/58 on 2023 SP3. Held in the scenario test of build `…-181555`.
-Upstream: PR #6 (branch `fix/angular-supplement`, one commit `dce4afe`, "Fixes #3"). Closes
-when PR #6 is merged or refused. **Next:** the scenario entry's point 2. Without `textAt`,
-a `valueDeg` nearer the supplement is refused with a misleading hint. Fix it as a second
-commit on `fix/angular-supplement`, which joins PR #6, and on `sw2023`, with its own live
-test.
+Upstream: PR #6 (branch `fix/angular-supplement`, `dce4afe`, "Fixes #3"). Second part, the
+scenario entry's point 2: without `textAt`, a value that lands in the angle across the
+vertex was refused with a hint to look for other relations. Still refused and rolled back,
+now saying so, with a hint that gives a `textAt` inside the other angle. Local: `f87a3df`
+on `sw2023`; on `fix/angular-supplement` as `ec2c32b`, not yet pushed to PR #6. New live
+test fails without it; `SketchEditLiveTests` 59/59 on 2023 SP3. In build `…-195750`, not
+yet run in a scenario test. Closes when that test held and PR #6 is merged or refused.
 
 ## Closed
 
