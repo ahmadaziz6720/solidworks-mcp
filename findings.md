@@ -550,3 +550,6 @@ Build `bin\0.1.0-20261110-024431`; `sw_status` reports `serverVersion`
 6. **Calls**: 42 for the whole test, 21.2k characters of results, 1 error (the
    `VERIFY_FAILED` in 3). The drawing took 27: nine deletes and nine adds, one at a time,
    ~290 and ~590 characters each. No `sw_help`.
+
+Sorted into S20, held, stays Waiting (1, 3); S20 follow-ups (a) and (b) (2, 3); S24, new
+(4); S19, S5, S21, S17 (5); S9, S8 (6).

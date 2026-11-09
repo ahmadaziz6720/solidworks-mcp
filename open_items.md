@@ -10,7 +10,7 @@ Three sections: **Open**, not yet fixed; **Waiting**, fixed and not yet settled 
 merged, a fix not yet run in a session); **Closed**, merged upstream, run and held, or
 decided against, with the record.
 
-**Open: S4, S5, S7 to S18, S21 to S23.** Next, for working drawings and tokens: S8. S5 and
+**Open: S4, S5, S7 to S18, S21 to S24.** Next, for working drawings and tokens: S8. S5 and
 S7 wait a while for upstream's answer to issues #2 and #4. S16 is small and makes every
 later test result traceable to a commit.
 
@@ -25,7 +25,7 @@ later test result traceable to a commit.
 Upstream: issue #2. Usage until fixed: import by File > Open and `doc_activate`, or check
 `solidBodies` after `doc_open`. Still so in builds `…-204719`, `…-215810` and `…-230924`:
 a STEP round trip gave 16 surface bodies and no solid. Again in `…-235702`,
-`…-010708` and `…-014952` (export `solids: 1`, import 16 surface bodies).
+`…-010708`, `…-014952` and `…-024431` (export `solids: 1`, import 16 surface bodies).
 
 **S7. `dimension_set` accepts a change that splits the body.** Upstream: issue #4. Usage:
 read `bodies` in the result after each `dimension_set`.
@@ -37,6 +37,8 @@ no item for it; PR when built. Baseline to compare a fix against: findings 2026-
 the test part's geometry). In build `…-181555`, without a fix: 47 calls, 25.8k. In build
 `…-195750`: 51 calls, 27.4k (the slope sketch 12, one a deliberate refusal). In build
 `…-204719`: a two-section A3 drawing in 50 calls, 30.8k, 16 of them the test's own probes.
+In build `…-024431`: a drawing's nine dimensions deleted and added again one at a time, 27
+calls (≈290 and ≈590 characters each).
 
 **S9. `sw_help` at session start reads ≈23.5k characters.** Usage: a short note of the tools
 and conventions the sessions here use, read instead. Where the note lives (a skill, the
@@ -45,7 +47,8 @@ followed a recorded call sequence and made no `sw_help` call at all; so did thos
 `…-195750`, `…-204719` and `…-215810` (28 calls, 13.2k characters for the whole test), and
 `…-230924` (41 calls, 43.2k characters; 44% of them the sheet's note list and three note
 edits, S3 and S22), `…-235702` (33 calls, 27.1k) and `…-010708` (28 calls, 16.0k; two
-full sheet lists and two `drw_info` calls 42% of them) and `…-014952` (28 calls, 16.5k).
+full sheet lists and two `drw_info` calls 42% of them), `…-014952` (28 calls, 16.5k) and
+`…-024431` (42 calls, 21.2k).
 
 **S10. Drawing format and title block.** Precision and decimal separator of drawing
 dimensions, parentheses for reference dimensions, `n×` in hole callouts, DWG NO from a
@@ -114,8 +117,8 @@ itself wrote it. `doc_close` lists the components it also closed with blank name
 (`also closed: , .`). Local, small; then PR. Both warnings met again in builds `…-204719`
 and `…-215810`, `Double 2` on every `doc_open` (drawing, part, assembly, STEP import), and
 `also closed: .` for a new drawing with no components. Again in `…-230924` and `…-235702`
-(`also closed: .` and `, .` for a drawing and an assembly), and in `…-010708` and
-`…-014952`.
+(`also closed: .` and `, .` for a drawing and an assembly), and in `…-010708`,
+`…-014952` and `…-024431`.
 
 **S18. `doc_pack` faults.** (1) From a document opened `readOnly:true`, the copies still
 reference the originals (`VERIFY_FAILED: Some copies still reference other files`), three
@@ -131,8 +134,8 @@ only `asm_interference`, `model_info` and `view_screenshot`; a drawing after
 `doc_rebuild`. `doc_close` then refuses `DIRTY` and needs `discard:true`, one extra call
 each. Found in the scenario test of build `…-204719`. Not yet decided: let `doc_close`
 discard a read-only document's changes, or say in the result which call dirtied it. Met
-again in builds `…-215810`, `…-230924`, `…-235702`, `…-010708` and `…-014952`: the
-assembly, after only `asm_interference`.
+again in builds `…-215810`, `…-230924`, `…-235702`, `…-010708`, `…-014952` and
+`…-024431`: the assembly, after only `asm_interference`.
 
 **S22. Results that repeat what the caller already has.** `drw_note_add` echoes the whole
 note text (1.4k characters back for a 1.4k note); `sw_status` repeats ten `recentOps`
@@ -152,6 +155,15 @@ every view, 1.6k for three views.
 FeatureManagement live test: `Expected: 0,021`, `Actual: 0`. Seen 2026-11-09 while fixing
 S19, with and without that fix, in a SOLIDWORKS session open since 18:05. Not yet looked
 into: a long session, a 2023 difference in reading tolerances or fits, or the test.
+
+**S24. `drw_annotation_edit` delete moves other dimensions, unreported.** In the scenario
+test of build `…-024431`: three horizontal dimensions stacked below a view, text at y 109,
+101 and 93 mm. After the one at 109 was deleted, the `before` of the next two deletes gave
+both at y 109: SOLIDWORKS had closed up the stack. The result says only that the count
+went down by one and the name is no longer listed; in a drawing that keeps them, the
+layout changes without a word. Bears on S3 (Closed), whose tool it is. Local: read the
+view's other annotations' positions before and after a delete and name each that moved.
+Not yet decided whether to put them back as well.
 
 ## Waiting
 
@@ -209,7 +221,7 @@ back a boss extrude. Closes when PR #8 is settled. Tracking drawing changes by v
 annotation counts stays a later option. A misplaced drawing item is moved or removed with
 S3's tools (Waiting) instead of an undo. Held again in build `…-230924`: refused in a
 drawing, the hint naming the three edit tools; in a part an undo took back a boss
-extrude. In a part again in `…-014952`.
+extrude. In a part again in `…-014952` and `…-024431`.
 
 **S6. `sketch_dimension_add` angular refused the acute angle at a shared vertex.** Local:
 `18cbc57` on `sw2023`. The supplement is kept when `textAt` lies in its sector, and the value
@@ -240,8 +252,21 @@ curve, a single circle with `linear`) comes with a warning "not compared with th
 geometry"; the tool description says both. New live test (six dimensions to hole edges:
 a line to a hole, two holes, `horizontal`, `vertical`, `linear`) fails without it
 (`horizontal: expected none, wanted 50`). Drawing live tests 44/44 and unit tests 248/248
-on 2023 SP3. Not yet run: a near or far side (no tool sets one), an edge-on circle. In
-build `…-024431` (tag `build-20261110-024431`). Upstream: PR when held.
+on 2023 SP3. In build `…-024431` (tag `build-20261110-024431`). Held in its scenario
+test (findings 2026-11-10, build `…-024431`, points 1 and 3): the nine dimensions of build
+`…-204719`'s test added again with the same calls, each with `expected` equal to `value`
+and a check naming how the circle was measured (`('b' to its centre)`, `('a' to its
+centre, 'b' to its centre)`); an edge-on circle in a section view, `vertical` checked
+against its centre, `horizontal` (SOLIDWORKS made 2 mm against the expected 57) refused
+`VERIFY_FAILED` and removed. Still not run: a near or far side (no tool sets one).
+Follow-ups from it, small, before the PR (the owner, 2026-11-10): (a) a single circle with
+`linear` became a diameter in SOLIDWORKS (Ø4.5) and came back `kind: linear`, no
+`expected`, with a warning that reads garbled ("the expected linear between the circle
+alone is not computed here"); the circle's diameter is known, so it can be compared as
+`diameter` is. (b) The `horizontal` refusal's hint says to pass `textAtMm` or use
+`horizontal` / `vertical`, which the call already did; it should say that SOLIDWORKS did
+not make that direction to an edge-on circle. Upstream: PR when (a) and (b) are in and
+held.
 
 ## Closed
 
