@@ -185,8 +185,8 @@ read the drawing back with `drw_info`; the tool description says so. New live te
 section, a note, then `doc_undo`: refused, views and notes as before) fails without it with
 that `VERIFY_FAILED`. Drawing, FeatureManagement and Contract live tests on 2023 SP3: 94,
 all passing but S23's, which fails without the fix too. Upstream: branch
-`fix/drawing-undo` (one commit `b4cc3e4`, cherry-picked onto `upstream/main`). To check in
-the scenario test: `doc_undo` in a drawing refuses `NOT_SUPPORTED` and the sheet keeps its
+`fix/drawing-undo` (one commit `b4cc3e4`, cherry-picked onto `upstream/main`), pushed. In
+build `…-215810` (tag `build-20261109-215810`, registered). To check in the scenario test: `doc_undo` in a drawing refuses `NOT_SUPPORTED` and the sheet keeps its
 notes and views; in a part it still undoes. Closes when that held and the PR is settled.
 Tracking drawing changes by view and annotation counts stays a later option. With S3 open,
 a misplaced drawing item still means rebuilding the drawing.
