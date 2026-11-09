@@ -332,9 +332,8 @@ entities can carry this kind of dimension (… a circle for radial/diameter)", w
 if it should have worked; the server knows the circle is seen edge-on and its drawn
 direction, so the hint can say so and point to `linear` or the other direction. Nothing
 made, the failure reported honestly. Upstream: branch `fix/dimension-circles` (one commit
-`5a54b9f`, `8c88427`, `8b0fbbd` and `23bd0d7` squashed onto `upstream/main`), its link
-handed over 2026-11-10; Drawing and Contract live tests 46/46 on it on 2023 SP3 (the
-interop patch on top, uncommitted). Closes when that PR is settled.
+`5a54b9f`, `8c88427`, `8b0fbbd` and `23bd0d7` squashed onto `upstream/main`), PR #10; Drawing and Contract live tests 46/46 on it on 2023 SP3 (the
+interop patch on top, uncommitted). Closes when PR #10 is settled.
 
 **S3. No tool deleted or moved a drawing view, dimension or note.** Upstream ROADMAP T10.4
 (🟡). Local: `cc685a9` on `sw2023`. `drw_annotation_list` (current sheet or one view: name,
@@ -386,10 +385,10 @@ sent upstream. Back to Waiting the same day, when it was sent (below).
 Usage: moving a parent moves every view aligned with it, a section placed beside it too
 (point 7). Upstream: branch `feat/drawing-edit` (one commit `d406f45`, `cc685a9`,
 `79c7b4b`, `c5df767` and `59a15f4` squashed onto `upstream/main`, its live tests moved to
-the end of the class so it merges clean with PR #8), its link handed over 2026-11-10;
+the end of the class so it merges clean with PR #8), PR #9;
 Drawing and Contract live tests 47/47 on it on 2023 SP3. `ddca400` stays local, as it
 stands on PR #8. Editing a dimension's value (T10.4) stays out: a drawing
-dimension's value follows the model. Closes when that PR is settled.
+dimension's value follows the model. Closes when PR #9 is settled.
 
 ## Closed
 
