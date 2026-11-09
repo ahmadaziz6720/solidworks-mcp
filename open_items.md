@@ -10,25 +10,18 @@ Three sections: **Open**, not yet fixed; **Waiting**, fixed and not yet settled 
 merged, a fix not yet run in a session); **Closed**, merged upstream, run and held, or
 decided against, with the record.
 
-**Open: S2 to S5, S7 to S18.** Highest value to build locally, for working drawings and
-tokens: S2 and S3 first, then S8. S5 and S7 wait a while for upstream's answer to issues #2
-and #4. S16 is small and makes every later test result traceable to a commit.
+**Open: S3 to S5, S7 to S19.** Highest value to build locally, for working drawings and
+tokens: S3 first (with S19, undo in drawings), then S8. S5 and S7 wait a while for
+upstream's answer to issues #2 and #4. S16 is small and makes every later test result
+traceable to a commit.
 
 ---
 
 ## Open
 
-**S2. A section leaves the view sketch open, so undo is blocked.** After `drw_view_section`
-`sw_status` shows the sketch open, `doc_undo` refuses (`SKETCH_STATE`), `sketch_finish`
-refuses drawings. Local: close the view sketch at the end of the call (and of
-`drw_view_detail`), then PR. Mentioned in PR #1's text, not fixed there. Met again in build
-`…-181555`, where `doc_undo`'s hint also says the user is editing the sketch: nobody was.
-The fix should leave no sketch open; the hint, if it stays, should name the tool that left
-it.
-
 **S3. No tool deletes or moves a drawing view, dimension or note.** Upstream ROADMAP T10.4
 (🟡). Local: `drw_annotation_list` / move / delete and a view delete, with read-back checks,
-then PR. With S2, every placement error means rebuilding the drawing.
+then PR. With S19, every placement error means rebuilding the drawing.
 
 **S4. `drw_dimension_add` keeps wrong values** (supplement reported as a match; an angle for
 `vertical`). Upstream: issue #5.
@@ -114,6 +107,18 @@ looks next to the model. (3) Missing: new names per file (only prefix or suffix)
 refuse or reopen a read-only source, report `noDrawingsFound`, say both in the description;
 then PR. (3) not yet decided.
 
+**S19. `doc_undo` does not work in drawings.** Found while fixing S2, live on 2023 SP3 with
+the S2 fix in: after `drw_views_standard`, `drw_view_projected` and `drw_note_add`,
+`doc_undo` refuses `NOT_OWNED` ("no change by this server is on record"), since a drawing's
+update stamp hardly moves with drawing changes (one step for the standard views, none for a
+projected view or a note), so the server's record of its own writes stays empty; the text
+then blames the user. After `drw_view_section` there is a step on record, and `EditUndo2`
+changes nothing: the section view stays (`VERIFY_FAILED: Nothing changed`). A raw
+`EditUndo2` does take back a standard view and a projected view. Local: track drawing
+changes another way (view and annotation counts) and verify the undo by them, or refuse
+`doc_undo` in drawings with a text that says so. Not yet decided. With S3 open, a
+misplaced drawing item means rebuilding the drawing.
+
 ## Waiting
 
 **S1. `drw_view_section` / `drw_view_detail` drew in view-sketch coordinates.** Local:
@@ -122,7 +127,28 @@ PR #1 (branch `fix/section-sheet-coords`, one commit `81475a5`), tested on 2023 
 on 2025 the mapping may be wrong if sheet coordinates work there. Closes when PR #1 is
 merged or refused; if merged, the local commits drop out at the next rebase. Held again
 in build `…-195750` (two sections, cut where drawn). Not yet run: `drw_view_detail`, views
-at an angle.
+at an angle. Not yet checked: `drw_view_edit broken_out` passes its circle in sheet
+coordinates straight into the active view (its comment says sketch coordinates are the
+sheet's there), which S1 found false for sections and details; its live test only counts
+the cut, so a circle landing elsewhere on the part would pass.
+
+**S2. A drawing always showed a sketch open, so `doc_undo` and `doc_rebuild` refused it.**
+Reported as a section leaving the view sketch open. Cause, found live on 2023 SP3: in a
+drawing `ISketchManager.ActiveSketch` is never null. It names the sheet's own sketch from
+the new drawing on, and the active view's own sketch once a view is activated (after a
+section, detail or broken-out view), and `sw_status`, `model_info`, `doc_undo` and
+`doc_rebuild` read it as a sketch in edit: from the first view, not only after a section.
+Closing it is not possible (`InsertSketch(true)` keeps it, `ActivateSheet` moves it to the
+sheet's). Local: `44fb220` on `sw2023`, `SwExt.SketchInEdit` leaves those two sketches
+out; any other active sketch is still reported. Three live tests fail without it (a new
+drawing and a section; a detail; a broken-out view). Drawing, FeatureManagement, M0 and
+Contract live tests 83/86 on 2023 SP3; the three that fail are not this fix's: M0's
+revision check expects 2025 (`33.`), and auto dimensions and center marks inserted
+nothing, also without the fix, in a SOLIDWORKS session open since 18:05
+(`drw_dimensions_auto`'s hint says a long session can stop inserting model annotations).
+Build `…-204719`, not yet run in a scenario test. Undoing drawing work still does not
+work, for other reasons: S19. Upstream: a PR from `upstream/main` once the scenario test
+held. Closes when that test held and the PR is settled.
 
 **S6. `sketch_dimension_add` angular refused the acute angle at a shared vertex.** Local:
 `18cbc57` on `sw2023`. The supplement is kept when `textAt` lies in its sector, and the value
