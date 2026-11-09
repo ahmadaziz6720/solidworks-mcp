@@ -29,14 +29,55 @@ fork: the owner opens it from the compare link `soheil-mp/solidworks-mcp/compare
 - Update: `git fetch upstream`, `git rebase upstream/main` on `sw2023`, then build (below).
   A member missing in the 2023 interop shows as a compile error.
 
-## Build and run
+## Build, release and run
 
-`dotnet publish` the Server to a new `%LOCALAPPDATA%\solidworks-mcp\bin\0.1.0-<stamp>`,
-check `solidworks-mcp.exe --check-catalog` prints `CATALOG: ok`, register
-`solidworks-mcp` (scope local, in the owner's project) again on the new exe, and run a
-short check in SOLIDWORKS 2023 in a new session there: `sw_status`, one part, one section.
-Keep the previous build folder for a rollback. The server is not reloaded in a running
-session.
+**A release is a build that is registered**, the one sessions in the owner's project run.
+A build for a live test while a fix is in progress is not one. A release is named by its
+stamp, the publish time as `yyyyMMdd-HHmmss`, the name `open_items.md`, `findings.md` and
+the scenario test already use ("build 204719"). Its tag is `build-<stamp>`. No semver: the
+only user is the owner, several builds a day would each need a bump decided, and it would
+clash with upstream's own `0.x` (`ROADMAP.md`, *Release plan*). `<v>` below is
+`<Version>` in `Directory.Build.props`, upstream's.
+
+1. **From a clean tree, at a commit pushed to `origin/sw2023`.** A tree that holds other
+   work publishes from a worktree at that commit instead. Builds 145700 and 163234 report
+   upstream's `fd03a7f` and ran the interop patch uncommitted, so no commit says what ran.
+2. **Publish with the stamp in the version**, into a new folder:
+   ```
+   dotnet publish src\SolidWorksMcp.Server -c Release -p:Version=<v>-sw2023-<stamp> -o "$env:LOCALAPPDATA\solidworks-mcp\bin\<v>-<stamp>"
+   ```
+   `sw_status` then reports `serverVersion` `<v>-sw2023-<stamp>` (S16), and the dll's
+   product version adds `+<commit>`.
+3. `solidworks-mcp.exe --check-catalog` prints `CATALOG: ok`.
+4. **The tag and the registration, in one question to the owner.** On the yes: register
+   `solidworks-mcp` (scope local, in the owner's project) again on the new exe, then tag
+   the built commit and push the tag alone:
+   ```
+   git tag -a build-<stamp> -m "build <stamp>" <commit>
+   git push origin refs/tags/build-<stamp>
+   git ls-remote --tags origin 'build-<stamp>*'
+   ```
+5. **The release page on the fork, with no files attached**: the build embeds type
+   information from the builder's own SOLIDWORKS interop (`THIRD-PARTY-NOTICES.md`), and
+   the page is a record only. `gh` has no default repo here (two remotes), so name it:
+   ```
+   gh release create build-<stamp> --repo ahmadaziz6720/solidworks-mcp --verify-tag --title "build <stamp>" --notes-file <file>
+   ```
+   The notes: the upstream commit it stands on (`git merge-base upstream/main <commit>`),
+   the S-items this build fixes, each moved to Waiting naming the build, the server
+   commits since the previous `build-` tag (`git log --oneline <prev>..<commit> -- src`),
+   and "Scenario test: not run yet". English, as the fork is public, and naming no repo,
+   file or design of the owner's, as `findings.md`'s top says.
+6. **A short check** in SOLIDWORKS 2023, in a new session there: `sw_status` reads the
+   new version, one part, one section. The server is not reloaded in a running session.
+7. **After the scenario test**, when its entry is sorted here, its result per item
+   replaces "Scenario test: not run yet" (`gh release edit build-<stamp> --repo
+   ahmadaziz6720/solidworks-mcp --notes-file <file>`).
+
+**Rollback**: register the exe of an earlier build folder again; its tag names the commit.
+Keep the build folders. **A rebase onto upstream** (above) leaves the old tags off
+`sw2023`'s history. They stay on the remote as the record of what was built, and the
+release pages with them.
 
 ## Findings, and the entries other sessions leave here
 

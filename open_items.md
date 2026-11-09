@@ -88,7 +88,9 @@ build. Local: the build stamp and commit in `serverVersion` (e.g.
 `0.1.0-20261109-181555+18cbc57`, `-dirty` from an uncommitted tree), from
 `InformationalVersion` / `SourceRevisionId`; the stamp part may stay local, the commit
 part could go upstream. Met again in the tests of `…-195750` and `…-204719`, whose builds
-were read from the registration.
+were read from the registration. The stamp part needs no code: the release rule in
+`CLAUDE.md` (2026-11-09) publishes with `-p:Version=<v>-sw2023-<stamp>`, a clean tree
+and a `build-<stamp>` tag on the commit. The commit part in `serverVersion` stays open.
 
 **S17. Warnings and texts that are noise.** `feature_mirror` warns "instances overlap,
 merge or are clipped" on a correct mirror whose base face merges into the body (area ratio
