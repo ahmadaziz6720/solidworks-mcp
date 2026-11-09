@@ -240,8 +240,8 @@ curve, a single circle with `linear`) comes with a warning "not compared with th
 geometry"; the tool description says both. New live test (six dimensions to hole edges:
 a line to a hole, two holes, `horizontal`, `vertical`, `linear`) fails without it
 (`horizontal: expected none, wanted 50`). Drawing live tests 44/44 and unit tests 248/248
-on 2023 SP3. Not yet run: a near or far side (no tool sets one), an edge-on circle. Not
-yet in a build. Upstream: PR when held.
+on 2023 SP3. Not yet run: a near or far side (no tool sets one), an edge-on circle. In
+build `…-024431` (tag `build-20261110-024431`). Upstream: PR when held.
 
 ## Closed
 
