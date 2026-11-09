@@ -10,8 +10,7 @@ Three sections: **Open**, not yet fixed; **Waiting**, fixed and not yet settled 
 merged, a fix not yet run in a session); **Closed**, merged upstream, run and held, or
 decided against, with the record.
 
-**Open: S3 to S5, S7 to S22.** Next: S19, decided (refuse `doc_undo` in drawings), since
-it can remove work while reporting failure. Then, for working drawings and tokens: S3, S20,
+**Open: S3 to S5, S7 to S18, S20 to S23.** Next, for working drawings and tokens: S3, S20,
 then S8. S5 and S7 wait a while for upstream's answer to issues #2 and #4. S16 is small and
 makes every later test result traceable to a commit.
 
@@ -112,23 +111,6 @@ looks next to the model. (3) Missing: new names per file (only prefix or suffix)
 refuse or reopen a read-only source, report `noDrawingsFound`, say both in the description;
 then PR. (3) not yet decided.
 
-**S19. `doc_undo` does not work in drawings.** Found while fixing S2, live on 2023 SP3 with
-the S2 fix in: after `drw_views_standard`, `drw_view_projected` and `drw_note_add`,
-`doc_undo` refuses `NOT_OWNED` ("no change by this server is on record"), since a drawing's
-update stamp hardly moves with drawing changes (one step for the standard views, none for a
-projected view or a note), so the server's record of its own writes stays empty; the text
-then blames the user. After `drw_view_section` there is a step on record, and `EditUndo2`
-changes nothing: the section view stays (`VERIFY_FAILED: Nothing changed`). A raw
-`EditUndo2` does take back a standard view and a projected view. Worse, in the scenario
-test of build `…-204719`: with a section on record, `drw_note_add` then `doc_undo` answered
-`VERIFY_FAILED: Nothing changed` while the note was gone from the sheet (notes 65 → 64),
-twice; a session that trusts the error goes on without the note. The hint names
-`feature_list`, which says nothing about drawing annotations. Decided by the owner on
-2026-11-09: refuse `doc_undo` in drawings (`NOT_SUPPORTED`, a text that says why and what
-to do instead) before calling `EditUndo2`, until an undo there can be verified; then PR.
-Tracking drawing changes by view and annotation counts stays a later option. With S3 open,
-a misplaced drawing item means rebuilding the drawing.
-
 **S20. `drw_dimension_add` returns some dimensions without a value check, silently.** In the
 scenario test of build `…-204719`, 9 of 23: every one with a circular edge in it (a line to
 a hole edge, two hole edges, `vertical` or `horizontal`). Their results carry no
@@ -148,6 +130,11 @@ note text (1.4k characters back for a 1.4k note); `sw_status` repeats ten `recen
 with their full error texts, up to 2.6k characters per call. Found in the scenario test of
 build `…-204719`. Local, small: a length and the first line for the note, error codes only
 in `recentOps`; then PR. Bears on S8 and S9 (tokens).
+
+**S23. `Tolerances_read_back_and_fits_follow_the_ISO_tables` fails on 2023 SP3.** A
+FeatureManagement live test: `Expected: 0,021`, `Actual: 0`. Seen 2026-11-09 while fixing
+S19, with and without that fix, in a SOLIDWORKS session open since 18:05. Not yet looked
+into: a long session, a 2023 difference in reading tolerances or fits, or the test.
 
 ## Waiting
 
@@ -183,6 +170,26 @@ drawing work still does not work, for other reasons: S19. Upstream: branch
 `fix/drawing-sketch` (one commit `3bde32f`, cherry-picked onto `upstream/main`), pushed;
 the compare link was handed to the owner, PR not yet opened. Closes when the PR is
 settled.
+
+**S19. `doc_undo` did not work in drawings, and removed work while reporting failure.**
+Found while fixing S2, live on 2023 SP3: after `drw_views_standard`, `drw_view_projected`
+and `drw_note_add`, `doc_undo` refused `NOT_OWNED` ("no change by this server is on
+record"), since a drawing's update stamp hardly moves with drawing changes, and the text
+blamed the user. After `drw_view_section` there is a step on record, and `EditUndo2` left
+the section view (`VERIFY_FAILED: Nothing changed`). In the scenario test of build
+`…-204719`, with a section on record, `drw_note_add` then `doc_undo` answered
+`VERIFY_FAILED: Nothing changed` while the note was gone (notes 65 → 64), twice. Decided by
+the owner on 2026-11-09: refuse it in drawings. Local: `a7cd981` on `sw2023`, `NOT_SUPPORTED`
+before `EditUndo2`, with a text that says why and a hint to undo in SOLIDWORKS (Ctrl+Z) and
+read the drawing back with `drw_info`; the tool description says so. New live test (a
+section, a note, then `doc_undo`: refused, views and notes as before) fails without it with
+that `VERIFY_FAILED`. Drawing, FeatureManagement and Contract live tests on 2023 SP3: 94,
+all passing but S23's, which fails without the fix too. Upstream: branch
+`fix/drawing-undo` (one commit `b4cc3e4`, cherry-picked onto `upstream/main`). To check in
+the scenario test: `doc_undo` in a drawing refuses `NOT_SUPPORTED` and the sheet keeps its
+notes and views; in a part it still undoes. Closes when that held and the PR is settled.
+Tracking drawing changes by view and annotation counts stays a later option. With S3 open,
+a misplaced drawing item still means rebuilding the drawing.
 
 **S6. `sketch_dimension_add` angular refused the acute angle at a shared vertex.** Local:
 `18cbc57` on `sw2023`. The supplement is kept when `textAt` lies in its sector, and the value
