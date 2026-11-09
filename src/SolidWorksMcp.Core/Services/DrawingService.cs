@@ -1093,24 +1093,34 @@ public sealed partial class DrawingService(SwSession session)
                 }
                 arcs = string.Join(", ", new[] { ArcEndText("a", ga, endA), ArcEndText("b", gb, endB) }.OfType<string>());
             }
+            string made = k;
+            if (gb is null && ga.Kind == "circle" && k is "linear" or "horizontal" or "vertical" && ga.Radius is double r &&
+                MadeAs(dd) is { } m)
+            {
+                // A distance on a single circle: SOLIDWORKS makes a diameter or a radius of it, compared as those are (S20).
+                made = m;
+                expected = m == "diameter" ? 2 * r : r;
+                checks.Add($"SOLIDWORKS made a {m} dimension of the circle for kind {k}");
+            }
             if (expected is double e)
             {
                 if (!Matches(e))
                 {
                     bool gone = DeleteDimension(d, dd);
                     throw new SwException(ErrorCodes.VerifyFailed,
-                        $"SOLIDWORKS dimensioned {Show(v, angular)} instead of the {k} {Show(e, angular)} of {ra.Label}{(rb is null ? "" : $" and {rb.Label}")}" +
+                        $"SOLIDWORKS dimensioned {Show(v, angular)} instead of the {made} {Show(e, angular)} of {ra.Label}{(rb is null ? "" : $" and {rb.Label}")}" +
                         $"{(arcs is null ? "" : $" ({arcs})")}; " +
                         (gone ? "the dimension was removed." : "the dimension could not be removed."),
-                        "Pass textAtMm next to the quantity you want (beside a length, inside an angle), or use kind horizontal / vertical.");
+                        MismatchHint(k, ga, gb));
                 }
                 checks.Add($"value {Show(v, angular)} matches the geometry{(arcs is null ? "" : $" ({arcs})")}");
             }
             else
             {
                 // Say so rather than return an unchecked value as if it were checked (S20).
-                ctx.Warn($"The value {Show(v, angular)} was not compared with the geometry: the expected {k} between " +
-                         $"{(gb is null ? $"the {ga.Kind} alone" : $"a {ga.Kind} and a {gb.Kind}")} is not computed here. Check it against the model.");
+                static string Of(OnSheet g) => g.Kind == "circle" && !g.FaceOn ? "a circle seen edge-on" : $"a {g.Kind}";
+                ctx.Warn($"The value {Show(v, angular)} was not compared with the geometry: no expected {made} value is computed for " +
+                         $"{(gb is null ? $"{Of(ga)} alone" : $"{Of(ga)} and {Of(gb)}")} in this view. Check it against the model.");
             }
             int after = Count(hit.View).Dimensions;
             if (after == before + 1) checks.Add($"'{hit.Name}' has {after} dimension(s)");
@@ -1121,7 +1131,7 @@ public sealed partial class DrawingService(SwSession session)
             {
                 Doc = ctx.Title(d),
                 View = hit.Name,
-                Kind = k,
+                Kind = made,
                 Dimension = FeatureVerifier.ShortName(dim.FullName),
                 Value = angular ? Units.Deg(v) : Units.Mm(v),
                 Unit = angular ? "deg" : "mm",
@@ -1232,6 +1242,39 @@ public sealed partial class DrawingService(SwSession session)
         int own = a.Kind == "circle" ? c1 : c2, other = a.Kind == "circle" ? c2 : c1;
         int end = own != 0 ? own : other != 0 ? other : ArcCentre;
         return a.Kind == "circle" ? (end, ArcCentre) : (ArcCentre, end);
+    }
+
+    /// <summary>"diameter" or "radial" when SOLIDWORKS made the display dimension so (IDisplayDimension.Type2), else null.</summary>
+    private static string? MadeAs(IDisplayDimension dd)
+    {
+        try
+        {
+            return dd.Type2 switch
+            {
+                (int)swDimensionType_e.swDiameterDimension => "diameter",
+                (int)swDimensionType_e.swRadialDimension => "radial",
+                _ => null,
+            };
+        }
+        catch (COMException e) when (!ComArgs.IsDisconnect(e))
+        {
+            return null;
+        }
+    }
+
+    /// <summary>
+    /// The hint of a dimension whose value does not match the geometry. A horizontal or vertical one already says its
+    /// direction, so it is not told to use one: with a circle seen edge-on, SOLIDWORKS did not measure that direction to it.
+    /// </summary>
+    private static string MismatchHint(string kind, OnSheet a, OnSheet? b)
+    {
+        if (kind is not ("horizontal" or "vertical"))
+            return "Pass textAtMm next to the quantity you want (beside a length, inside an angle), or use kind horizontal / vertical.";
+        var edgeOn = new[] { a, b }.FirstOrDefault(g => g is { Kind: "circle", FaceOn: false });
+        return edgeOn is not null
+            ? $"SOLIDWORKS did not make a {kind} dimension to the centre of {edgeOn.Label}, a circle seen edge-on in this view. " +
+              "Dimension to a vertex or a straight edge instead, or in a view where the circle is seen face-on."
+            : $"SOLIDWORKS did not make a {kind} dimension between these. Pick vertices or straight edges that carry it, or use kind linear.";
     }
 
     private static string? ArcEndText(string arg, OnSheet g, int end) => g.Kind != "circle" ? null
