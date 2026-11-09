@@ -173,7 +173,8 @@ auxiliary view's cut unless `withChildren`, and sums the counts of every view th
 the format's notes (`IAnnotation.OwnerType` 2) are left out unless `format=true`, marked,
 and refused by the edit; `view_label` is a kind; texts over 80 characters come back cut in
 edit results. Each has an assertion that fails without it; Drawing and Contract live tests
-on 2023 SP3: 50 of 50. Not yet in a registered build.
+on 2023 SP3: 50 of 50. In build `…-235702` (tag `build-20261109-235702`); not yet run in
+a scenario test.
 Usage: moving a parent moves every view aligned with it, a section placed beside it too
 (point 7). Upstream: not sent yet; a PR branch from `upstream/main` would take `cc685a9`
 alone (`ddca400` stands on PR #8). Editing a dimension's value (T10.4) stays out: a drawing
