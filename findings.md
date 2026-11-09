@@ -445,3 +445,39 @@ Build `bin\0.1.0-20261109-235702`; `sw_status` reports `serverVersion`
    list is 10.5k, 39% of the characters. No `sw_help`.
 
 Sorted into S3 (1, 2, 3, 5); S22 (2, 7); S14 (4); S5, S21, S17 (6); S9 (7).
+
+**2026-11-10: scenario test of the drawing follow-ups (text read back by `drw_note_add`, a view label's words, the sheet's note count in `drw_info`) in a finished drawing (a plan view and two section views, 23 dimensions, 2 hole callouts, a 17-line sheet note); short checks of undo in a part, a STEP round trip and an assembly**
+
+Build `bin\0.1.0-20261110-010708`; `sw_status` reports `serverVersion`
+`0.1.0-sw2023-20261110-010708`, tag `build-20261110-010708` on `7e99e8d` (code `c5df767`).
+
+1. **S3's three follow-ups held.** (f) `drw_note_add` with `\` `n` typed as two characters
+   returned `"text":"PROBE F\nLINE 2"`, a real line break in the JSON, not the escaped
+   backslash of the last build; a 134-character note (two lines) came back as its first 60
+   characters and `… (134 characters)`, the count of the stored text (the typed `\n` counted
+   once). `drw_annotation_list` and the PDF show both notes on two lines. (g) The two view
+   labels list as `SECTION A-A` and `SECTION B-B`. (h) `drw_info` gives the sheet `notes: 1`
+   (3 after the two probes), the same as `drw_annotation_list` (1, 3; `formatNotesSkipped:
+   64`).
+2. **`drw_info` counts a view's label as a note.** Each section view reports `notes: 1`,
+   while `drw_annotation_list` for that view with `kind: note` returns 0; the 1 is its
+   `view_label`. The sheet-level count now agrees with the list, but the per-view counts
+   still differ from the list's kinds. The labels could be counted apart or left out, as
+   the template's notes were.
+3. **S14, met again, for a new note.** `drw_note_add` at a point 120 mm from the sheet's
+   right edge, a first line about 180 mm long at 2.5 mm text height: `position read back`,
+   no warning. In the PDF the line runs past the page edge and its last words are cut off.
+   The result has the position but not the note's extent, so a caller can't see the
+   overrun without exporting the PDF.
+4. **Short checks.** In a new part `doc_undo` after a boss extrude removed it (volume →
+   0). STEP AP214 export reported `solids: 1`; `doc_open` of it gave 16 surface bodies, no
+   solid (S5, met again). An assembly opened `readOnly:true`: `asm_interference` 0 at the
+   saved position, then `doc_close` refused `DIRTY` (S21, met again). Every `doc_open`
+   warned `Double 2` changed, each time another value; `doc_close` of the drawing and of
+   the assembly listed `also closed: .` and `, .` (S17, met again).
+5. **Calls**: 28 for the whole test, 16.0k characters of results, 1 error (the `DIRTY`
+   above). The drawing took 12 calls; the two full sheet lists (1.6k and 2.0k, mostly the
+   1.4k note in full) and the two `drw_info` calls (1.6k each) are 42% of the characters.
+   No `sw_help`.
+
+Sorted into S3 (1, 2); S14 (3); S5, S21, S17 (4); S9 (5).
