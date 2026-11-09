@@ -139,7 +139,8 @@ with their full error texts, up to 2.6k characters per call. Found in the scenar
 build `…-204719`. Local, small: a length and the first line for the note, error codes only
 in `recentOps`; then PR. Bears on S8 and S9 (tokens). Met again in build `…-230924`:
 `drw_annotation_edit` on the 1.4k note returned its text twice (`before` and `after`), 3.2k
-characters per call; fixed with S3's follow-ups below.
+characters per call; that echo cut to 80 characters in `79c7b4b` (S3). `drw_note_add`'s
+echo and `sw_status`'s `recentOps` stay.
 
 **S23. `Tolerances_read_back_and_fits_follow_the_ISO_tables` fails on 2023 SP3.** A
 FeatureManagement live test: `Expected: 0,021`, `Actual: 0`. Seen 2026-11-09 while fixing
@@ -161,12 +162,18 @@ Drawing and Contract live tests on 2023 SP3: 49 of 49. In build `…-230924` (ta
 `…-230924`, point 1) on a finished drawing: list per view, a dimension and the sheet note
 moved, a dimension deleted, the parent moved with both sections following, a section moved
 off its alignment refused and put back, a section deleted, the PDF showing every change.
-Follow-ups from that test, local, being fixed: (a) action `text` wrote a typed `\n` as
-two characters and reported `text read back` (`drw_note_add` the same); (b)
-`drw_view_delete` of a parent took its section view too, against the description, and
-`annotations` counted the named view's only; (c) the sheet's list holds the sheet
-format's notes (64 of 65: border zones, title block), unmarked, and an edit moved a zone
-letter; (d) a section view's label is listed as a note with text " "; (e) S22's echo.
+Follow-ups from that test: (a) action `text` wrote a typed `\n` as two characters and
+reported `text read back` (`drw_note_add` the same); (b) `drw_view_delete` of a parent took
+its section view too, against the description, and `annotations` counted the named view's
+only; (c) the sheet's list held the sheet format's notes (64 of 65: border zones, title
+block), unmarked, and an edit moved a zone letter; (d) a section view's label was listed
+as a note with text " "; (e) S22's echo. Fixed in `79c7b4b`: a typed `\n` is a line
+break in both tools; `drw_view_delete` refuses a view holding a section, detail or
+auxiliary view's cut unless `withChildren`, and sums the counts of every view that went;
+the format's notes (`IAnnotation.OwnerType` 2) are left out unless `format=true`, marked,
+and refused by the edit; `view_label` is a kind; texts over 80 characters come back cut in
+edit results. Each has an assertion that fails without it; Drawing and Contract live tests
+on 2023 SP3: 50 of 50. Not yet in a registered build.
 Usage: moving a parent moves every view aligned with it, a section placed beside it too
 (point 7). Upstream: not sent yet; a PR branch from `upstream/main` would take `cc685a9`
 alone (`ddca400` stands on PR #8). Editing a dimension's value (T10.4) stays out: a drawing
