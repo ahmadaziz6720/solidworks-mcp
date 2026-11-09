@@ -307,7 +307,8 @@ dimension with Ø across the circle, seen edge-on`). `kind` stays what SOLIDWORK
 at an angle keeps the warning, which now says "a circle seen at an angle". New live test
 fails without it (`linear: expected none, wanted 20`); Drawing and Contract live tests 54/54
 on 2023 SP3, unit tests 248/248. Not run: a section whose cut leaves the hole's axis
-oblique on the sheet (`horizontal` there would be checked against the projected share).
+oblique on the sheet (`horizontal` there would be checked against the projected share). In
+build `…-064352` (tag `build-20261110-064352`).
 
 ## Closed
 
