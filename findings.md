@@ -341,3 +341,62 @@ Build `bin\0.1.0-20261109-215810`; `sw_status` reports `serverVersion`
    intended refusals). No `sw_help`.
 
 Sorted into S19 (1); S16 (2); S17 (3); S21 (4); S5 (5); S9 (6).
+
+**2026-11-09: scenario test of the drawing edit tools: list, move, delete and note text in a finished drawing (a plan view and two section views, 21 dimensions, 2 hole callouts, a 17-line sheet note); short checks of undo in a part, a STEP round trip and an assembly**
+
+Build `bin\0.1.0-20261109-230924`; `sw_status` reports `serverVersion`
+`0.1.0-sw2023-20261109-230924`, tag `build-20261109-230924` on `1dcb6ed` (code `ddca400`).
+
+1. **S3 held.** `drw_annotation_list` per view gave every dimension and callout with name,
+   value and position (13 + 2 callouts, 5, 3). `drw_annotation_edit` moved a dimension and
+   the sheet note (positions read back), deleted a dimension (view 25 → 24 annotations, no
+   longer listed). `drw_view_edit` move of the parent view by +10 mm in x: both section
+   views followed, named in `alsoMoved`, their dimensions and the callouts with them. A
+   section view moved off its alignment was refused `VERIFY_FAILED`, put back (bounds
+   before the next move confirm it) and the hint said to move along the alignment; along
+   it the move held. `drw_view_delete` of a section view removed it with its 5 dimensions
+   and label. `doc_undo` in the drawing refused `NOT_SUPPORTED` with the hint naming the
+   three edit tools. Saved, exported to PDF: the PDF shows every change.
+2. **`drw_annotation_edit` action `text` wrote a literal backslash-n into a note and
+   reported `text read back`.** The parameter says "\n starts a new line". Typed as the two
+   characters `\` `n`, the text was stored as one long line with `\n` printed in it; the
+   check compared it with the input and passed. Sent again with real line breaks it was
+   right. `drw_note_add` has the same wording and, from the code, the same handling. Either
+   turn a literal `\n` into a line break, or refuse text that holds one, and say "a line
+   break" in the description.
+3. **`drw_view_edit` move: "no overlaps with other views" while the moved view's label
+   landed on another view's annotation.** A section view above its parent lowered 4 mm
+   along its alignment: its label ("SECTION X-X") then sat on the letter of the other
+   section line's arrow in the parent view. The check covers view bounds only, not labels,
+   section-line letters or dimensions. Bears on S14.
+4. **`drw_view_delete` of a parent took its section view with it**, against the
+   description ("the child views … that stay"). Reported honestly (`removed` lists both, a
+   warning says SOLIDWORKS also removed it), but `annotations` counts the named view only
+   (14 dimensions, 10 center marks), not the section's 3 dimensions and label that went
+   too. The description could say a section or detail view goes with its parent, before a
+   caller relies on it staying; nothing brings it back in a drawing (no undo).
+5. **Sheet-format notes are listed and edited as if they were the caller's.**
+   `drw_annotation_list` for the sheet's notes returned 65, of which 64 belong to the sheet
+   format (border zone letters and numbers, title block labels and fields): 9.5k characters
+   to find the one note the session made, with nothing marking which is which.
+   `drw_annotation_edit` then moved a border zone letter, reported `position read back`, and
+   the drawing reported `dirty:false` afterwards (closed without `discard`), so whether the
+   move would have been saved is unknown. Suggest a `format:true` flag and a filter, and a
+   refusal or a warning for an edit in the format. Bears on S14, S22.
+6. **A section view's label is listed with text `" "`** (a single space), kind `note`, in
+   both section views: the caller cannot tell it is the view label.
+7. **Lesson**: moving a parent view in x also moved the section view placed beside it
+   (aligned horizontally) by the same 10 mm in x; `alsoMoved` says so. Plan the parent's
+   move with every child in mind.
+8. **S22, met again.** A `drw_annotation_edit` move or text change of the 1.4k-character
+   note returned the whole text twice (before and after), 3.2k characters per call.
+9. **Short checks.** In a new part `doc_undo` after a boss extrude still removed it (volume
+   → 0). An assembly opened `readOnly:true`: `asm_interference` 0 at the saved position,
+   then `doc_close` refused `DIRTY` (S21, met again). STEP AP214 export reported `solids:
+   1`; `doc_open` of it gave 16 surface bodies, no solid (S5, met again). Every `doc_open`
+   warned `Double 2` changed, each time another value, and `doc_close` of the drawing and
+   the assembly listed `also closed: .` / `, .` (S17, met again).
+10. **Calls**: 41 for the whole test, 43.2k characters of results, 3 errors (the two
+    intended refusals and the `DIRTY` above). The drawing edits 25 calls; the sheet's note
+    list (9.5k) and the three note edits (3.2k each) are 44% of the characters. No
+    `sw_help`.
