@@ -277,8 +277,8 @@ in this view", pointing to a vertex, a straight edge or a face-on view; one with
 circle no longer says to use horizontal / vertical either. Two new live tests fail without
 it (`kind linear`; the old hint); Drawing and Contract live tests 51/53 on 2023 SP3, the two
 that fail are auto dimensions and center marks inserting nothing, also without the fix (a
-long SOLIDWORKS session, as under S2); unit tests 248/248. Upstream: PR when (a) and (b)
-have held in a scenario test.
+long SOLIDWORKS session, as under S2); unit tests 248/248. In build `…-034022` (tag
+`build-20261110-034022`). Upstream: PR when (a) and (b) have held in a scenario test.
 
 ## Closed
 
