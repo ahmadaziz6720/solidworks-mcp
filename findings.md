@@ -593,3 +593,47 @@ Build `bin\0.1.0-20261110-034022`; `sw_status` reports `serverVersion`
    `VERIFY_FAILED` in 2). The drawing took 10. No `sw_help`.
 
 Sorted into S20, held, follow-up (c) new (1, 2, 3); S14 (4); S5, S21, S17, S19 (5); S9 (6).
+
+**2026-11-10: scenario test of build 064352 (S20 follow-up c: linear on one circle seen edge-on)**
+
+Build `bin\0.1.0-20261110-064352`; `sw_status` reports `serverVersion`
+`0.1.0-sw2023-20261110-064352`, tag `build-20261110-064352` on `b00311b` (code `23bd0d7`).
+
+1. **S20 follow-up (c) held.** On a copy of a finished drawing, in a section view where a
+   hole's edge is seen edge-on (drawn as a horizontal segment): `linear` on that edge
+   alone came back `kind: linear`, `expected` equal to `value` (the hole's diameter),
+   checks "SOLIDWORKS made a linear dimension with Ø across the circle, seen edge-on" and
+   "value … matches the geometry", no warning. `horizontal` on the same edge: the same,
+   `kind: horizontal`, checked. In a second section view, rotated so the same kind of
+   edge is drawn as a vertical segment, `vertical` on it alone was checked too (the
+   diameter, check with Ø). So the projected share works in both sheet directions. The
+   PDF prints all three as Ø with the diameter.
+2. **Follow-ups (a) and (b) still hold.** `linear` on a hole edge seen face-on: `kind:
+   diameter`, checked. In the section, `horizontal` from a vertex to the edge-on hole:
+   `VERIFY_FAILED` (2 mm made), removed, with the edge-on hint; `vertical` with the same
+   two entities checked (`('b' to its centre)`).
+3. **`vertical` on a single edge-on circle drawn horizontally: the hint is generic.**
+   `FEATURE_FAILED: SOLIDWORKS created no vertical dimension on edge E1 …`, hint "Check
+   that the entities can carry this kind of dimension (two parallel lines or two points
+   for a distance, a circle for radial/diameter)". The edge is a circle, so the hint reads
+   as if it should have worked. The server knows the circle is seen edge-on and in which
+   sheet direction it is drawn; the hint could say so and point to `linear` or the other
+   direction. Nothing made, failure reported honestly. Small; bears on S20.
+4. **Dimension text outside the drawing frame accepted without a word.** A `textAtMm` at
+   y 292 on an A3 sheet (297 high) put the text over the border's zone strip; the result
+   echoed `textAtMm`, no warning. Placed so by the call. Bears on S14.
+5. **Lesson: pick a hole's edge on the circle, not at its centre.** A point at a hole's
+   centre resolved to its edge with "no edge exactly at …; used the nearest one, 2.25 mm
+   away" (the radius), and `strict: true` refused it `ENTITY_NOT_FOUND`. Right, since the
+   centre is not on the edge; a session that thinks in hole centres should expect it. The
+   warning could say the point is the centre of the circle it chose.
+6. **Short checks.** In a new part `doc_undo` after a boss extrude removed it (volume →
+   0). STEP AP214 export reported `solids: 1`; `doc_open` of it gave 16 surface bodies, no
+   solid (S5, met again). An assembly opened `readOnly:true` was `dirty: true` after only
+   `asm_interference` (0 at the saved position) (S21, met again). Every `doc_open` warned
+   `Double 2` changed; `doc_close` of the drawing and of the assembly listed `also closed:
+   .` and `, .` (S17, met again).
+7. **Calls**: 28 for the whole test, 13.2k characters of results, 3 errors (the intended
+   `VERIFY_FAILED` in 2, the `FEATURE_FAILED` probe in 3, the centre pick in 5). The
+   drawing took 13, of them 8 dimension adds at ~110–600 characters each and one
+   `drw_info` (1.6k) to read the second section's orientation. No `sw_help`.
