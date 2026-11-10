@@ -386,6 +386,7 @@ everything checked before the first step) fail without it; with the 21 sketch li
 that call the split code, 25/25 on 2023 SP3. The drawing part (`drw_dimension_add` one at
 a time, build `…-024431`) is not in it. To check in the scenario test: the call count and
 characters of a fully defined sketch against the baseline above. Upstream: PR when held.
+In build `…-115800` (`4f4699c`); `SketchEditLiveTests` 63/63 on it. Scenario test not run yet.
 
 ## Closed
 
