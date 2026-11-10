@@ -10,8 +10,8 @@ Three sections: **Open**, not yet fixed; **Waiting**, fixed and not yet settled 
 merged, a fix not yet run in a session); **Closed**, merged upstream, run and held, or
 decided against, with the record.
 
-**Open: S4, S5, S7 to S15, S18, S22 to S27.** Next, for working drawings and tokens: S8. S5
-and S7 wait a while for upstream's answer to issues #2 and #4.
+**Open: S4, S5, S7, S9 to S15, S18, S22 to S27.** S8 waits for its scenario test. S5 and S7
+wait a while for upstream's answer to issues #2 and #4.
 
 ---
 
@@ -29,16 +29,6 @@ import 16 surface bodies).
 
 **S7. `dimension_set` accepts a change that splits the body.** Upstream: issue #4. Usage:
 read `bodies` in the result after each `dimension_set`.
-
-**S8. One relation or dimension per call.** A fully defined sketch takes ≈15 calls. Local:
-relations and dimensions in `sketch_add` or a batch tool, each still verified. Upstream has
-no item for it; PR when built. Baseline to compare a fix against: findings 2026-11-09,
-"drawing and setup lessons", point 6 (build `…-163234`, ≈53 calls and ≈35k characters for
-the test part's geometry). In build `…-181555`, without a fix: 47 calls, 25.8k. In build
-`…-195750`: 51 calls, 27.4k (the slope sketch 12, one a deliberate refusal). In build
-`…-204719`: a two-section A3 drawing in 50 calls, 30.8k, 16 of them the test's own probes.
-In build `…-024431`: a drawing's nine dimensions deleted and added again one at a time, 27
-calls (≈290 and ≈590 characters each).
 
 **S9. `sw_help` at session start reads ≈23.5k characters.** Usage: a short note of the tools
 and conventions the sessions here use, read instead. Where the note lives (a skill, the
@@ -373,6 +363,29 @@ the end of the class so it merges clean with PR #8), PR #9;
 Drawing and Contract live tests 47/47 on it on 2023 SP3. `ddca400` stays local, as it
 stands on PR #8. Editing a dimension's value (T10.4) stays out: a drawing
 dimension's value follows the model. Closes when PR #9 is settled.
+
+**S8. One relation or dimension per call.** A fully defined sketch took ≈15 calls. Asked:
+relations and dimensions in `sketch_add` or a batch tool, each still verified. Upstream has
+no item for it; PR when built. Baseline to compare a fix against: findings 2026-11-09,
+"drawing and setup lessons", point 6 (build `…-163234`, ≈53 calls and ≈35k characters for
+the test part's geometry). In build `…-181555`, without a fix: 47 calls, 25.8k. In build
+`…-195750`: 51 calls, 27.4k (the slope sketch 12, one a deliberate refusal). In build
+`…-204719`: a two-section A3 drawing in 50 calls, 30.8k, 16 of them the test's own probes.
+In build `…-024431`: a drawing's nine dimensions deleted and added again one at a time, 27
+calls (≈290 and ≈590 characters each).
+Local: `14c6ff2` on `sw2023`, a batch tool, `sketch_constrain {steps:[…]}`: each step a
+relation or a dimension as the two single tools take it, run through their code (split
+out of them) with the same checks. Arguments and references are all checked before the
+first step, against the sketch as the call found it; a point `{at}` on a segment end is
+held by that segment, so later steps find it after the solver moved it or a merge replaced
+it. A failing step is undone as the single tools undo it, the steps before it are kept and
+the rest not run, and the error names both. Not in `sketch_add`: a step failing there
+would have to take the drawn entities back too. Four new live tests (a rectangle fully
+defined in one call, a point followed through a merge, a stop at a conflicting step,
+everything checked before the first step) fail without it; with the 21 sketch live tests
+that call the split code, 25/25 on 2023 SP3. The drawing part (`drw_dimension_add` one at
+a time, build `…-024431`) is not in it. To check in the scenario test: the call count and
+characters of a fully defined sketch against the baseline above. Upstream: PR when held.
 
 ## Closed
 
