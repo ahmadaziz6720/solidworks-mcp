@@ -424,7 +424,8 @@ old `solidworks-mcp.sldmat`, whose PETG equals the one in `Custom Materials`, mo
 to `solidworks-mcp.sldmat.retired` (point 4), so `material_set {name:"PETG"}` needs no
 `database`. Seen once while testing: the custom material's cantilever bent 0.4035 mm
 against 0.4013 ± 0.002 and passed on a rerun. Closed 2026-11-10 on the owner's word; the
-follow-ups to check in the next scenario test.
+follow-ups in build `20261110-144220` (tag `build-20261110-144220`), to check in its
+scenario test.
 
 **S8. One relation or dimension per call.** A fully defined sketch took ≈15 calls. Asked:
 relations and dimensions in `sketch_add` or a batch tool, each still verified. Upstream has
