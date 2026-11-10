@@ -10,9 +10,8 @@ Three sections: **Open**, not yet fixed; **Waiting**, fixed and not yet settled 
 merged, a fix not yet run in a session); **Closed**, merged upstream, run and held, or
 decided against, with the record.
 
-**Open: S4, S5, S7 to S18, S21 to S25.** Next, for working drawings and tokens: S8. S5 and
-S7 wait a while for upstream's answer to issues #2 and #4. S16 is small and makes every
-later test result traceable to a commit.
+**Open: S4, S5, S7 to S15, S18, S22 to S25.** Next, for working drawings and tokens: S8. S5
+and S7 wait a while for upstream's answer to issues #2 and #4.
 
 ---
 
@@ -100,33 +99,6 @@ A3 sheet (297 high) put the text over the border's zone strip, `textAtMm` echoed
 clashes with any other server of that name. Usage: `-NoRegister`, and register by hand at
 local scope. Upstream: perhaps an option for the name and scope; not yet decided.
 
-**S16. The build a session runs cannot be told from inside it.** `sw_status` reports
-`serverVersion` `0.1.0` only. A session open across a rebuild keeps the old process while
-the registration already shows the new exe, and a test result gets pinned to the wrong
-build. Local: the build stamp and commit in `serverVersion` (e.g.
-`0.1.0-20261109-181555+18cbc57`, `-dirty` from an uncommitted tree), from
-`InformationalVersion` / `SourceRevisionId`; the stamp part may stay local, the commit
-part could go upstream. Met again in the tests of `…-195750` and `…-204719`, whose builds
-were read from the registration. The stamp part needs no code: the release rule in
-`CLAUDE.md` (2026-11-09) publishes with `-p:Version=<v>-sw2023-<stamp>`, a clean tree
-and a `build-<stamp>` tag on the commit. Held in the scenario test of build `…-215810`,
-the first so built: `sw_status` named the build. The commit part in `serverVersion` stays
-open.
-
-**S17. Warnings and texts that are noise.** `feature_mirror` warns "instances overlap,
-merge or are clipped" on a correct mirror whose base face merges into the body (area ratio
-1.05; seen in builds `…-145700`, `…-181555` and `…-195750`). Every `doc_open` of a native
-document warns that system option `Double 2` changed, a different value each time (S5 has
-the same warning on STEP imports). `Double 2` is `swSTLDeviation`, coupled with the STL
-quality; SOLIDWORKS derives it from the opened model's size, and `doc_open` does not write
-it. Proposal: leave the coupled STL group out of the after-call comparison unless the call
-itself wrote it. `doc_close` lists the components it also closed with blank names
-(`also closed: , .`). Local, small; then PR. Both warnings met again in builds `…-204719`
-and `…-215810`, `Double 2` on every `doc_open` (drawing, part, assembly, STEP import), and
-`also closed: .` for a new drawing with no components. Again in `…-230924` and `…-235702`
-(`also closed: .` and `, .` for a drawing and an assembly), and in `…-010708`,
-`…-014952`, `…-024431`, `…-034022` and `…-064352`.
-
 **S18. `doc_pack` faults.** (1) From a document opened `readOnly:true`, the copies still
 reference the originals (`VERIFY_FAILED: Some copies still reference other files`), three
 times; read-only is the likely cause, not yet tested with a writable open. Workaround that
@@ -135,14 +107,6 @@ no drawing when the drawings lie in another folder, and reports success; Pack an
 looks next to the model. (3) Missing: new names per file (only prefix or suffix). Local:
 refuse or reopen a read-only source, report `noDrawingsFound`, say both in the description;
 then PR. (3) not yet decided.
-
-**S21. A document opened `readOnly:true` becomes dirty without an edit.** An assembly after
-only `asm_interference`, `model_info` and `view_screenshot`; a drawing after
-`doc_rebuild`. `doc_close` then refuses `DIRTY` and needs `discard:true`, one extra call
-each. Found in the scenario test of build `…-204719`. Not yet decided: let `doc_close`
-discard a read-only document's changes, or say in the result which call dirtied it. Met
-again in builds `…-215810`, `…-230924`, `…-235702`, `…-010708`, `…-014952`,
-`…-024431`, `…-034022` and `…-064352`: the assembly, after only `asm_interference`.
 
 **S22. Results that repeat what the caller already has.** `drw_note_add` echoes the whole
 note text (1.4k characters back for a 1.4k note); `sw_status` repeats ten `recentOps`
@@ -389,6 +353,50 @@ the end of the class so it merges clean with PR #8), PR #9;
 Drawing and Contract live tests 47/47 on it on 2023 SP3. `ddca400` stays local, as it
 stands on PR #8. Editing a dimension's value (T10.4) stays out: a drawing
 dimension's value follows the model. Closes when PR #9 is settled.
+
+**S16. The build a session runs could not be told from inside it.** `sw_status` reported
+`serverVersion` `0.1.0` only. A session open across a rebuild keeps the old process while
+the registration already shows the new exe, and a test result got pinned to the wrong
+build. Met in the tests of `…-195750` and `…-204719`, whose builds were read from the
+registration. The stamp part needs no code: the release rule in `CLAUDE.md` (2026-11-09)
+publishes with `-p:Version=<v>-sw2023-<stamp>`, and it held in the scenario test of build
+`…-215810`, the first so built. The commit part: the SDK already stamped it after `+` in
+`InformationalVersion`, and `serverVersion` cut it off. Local: `e75c465` on `sw2023`,
+`BuildVersion` keeps it shortened to 7 (`0.1.0-sw2023-<stamp>+<commit>`), for `sw_status`
+and the MCP server info, and `Directory.Build.props` appends `.dirty` when `src` or the
+props differ from that commit. A live test fails without it (`"0.1.0"`); unit tests for
+the format. Not yet in a registered build. Upstream: perhaps the commit part, without the
+stamp; not yet decided.
+
+**S17. Warnings and texts that were noise**, each met in every scenario test from build
+`…-145700` on, on a result that was right. (a) `feature_mirror` warned "instances overlap,
+merge or are clipped" on a correct mirror whose base face merges into the body (area ratio
+1.05). (b) Every `doc_open` warned that system option `Double 2` (`swSTLDeviation`)
+changed, a different value each time, STEP imports too (S5). Cause, found live on 2023 SP3:
+the deviation SOLIDWORKS reads back follows the size of the active model, so opening a
+3 m part while a 100 mm one is active "changes" it with nothing written. (c) `doc_close`
+listed the documents it also closed with blank names (`also closed: , .`): their titles
+were read after `CloseDoc`, from documents already gone. Local: `10771bb` on `sw2023`.
+(a) with every seed face found reflected, the area difference is a check line, not a
+warning; a mirror with a face missing still warns. (b) `doc_open` and imports leave the
+coupled STL group out of their audit; `model_export`, which writes it, still checks it.
+(c) the titles are read before the close, `(untitled)` for one with none. Three live
+tests, each failing without its fix: a boss against a rib (seed faces 1600 mm², the copy's
+1200), a 3 m part opened while a 100 mm one is active, a drawing opened from its file and a
+new one closed. Export, Mirror, M0 and the close tests 31/32 on 2023 SP3; the one that
+fails is M0's revision check, which expects 2025 (`33.`), as under S2. Not yet in a
+registered build. Upstream: (b) and (c) are general; a PR not yet decided.
+
+**S21. A document opened `readOnly:true` became dirty without an edit**: an assembly after
+only `asm_interference`, `model_info` and `view_screenshot`; a drawing after
+`doc_rebuild`. `doc_close` then refused `DIRTY` and needed `discard:true`, one extra call
+each. Found in the scenario test of build `…-204719`, met again in every one after it.
+Decided 2026-11-10 by the owner: `doc_close` discards it. Local: `3e02192` on `sw2023`. A
+document this server opened read-only closes without `save` or `discard`, its changes
+discarded, the result's message saying so (`discardedChanges: true`); the user's
+documents are still never discarded, and one opened for editing still needs one of them.
+The `doc_close` description says so. A live test fails without it (`has unsaved
+changes`). Not yet in a registered build. Upstream: not yet decided.
 
 ## Closed
 
