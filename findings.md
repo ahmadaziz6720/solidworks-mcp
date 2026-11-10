@@ -797,3 +797,7 @@ build; one other server process was attached (`otherServerPids`).
 6. **Calls**: 34 for the whole test, 16.2k characters, 6 errors (all deliberate: the
    ambiguous name, `NOT_OWNED`, the missing `overwrite`, three `IO_ERROR`). 14 calls on S28.
    No `sw_help`.
+
+Sorted into S28, held, closed (1); its follow-ups fixed in `9ab2fbe` (2, 3); point 4
+done on the test machine (the old library moved aside), recorded under S28; S5 (5); S9
+(6).

@@ -10,8 +10,8 @@ Three sections: **Open**, not yet fixed; **Waiting**, fixed and not yet settled 
 merged, a fix not yet run in a session); **Closed**, merged upstream, run and held, or
 decided against, with the record.
 
-**Open: S4, S5, S7, S9 to S15, S18, S22 to S27, S29.** S28 waits for its scenario test. S5
-and S7 wait a while for upstream's answer to issues #2 and #4.
+**Open: S4, S5, S7, S9 to S15, S18, S22 to S27, S29.** S5 and S7 wait a while for
+upstream's answer to issues #2 and #4.
 
 ---
 
@@ -24,8 +24,8 @@ and S7 wait a while for upstream's answer to issues #2 and #4.
 Upstream: issue #2. Usage until fixed: import by File > Open and `doc_activate`, or check
 `solidBodies` after `doc_open`. Still so in builds `…-204719`, `…-215810` and `…-230924`:
 a STEP round trip gave 16 surface bodies and no solid. Again in `…-235702`,
-`…-010708`, `…-014952`, `…-024431`, `…-034022`, `…-064352`, `…-091645` and `…-115800` (export
-`solids: 1`, import 16 surface bodies).
+`…-010708`, `…-014952`, `…-024431`, `…-034022`, `…-064352`, `…-091645`, `…-115800` and
+`…-134233` (export `solids: 1`, import 16 surface bodies).
 
 **S7. `dimension_set` accepts a change that splits the body.** Upstream: issue #4. Usage:
 read `bodies` in the result after each `dimension_set`.
@@ -40,8 +40,8 @@ edits, S3 and S22), `…-235702` (33 calls, 27.1k) and `…-010708` (28 calls, 1
 full sheet lists and two `drw_info` calls 42% of them), `…-014952` (28 calls, 16.5k),
 `…-024431` (42 calls, 21.2k), `…-034022` (25 calls, 11.6k), `…-064352` (28 calls, 13.2k;
 8 dimension adds at ≈110–600 characters each, one `drw_info` of 1.6k to read a section's
-orientation) and `…-091645` (30 calls, 16.8k; the largest `feature_list` 2.1k and
-`feature_mirror` 1.9k).
+orientation), `…-091645` (30 calls, 16.8k; the largest `feature_list` 2.1k and
+`feature_mirror` 1.9k) and `…-134233` (34 calls, 16.2k; 14 of them on S28).
 
 **S10. Drawing format and title block.** Precision and decimal separator of drawing
 dimensions, parentheses for reference dimensions, `n×` in hole callouts, DWG NO from a
@@ -373,6 +373,10 @@ Drawing and Contract live tests 47/47 on it on 2023 SP3. `ddca400` stays local, 
 stands on PR #8. Editing a dimension's value (T10.4) stays out: a drawing
 dimension's value follows the model. Closes when PR #9 is settled.
 
+## Closed
+
+Each goes back to Waiting if it is sent upstream, as S3 did.
+
 **S28. `material_add` kept its own library; a library that did not parse failed
 `INTERNAL`.** In the scenario test of build `…-115800` (point 2): `material_set` of a
 material from this server's library failed `VERIFY_FAILED`, and during the call SOLIDWORKS
@@ -403,11 +407,24 @@ and `A_material_library_that_does_not_parse_is_a_named_io_error_in_material_add_
 brought about. Usage until the build: add the material to `Custom Materials` by hand
 (Material editor) and `material_set {database:"Custom Materials"}`. Upstream: not yet
 decided. In build `20261110-134233` (tag `build-20261110-134233`, `PropertiesLiveTests`
-16/16 on it); not yet run in a scenario test.
-
-## Closed
-
-Each goes back to Waiting if it is sent upstream, as S3 did.
+16/16 on it). Held in its scenario test (findings 2026-11-10, build `…-134233`, point 1):
+into `Custom Materials` with the backup byte for byte, `material_set` from it, `NOT_OWNED`
+for SOLIDWORKS' material in lower case, `overwrite` only for its own, and `IO_ERROR` in
+`material_add`, `material_set` and a name found nowhere for the library SOLIDWORKS had
+corrupted, the file not written. Not met: the rewrite during `material_set`, still untested.
+Two follow-ups from that test, fixed in `9ab2fbe` on `sw2023`: (a) the library written back
+kept tabs and CRLF but not its bytes ("UTF-16" became "utf-16", " />" in the user's own
+materials, point 2); now only the added material's lines differ, live test
+`A_library_as_SOLIDWORKS_writes_it_keeps_its_bytes_but_for_the_added_material`. (b) A name
+found nowhere while a library did not parse lost the closest names (point 3); they are
+listed again. Each fails without the fix; `PropertiesLiveTests` 17/17 and the offline
+tests 21/21 on it. On the test machine the owner's `Custom Materials.sldmat` was given
+SOLIDWORKS' spelling back (proven equal to its backup without the server's PETG), and the
+old `solidworks-mcp.sldmat`, whose PETG equals the one in `Custom Materials`, moved aside
+to `solidworks-mcp.sldmat.retired` (point 4), so `material_set {name:"PETG"}` needs no
+`database`. Seen once while testing: the custom material's cantilever bent 0.4035 mm
+against 0.4013 ± 0.002 and passed on a rerun. Closed 2026-11-10 on the owner's word; the
+follow-ups to check in the next scenario test.
 
 **S8. One relation or dimension per call.** A fully defined sketch took ≈15 calls. Asked:
 relations and dimensions in `sketch_add` or a batch tool, each still verified. Upstream has
