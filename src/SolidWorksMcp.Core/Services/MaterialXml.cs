@@ -14,13 +14,19 @@ public sealed record MaterialDef(string Name, string Classification, double Dens
 
 /// <summary>
 /// The .sldmat format (SOLIDWORKS' own files: UTF-16 XML, a mstns:materials root holding classification elements with
-/// material elements and their physicalproperties: EX, NUXY, GXY, ALPX, DENS, KX, C, SIGXT, SIGYLD, values in SI). The
-/// libraries this server writes carry a marker comment, and only those are ever changed.
+/// material elements and their physicalproperties: EX, NUXY, GXY, ALPX, DENS, KX, C, SIGXT, SIGYLD, values in SI). Each
+/// material this server writes carries the marker in its description, which SOLIDWORKS keeps; a library this server
+/// created also carries it as a comment, so its materials from before the per-material marker count as its own. Only
+/// those materials are ever replaced: the rest of a library, SOLIDWORKS' own Custom Materials included, keeps its
+/// materials and its layout.
 /// </summary>
 internal static class MaterialXml
 {
     public const string Ns = "http://www.solidworks.com/sldmaterials";
     public const string Marker = "written by solidworks-mcp";
+
+    /// <summary>The description of a material this server writes (shown in SOLIDWORKS' material dialog).</summary>
+    public const string MaterialMarker = Marker + " (material_add)";
 
     private static readonly (string Tag, string Display)[] Props =
     [
@@ -32,32 +38,116 @@ internal static class MaterialXml
         new XComment($" {Marker}: materials added with material_add "),
         new XElement(XName.Get("materials", Ns), new XAttribute(XNamespace.Xmlns + "mstns", Ns), new XAttribute("version", "2008.03")));
 
+    /// <summary>A library this server created (the comment marker).</summary>
     public static bool IsOurs(XDocument doc) => doc.Nodes().OfType<XComment>().Any(c => c.Value.Contains(Marker, StringComparison.Ordinal));
 
-    public static XDocument Parse(string xml) =>
-        XDocument.Load(XmlReader.Create(new StringReader(xml), new XmlReaderSettings { DtdProcessing = DtdProcessing.Prohibit, XmlResolver = null }));
+    /// <summary>A material this server wrote: its description carries the marker, or the whole library is this server's.</summary>
+    public static bool IsOurs(XDocument doc, XElement material) =>
+        ((string?)material.Attribute("description") ?? "").Contains(Marker, StringComparison.Ordinal) || IsOurs(doc);
 
-    /// <summary>Adds the material under its classification (created when missing); one of that name is replaced only with <paramref name="overwrite"/>.</summary>
-    public static bool Upsert(XDocument doc, MaterialDef m, bool overwrite)
+    /// <summary>Parses a library with its whitespace, so a write keeps the layout of what was there.</summary>
+    public static XDocument Parse(string xml) =>
+        XDocument.Load(XmlReader.Create(new StringReader(xml), new XmlReaderSettings { DtdProcessing = DtdProcessing.Prohibit, XmlResolver = null }),
+            LoadOptions.PreserveWhitespace);
+
+    /// <summary>Reads a library file; one that does not parse is <see cref="Unreadable"/>, never an XmlException.</summary>
+    public static XDocument Load(string file)
+    {
+        try { return Parse(File.ReadAllText(file)); }
+        catch (XmlException ex) { throw Unreadable(file, ex.Message); }
+    }
+
+    /// <summary>Where a library is copied before this server first writes into one it didn't create.</summary>
+    public static string BackupPath(string file) => file + ".before-solidworks-mcp";
+
+    /// <summary>The error for a library that does not parse: which file, where, why it may have happened, what to do.</summary>
+    public static SwException Unreadable(string file, string error, string? lead = null)
+    {
+        string backup = BackupPath(file);
+        return new SwException(ErrorCodes.IoError,
+            $"{lead}The material library '{file}' does not parse: {error.Trim()} SOLIDWORKS can rewrite a library it has loaded (it has " +
+            "put its own XML header in front of one), and then neither it nor this server can read the file.",
+            (File.Exists(backup) ? $"Move the file aside or restore it from '{backup}'" : "Move the file aside or restore it from a copy") +
+            ", then call again (after restarting SOLIDWORKS if it rewrote the file); this server doesn't repair it.");
+    }
+
+    /// <summary>The material elements, as text, other than those named <paramref name="except"/>: what a write must leave unchanged.</summary>
+    public static List<string> Others(XDocument doc, string except) =>
+        [.. (doc.Root?.Descendants("material") ?? [])
+            .Where(e => !string.Equals((string?)e.Attribute("name"), except, StringComparison.OrdinalIgnoreCase))
+            .Select(e => e.ToString(SaveOptions.DisableFormatting)).Order(StringComparer.Ordinal)];
+
+    /// <summary>
+    /// Adds the material under its classification (created when missing). One of that name (in any case) is replaced only
+    /// when this server wrote it and <paramref name="overwrite"/> is set; one it didn't write is refused (NOT_OWNED).
+    /// </summary>
+    public static bool Upsert(XDocument doc, MaterialDef m, bool overwrite, string library = "The library")
     {
         var root = doc.Root ?? throw new SwException(ErrorCodes.Internal, "The material library has no root element.");
-        var existing = root.Descendants("material").FirstOrDefault(e => string.Equals((string?)e.Attribute("name"), m.Name, StringComparison.Ordinal));
+        string? unit = IndentUnit(doc);
+        var existing = root.Descendants("material").FirstOrDefault(e => string.Equals((string?)e.Attribute("name"), m.Name, StringComparison.OrdinalIgnoreCase));
         if (existing is not null)
         {
+            string had = (string?)existing.Attribute("name") ?? m.Name;
+            if (!IsOurs(doc, existing))
+                throw new SwException(ErrorCodes.NotOwned, $"{library} already has a material '{had}' that this server didn't write, so it is left alone.",
+                    "Pick another name, or another database.");
             if (!overwrite)
-                throw SwException.InvalidArgument($"The library already has a material named '{m.Name}'.", "Pass overwrite:true to replace it, or pick another name.");
+                throw SwException.InvalidArgument($"{library} already has a material named '{had}'.", "Pass overwrite:true to replace it, or pick another name.");
             var parent = existing.Parent;
-            existing.Remove();
-            if (parent is not null && parent != root && !parent.Elements("material").Any()) parent.Remove();
+            Remove(existing);
+            if (parent is not null && parent != root && !parent.Elements().Any()) Remove(parent);
         }
         var cls = root.Elements("classification").FirstOrDefault(e => string.Equals((string?)e.Attribute("name"), m.Classification, StringComparison.Ordinal));
         if (cls is null)
         {
             cls = new XElement("classification", new XAttribute("name", m.Classification));
-            root.Add(cls);
+            Append(root, cls, unit);
         }
-        cls.Add(Element(m));
+        Append(cls, Element(m), unit);
         return existing is not null;
+    }
+
+    /// <summary>The indent of a library read with its whitespace (SOLIDWORKS' own: a tab), or null for one built here.</summary>
+    private static string? IndentUnit(XDocument doc)
+    {
+        var ws = doc.Root?.Nodes().OfType<XText>().FirstOrDefault(t => t.Value.Contains('\n') && string.IsNullOrWhiteSpace(t.Value));
+        if (ws is null) return null;
+        string u = ws.Value[(ws.Value.LastIndexOf('\n') + 1)..];
+        return u.Length > 0 ? u : null;
+    }
+
+    private static string Line(string unit, int depth) => "\n" + string.Concat(Enumerable.Repeat(unit, depth));
+
+    /// <summary>Adds <paramref name="child"/> last in <paramref name="parent"/>, laid out as the rest of the file when it has a layout.</summary>
+    private static void Append(XElement parent, XElement child, string? unit)
+    {
+        if (unit is null) { parent.Add(child); return; }
+        int depth = parent.Ancestors().Count();
+        Layout(child, depth + 1, unit);
+        if (parent.LastNode is XText closing && string.IsNullOrWhiteSpace(closing.Value))
+            closing.AddBeforeSelf(new XText(Line(unit, depth + 1)), child);
+        else
+            parent.Add(new XText(Line(unit, depth + 1)), child, new XText(Line(unit, depth)));
+    }
+
+    private static void Layout(XElement e, int depth, string unit)
+    {
+        var kids = e.Elements().ToList();
+        if (kids.Count == 0) return;
+        foreach (var k in kids)
+        {
+            k.AddBeforeSelf(new XText(Line(unit, depth + 1)));
+            Layout(k, depth + 1, unit);
+        }
+        e.Add(new XText(Line(unit, depth)));
+    }
+
+    /// <summary>Removes an element with the whitespace that put it on its own line.</summary>
+    private static void Remove(XElement e)
+    {
+        if (e.PreviousNode is XText ws && string.IsNullOrWhiteSpace(ws.Value)) ws.Remove();
+        e.Remove();
     }
 
     private static XElement Element(MaterialDef m)
@@ -68,7 +158,7 @@ internal static class MaterialXml
         for (int i = 0; i < Props.Length; i++)
             if (values[i] is double v)
                 phys.Add(new XElement(Props[i].Tag, new XAttribute("displayname", Props[i].Display), new XAttribute("value", v.ToString("R", CultureInfo.InvariantCulture))));
-        return new XElement("material", new XAttribute("name", m.Name), phys);
+        return new XElement("material", new XAttribute("name", m.Name), new XAttribute("description", MaterialMarker), phys);
     }
 
     /// <summary>The physical properties of the material <paramref name="name"/> as written (tag → SI value), or null.</summary>

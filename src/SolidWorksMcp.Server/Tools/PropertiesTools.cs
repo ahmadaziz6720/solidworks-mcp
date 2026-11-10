@@ -41,9 +41,11 @@ public sealed class PropertiesTools(SwSession session)
         Output.Json(_svc.MaterialSetAsync(doc, name, database, configuration, cancellationToken), progress, "material_set");
 
     [McpServerTool(Name = "material_add", Title = "Add a custom material", ReadOnly = false, Destructive = false, Idempotent = false, OpenWorld = false)]
-    [Description("Adds a custom material (density, E, ν; optionally G, yield and tensile strength, thermal properties) to this server's " +
-                 "material library in SOLIDWORKS' custom material folder, so material_set {name, database} and the simulations can use it. " +
-                 "Verified: the library reads back with every value and material_list lists it. Only libraries this server wrote are changed.")]
+    [Description("Adds a custom material (density, E, ν; optionally G, yield and tensile strength, thermal properties) to SOLIDWORKS' " +
+                 "own \"Custom Materials\" library (or another library in the custom material folder), so material_set {name, database} and " +
+                 "the simulations can use it. A material this server didn't write is never replaced, and a library it didn't create is " +
+                 "copied aside (backup) before its first write. Verified: the library reads back with every value and its other materials " +
+                 "unchanged, and material_list lists it.")]
     public Task<string> MaterialAdd(
         IProgress<ProgressNotificationValue> progress,
         [Description("Material name.")] string name,
@@ -57,8 +59,8 @@ public sealed class PropertiesTools(SwSession session)
         [Description("Specific heat, J/(kg·K).")] double? specificHeatJkgK = null,
         [Description("Thermal expansion, 1/K.")] double? thermalExpansionPerK = null,
         [Description("Category shown in the material tree (default solidworks-mcp).")] string? classification = null,
-        [Description("Library name (default solidworks-mcp).")] string? database = null,
-        [Description("Replace a material of that name in the library.")] bool overwrite = false,
+        [Description("Library name (default Custom Materials).")] string? database = null,
+        [Description("Replace a material of that name that this server wrote.")] bool overwrite = false,
         CancellationToken cancellationToken = default) =>
         Output.Json(_svc.MaterialAddAsync(new MaterialAddRequest
         {

@@ -36,33 +36,54 @@ public class PropertiesLiveTests(LiveFixture fx) : LiveTest(fx)
     {
         // "Half steel": AISI 1020's density, yield and ν with E = 100 GPa. The 100 mm cantilever under 100 N bends 0.2007 mm in
         // AISI 1020, so twice that in it.
+        // It goes into SOLIDWORKS' own "Custom Materials" (S28), whose own materials stay as they were.
         string name = $"MCP Test Half Steel {Guid.NewGuid().ToString("N")[..6]}";
-        string? file = null;
-        bool created = false;
+        const string Db = "Custom Materials";
+        var before = (await P.MaterialListAsync(Db, 1000, 0)).Databases.FirstOrDefault(d => d.Name == Db);
+        Assert.SkipWhen(before is null, "SOLIDWORKS' Custom Materials library is not in the custom material folder on this machine.");
+        string file = before!.Path;
+        byte[] original = File.ReadAllBytes(file);
+        string backup = MaterialXml.BackupPath(file);
+        bool hadBackup = File.Exists(backup);
+        var theirs = (await P.MaterialListAsync(null, 1000, 0)).Materials.Where(m => m.Database == Db).ToList();
+        Assert.NotEmpty(theirs);
         try
         {
             var r = await P.MaterialAddAsync(new MaterialAddRequest
             {
                 Name = name, DensityKgM3 = 7900, ElasticModulusGpa = 100, PoissonRatio = 0.29, YieldMpa = 351.571, TensileMpa = 420.507,
             });
-            file = r.Path;
-            created = r.CreatedDatabase;
-            Assert.Equal("solidworks-mcp", r.Database);
+            Assert.Equal(Db, r.Database);
+            Assert.Equal(file, r.Path);
+            Assert.False(r.CreatedDatabase);
+            Assert.Equal(backup, r.Backup);
+            if (!hadBackup) Assert.Equal(original, File.ReadAllBytes(backup)); // the library as it was, before the first write
             Assert.Equal(100e9, r.Properties["EX"]);
             Assert.Equal(100e9 / 2.58, r.Properties["GXY"], 1);
             Assert.Contains(r.Checks, c => c.StartsWith("material_list lists it", StringComparison.Ordinal));
-            Assert.Contains((await P.MaterialListAsync("half steel", 100, 0)).Materials, m => m.Name == name && m.Database == "solidworks-mcp");
+            Assert.Contains(r.Checks, c => c.StartsWith($"the library's other {theirs.Count} materials read back unchanged", StringComparison.Ordinal));
+            var after = (await P.MaterialListAsync(null, 1000, 0)).Materials.Where(m => m.Database == Db).ToList();
+            Assert.Contains(after, m => m.Name == name);
+            static string Row(MaterialRow m) => $"{m.Classification}/{m.Name}/{m.DensityKgM3}";
+            Assert.Equal(theirs.Select(Row), after.Where(m => m.Name != name).Select(Row));
             Assert.Equal(ErrorCodes.InvalidArgument, await Code(() => P.MaterialAddAsync(new MaterialAddRequest
             {
                 Name = name, DensityKgM3 = 7900, ElasticModulusGpa = 100, PoissonRatio = 0.29,
             })));
+            // A material of SOLIDWORKS' own is never replaced, overwrite or not, and the file is not touched.
+            byte[] mine = File.ReadAllBytes(file);
+            Assert.Equal(ErrorCodes.NotOwned, await Code(() => P.MaterialAddAsync(new MaterialAddRequest
+            {
+                Name = theirs[0].Name.ToUpperInvariant(), DensityKgM3 = 1000, ElasticModulusGpa = 2, PoissonRatio = 0.4, Overwrite = true,
+            })));
+            Assert.Equal(mine, File.ReadAllBytes(file));
 
             string doc = await NewPartAsync("mat_custom");
             var sk = new SketchService(S);
             await sk.StartAsync(doc, new EntityRef { Name = "front" }, false);
             await sk.AddAsync(doc, [new SketchEntity { Kind = "rectangle", Corners = [[0, 0], [100, 10]] }]);
             await new FeatureService(S).ExtrudeAsync(new ExtrudeRequest { Doc = doc, DepthMm = 10 });
-            var set = await P.MaterialSetAsync(doc, name, "solidworks-mcp");
+            var set = await P.MaterialSetAsync(doc, name, Db);
             Assert.Equal(0.079, set.MassKg!.Value, 1e-6);
             var st = await new SimulationService(S).StaticAsync(new SimStaticRequest
             {
@@ -75,17 +96,51 @@ public class PropertiesLiveTests(LiveFixture fx) : LiveTest(fx)
         }
         finally
         {
-            // Leave the library as it was: the test's material out again (the whole file when the test created it).
-            if (file is not null && File.Exists(file))
+            // Leave SOLIDWORKS' library as it was, byte for byte, and no backup the test made.
+            File.WriteAllBytes(file, original);
+            if (!hadBackup) File.Delete(backup);
+        }
+    }
+
+    [Fact]
+    public async Task A_material_library_that_does_not_parse_is_a_named_io_error_in_material_add_and_material_set()
+    {
+        // S28: SOLIDWORKS put its own header in front of a library; material_add then failed INTERNAL: XmlException and
+        // material_set hinted at the name.
+        string db = $"swmcp-test-broken-{Guid.NewGuid().ToString("N")[..6]}";
+        var made = await P.MaterialAddAsync(new MaterialAddRequest { Name = "MCP Test Broken", Database = db, DensityKgM3 = 1270, ElasticModulusGpa = 2, PoissonRatio = 0.38 });
+        string file = made.Path;
+        try
+        {
+            string lib = Encoding.Unicode.GetString(File.ReadAllBytes(file)).TrimStart('﻿');
+            File.WriteAllText(file, "<?xml version=\"1.0\"?>\r\n<mstns:materials xmlns:mstns=\"http://www.solidworks.com/sldmaterials\">\r\n" + lib, Encoding.Unicode);
+            byte[] broken = File.ReadAllBytes(file);
+
+            var add = await Assert.ThrowsAsync<SwException>(() => P.MaterialAddAsync(new MaterialAddRequest
             {
-                if (created) File.Delete(file);
-                else
-                {
-                    var lib = MaterialXml.Parse(File.ReadAllText(file));
-                    lib.Root!.Descendants("material").Where(e => (string?)e.Attribute("name") == name).ToList().ForEach(e => e.Remove());
-                    File.WriteAllBytes(file, MaterialXml.Bytes(lib));
-                }
-            }
+                Name = "MCP Test Broken", Database = db, DensityKgM3 = 1270, ElasticModulusGpa = 2, PoissonRatio = 0.38, Overwrite = true,
+            }));
+            Assert.Equal(ErrorCodes.IoError, add.Code);
+            Assert.Contains($"'{file}' does not parse", add.Message);
+            Assert.Contains("Line 3", add.Message);
+            Assert.Contains("SOLIDWORKS can rewrite a library", add.Message);
+            Assert.Contains("Move the file aside", add.Hint);
+            Assert.Equal(broken, File.ReadAllBytes(file)); // nothing written
+
+            Assert.Contains((await P.MaterialListAsync(null, 5, 0)).Warnings!, w => w.Contains(file));
+            string doc = await NewPartAsync("mat_broken");
+            var named = await Assert.ThrowsAsync<SwException>(() => P.MaterialSetAsync(doc, "MCP Test Broken", db));
+            Assert.Equal(ErrorCodes.IoError, named.Code);
+            Assert.Contains($"'{file}' does not parse", named.Message);
+            var any = await Assert.ThrowsAsync<SwException>(() => P.MaterialSetAsync(doc, "MCP Test Broken"));
+            Assert.Equal(ErrorCodes.IoError, any.Code);
+            Assert.Contains($"'{db}' can't be read", any.Message);
+            Assert.Null((await new InspectService(S).ModelInfoAsync(doc)).Material); // nothing was applied
+            Assert.Equal(broken, File.ReadAllBytes(file));
+        }
+        finally
+        {
+            File.Delete(file);
         }
     }
 

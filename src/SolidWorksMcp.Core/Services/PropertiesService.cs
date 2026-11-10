@@ -277,6 +277,12 @@ public sealed partial class PropertiesService(SwSession session)
                     part.SetMaterialPropertyName2(cfg, prevDb ?? "", prev);
                     restored = part.GetMaterialPropertyName2(cfg, out _) == prev ? $" Restored '{prev}'." : $" Could not restore '{prev}'.";
                 }
+                // SOLIDWORKS has rewritten a custom library while failing to apply a material from it, leaving it unreadable.
+                if (cat.Databases.FirstOrDefault(x => x.Name.Equals(db, StringComparison.OrdinalIgnoreCase)) is { } row &&
+                    MaterialCatalog.ParseError(row.Path) is { } broke)
+                    throw MaterialXml.Unreadable(row.Path, broke,
+                        $"SOLIDWORKS did not apply '{material}' from '{db}' (the material of '{cfgName}' reads '{(now.Length == 0 ? "(none)" : now)}').{restored} " +
+                        "During the call SOLIDWORKS rewrote the library. ");
                 throw new SwException(ErrorCodes.VerifyFailed,
                     $"SOLIDWORKS did not apply '{material}' from '{db}': the material of '{cfgName}' reads '{(now.Length == 0 ? "(none)" : now)}'.{restored}",
                     "Check the name and database with material_list (SOLIDWORKS ignores unknown names).");
@@ -329,15 +335,26 @@ public sealed partial class PropertiesService(SwSession session)
         if (!string.IsNullOrWhiteSpace(database))
         {
             string dbWant = database.Trim();
-            var dbHit = cat.Databases.FirstOrDefault(x => x.Name.Equals(dbWant, StringComparison.OrdinalIgnoreCase))
-                        ?? throw new SwException(ErrorCodes.EntityNotFound, $"No material database named '{dbWant}'.",
-                            $"Databases: {string.Join(", ", cat.Databases.Select(x => x.Name).Distinct())}.");
+            var dbHit = cat.Databases.FirstOrDefault(x => x.Name.Equals(dbWant, StringComparison.OrdinalIgnoreCase));
+            if (dbHit is null && cat.Broken.FirstOrDefault(x => x.Database.Equals(dbWant, StringComparison.OrdinalIgnoreCase)) is { } bad)
+                throw MaterialXml.Unreadable(bad.File, bad.Error, $"'{name}' can't be looked up in '{bad.Database}'. ");
+            if (dbHit is null)
+                throw new SwException(ErrorCodes.EntityNotFound, $"No material database named '{dbWant}'.",
+                    $"Databases: {string.Join(", ", cat.Databases.Select(x => x.Name).Distinct())}.");
             pool = pool.Where(m => m.Database.Equals(dbHit.Name, StringComparison.OrdinalIgnoreCase));
             where = $"'{dbHit.Name}'";
         }
         var list = pool.ToList();
         var hits = list.Where(m => m.Name == name).ToList();
         if (hits.Count == 0) hits = list.Where(m => m.Name.Equals(name, StringComparison.OrdinalIgnoreCase)).ToList();
+        if (hits.Count == 0 && string.IsNullOrWhiteSpace(database) && cat.Broken.Count > 0)
+        {
+            // The material may well be in the library that no longer parses: say that, not only that the name is unknown.
+            var bad = cat.Broken[0];
+            throw MaterialXml.Unreadable(bad.File, bad.Error,
+                $"No material named '{name}' in the databases that parse, and '{bad.Database}' can't be read" +
+                (cat.Broken.Count > 1 ? $" (nor {string.Join(", ", cat.Broken.Skip(1).Select(b => $"'{b.Database}'"))})" : "") + ". ");
+        }
         if (hits.Count == 0)
         {
             var near = MaterialCatalog.Suggest(list.Select(m => m.Name), name);
@@ -1096,7 +1113,11 @@ internal static class MaterialCatalog
         public MaterialRow ToRow() => new() { Name = Name, Classification = Classification, Database = Database, DensityKgM3 = DensityKgM3 };
     }
 
-    internal sealed record Catalog(IReadOnlyList<Entry> Materials, IReadOnlyList<MaterialDatabaseRow> Databases, IReadOnlyList<string> Warnings);
+    /// <summary>A database file that was found and could not be read or parsed.</summary>
+    internal sealed record Unreadable(string Database, string File, string Error);
+
+    internal sealed record Catalog(IReadOnlyList<Entry> Materials, IReadOnlyList<MaterialDatabaseRow> Databases, IReadOnlyList<string> Warnings,
+        IReadOnlyList<Unreadable> Broken);
 
     /// <summary>The standard database as the API names it (its file is "solidworks materials.sldmat").</summary>
     public const string DefaultDatabase = "SOLIDWORKS Materials";
@@ -1151,6 +1172,7 @@ internal static class MaterialCatalog
         // The standard database first, then the others in folder and name order.
         var materials = new List<Entry>();
         var dbs = new List<MaterialDatabaseRow>();
+        var broken = new List<Unreadable>();
         foreach (var (_, file, db) in files.OrderBy(x => IsDefault(x.Db) ? 0 : 1).ThenBy(x => x.Folder)
                      .ThenBy(x => x.File, StringComparer.OrdinalIgnoreCase))
         {
@@ -1159,14 +1181,23 @@ internal static class MaterialCatalog
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or XmlException)
             {
                 warnings.Add($"Could not parse '{file}': {ex.Message}");
+                broken.Add(new Unreadable(db, file, ex.Message));
                 continue;
             }
             materials.AddRange(rows);
             dbs.Add(new MaterialDatabaseRow { Name = db, Path = file, Materials = rows.Count });
         }
-        if (dbs.Count == 0)
+        if (dbs.Count == 0 && broken.Count == 0)
             warnings.Add($"No material database (*.sldmat) found in '{folderList}' (Tools > Options > File Locations > Material Databases).");
-        return new Catalog(materials, dbs, warnings);
+        return new Catalog(materials, dbs, warnings, broken);
+    }
+
+    /// <summary>The database file no longer parses (null when it does, or can't be read at all): SOLIDWORKS rewrote it.</summary>
+    public static string? ParseError(string file)
+    {
+        try { Parse(file, ""); return null; }
+        catch (XmlException ex) { return ex.Message; }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { return null; }
     }
 
     private static List<Entry> Cached(string file, string database)

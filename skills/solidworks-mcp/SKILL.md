@@ -233,7 +233,9 @@ dumb body into features you can change with `dimension_set`.
 
 **Materials.** `material_set {name:"6061 Alloy"}` (material_list shows the installed ones). A material that isn't installed (a
 supplier's grade): `material_add {name:"S355J2", densityKgM3:7850, elasticModulusGpa:210, poissonRatio:0.3, yieldMpa:355,
-tensileMpa:510}`, then `material_set {name:"S355J2", database:"solidworks-mcp"}`; simulations use its values.
+tensileMpa:510}` (into SOLIDWORKS' own "Custom Materials"), then `material_set {name:"S355J2", database:"Custom Materials"}`;
+simulations use its values. An `IO_ERROR` that a library "does not parse" means SOLIDWORKS rewrote it: tell the user, who
+moves it aside or restores it (from the `.before-solidworks-mcp` copy beside it) and may need to restart SOLIDWORKS.
 
 **Stress check.** Add `convergence:true` to check the mesh is fine enough (3 meshes; converged under 2 %), and
 `contacts:[{kind:"no_penetration", source:[faces], target:[faces]}]` where parts may slide or lift instead of being
