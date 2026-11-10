@@ -801,3 +801,44 @@ build; one other server process was attached (`otherServerPids`).
 Sorted into S28, held, closed (1); its follow-ups fixed in `9ab2fbe` (2, 3); point 4
 done on the test machine (the old library moved aside), recorded under S28; S5 (5); S9
 (6).
+
+**2026-11-10: scenario test of build 144220 (S28's follow-ups)**
+
+Build `bin\0.1.0-20261110-144220`, `serverVersion` `0.1.0-sw2023-20261110-144220+9fd26ce`
+(= tag `build-20261110-144220`). One other server process was attached (`otherServerPids`).
+
+1. **S28's follow-ups held.** On a copy of a thin-walled tray part, with
+   `Custom Materials.sldmat` holding a material SOLIDWORKS wrote and the server's PETG, and
+   the old `solidworks-mcp` library moved aside:
+   (a) `material_set {name:"PETG"}` with no `database` passed (only one library has it
+   now), 0.221420661 kg; the library's hash and time unchanged after the call.
+   (b) `material_add` of a new material (1240 kg/m³, 3.5 GPa, 0.36, yield 55 MPa) into
+   `Custom Materials`: a diff of the library before and after (UTF-16 decoded) shows only
+   the 11 added lines; the BOM, the declaration's `UTF-16`, the user's empty elements
+   (`"/>"` with no space), CRLF and the last line end are byte for byte as before. The
+   backup kept from the earlier test was not touched. All three checks passed.
+   (c) With a library SOLIDWORKS had corrupted put in the custom material folder,
+   `material_set` of a typo (`PETGG`) is `IO_ERROR` that now starts with the closest names
+   from the libraries that parse (`PETG`, `PET`, …) and then names the bad library, its
+   line and what to do. `material_set` of a name found in a library that parses passed,
+   with the parse warning, and SOLIDWORKS did not rewrite the library (same bytes after).
+   The bad library was not written (same hash). The rewrite during `material_set` was not
+   met, so that branch is still untested.
+2. **`drw_view_section`: `modelBoxMm` of a section is the whole model's box, not what the
+   view shows.** A section across a tray where the cut shows a shorter profile than the
+   model's full height (cut through the side ears, looking along +X): `boundsMm`
+   horizontal 72.68–107.32, `modelBoxMm` 67.24–101.38, the full 68.28 mm model extent at
+   1:2, so it reaches 5.4 mm outside the view's own outline on the cut-away side. The PDF
+   draws the section from 78.6 to 101.35: the box's one edge is right, the other is
+   11.4 sheet mm off. The section's checks all passed (one view, three hatched faces).
+   A caller that places dimension text or another view from `modelBoxMm` (as the
+   description of `drw_views_standard` suggests for plain views) lands beside the section.
+   Bears on S14 (what a view's frame and extents are on the sheet). Either the cut
+   geometry's box, or a word in the description that a section keeps the model's box.
+3. **Short checks.** A 20 mm block extruded 10 in a new part, `doc_undo` removed it
+   (volume → 0). STEP AP214 export `solids: 1`; `doc_open` of it gave 16 surface bodies, no
+   solid (S5, met again). Interference 0 at the saved position in an assembly opened
+   read-only, closed without flags. Two sections on a 1:2 plan of the part: the
+   centreline one one hatched face, the one through the ear holes three.
+4. **Calls**: 28 for the whole test, 13.3k characters, 1 error (deliberate: the typo
+   beside a bad library). 5 calls on S28. No `sw_help`.
