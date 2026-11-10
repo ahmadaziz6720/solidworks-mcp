@@ -407,7 +407,7 @@ public sealed class OpenService(SwSession session)
         catch (COMException) { return null; } // drawings
     }
 
-    private static bool SafeReadOnly(IModelDoc2 doc)
+    internal static bool SafeReadOnly(IModelDoc2 doc)
     {
         try { return doc.IsOpenedReadOnly(); }
         catch (COMException) { return false; }

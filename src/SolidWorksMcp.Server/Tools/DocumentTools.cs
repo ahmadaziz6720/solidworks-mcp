@@ -73,7 +73,8 @@ public sealed class DocumentTools(SwSession session)
 
     [McpServerTool(Name = "doc_close", Title = "Close document", ReadOnly = false, Destructive = true, Idempotent = false, OpenWorld = false)]
     [Description("Closes a document this server owns (or the user allowed). A document with unsaved changes needs save=true or discard=true " +
-                 "(discard only for documents this server created). The user's own documents are never closed.")]
+                 "(discard only for documents this server created); one this server opened read-only closes without them, its changes discarded. " +
+                 "The user's own documents are never closed.")]
     public async Task<string> DocClose(
         [Description("Save before closing (the document must already have a file).")] bool save = false,
         [Description("Throw away unsaved changes (owned documents only).")] bool discard = false,

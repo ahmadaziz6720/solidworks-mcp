@@ -252,7 +252,8 @@ public sealed class DocumentService(SwSession session)
 
     /// <summary>
     /// Closes the target (or given) document. Dirty documents need save=true or discard=true; the user's documents
-    /// (foreign or adopted) are never discarded.
+    /// (foreign or adopted) are never discarded. A document this server opened read-only is closed without asking: it
+    /// cannot be saved in place, and read-only calls (interference, rebuild) leave it dirty with nothing edited.
     /// </summary>
     public Task<DocResult> CloseAsync(string? doc, bool save, bool discard, CancellationToken ct = default) =>
         session.RunAsync("doc_close", ctx =>
@@ -264,7 +265,8 @@ public sealed class DocumentService(SwSession session)
             if (entry.Class == DocClass.Foreign)
                 throw new SwException(ErrorCodes.NotOwned, $"'{info.Title}' is the user's document; the server doesn't close it.",
                     "Leave it open, or ask the user to close it.");
-            if (dirty && !save && !discard)
+            bool readOnlyDiscard = dirty && !save && !discard && entry.Class == DocClass.Owned && OpenService.SafeReadOnly(target);
+            if (dirty && !save && !discard && !readOnlyDiscard)
                 throw new SwException(ErrorCodes.Dirty, $"'{info.Title}' has unsaved changes.",
                     "Pass save=true to save first, or discard=true to throw the changes away.");
             if (dirty && discard && entry.Class != DocClass.Owned)
@@ -301,7 +303,9 @@ public sealed class DocumentService(SwSession session)
             {
                 Doc = title,
                 Document = info,
-                Message = $"Closed '{title}'.",
+                Message = readOnlyDiscard
+                    ? $"Closed '{title}'. It was opened read-only, so its unsaved changes were discarded (they could not be saved in place)."
+                    : $"Closed '{title}'.",
                 DiscardedChanges = dirty && !save ? true : null,
                 NowActive = now is null ? null : ctx.Title(now),
             };

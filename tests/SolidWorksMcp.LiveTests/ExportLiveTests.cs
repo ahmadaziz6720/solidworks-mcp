@@ -343,6 +343,31 @@ public class ExportLiveTests(LiveFixture fx) : LiveTest(fx)
     }
 
     [Fact]
+    public async Task A_read_only_document_that_got_dirty_closes_without_discard()
+    {
+        string doc = await BlockAsync("readonly_dirty");
+        string file = Path.Combine(_dir, "readonly_dirty_copy.sldprt");
+        await new DocumentService(S).SaveAsync(doc, "copy", file, false);
+        long size = new FileInfo(file).Length;
+        var r = await Open(file, readOnly: true);
+        Assert.True(r.ReadOnly);
+        // Any change makes it dirty; in sessions it was asm_interference or doc_rebuild with nothing edited.
+        var sk = new SketchService(S);
+        await sk.StartAsync(r.Document.Handle, new EntityRef { At = [0, 20, 0] }, false);
+        await sk.AddAsync(r.Document.Handle, [new SketchEntity { Kind = "circle", Center = [0, 20, 0], RadiusMm = 5 }]);
+        await new FeatureService(S).ExtrudeAsync(new ExtrudeRequest { Doc = r.Document.Handle, DepthMm = 5 });
+
+        var closed = await new DocumentService(S).CloseAsync(r.Document.Handle, save: false, discard: false);
+        Assert.True(closed.DiscardedChanges);
+        Assert.Contains("read-only", closed.Message);
+        Assert.Equal(size, new FileInfo(file).Length); // the file is untouched
+
+        // A document opened for editing still needs save or discard.
+        var ex = await Assert.ThrowsAsync<SwException>(() => new DocumentService(S).CloseAsync(doc, save: false, discard: false));
+        Assert.Equal(ErrorCodes.Dirty, ex.Code);
+    }
+
+    [Fact]
     public async Task Opening_a_part_does_not_report_the_stl_options_solidworks_derives_on_open()
     {
         // A part far larger than the 100 mm block, opened while the block is active: the STL deviation SOLIDWORKS
