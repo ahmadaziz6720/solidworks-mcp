@@ -51,9 +51,13 @@ internal static class MaterialXml
             LoadOptions.PreserveWhitespace);
 
     /// <summary>Reads a library file; one that does not parse is <see cref="Unreadable"/>, never an XmlException.</summary>
-    public static XDocument Load(string file)
+    public static XDocument Load(string file) => Load(file, out _);
+
+    /// <summary>As <see cref="Load(string)"/>, with the file's text, for <see cref="Bytes"/> to write it back as it was.</summary>
+    public static XDocument Load(string file, out string text)
     {
-        try { return Parse(File.ReadAllText(file)); }
+        text = File.ReadAllText(file);
+        try { return Parse(text); }
         catch (XmlException ex) { throw Unreadable(file, ex.Message); }
     }
 
@@ -183,13 +187,33 @@ internal static class MaterialXml
         return map;
     }
 
-    /// <summary>The library as SOLIDWORKS writes its own: UTF-16 with a byte-order mark.</summary>
-    public static byte[] Bytes(XDocument doc)
+    /// <summary>
+    /// The library as SOLIDWORKS writes its own: UTF-16 with a byte-order mark. Given the file's text as it was
+    /// (<paramref name="like"/>), what the server didn't change comes out as it was: its declaration verbatim, its line
+    /// ends, its empty elements closed as it closes them ("/&gt;" or " /&gt;") and its last line end.
+    /// </summary>
+    public static byte[] Bytes(XDocument doc, string? like = null)
     {
-        using var ms = new MemoryStream();
-        using (var w = XmlWriter.Create(ms, new XmlWriterSettings { Encoding = new UnicodeEncoding(false, true), Indent = true }))
+        string nl = like is null || like.Contains("\r\n", StringComparison.Ordinal) || !like.Contains('\n') ? "\r\n" : "\n";
+        var sb = new StringBuilder();
+        using (var w = XmlWriter.Create(new StringWriter(sb), new XmlWriterSettings { Indent = true, NewLineChars = nl }))
             doc.Save(w);
-        return ms.ToArray();
+        string s = sb.ToString();
+        // The writer declares a StringWriter's encoding, utf-16, in its own spelling; the file's own declaration stays.
+        if (like is not null && Declaration(like) is { } decl && Declaration(s) is { } mine) s = decl + s[mine.Length..];
+        // The writer closes every empty element " />" ('>' in text and attributes is written &gt;, so this is only those).
+        if (like is not null && like.Contains("/>", StringComparison.Ordinal) && !like.Contains(" />", StringComparison.Ordinal))
+            s = s.Replace(" />", "/>", StringComparison.Ordinal);
+        if (like is not null && like.Length - like.TrimEnd().Length is > 0 and var n && s.Length == s.TrimEnd().Length)
+            s += like[^n..];
+        return [.. Encoding.Unicode.GetPreamble(), .. Encoding.Unicode.GetBytes(s)];
+    }
+
+    private static string? Declaration(string xml)
+    {
+        string t = xml.TrimStart('﻿');
+        int end = t.StartsWith("<?xml", StringComparison.Ordinal) ? t.IndexOf("?>", StringComparison.Ordinal) : -1;
+        return end < 0 ? null : t[..(end + 2)];
     }
 
     /// <summary>

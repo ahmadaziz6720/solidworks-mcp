@@ -349,10 +349,13 @@ public sealed partial class PropertiesService(SwSession session)
         if (hits.Count == 0) hits = list.Where(m => m.Name.Equals(name, StringComparison.OrdinalIgnoreCase)).ToList();
         if (hits.Count == 0 && string.IsNullOrWhiteSpace(database) && cat.Broken.Count > 0)
         {
-            // The material may well be in the library that no longer parses: say that, not only that the name is unknown.
+            // The material may well be in the library that no longer parses: say that, and the closest names for a typo.
             var bad = cat.Broken[0];
+            var near = MaterialCatalog.Suggest(list.Select(m => m.Name), name);
             throw MaterialXml.Unreadable(bad.File, bad.Error,
-                $"No material named '{name}' in the databases that parse, and '{bad.Database}' can't be read" +
+                $"No material named '{name}' in the databases that parse" +
+                (near.Count > 0 ? $" (closest: {string.Join(", ", near.Select(s => $"'{s}'"))})" : "") +
+                $", and '{bad.Database}' can't be read" +
                 (cat.Broken.Count > 1 ? $" (nor {string.Join(", ", cat.Broken.Skip(1).Select(b => $"'{b.Database}'"))})" : "") + ". ");
         }
         if (hits.Count == 0)

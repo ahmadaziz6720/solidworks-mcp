@@ -77,7 +77,13 @@ public class MaterialXmlTests
         Assert.False(MaterialXml.IsOurs(doc));
         var before = MaterialXml.Others(doc, "Test Steel");
         Assert.False(MaterialXml.Upsert(doc, Steel(), false, "'Custom Materials'"));
-        string text = Encoding.Unicode.GetString(MaterialXml.Bytes(doc)).TrimStart('﻿');
+        byte[] bytes = MaterialXml.Bytes(doc, SwCustom);
+        Assert.Equal(Encoding.Unicode.GetPreamble(), bytes[..2]);
+        string text = Encoding.Unicode.GetString(bytes[2..]);
+        // Byte for byte what SOLIDWORKS wrote, the new classification aside: its declaration, "/>", the last line end.
+        int added = text.IndexOf("\t<classification name=\"Steel\">", StringComparison.Ordinal), end = text.IndexOf("</mstns:materials>", StringComparison.Ordinal);
+        Assert.Equal(SwCustom, text[..added] + text[end..]);
+        Assert.Contains("\t\t\t\t<DENS displayname=\"Density\" value=\"7850\"/>\r\n", text);
         var again = MaterialXml.Parse(text);
         Assert.Equal(before, MaterialXml.Others(again, "Test Steel"));
         Assert.Equal(210e9, MaterialXml.Read(again, "Test Steel")!["EX"]);
@@ -87,7 +93,7 @@ public class MaterialXmlTests
         Assert.Contains("\t\t</material>\r\n\t</classification>\r\n\t<classification name=\"Steel\">", text);
         Assert.EndsWith("\t\t</material>\r\n\t</classification>\r\n</mstns:materials>", text.TrimEnd());
         Assert.Contains("\t\t<material name=\"Custom Plastic\" description=\"-\">\r\n\t\t\t<physicalproperties>", text);
-        Assert.StartsWith("<?xml version=\"1.0\" encoding=\"utf-16\" standalone=\"no\"?>", text);
+        Assert.StartsWith("<?xml version=\"1.0\" encoding=\"UTF-16\" standalone=\"no\"?>\r\n", text);
 
         // Its own material is replaced only with overwrite; SOLIDWORKS' is never replaced, whatever the case of the name.
         Assert.Equal(ErrorCodes.InvalidArgument, Assert.Throws<SwException>(() => MaterialXml.Upsert(again, Steel(), false)).Code);

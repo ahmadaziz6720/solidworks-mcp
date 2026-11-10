@@ -49,15 +49,23 @@ public class PropertiesLiveTests(LiveFixture fx) : LiveTest(fx)
         Assert.NotEmpty(theirs);
         try
         {
+            // Into a classification the library already has, so the only new lines are the material's.
             var r = await P.MaterialAddAsync(new MaterialAddRequest
             {
-                Name = name, DensityKgM3 = 7900, ElasticModulusGpa = 100, PoissonRatio = 0.29, YieldMpa = 351.571, TensileMpa = 420.507,
+                Name = name, Classification = theirs[0].Classification, DensityKgM3 = 7900, ElasticModulusGpa = 100, PoissonRatio = 0.29,
+                YieldMpa = 351.571, TensileMpa = 420.507,
             });
             Assert.Equal(Db, r.Database);
             Assert.Equal(file, r.Path);
             Assert.False(r.CreatedDatabase);
             Assert.Equal(backup, r.Backup);
             if (!hadBackup) Assert.Equal(original, File.ReadAllBytes(backup)); // the library as it was, before the first write
+            // The file is what it was, byte for byte, but for the new material's lines (scenario test of build 134233, point 2).
+            string was = Encoding.Unicode.GetString(original).TrimStart('﻿'), now = File.ReadAllText(file);
+            int at = now.IndexOf($"<material name=\"{name}\"", StringComparison.Ordinal);
+            int from = now.LastIndexOf('\n', at) + 1, to = now.IndexOf('\n', now.IndexOf("</material>", at, StringComparison.Ordinal)) + 1;
+            Assert.Equal(was, now[..from] + now[to..]);
+            Assert.Equal(original[..2], File.ReadAllBytes(file)[..2]);
             Assert.Equal(100e9, r.Properties["EX"]);
             Assert.Equal(100e9 / 2.58, r.Properties["GXY"], 1);
             Assert.Contains(r.Checks, c => c.StartsWith("material_list lists it", StringComparison.Ordinal));
@@ -103,6 +111,47 @@ public class PropertiesLiveTests(LiveFixture fx) : LiveTest(fx)
     }
 
     [Fact]
+    public async Task A_library_as_SOLIDWORKS_writes_it_keeps_its_bytes_but_for_the_added_material()
+    {
+        // Scenario test of build 134233, point 2: the declaration's "UTF-16" became "utf-16" and every "/>" of the user's
+        // own materials " />". A library laid out as SOLIDWORKS writes its own, under a test name in the custom folder.
+        string db = $"swmcp-test-layout-{Guid.NewGuid().ToString("N")[..6]}";
+        var made = await P.MaterialAddAsync(new MaterialAddRequest { Name = "MCP Test Seed", Database = db, DensityKgM3 = 1000, ElasticModulusGpa = 1, PoissonRatio = 0.3 });
+        string file = made.Path;
+        const string Theirs =
+            "<?xml version=\"1.0\" encoding=\"UTF-16\" standalone=\"no\"?>\r\n" +
+            "<mstns:materials xmlns:mstns=\"http://www.solidworks.com/sldmaterials\" version=\"2008.03\">\r\n" +
+            "\t<curves id=\"curve0\">\r\n\t\t<point x=\"1.0\" y=\"1.0\"/>\r\n\t</curves>\r\n" +
+            "\t<classification name=\"Plastic\">\r\n" +
+            "\t\t<material name=\"MCP Test Theirs\" description=\"-\">\r\n" +
+            "\t\t\t<physicalproperties>\r\n" +
+            "\t\t\t\t<EX displayname=\"Elastic modulus\" value=\"0.20E+10\"/>\r\n" +
+            "\t\t\t\t<NUXY displayname=\"Poisson's ratio\" value=\"0.394\"/>\r\n" +
+            "\t\t\t\t<DENS displayname=\"Density\" value=\"0.102E+04\"/>\r\n" +
+            "\t\t\t</physicalproperties>\r\n\t\t</material>\r\n\t</classification>\r\n</mstns:materials>\r\n";
+        try
+        {
+            File.WriteAllText(file, Theirs, Encoding.Unicode);
+            var r = await P.MaterialAddAsync(new MaterialAddRequest
+            {
+                Name = "MCP Test Mine", Classification = "Plastic", Database = db, DensityKgM3 = 1270, ElasticModulusGpa = 2, PoissonRatio = 0.38,
+            });
+            Assert.Equal(MaterialXml.BackupPath(file), r.Backup);
+            string now = File.ReadAllText(file);
+            int at = now.IndexOf("<material name=\"MCP Test Mine\"", StringComparison.Ordinal);
+            int from = now.LastIndexOf('\n', at) + 1, to = now.IndexOf('\n', now.IndexOf("</material>", at, StringComparison.Ordinal)) + 1;
+            Assert.Equal(Theirs, now[..from] + now[to..]);
+            Assert.Contains("\t\t\t\t<DENS displayname=\"Density\" value=\"1270\"/>\r\n", now); // the new one laid out alike
+            Assert.Contains((await P.MaterialListAsync("MCP Test", 100, 0)).Materials, m => m.Name == "MCP Test Mine" && m.Database == db);
+        }
+        finally
+        {
+            File.Delete(file);
+            File.Delete(MaterialXml.BackupPath(file));
+        }
+    }
+
+    [Fact]
     public async Task A_material_library_that_does_not_parse_is_a_named_io_error_in_material_add_and_material_set()
     {
         // S28: SOLIDWORKS put its own header in front of a library; material_add then failed INTERNAL: XmlException and
@@ -135,6 +184,11 @@ public class PropertiesLiveTests(LiveFixture fx) : LiveTest(fx)
             var any = await Assert.ThrowsAsync<SwException>(() => P.MaterialSetAsync(doc, "MCP Test Broken"));
             Assert.Equal(ErrorCodes.IoError, any.Code);
             Assert.Contains($"'{db}' can't be read", any.Message);
+            // A typo still gets the closest names from the libraries that parse (scenario test of build 134233, point 3).
+            var typo = await Assert.ThrowsAsync<SwException>(() => P.MaterialSetAsync(doc, "AISI 102"));
+            Assert.Equal(ErrorCodes.IoError, typo.Code);
+            Assert.Contains("closest: ", typo.Message);
+            Assert.Contains("'AISI 1020'", typo.Message);
             Assert.Null((await new InspectService(S).ModelInfoAsync(doc)).Material); // nothing was applied
             Assert.Equal(broken, File.ReadAllBytes(file));
         }

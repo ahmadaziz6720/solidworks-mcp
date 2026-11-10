@@ -64,7 +64,8 @@ public sealed partial class PropertiesService
             string folder = CustomMaterialFolder(ctx);
             string file = System.IO.Path.Combine(folder, db + ".sldmat");
             bool created = !File.Exists(file);
-            var doc = created ? MaterialXml.NewLibrary() : MaterialXml.Load(file);
+            string? text = null;
+            var doc = created ? MaterialXml.NewLibrary() : MaterialXml.Load(file, out text);
             var others = MaterialXml.Others(doc, m.Name);
             bool replaced = MaterialXml.Upsert(doc, m, q.Overwrite, $"'{db}'");
 
@@ -74,7 +75,7 @@ public sealed partial class PropertiesService
             try
             {
                 if (backup is not null && !File.Exists(backup)) File.Copy(file, backup);
-                File.WriteAllBytes(tmp, MaterialXml.Bytes(doc));
+                File.WriteAllBytes(tmp, MaterialXml.Bytes(doc, text));
                 File.Move(tmp, file, overwrite: true);
             }
             catch (Exception e) when (e is IOException or UnauthorizedAccessException)
