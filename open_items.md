@@ -10,8 +10,8 @@ Three sections: **Open**, not yet fixed; **Waiting**, fixed and not yet settled 
 merged, a fix not yet run in a session); **Closed**, merged upstream, run and held, or
 decided against, with the record.
 
-**Open: S4, S5, S7, S9 to S15, S18, S22 to S27.** S8 waits for its scenario test. S5 and S7
-wait a while for upstream's answer to issues #2 and #4.
+**Open: S4, S5, S7, S9 to S15, S18, S22 to S28.** S5 and S7 wait a while for upstream's
+answer to issues #2 and #4.
 
 ---
 
@@ -24,8 +24,8 @@ wait a while for upstream's answer to issues #2 and #4.
 Upstream: issue #2. Usage until fixed: import by File > Open and `doc_activate`, or check
 `solidBodies` after `doc_open`. Still so in builds `…-204719`, `…-215810` and `…-230924`:
 a STEP round trip gave 16 surface bodies and no solid. Again in `…-235702`,
-`…-010708`, `…-014952`, `…-024431`, `…-034022`, `…-064352` and `…-091645` (export `solids: 1`,
-import 16 surface bodies).
+`…-010708`, `…-014952`, `…-024431`, `…-034022`, `…-064352`, `…-091645` and `…-115800` (export
+`solids: 1`, import 16 surface bodies).
 
 **S7. `dimension_set` accepts a change that splits the body.** Upstream: issue #4. Usage:
 read `bodies` in the result after each `dimension_set`.
@@ -154,6 +154,24 @@ terms, but `foreign` reads as the user's document, which `doc_close` says it nev
 Usage: a part listed after opening a drawing or an assembly may be its reference, loaded
 with it. Local, small: mark such a document (an `access` value or a `loadedBy`), and say in
 the `doc_list` description. Not yet decided.
+
+**S28. `material_add` keeps its own library; a library that does not parse fails
+`INTERNAL`.** In the scenario test of build `…-115800` (point 2): `material_set` of a
+material from this server's library failed `VERIFY_FAILED`, and during the call SOLIDWORKS
+put its own XML header in front of the server's UTF-16 file, so the library no longer
+parsed. `material_list` only warned; `material_add {…, overwrite:true}` then failed
+`INTERNAL: XmlException` with nothing on what to do, and `material_set` hinted at the
+name. After a SOLIDWORKS restart the same call passed and the library was left alone: the
+rewrite came from that SOLIDWORKS session's state, not the build. Decided 2026-11-10 by the
+owner: `material_add` writes into SOLIDWORKS' own custom library, `Custom Materials.sldmat`
+in the custom material folder, as its default, in place of a library of its own. Local:
+(a) the default database is `Custom Materials`; the server adds a material there and never
+changes or removes one it did not write (`overwrite` only for its own); `database` still
+takes another library name. (b) A library that does not parse is a named error in
+`material_add` and `material_set` (which file, the line, that SOLIDWORKS may have rewritten
+it, move it aside or restore it), not `INTERNAL`. A live test for each, failing without it.
+Usage until fixed: add the material to `Custom Materials` by hand (Material editor) and
+`material_set {database:"Custom Materials"}`. Upstream: not yet decided.
 
 ## Waiting
 
@@ -364,6 +382,10 @@ Drawing and Contract live tests 47/47 on it on 2023 SP3. `ddca400` stays local, 
 stands on PR #8. Editing a dimension's value (T10.4) stays out: a drawing
 dimension's value follows the model. Closes when PR #9 is settled.
 
+## Closed
+
+Each goes back to Waiting if it is sent upstream, as S3 did.
+
 **S8. One relation or dimension per call.** A fully defined sketch took ≈15 calls. Asked:
 relations and dimensions in `sketch_add` or a batch tool, each still verified. Upstream has
 no item for it; PR when built. Baseline to compare a fix against: findings 2026-11-09,
@@ -385,12 +407,15 @@ defined in one call, a point followed through a merge, a stop at a conflicting s
 everything checked before the first step) fail without it; with the 21 sketch live tests
 that call the split code, 25/25 on 2023 SP3. The drawing part (`drw_dimension_add` one at
 a time, build `…-024431`) is not in it. To check in the scenario test: the call count and
-characters of a fully defined sketch against the baseline above. Upstream: PR when held.
-In build `…-115800` (`4f4699c`); `SketchEditLiveTests` 63/63 on it. Scenario test not run yet.
-
-## Closed
-
-Each goes back to Waiting if it is sent upstream, as S3 did.
+characters of a fully defined sketch against the baseline above.
+In build `…-115800` (`4f4699c`); `SketchEditLiveTests` 63/63 on it. Held in its scenario
+test (findings 2026-11-10, build `…-115800`, points 1 and 5): a six-line profile with a
+centreline fully defined in one call of 10 steps, 1.2k characters (before: 10 calls, 4.7k);
+a five-line cut profile with a 7.5° slope, a point `{at}` on a segment end and the angle in
+the supplementary sector, 8 steps in one call, 1.2k (before: 8 calls, 3.3k); volumes equal
+the earlier builds' to the last digit. The part's geometry and design-intent steps took 33
+calls and 21.1k characters, against 49 and 26.9k in build `…-195750` and ≈53 and ≈35k in
+the baseline. Closed 2026-11-10 on the owner's word. Upstream: a PR not yet decided.
 
 **S16. The build a session runs could not be told from inside it.** `sw_status` reported
 `serverVersion` `0.1.0` only. A session open across a rebuild keeps the old process while

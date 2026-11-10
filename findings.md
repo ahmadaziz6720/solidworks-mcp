@@ -744,3 +744,6 @@ Build `bin\0.1.0-20261110-115800`, `serverVersion` `0.1.0-sw2023-20261110-115800
    failures and the `material_add` on the corrupted library). Seven calls went on point 2,
    and four more for the check after the restart.
    No `sw_help`.
+
+Sorted into S8, held, closed (1, 5); S28 new (2); S5 (4). Not filed (3): the SOLIDWORKS
+session's state, gone after the restart; (4) S21 still holds.
