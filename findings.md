@@ -684,3 +684,63 @@ Build `bin\0.1.0-20261110-091645`, `serverVersion` `0.1.0-sw2023-20261110-091645
 
 Sorted into S16, held, closed (1); S17, held, closed (2); S21, held, closed (3); S26 new (4);
 S27 new (5); S19, S5 (6); S9 (7). Not filed (6): interference 0, as expected.
+
+**2026-11-10: scenario test of build 115800 (`sketch_constrain`)**
+
+Build `bin\0.1.0-20261110-115800`, `serverVersion` `0.1.0-sw2023-20261110-115800+4f4699c`.
+
+1. **S8 held.** A thin-walled tray part was built again from the recorded call sequence of
+   an earlier build, with each sketch's relations and dimensions sent as one
+   `sketch_constrain` call. A six-line profile with a centreline (horizontal, vertical, two
+   coincident with the origin, two symmetric, four dimensions): 10 steps in one call, every
+   check as the single tools give it, `relationsAfter` 13, `constrained: fully`, 1.2k
+   characters (before: 10 calls, 4.7k). A five-line cut profile with a slope rising 7.5°
+   from the end of a flat line (two relations, a `vertical` between the origin and a point
+   `{at}` on a segment end, five dimensions, the angle with `textAt` in the supplementary
+   sector): 8 steps in one call, the angle accepted with the S6 check line, `fully`, 1.2k
+   (before: 8 calls, 3.3k, without the deliberate refusal). Volumes at every step equal
+   the earlier builds' to the last digit, and the design-intent changes (angle, wall,
+   length, width) rebuilt clean with one body. The part's geometry and design-intent steps
+   took 33 calls and 21.1k characters against 49 and 26.9k for the same sequence in build
+   `…-195750` (baseline `…-163234`: ≈53, ≈35k).
+2. **`material_set` from this server's library failed, and SOLIDWORKS corrupted the
+   library while doing it.** `material_set {name:"PETG", database:"solidworks-mcp"}` gave
+   `VERIFY_FAILED` ("the material of 'Default' reads '(none)'"), where earlier builds applied
+   it. During that call (inside its 0.42 s) the `.sldmat` was rewritten: SOLIDWORKS' own
+   header (`<?xml version="1.0"?>` and an opening `mstns:materials` element with its four
+   namespaces) was put in front of the server's UTF-16 file, BOM and second declaration
+   included. Afterwards `material_list` only warned "Could not parse … Unexpected XML
+   declaration … Line 3" and found no PETG; `material_add {…, overwrite:true}` failed
+   `INTERNAL: XmlException` instead of saying the library is unreadable and what to do.
+   With the file moved aside, `material_add` wrote a new library (both checks passed) and
+   the next `material_set` failed and corrupted it in the same way, so it can be repeated.
+   `material_set` only calls `SetMaterialPropertyName2`, so the write is SOLIDWORKS'. The
+   material code has not changed since the interop commit, so the cause is probably in how
+   this SOLIDWORKS session loads a custom library (the SOLIDWORKS process was restarted
+   since the last build that passed). Not proven. The `VERIFY_FAILED` was right; nothing
+   reported `ok` wrongly. What is missing is a clear error in `material_add` and
+   `material_set` when a library does not parse, and some guard against SOLIDWORKS
+   rewriting a library the server wrote (or at least a way to recover from it). The
+   library was left as the last `material_add` wrote it, and the part without a material.
+   **After the owner restarted SOLIDWORKS** (same build, server process unchanged), the
+   saved part reopened, `material_set` with the same arguments on that clean library
+   passed (PETG, 0.221 kg, density matches) and the library was not touched (same size and
+   date). So the rewrite came from the state of the earlier SOLIDWORKS session, not from
+   the build. How that session got there is not known. What remains for the server: a
+   library SOLIDWORKS corrupts makes `material_add` fail `INTERNAL`, and `material_set`
+   gives a hint about the name, not about a library that no longer parses.
+3. **A custom property linked to a dimension resolved in metres.** `prop_set
+   {name:"Wall", value:"\"D1@Wall\""}` on a 3 mm shell read back `resolved:
+   "0,0030000000000000"` (also in `prop_list`); earlier builds gave `"3,00"`. The part was
+   made with `doc_new` (MMGS). Seen in the same SOLIDWORKS session as point 2. After the
+   restart the same saved part read back `"3,00"` in `prop_list`: the session's state
+   again, not the build.
+4. **Short checks.** Two sections on a 1:2 plan of the part: the centreline one had one
+   hatched face, the one through the ear holes had three, as before. STEP AP214 export
+   `solids: 1`; `doc_open` of it gave 16 surface bodies, no solid (S5, met again).
+   Interference 0 at the saved position in an assembly opened read-only, closed without
+   flags (S21 still holds).
+5. **Calls**: 56 for the whole test, 33.3k characters, 3 errors (the two `material_set`
+   failures and the `material_add` on the corrupted library). Seven calls went on point 2,
+   and four more for the check after the restart.
+   No `sw_help`.
