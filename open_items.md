@@ -10,7 +10,7 @@ Three sections: **Open**, not yet fixed; **Waiting**, fixed and not yet settled 
 merged, a fix not yet run in a session); **Closed**, merged upstream, run and held, or
 decided against, with the record.
 
-**Open: S4, S5, S7 to S15, S18, S22 to S25.** Next, for working drawings and tokens: S8. S5
+**Open: S4, S5, S7 to S15, S18, S22 to S27.** Next, for working drawings and tokens: S8. S5
 and S7 wait a while for upstream's answer to issues #2 and #4.
 
 ---
@@ -24,8 +24,8 @@ and S7 wait a while for upstream's answer to issues #2 and #4.
 Upstream: issue #2. Usage until fixed: import by File > Open and `doc_activate`, or check
 `solidBodies` after `doc_open`. Still so in builds `…-204719`, `…-215810` and `…-230924`:
 a STEP round trip gave 16 surface bodies and no solid. Again in `…-235702`,
-`…-010708`, `…-014952`, `…-024431`, `…-034022` and `…-064352` (export `solids: 1`, import 16
-surface bodies).
+`…-010708`, `…-014952`, `…-024431`, `…-034022`, `…-064352` and `…-091645` (export `solids: 1`,
+import 16 surface bodies).
 
 **S7. `dimension_set` accepts a change that splits the body.** Upstream: issue #4. Usage:
 read `bodies` in the result after each `dimension_set`.
@@ -48,9 +48,10 @@ followed a recorded call sequence and made no `sw_help` call at all; so did thos
 `…-230924` (41 calls, 43.2k characters; 44% of them the sheet's note list and three note
 edits, S3 and S22), `…-235702` (33 calls, 27.1k) and `…-010708` (28 calls, 16.0k; two
 full sheet lists and two `drw_info` calls 42% of them), `…-014952` (28 calls, 16.5k),
-`…-024431` (42 calls, 21.2k), `…-034022` (25 calls, 11.6k) and `…-064352` (28 calls, 13.2k;
+`…-024431` (42 calls, 21.2k), `…-034022` (25 calls, 11.6k), `…-064352` (28 calls, 13.2k;
 8 dimension adds at ≈110–600 characters each, one `drw_info` of 1.6k to read a section's
-orientation).
+orientation) and `…-091645` (30 calls, 16.8k; the largest `feature_list` 2.1k and
+`feature_mirror` 1.9k).
 
 **S10. Drawing format and title block.** Precision and decimal separator of drawing
 dimensions, parentheses for reference dimensions, `n×` in hole callouts, DWG NO from a
@@ -145,6 +146,25 @@ miss. Local, small: when the point is a circular edge's centre, the warning says
 (`used the circle centred there`). Usage until then: pick a hole's edge on the circle. Then
 PR with other resolver work; not yet decided.
 
+**S26. `feature_delete` with `deleteChildren` warns once per absorbed sketch of a child.** In
+the scenario test of build `…-091645` (point 4): deleting a mirror with two hole features
+under it, `removed` listed the mirror, the two holes and their four sketches, each with a
+`why` ("absorbed by <hole>"), and `warnings` repeated each sketch, "SOLIDWORKS also removed
+'SketchN' (absorbed by <hole>), which was not planned". Four warnings on a delete that did
+what was asked: a child's absorbed sketches go with the child whatever `deleteAbsorbed`
+says. Same kind as S17. Local, small: a sketch absorbed by a feature that is itself removed
+is planned, listed with its `why` and not warned; a sketch removed that nothing removed
+absorbed still warns. Then PR with other noise fixes; not yet decided.
+
+**S27. A document loaded as a reference shows as `foreign` in `doc_list`.** In the scenario
+test of build `…-091645` (point 5): after `doc_open` of a drawing (read-only), the part it
+references was listed as a document of its own, `access: foreign`, though nobody opened
+it, and `doc_close` of the drawing closed it too (`also closed`). Right in SOLIDWORKS
+terms, but `foreign` reads as the user's document, which `doc_close` says it never closes.
+Usage: a part listed after opening a drawing or an assembly may be its reference, loaded
+with it. Local, small: mark such a document (an `access` value or a `loadedBy`), and say in
+the `doc_list` description. Not yet decided.
+
 ## Waiting
 
 **S1. `drw_view_section` / `drw_view_detail` drew in view-sketch coordinates.** Local:
@@ -201,7 +221,7 @@ back a boss extrude. Closes when PR #8 is settled. Tracking drawing changes by v
 annotation counts stays a later option. A misplaced drawing item is moved or removed with
 S3's tools (Waiting) instead of an undo. Held again in build `…-230924`: refused in a
 drawing, the hint naming the three edit tools; in a part an undo took back a boss
-extrude. In a part again in `…-014952`, `…-024431`, `…-034022` and `…-064352`.
+extrude. In a part again in `…-014952`, `…-024431`, `…-034022`, `…-064352` and `…-091645`.
 
 **S6. `sketch_dimension_add` angular refused the acute angle at a shared vertex.** Local:
 `18cbc57` on `sw2023`. The supplement is kept when `textAt` lies in its sector, and the value
@@ -354,6 +374,10 @@ Drawing and Contract live tests 47/47 on it on 2023 SP3. `ddca400` stays local, 
 stands on PR #8. Editing a dimension's value (T10.4) stays out: a drawing
 dimension's value follows the model. Closes when PR #9 is settled.
 
+## Closed
+
+Each goes back to Waiting if it is sent upstream, as S3 did.
+
 **S16. The build a session runs could not be told from inside it.** `sw_status` reported
 `serverVersion` `0.1.0` only. A session open across a rebuild keeps the old process while
 the registration already shows the new exe, and a test result got pinned to the wrong
@@ -365,9 +389,11 @@ publishes with `-p:Version=<v>-sw2023-<stamp>`, and it held in the scenario test
 `BuildVersion` keeps it shortened to 7 (`0.1.0-sw2023-<stamp>+<commit>`), for `sw_status`
 and the MCP server info, and `Directory.Build.props` appends `.dirty` when `src` or the
 props differ from that commit. A live test fails without it (`"0.1.0"`); unit tests for
-the format. In build `…-091645` (its `serverVersion` `…-091645+76edd54`); scenario test
-not run yet. Upstream: perhaps the commit part, without the
-stamp; not yet decided.
+the format. In build `…-091645` (its `serverVersion` `…-091645+76edd54`). Held in its
+scenario test (findings 2026-11-10, build `…-091645`, point 1): `serverVersion`
+`0.1.0-sw2023-20261110-091645+76edd54` from the first call, the commit the one tag
+`build-20261110-091645` points at, no `.dirty`. Closed 2026-11-10 on the owner's word.
+Upstream: perhaps the commit part, without the stamp; not yet decided.
 
 **S17. Warnings and texts that were noise**, each met in every scenario test from build
 `…-145700` on, on a result that was right. (a) `feature_mirror` warned "instances overlap,
@@ -387,8 +413,13 @@ tests, each failing without its fix: a boss against a rib (seed faces 1600 mm²,
 new one closed. Export, Mirror, M0 and the close tests 31/32 on 2023 SP3; the one that
 fails is M0's revision check, which expects 2025 (`33.`), as under S2. In build
 `…-091645`, after the four areas' live tests in full, 119/122 (the revision check, and
-auto dimensions and center marks inserting nothing, all three as under S2); scenario test
-not run yet. Upstream: (b) and (c) are general; a PR not yet decided.
+auto dimensions and center marks inserting nothing, all three as under S2); held in its
+scenario test (findings 2026-11-10, build `…-091645`, point 2): (a) a mirror made again
+about the front plane, 9/9 faces reflected, the area ratio 1.052 a check line, no
+warning; (b) no `doc_open` warned `Double 2`, an assembly, a drawing, a ~230 mm part and a
+STEP import opened, the last two while a 10 mm part was active; (c) `doc_close` of an
+assembly and of a drawing listed the parts also closed by name. Closed 2026-11-10 on the
+owner's word. Upstream: (b) and (c) are general; a PR not yet decided.
 
 **S21. A document opened `readOnly:true` became dirty without an edit**: an assembly after
 only `asm_interference`, `model_info` and `view_screenshot`; a drawing after
@@ -399,11 +430,11 @@ document this server opened read-only closes without `save` or `discard`, its ch
 discarded, the result's message saying so (`discardedChanges: true`); the user's
 documents are still never discarded, and one opened for editing still needs one of them.
 The `doc_close` description says so. A live test fails without it (`has unsaved
-changes`). In build `…-091645`; scenario test not run yet. Upstream: not yet decided.
-
-## Closed
-
-None at present: S3 went back to Waiting when it was sent upstream.
+changes`). In build `…-091645`. Held in its scenario test (findings 2026-11-10, build
+`…-091645`, point 3): an assembly opened read-only and made dirty by `asm_interference`, `model_info`
+and `view_screenshot`, and a drawing by `doc_rebuild`, each closed with no flags,
+`discardedChanges: true`, their file dates unchanged; a part opened for editing and changed
+still got `DIRTY`. Closed 2026-11-10 on the owner's word. Upstream: not yet decided.
 
 ## Carried, not items
 

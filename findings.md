@@ -681,3 +681,6 @@ Build `bin\0.1.0-20261110-091645`, `serverVersion` `0.1.0-sw2023-20261110-091645
    `DIRTY` in 3, and one call sent without its arguments). The largest results were
    `feature_list` (2.1k) to find the mirror and `feature_mirror` (1.9k, nine new faces).
    No `sw_help`.
+
+Sorted into S16, held, closed (1); S17, held, closed (2); S21, held, closed (3); S26 new (4);
+S27 new (5); S19, S5 (6); S9 (7). Not filed (6): interference 0, as expected.
