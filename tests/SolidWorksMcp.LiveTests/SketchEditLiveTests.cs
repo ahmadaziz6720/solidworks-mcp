@@ -532,6 +532,109 @@ public class SketchEditLiveTests(LiveFixture fx) : LiveTest(fx)
         Assert.NotEqual("over", info.Constrained);
     }
 
+    // ------------------------------------------------------------------ sketch_constrain
+
+    private static SketchConstraint Rel(string relation, params EntityRef[] entities) => new() { Relation = relation, Entities = entities };
+
+    private static SketchConstraint Dim(string kind, double valueMm, params EntityRef[] entities) =>
+        new() { Dimension = kind, Entities = entities, ValueMm = valueMm };
+
+    [Fact]
+    public async Task Constrain_defines_a_rectangle_fully_in_one_call()
+    {
+        var (doc, sketch, added) = await SketchAsync("con_rect", "front",
+            new SketchEntity { Kind = "rectangle", Corners = [[-50, -30], [50, 30]] });
+        string bottom = added.Entities[0].Sides!["bottom"], left = added.Entities[0].Sides!["left"];
+        // The corner is given where it is before the call; the two dimensions move it first, and the step still finds it.
+        var r = await Ed.ConstrainAsync(doc,
+        [
+            Dim("linear", 80, Seg(bottom)),
+            Dim("vertical", 40, Seg(left)),
+            Rel("coincident", At(-50, -30), new EntityRef { Name = "origin" }),
+        ]);
+        Assert.Equal(sketch, r.Sketch);
+        Assert.Equal([1, 2, 3], r.Steps.Select(s => s.Step));
+        Assert.Equal("linear", r.Steps[0].Kind);
+        Assert.StartsWith("D1@" + sketch, r.Steps[0].Dimension!.Name);
+        Assert.Equal(40, r.Steps[1].Dimension!.Value, L);
+        Assert.Equal("coincident", r.Steps[2].Relation);
+        Assert.Equal(2, r.Dimensions);
+        Assert.Contains(r.Steps[2].Checks!, c => c.StartsWith("relations ")); // its own count, before → after
+        Assert.True(r.RelationsAfter > r.RelationsBefore);
+        Assert.Equal("fully", r.Constrained);
+        Assert.NotNull(r.Changed);
+
+        var b = await SegmentAsync(doc, bottom);
+        Assert.Equal(80, b.LengthMm!.Value, L);
+        Assert.Equal(40, (await SegmentAsync(doc, left)).LengthMm!.Value, L);
+        var info = await Ed.InfoAsync(doc, null);
+        Assert.Equal("fully", info.Constrained);
+        // The bottom-left corner sits on the origin.
+        Assert.Contains(info.Segments, s => s.Kind == "line" && new[] { s.StartMm, s.EndMm }.Any(p => Math.Abs(p![0]) < L && Math.Abs(p[1]) < L));
+    }
+
+    [Fact]
+    public async Task Constrain_follows_a_point_through_a_merge()
+    {
+        var (doc, _, added) = await SketchAsync("con_merge", "front", Line([0, 0], [20, 0]), Line([25, 5], [40, 20]));
+        string a = Name(added, 0), b = Name(added, 1);
+        var r = await Ed.ConstrainAsync(doc,
+        [
+            Rel("merge", At(20, 0), At(25, 5)),
+            Dim("linear", 30, At(25, 5), At(0, 0)),
+        ]);
+        Assert.Contains(r.Steps[0].Checks!, c => c.StartsWith("points merged"));
+        var sa = await SegmentAsync(doc, a);
+        var sb = await SegmentAsync(doc, b);
+        Near(sa.EndMm!, sb.StartMm, 1e-6);
+        double dx = sb.StartMm![0] - sa.StartMm![0], dy = sb.StartMm[1] - sa.StartMm[1];
+        Assert.Equal(30, Math.Sqrt(dx * dx + dy * dy), L);
+    }
+
+    [Fact]
+    public async Task Constrain_stops_at_a_failing_step_and_keeps_the_ones_before()
+    {
+        var (doc, _, added) = await SketchAsync("con_fail", "front", Line([0, 0], [10, 40]), Line([20, 0], [60, 10]));
+        string a = Name(added, 0), b = Name(added, 1);
+        int before = (await Ed.InfoAsync(doc, null)).Relations;
+        var ex = await Fails(ErrorCodes.VerifyFailed, () => Ed.ConstrainAsync(doc,
+        [
+            Rel("vertical", Seg(a)),
+            Rel("horizontal", Seg(a)), // conflicts with step 1
+            Rel("horizontal", Seg(b)),
+        ]));
+        Assert.Contains("Step 2 of 3", ex.Message);
+        Assert.Contains("Steps 1-1 were applied and kept (vertical)", ex.Message);
+        Assert.Contains("steps 3-3 were not run", ex.Message);
+        var info = await Ed.InfoAsync(doc, null);
+        Assert.Equal(before + 1, info.Relations); // step 1 kept, step 2 undone, step 3 not run
+        var sb = await SegmentAsync(doc, b);
+        Assert.NotEqual(sb.StartMm![1], sb.EndMm![1], 1e-3);
+        var sa = await SegmentAsync(doc, a);
+        Assert.Equal(sa.StartMm![0], sa.EndMm![0], 1e-6);
+    }
+
+    [Fact]
+    public async Task Constrain_checks_every_step_before_the_first_one_runs()
+    {
+        var (doc, _, added) = await SketchAsync("con_args", "front", Line([0, 0], [10, 40]));
+        string a = Name(added, 0);
+        int before = (await Ed.InfoAsync(doc, null)).Relations;
+        var ex = await Fails(ErrorCodes.EntityNotFound, () => Ed.ConstrainAsync(doc, [Rel("vertical", Seg(a)), Rel("horizontal", Seg("Line99"))]));
+        Assert.Contains("steps[1]", ex.Message);
+        Assert.Contains("Nothing was changed", ex.Message);
+        await Fails(ErrorCodes.InvalidArgument, () => Ed.ConstrainAsync(doc,
+            [Rel("vertical", Seg(a)), new SketchConstraint { Relation = "horizontal", Dimension = "linear", Entities = [Seg(a)] }]));
+        await Fails(ErrorCodes.InvalidArgument, () => Ed.ConstrainAsync(doc, [Rel("vertical", Seg(a)), Rel("sideways", Seg(a))]));
+        await Fails(ErrorCodes.InvalidArgument, () => Ed.ConstrainAsync(doc,
+            [new SketchConstraint { Relation = "vertical", Entities = [Seg(a)], ValueMm = 5 }]));
+        await Fails(ErrorCodes.InvalidArgument, () => Ed.ConstrainAsync(doc, [Dim("linear", -3, Seg(a))]));
+        await Fails(ErrorCodes.InvalidArgument, () => Ed.ConstrainAsync(doc, []));
+        var info = await Ed.InfoAsync(doc, null);
+        Assert.Equal(before, info.Relations); // nothing ran
+        Assert.True(info.Dimensions is null || info.Dimensions.Count == 0);
+    }
+
     // ------------------------------------------------------------------ sketch_trim
 
     [Fact]

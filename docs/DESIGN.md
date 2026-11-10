@@ -436,6 +436,7 @@ Conventions:
 | `sketch_info` | Entities, relations, constrained status, frame. | ⏳ M1 |
 | `sketch_dimension_add` | A driving dimension (linear, horizontal, vertical, radial, diameter, angular) with a value; the Modify box is prevented. Returns `D1@Sketch1`. | ⏳ M1 |
 | `sketch_relation_add` | horizontal, vertical, coincident, collinear, parallel, perpendicular, tangent, concentric, equal, symmetric, midpoint, intersection, fix, pierce, merge. Verified by the relation count. | ⏳ M1 |
+| `sketch_constrain` | Relations and dimensions in one call, in order, each verified as the two tools above verify it; references resolved before the first step (a point `{at}` is followed as later steps move it); a failing step is undone, the ones before it kept, the rest not run. | ⏳ |
 | `sketch_trim`, `sketch_extend`, `sketch_offset`, `sketch_fillet`, `sketch_chamfer`, `sketch_pattern`, `sketch_mirror`, `sketch_convert`, `sketch_construction_set`, `sketch_delete` | Sketch editing; `sketch_offset` takes `side: outward\|inward\|both`. | ⏳ M1 |
 | `sketch_import_dxf` | Import a DXF/DWG outline into a sketch. | ⏳ M2 |
 

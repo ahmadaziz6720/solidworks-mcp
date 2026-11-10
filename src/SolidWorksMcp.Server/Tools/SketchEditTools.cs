@@ -63,6 +63,18 @@ public sealed class SketchEditTools(SwSession session)
         CancellationToken cancellationToken = default) =>
         ResultJson.Serialize(await _svc.RelationAddAsync(doc, relation, entities, cancellationToken));
 
+    [McpServerTool(Name = "sketch_constrain", Title = "Add sketch relations and dimensions", ReadOnly = false, Destructive = false, Idempotent = false, OpenWorld = false)]
+    [Description("Adds relations and dimensions to the open sketch in one call, in order: each step is what sketch_relation_add or " +
+                 "sketch_dimension_add takes and is verified the same way. References are resolved before the first step, so a point " +
+                 "{at:[x,y]} is where it is now and is followed as later steps move it. A failing step is undone; the steps before it stay, " +
+                 "the rest are not run, and the error says which. Returns each step's checks and dimension name, the relation counts, " +
+                 "constrained status and the segments that moved.")]
+    public async Task<string> SketchConstrain(
+        [Description("Steps, e.g. [{\"relation\":\"horizontal\",\"entities\":[{\"name\":\"Line1\"}]},{\"dimension\":\"linear\",\"entities\":[{\"name\":\"Line1\"}],\"valueMm\":100}].")] SketchConstraint[] steps,
+        [Description(DocDescription)] string? doc = null,
+        CancellationToken cancellationToken = default) =>
+        ResultJson.Serialize(await _svc.ConstrainAsync(doc, steps, cancellationToken));
+
     [McpServerTool(Name = "sketch_trim", Title = "Trim sketch segment", ReadOnly = false, Destructive = true, Idempotent = false, OpenWorld = false)]
     [Description("Trims away the piece of a segment of the open sketch at a point, up to the nearest intersections (trim to closest). " +
                  "Verified: the segment got shorter, was split or removed. Returns the created, changed and removed segments.")]

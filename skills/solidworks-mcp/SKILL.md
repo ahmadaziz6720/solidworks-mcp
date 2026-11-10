@@ -67,6 +67,12 @@ feature_fillet {radiusMm:5, edges:[{where:{curve:"line",parallelTo:"y"},expect:4
 view_screenshot
 ```
 
+**A fully defined sketch** takes one more call: after `sketch_add`, every relation and dimension goes into one
+`sketch_constrain {steps:[{dimension:"linear", entities:[{name:"Line1"}], valueMm:80},
+{relation:"coincident", entities:[{at:[-50,-30]},{name:"origin"}]}]}`, using the segment names `sketch_add` returned.
+Points `{at:[x,y]}` are where they are before the call. A failing step is undone and the error names the steps kept;
+send the rest again from that step.
+
 **Features on a face of the part.**
 - Take the face id from the last result's `newFaces`, or from `face_list {where:{surface:"plane",normal:"+y"}}`.
 - Then call `sketch_start {on:{id:"F2"}}`.

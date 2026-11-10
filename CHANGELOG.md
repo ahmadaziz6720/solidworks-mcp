@@ -10,7 +10,7 @@
   - verified feature creation with automatic rollback;
   - entity references by id, point, query and name;
   - compact input schemas (the EntityRef fields are explained once, in the server instructions).
-- Tools (164):
+- Tools (165):
   - session: `sw_status`, `sw_connect`, `sw_help`, `dialog_list`, `dialog_respond`;
   - documents: `doc_new` (part, assembly, drawing), `doc_open` (native files and STEP/IGES/Parasolid/SAT/STL imports),
     `doc_list`, `doc_activate`, `doc_save`, `doc_close`, `doc_rebuild`, `doc_undo`, `doc_units_set`, `doc_pack` (Pack and Go,
@@ -22,7 +22,7 @@
     (two revisions: measures, features, dimensions), `model_cost` (SOLIDWORKS Costing), `model_cut_list` (weldment and
     sheet-metal cut lists), `view_screenshot` (also with a 3D section);
   - sketch: `sketch_start`, `sketch_add` (also text), `sketch_import` (DXF/DWG into a sketch), `sketch_finish`, `sketch_edit`, `sketch_info`, `sketch_dimension_add`,
-    `sketch_relation_add`, `sketch_trim`, `sketch_extend`, `sketch_offset`, `sketch_fillet`, `sketch_chamfer`,
+    `sketch_relation_add`, `sketch_constrain` (relations and dimensions in one call), `sketch_trim`, `sketch_extend`, `sketch_offset`, `sketch_fillet`, `sketch_chamfer`,
     `sketch_pattern`, `sketch_mirror`, `sketch_convert`, `sketch_construction_set`, `sketch_delete`;
   - features: `feature_extrude`, `feature_revolve`, `feature_sweep`, `feature_loft`, `feature_fillet` (constant, variable,
     face, full round), `feature_split_line`, `feature_thread` (modelled ISO metric threads), `feature_pattern_curve`,

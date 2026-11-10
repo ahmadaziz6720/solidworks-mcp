@@ -92,6 +92,33 @@ public sealed class SketchRelationResult : ToolResult
     public IReadOnlyList<ResolvedInfo>? Resolved { get; init; }
 }
 
+/// <summary>sketch_constrain: one entry per step, in order.</summary>
+public sealed class SketchConstrainStep
+{
+    /// <summary>1-based, as the steps were given.</summary>
+    public int Step { get; init; }
+    public string? Relation { get; init; }
+    /// <summary>The dimension's kind (linear, angular, ...); <see cref="Dimension"/> holds its name and value.</summary>
+    public string? Kind { get; init; }
+    public DimensionInfo? Dimension { get; init; }
+    public IReadOnlyList<string>? Checks { get; init; }
+}
+
+/// <summary>sketch_constrain.</summary>
+public sealed class SketchConstrainResult : ToolResult
+{
+    public required string Sketch { get; init; }
+    public required IReadOnlyList<SketchConstrainStep> Steps { get; init; }
+    public int RelationsBefore { get; init; }
+    public int RelationsAfter { get; init; }
+    /// <summary>Dimensions added by the call.</summary>
+    public int Dimensions { get; init; }
+    public required string Constrained { get; init; }
+    /// <summary>Segments whose geometry the steps changed, as they are at the end.</summary>
+    public IReadOnlyList<SketchSegmentInfo>? Changed { get; init; }
+    public int? ChangedCount { get; init; }
+}
+
 /// <summary>The sketch editing tools (trim, extend, offset, fillet, chamfer, pattern, mirror, convert, construction, delete).</summary>
 public sealed class SketchChangeResult : ToolResult
 {
@@ -282,14 +309,33 @@ public sealed class SketchEditService(SwSession session)
 
     // ========================================================================================= sketch_dimension_add
 
+    private static readonly EntityKind[] DimensionKinds = [EntityKind.SketchSegment, EntityKind.SketchPoint, EntityKind.Origin];
+
     public Task<SketchDimensionResult> DimensionAddAsync(string? doc, IReadOnlyList<EntityRef>? entities, string kind,
         double? valueMm = null, double? valueDeg = null, double[]? textAt = null, CancellationToken ct = default)
+    {
+        var (k, target) = DimensionArgs(kind, entities?.Count ?? 0, valueMm, valueDeg, textAt);
+        var options = RunOptions.Write(doc) with { DialogRules = [DialogRules.ModifyDimension, DialogRules.OverdefiningDimension] };
+        return session.RunAsync("sketch_dimension_add", ctx =>
+        {
+            var d = DocOf(ctx);
+            var sketch = OpenSketch(ctx, d, "sketch_dimension_add", twoD: true);
+            var m2s = SketchService.SketchToModel(sketch).Inverse();
+            var refs = Refs(ctx, d, sketch, m2s, entities!, "entities", DimensionKinds);
+            if (refs.Count != entities!.Count)
+                throw SwException.InvalidArgument("'entities' names the same entity twice.");
+            return AddDimension(ctx, d, sketch, k, refs, target, textAt);
+        }, options, ct);
+    }
+
+    /// <summary>Checks a dimension's arguments before anything runs: the kind (lower case) and the target in m or rad.</summary>
+    private static (string Kind, double? Target) DimensionArgs(string? kind, int entityCount, double? valueMm, double? valueDeg, double[]? textAt)
     {
         string k = Lower(kind);
         if (k is not ("linear" or "horizontal" or "vertical" or "radial" or "diameter" or "angular"))
             throw SwException.InvalidArgument($"kind '{kind}' is not supported.", "Use linear, horizontal, vertical, radial, diameter or angular.");
-        if (entities is null || entities.Count is < 1 or > 2)
-            throw SwException.InvalidArgument($"'entities' needs 1 or 2 references (got {entities?.Count ?? 0}).",
+        if (entityCount is < 1 or > 2)
+            throw SwException.InvalidArgument($"'entities' needs 1 or 2 references (got {entityCount}).",
                 "A segment {name:'Line1'}, a sketch point {at:[x,y]} or {name:'origin'}.");
         double? target = null;
         if (k == "angular")
@@ -308,20 +354,15 @@ public sealed class SketchEditService(SwSession session)
             if (valueMm is double vm) target = Units.PositiveM(vm, "valueMm");
         }
         CheckPoint(textAt, "textAt", required: false);
-        var options = RunOptions.Write(doc) with { DialogRules = [DialogRules.ModifyDimension, DialogRules.OverdefiningDimension] };
-        return session.RunAsync("sketch_dimension_add", ctx => AddDimension(ctx, k, entities, target, textAt), options, ct);
+        return (k, target);
     }
 
-    private static SketchDimensionResult AddDimension(SwContext ctx, string kind, IReadOnlyList<EntityRef> entities, double? target, double[]? textAt)
+    private static SketchDimensionResult AddDimension(SwContext ctx, IModelDoc2 d, ISketch sketch, string kind, List<Resolved> refs,
+        double? target, double[]? textAt)
     {
-        var d = DocOf(ctx);
-        var sketch = OpenSketch(ctx, d, "sketch_dimension_add", twoD: true);
         var feat = (IFeature)sketch;
         var s2m = SketchService.SketchToModel(sketch);
         var m2s = s2m.Inverse();
-        var refs = Refs(ctx, d, sketch, m2s, entities, "entities", EntityKind.SketchSegment, EntityKind.SketchPoint, EntityKind.Origin);
-        if (refs.Count != entities.Count)
-            throw SwException.InvalidArgument("'entities' names the same entity twice.");
         var items = refs.Select(r => ItemOf(r, sketch, m2s)).ToList();
         CheckDimensionTargets(kind, items);
         double? expected = Measure(kind, items);
@@ -644,113 +685,301 @@ public sealed class SketchEditService(SwSession session)
 
     public Task<SketchRelationResult> RelationAddAsync(string? doc, string relation, IReadOnlyList<EntityRef>? entities, CancellationToken ct = default)
     {
-        string rel = Lower(relation);
-        if (!RelationSpecs.TryGetValue(rel, out var spec))
-            throw SwException.InvalidArgument($"Unknown relation '{relation}'.", $"Use one of: {string.Join(", ", RelationSpecs.Keys)}.");
-        int n = entities?.Count ?? 0;
-        if (n < spec.Min || n > spec.Max)
-            throw SwException.InvalidArgument($"'{rel}' takes {spec.Takes}: {(spec.Min == spec.Max ? $"{spec.Min}" : $"at least {spec.Min}")} entities (got {n}).");
+        var (rel, spec) = RelationArgs(relation, entities?.Count ?? 0);
         return session.RunAsync("sketch_relation_add", ctx =>
         {
             var d = DocOf(ctx);
             var sketch = OpenSketch(ctx, d, "sketch_relation_add", twoD: false);
-            string name = ((IFeature)sketch).Name;
-            bool is3D = sketch.Is3D();
-            var m2s = is3D ? Xform.Identity : SketchService.SketchToModel(sketch).Inverse();
+            var m2s = sketch.Is3D() ? Xform.Identity : SketchService.SketchToModel(sketch).Inverse();
             var refs = Refs(ctx, d, sketch, m2s, entities!, "entities", RelationKinds);
-            if (refs.Count < spec.Min)
-                throw SwException.InvalidArgument($"'{rel}' needs {spec.Min} different entities; some references name the same one.");
-            var items = refs.Select(r => ItemOf(r, sketch, m2s)).ToList();
-            if (rel == "symmetric" && items.Count(i => i.Kind == "line") == 1 && items[^1].Kind != "line")
+            return AddRelation(ctx, d, sketch, rel, spec, refs);
+        }, RunOptions.Write(doc), ct);
+    }
+
+    /// <summary>Checks a relation's name and entity count before anything runs.</summary>
+    private static (string Rel, RelSpec Spec) RelationArgs(string? relation, int n)
+    {
+        string rel = Lower(relation);
+        if (!RelationSpecs.TryGetValue(rel, out var spec))
+            throw SwException.InvalidArgument($"Unknown relation '{relation}'.", $"Use one of: {string.Join(", ", RelationSpecs.Keys)}.");
+        if (n < spec.Min || n > spec.Max)
+            throw SwException.InvalidArgument($"'{rel}' takes {spec.Takes}: {(spec.Min == spec.Max ? $"{spec.Min}" : $"at least {spec.Min}")} entities (got {n}).");
+        return (rel, spec);
+    }
+
+    private static SketchRelationResult AddRelation(SwContext ctx, IModelDoc2 d, ISketch sketch, string rel, RelSpec spec, List<Resolved> refs)
+    {
+        string name = ((IFeature)sketch).Name;
+        bool is3D = sketch.Is3D();
+        var m2s = is3D ? Xform.Identity : SketchService.SketchToModel(sketch).Inverse();
+        if (refs.Count < spec.Min)
+            throw SwException.InvalidArgument($"'{rel}' needs {spec.Min} different entities; some references name the same one.");
+        var items = refs.Select(r => ItemOf(r, sketch, m2s)).ToList();
+        if (rel == "symmetric" && items.Count(i => i.Kind == "line") == 1 && items[^1].Kind != "line")
+        {
+            // The symmetry line goes last.
+            int li = items.FindIndex(i => i.Kind == "line");
+            var (lr, lit) = (refs[li], items[li]);
+            refs.RemoveAt(li); items.RemoveAt(li);
+            refs.Add(lr); items.Add(lit);
+        }
+        if (rel == "pierce") CheckPierceTargets(refs, sketch);
+        else CheckRelationTargets(rel, items);
+        bool points = items.All(i => i.Kind == "point");
+        string[] ids = rel switch
+        {
+            // Verified: two points take the point forms; sgHORIZONTAL / sgVERTICAL ignore points.
+            "horizontal" when points => ["sgHORIZPOINTS"],
+            "vertical" when points => ["sgVERTPOINTS"],
+            // Verified: sgMERGEPOINTS merges two segment end points but ignores a free point, which sgCOINCIDENT relates.
+            "merge" => ["sgMERGEPOINTS", "sgCOINCIDENT"],
+            _ => spec.Ids,
+        };
+        var before = SkState.Take(sketch);
+        // A merge disconnects one of the two point objects (verified): find the points again through their segments.
+        var locs = points ? items.Select(i => Locate(before, i.P)).ToList() : null;
+        string labels = string.Join(", ", refs.Take(6).Select(r => r.Label));
+        SkState? after = null;
+        bool merged = false;
+        foreach (var id in ids)
+        {
+            d.ClearSelection2(true);
+            SelectAll(d, refs, 0);
+            d.SketchAddConstraints(id); // silently ignores ids that don't apply
+            d.ClearSelection2(true);
+            var now = SkState.Take(sketch);
+            // Verified: sgCOINCIDENT and sgMERGEPOINTS on two segment end points merge them (one point fewer, no relation).
+            merged = points && now.Points < before.Points;
+            if (now.Relations > before.Relations || merged) { after = now; break; }
+            if (!Diff(before, now).None || now.Points != before.Points)
             {
-                // The symmetry line goes last.
-                int li = items.FindIndex(i => i.Kind == "line");
-                var (lr, lit) = (refs[li], items[li]);
-                refs.RemoveAt(li); items.RemoveAt(li);
-                refs.Add(lr); items.Add(lit);
+                string rb0 = Undo(ctx, d, name, before);
+                throw new SwException(ErrorCodes.VerifyFailed, $"'{id}' moved the sketch but added no relation. {rb0}");
             }
-            if (rel == "pierce") CheckPierceTargets(refs, sketch);
-            else CheckRelationTargets(rel, items);
-            bool points = items.All(i => i.Kind == "point");
-            string[] ids = rel switch
+        }
+        if (after is null)
+            throw new SwException(ErrorCodes.VerifyFailed,
+                $"SOLIDWORKS ignored the relation '{rel}' for {labels}: no relation was added.",
+                "It may not apply to these entity types, already exist, or follow from other relations (sketch_info lists them).");
+        var checks = new List<string> { merged ? $"points merged ({before.Points} → {after.Points} sketch points)" : $"relations {before.Relations} → {after.Relations}" };
+        if (rel == "merge" && !merged) checks.Add("coincident relation instead: SOLIDWORKS merges only segment end points");
+        if (BecameOverDefined(sketch, before.Status))
+        {
+            string state = ConstrainedName(sketch.GetConstrainedStatus());
+            string rb = Undo(ctx, d, name, before);
+            throw new SwException(ErrorCodes.VerifyFailed, $"'{rel}' conflicts with existing relations or dimensions (the sketch became {state}). {rb}",
+                "Delete the conflicting relation or dimension first, or relate other entities.");
+        }
+        if (!is3D)
+        {
+            string? problem;
+            if (merged) problem = MergeGeometry(after, locs!, checks);
+            else if (rel == "pierce") problem = PierceGeometry(d, sketch, refs, checks);
+            else
             {
-                // Verified: two points take the point forms; sgHORIZONTAL / sgVERTICAL ignore points.
-                "horizontal" when points => ["sgHORIZPOINTS"],
-                "vertical" when points => ["sgVERTPOINTS"],
-                // Verified: sgMERGEPOINTS merges two segment end points but ignores a free point, which sgCOINCIDENT relates.
-                "merge" => ["sgMERGEPOINTS", "sgCOINCIDENT"],
-                _ => spec.Ids,
-            };
-            var before = SkState.Take(sketch);
-            // A merge disconnects one of the two point objects (verified): find the points again through their segments.
-            var locs = points ? items.Select(i => Locate(before, i.P)).ToList() : null;
-            string labels = string.Join(", ", refs.Take(6).Select(r => r.Label));
-            SkState? after = null;
-            bool merged = false;
-            foreach (var id in ids)
-            {
-                d.ClearSelection2(true);
-                SelectAll(d, refs, 0);
-                d.SketchAddConstraints(id); // silently ignores ids that don't apply
-                d.ClearSelection2(true);
-                var now = SkState.Take(sketch);
-                // Verified: sgCOINCIDENT and sgMERGEPOINTS on two segment end points merge them (one point fewer, no relation).
-                merged = points && now.Points < before.Points;
-                if (now.Relations > before.Relations || merged) { after = now; break; }
-                if (!Diff(before, now).None || now.Points != before.Points)
-                {
-                    string rb0 = Undo(ctx, d, name, before);
-                    throw new SwException(ErrorCodes.VerifyFailed, $"'{id}' moved the sketch but added no relation. {rb0}");
-                }
+                var nowItems = refs.Select(r => ItemOf(r, sketch, m2s)).ToList();
+                if (nowItems.Any(i => i.Kind is "external" or "other")) checks.Add("geometry not checked (model geometry, or a segment of a non-parallel sketch)");
+                problem = RelationGeometry(rel == "merge" ? "coincident" : rel, nowItems, checks);
             }
-            if (after is null)
-                throw new SwException(ErrorCodes.VerifyFailed,
-                    $"SOLIDWORKS ignored the relation '{rel}' for {labels}: no relation was added.",
-                    "It may not apply to these entity types, already exist, or follow from other relations (sketch_info lists them).");
-            var checks = new List<string> { merged ? $"points merged ({before.Points} → {after.Points} sketch points)" : $"relations {before.Relations} → {after.Relations}" };
-            if (rel == "merge" && !merged) checks.Add("coincident relation instead: SOLIDWORKS merges only segment end points");
-            if (BecameOverDefined(sketch, before.Status))
+            if (problem is not null)
             {
-                string state = ConstrainedName(sketch.GetConstrainedStatus());
                 string rb = Undo(ctx, d, name, before);
-                throw new SwException(ErrorCodes.VerifyFailed, $"'{rel}' conflicts with existing relations or dimensions (the sketch became {state}). {rb}",
-                    "Delete the conflicting relation or dimension first, or relate other entities.");
+                throw new SwException(ErrorCodes.VerifyFailed, $"After '{rel}' the geometry doesn't satisfy it: {problem}. {rb}",
+                    "The sketch may not solve with this relation; check sketch_info.");
             }
-            if (!is3D)
+        }
+        var diff = Diff(before, after);
+        var related = refs.Where(r => r.Obj is ISketchSegment s && InSketch(s, sketch)).Select(r => ((ISketchSegment)r.Obj).GetName())
+            .Where(after.Segs.ContainsKey).Distinct().ToList();
+        return new SketchRelationResult
+        {
+            Doc = ctx.Title(d),
+            Sketch = name,
+            Relation = rel,
+            RelationsBefore = before.Relations,
+            RelationsAfter = after.Relations,
+            Constrained = ConstrainedName(after.Status),
+            Segments = related.Count == 0 ? null : related.Select(x => Info(x, after.Segs[x], is3D)).ToList(),
+            Changed = NullIfEmpty(diff.Changed.Where(x => !related.Contains(x)).Take(ListMax).Select(x => Info(x, after.Segs[x], is3D, before.Segs[x].Length)).ToList()),
+            Checks = checks,
+            Resolved = refs.Select(r => r.Info("entities")).ToList(),
+        };
+    }
+
+    // ============================================================================================= sketch_constrain
+
+    private const int MaxSteps = 100;
+
+    private sealed record Step(SketchConstraint S, string Kind, RelSpec? Spec, double? Target);
+
+    /// <summary>
+    /// A step's reference, held from the start of the call. A sketch point that ends or centers a segment is held by
+    /// that segment, so a later step finds it where the solver has moved it (and after a merge replaced the point
+    /// object); anything else as it was resolved.
+    /// </summary>
+    private sealed record Pin(Resolved R, PointLoc? Loc);
+
+    /// <summary>
+    /// sketch_constrain: relations and dimensions in one call, in order, each one checked as sketch_relation_add and
+    /// sketch_dimension_add check it. All arguments and references are checked before the first step; a step that fails
+    /// is undone as those tools undo it, the steps before it are kept and the ones after it are not run.
+    /// </summary>
+    public Task<SketchConstrainResult> ConstrainAsync(string? doc, IReadOnlyList<SketchConstraint>? steps, CancellationToken ct = default)
+    {
+        if (steps is null || steps.Count == 0)
+            throw SwException.InvalidArgument("'steps' must hold at least one relation or dimension.");
+        if (steps.Count > MaxSteps)
+            throw SwException.InvalidArgument($"'steps' holds {steps.Count} steps; at most {MaxSteps} per call.");
+        var plan = new List<Step>();
+        for (int i = 0; i < steps.Count; i++)
+        {
+            var s = steps[i] ?? throw SwException.InvalidArgument($"'steps[{i}]' is null.");
+            bool rel = !string.IsNullOrWhiteSpace(s.Relation), dim = !string.IsNullOrWhiteSpace(s.Dimension);
+            if (rel == dim)
+                throw SwException.InvalidArgument($"'steps[{i}]' needs either 'relation' or 'dimension' (got {(rel ? "both" : "neither")}).",
+                    "e.g. {relation:'horizontal', entities:[{name:'Line1'}]} or {dimension:'linear', entities:[{name:'Line1'}], valueMm:100}.");
+            try
             {
-                string? problem;
-                if (merged) problem = MergeGeometry(after, locs!, checks);
-                else if (rel == "pierce") problem = PierceGeometry(d, sketch, refs, checks);
+                if (rel)
+                {
+                    if (s.ValueMm is not null || s.ValueDeg is not null || s.TextAt is not null)
+                        throw SwException.InvalidArgument("A relation takes no valueMm, valueDeg or textAt.");
+                    var (r, spec) = RelationArgs(s.Relation, s.Entities?.Length ?? 0);
+                    plan.Add(new Step(s, r, spec, null));
+                }
                 else
                 {
-                    var nowItems = refs.Select(r => ItemOf(r, sketch, m2s)).ToList();
-                    if (nowItems.Any(i => i.Kind is "external" or "other")) checks.Add("geometry not checked (model geometry, or a segment of a non-parallel sketch)");
-                    problem = RelationGeometry(rel == "merge" ? "coincident" : rel, nowItems, checks);
-                }
-                if (problem is not null)
-                {
-                    string rb = Undo(ctx, d, name, before);
-                    throw new SwException(ErrorCodes.VerifyFailed, $"After '{rel}' the geometry doesn't satisfy it: {problem}. {rb}",
-                        "The sketch may not solve with this relation; check sketch_info.");
+                    var (k, target) = DimensionArgs(s.Dimension, s.Entities?.Length ?? 0, s.ValueMm, s.ValueDeg, s.TextAt);
+                    plan.Add(new Step(s, k, null, target));
                 }
             }
-            var diff = Diff(before, after);
-            var related = refs.Where(r => r.Obj is ISketchSegment s && InSketch(s, sketch)).Select(r => ((ISketchSegment)r.Obj).GetName())
-                .Where(after.Segs.ContainsKey).Distinct().ToList();
-            return new SketchRelationResult
+            catch (SwException ex)
             {
-                Doc = ctx.Title(d),
-                Sketch = name,
-                Relation = rel,
-                RelationsBefore = before.Relations,
-                RelationsAfter = after.Relations,
-                Constrained = ConstrainedName(after.Status),
-                Segments = related.Count == 0 ? null : related.Select(x => Info(x, after.Segs[x], is3D)).ToList(),
-                Changed = NullIfEmpty(diff.Changed.Where(x => !related.Contains(x)).Take(ListMax).Select(x => Info(x, after.Segs[x], is3D, before.Segs[x].Length)).ToList()),
-                Checks = checks,
-                Resolved = refs.Select(r => r.Info("entities")).ToList(),
-            };
-        }, RunOptions.Write(doc), ct);
+                throw new SwException(ex.Code, $"steps[{i}]: {ex.Message} Nothing was changed.", ex.Hint);
+            }
+        }
+        bool anyDimension = plan.Any(p => p.Spec is null);
+        var options = RunOptions.Write(doc) with
+        {
+            DialogRules = anyDimension ? [DialogRules.ModifyDimension, DialogRules.OverdefiningDimension] : null,
+        };
+        return session.RunAsync("sketch_constrain", ctx => Constrain(ctx, plan, anyDimension), options, ct);
+    }
+
+    private static SketchConstrainResult Constrain(SwContext ctx, List<Step> plan, bool twoD)
+    {
+        var d = DocOf(ctx);
+        var sketch = OpenSketch(ctx, d, "sketch_constrain", twoD);
+        var feat = (IFeature)sketch;
+        bool is3D = sketch.Is3D();
+        var m2s = is3D ? Xform.Identity : SketchService.SketchToModel(sketch).Inverse();
+        var start = SkState.Take(sketch);
+        var dimsBefore = FeatureVerifier.Dimensions(feat).Select(x => x.Name).ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        // Every reference is resolved against the sketch as it is before the first step: a point {at:[x,y]} is where the
+        // caller saw it, and a reference that does not resolve fails the call before anything changed.
+        var pins = new List<List<Pin>>();
+        for (int i = 0; i < plan.Count; i++)
+        {
+            var step = plan[i];
+            var entities = step.S.Entities!;
+            List<Resolved> refs;
+            try { refs = Refs(ctx, d, sketch, m2s, entities, $"steps[{i}].entities", step.Spec is null ? DimensionKinds : RelationKinds); }
+            catch (SwException ex)
+            {
+                // Not every resolver message names the argument ("No sketch segment named 'Line99'"): say which step.
+                string prefix = ex.Message.Contains($"steps[{i}]", StringComparison.Ordinal) ? "" : $"steps[{i}] ({step.Kind}): ";
+                throw new SwException(ex.Code, $"{prefix}{ex.Message} Nothing was changed.", ex.Hint);
+            }
+            if (step.Spec is null && refs.Count != entities.Length)
+                throw SwException.InvalidArgument($"'steps[{i}].entities' names the same entity twice. Nothing was changed.");
+            pins.Add(refs.Select(r => PinOf(r, sketch, start, is3D)).ToList());
+        }
+
+        var done = new List<SketchConstrainStep>();
+        for (int i = 0; i < plan.Count; i++)
+        {
+            var step = plan[i];
+            string what = $"{step.Kind} {(step.Spec is null ? "dimension" : "relation")}";
+            try
+            {
+                var now = SkState.Take(sketch);
+                var refs = pins[i].Select(p => Unpin(sketch, p, now)).ToList();
+                if (step.Spec is not null)
+                {
+                    var r = AddRelation(ctx, d, sketch, step.Kind, step.Spec, refs);
+                    done.Add(new SketchConstrainStep { Step = i + 1, Relation = step.Kind, Checks = r.Checks });
+                }
+                else
+                {
+                    var r = AddDimension(ctx, d, sketch, step.Kind, refs, step.Target, step.S.TextAt);
+                    done.Add(new SketchConstrainStep { Step = i + 1, Dimension = r.Dimension, Kind = step.Kind, Checks = r.Checks });
+                }
+            }
+            catch (SwException ex)
+            {
+                string kept = done.Count == 0
+                    ? "No step before it was applied"
+                    : $"Steps 1-{done.Count} were applied and kept ({string.Join(", ", done.Select(StepLabel))}); continue from step {i + 1}";
+                string rest = i + 1 < plan.Count ? $"; steps {i + 2}-{plan.Count} were not run" : "";
+                throw new SwException(ex.Code, $"Step {i + 1} of {plan.Count} ({what}) failed: {ex.Message} {kept}{rest}.", ex.Hint);
+            }
+        }
+
+        var end = SkState.Take(sketch);
+        var diff = Diff(start, end);
+        var added = FeatureVerifier.Dimensions(feat).Where(x => !dimsBefore.Contains(x.Name)).ToList();
+        return new SketchConstrainResult
+        {
+            Doc = ctx.Title(d),
+            Sketch = feat.Name,
+            Steps = done,
+            RelationsBefore = start.Relations,
+            RelationsAfter = end.Relations,
+            Dimensions = added.Count,
+            Constrained = ConstrainedName(end.Status),
+            Changed = NullIfEmpty(diff.Changed.Take(ListMax).Select(n => Info(n, end.Segs[n], is3D, start.Segs[n].Length)).ToList()),
+            ChangedCount = diff.Changed.Count > ListMax ? diff.Changed.Count : null,
+        };
+    }
+
+    private static string StepLabel(SketchConstrainStep s) => s.Dimension is { } dim ? dim.Name : s.Relation!;
+
+    private static Pin PinOf(Resolved r, ISketch sketch, SkState start, bool is3D)
+    {
+        if (is3D || r.Obj is not ISketchPoint p || (p.GetSketch() is ISketch owner && !SameSketch(owner, sketch))) return new Pin(r, null);
+        var loc = Locate(start, new Vec3(p.X, p.Y, 0));
+        return new Pin(r, loc.Segment is null ? null : loc);
+    }
+
+    /// <summary>The pinned entity now: a held sketch point is taken again from its segment.</summary>
+    private static Resolved Unpin(ISketch sketch, Pin pin, SkState now)
+    {
+        if (pin.Loc is not { Segment: string seg } loc) return pin.R;
+        var s = FindSegment(sketch, seg) ?? throw new SwException(ErrorCodes.EntityStale,
+            $"{pin.R.Label} was an end of {seg}, which is no longer in the sketch.", "Check the sketch with sketch_info.");
+        var point = PointOf(s, loc.Which) ?? throw new SwException(ErrorCodes.EntityStale,
+            $"{pin.R.Label}: the point of {seg} it was could not be read.", "Pass the point by its current position (sketch_info).");
+        return new Resolved { Obj = point, Kind = EntityKind.SketchPoint, Label = pin.R.Label, Distance = pin.R.Distance };
+    }
+
+    /// <summary>A segment's start ('s'), end ('e') or center ('c') point.</summary>
+    private static ISketchPoint? PointOf(ISketchSegment s, char which)
+    {
+        switch (s.GetType())
+        {
+            case (int)swSketchSegments_e.swSketchLINE when s is ISketchLine l:
+                return which switch { 's' => l.SkStart(), 'e' => l.SkEnd(), _ => null };
+            case (int)swSketchSegments_e.swSketchARC when s is ISketchArc a:
+                return which switch { 's' => a.SkStart(), 'e' => a.SkEnd(), _ => a.SkCenter() };
+            case (int)swSketchSegments_e.swSketchELLIPSE when s is ISketchEllipse e:
+                return which switch { 's' => e.SkStart(), 'e' => e.SkEnd(), _ => e.SkCenter() };
+            case (int)swSketchSegments_e.swSketchSPLINE when s is ISketchSpline sp:
+                var pts = sp.SkFitPoints();
+                return pts.Count == 0 ? null : which switch { 's' => pts[0], 'e' => pts[^1], _ => null };
+            default:
+                return null;
+        }
     }
 
     private static void CheckRelationTargets(string rel, IReadOnlyList<Item> it)
