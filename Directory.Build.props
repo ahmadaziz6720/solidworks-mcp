@@ -22,4 +22,18 @@
     <SolidWorksDir Condition="!HasTrailingSlash('$(SolidWorksDir)')">$(SolidWorksDir)\</SolidWorksDir>
     <SolidWorksInteropDir>$(SolidWorksDir)api\redist\</SolidWorksInteropDir>
   </PropertyGroup>
+
+  <!-- The SDK appends the commit to the informational version (+<sha>), which sw_status reports. A build from a tree
+       whose sources differ from that commit says so (+<sha>.dirty), so a result is never pinned to code that didn't run. -->
+  <Target Name="MarkDirtySourceRevision" AfterTargets="InitializeSourceControlInformation"
+          BeforeTargets="AddSourceRevisionToInformationalVersion"
+          Condition="'$(SourceRevisionId)' != '' and Exists('$(MSBuildThisFileDirectory).git')">
+    <Exec Command="git status --porcelain -- src Directory.Build.props" WorkingDirectory="$(MSBuildThisFileDirectory)"
+          ConsoleToMSBuild="true" StandardOutputImportance="low" IgnoreExitCode="true">
+      <Output TaskParameter="ConsoleOutput" PropertyName="_SwMcpDirtyFiles" />
+    </Exec>
+    <PropertyGroup Condition="'$(_SwMcpDirtyFiles)' != ''">
+      <SourceRevisionId>$(SourceRevisionId).dirty</SourceRevisionId>
+    </PropertyGroup>
+  </Target>
 </Project>

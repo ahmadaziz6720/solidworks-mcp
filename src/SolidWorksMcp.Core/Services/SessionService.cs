@@ -1,5 +1,4 @@
 using System.Diagnostics;
-using System.Reflection;
 using SolidWorks.Interop.sldworks;
 using SolidWorksMcp.Core.Com;
 using SolidWorksMcp.Core.Documents;
@@ -70,8 +69,7 @@ public sealed class ConnectResult : ToolResult
 /// <summary>Connection, status and dialog tools. The dialog parts are Win32-only and never wait for the STA thread.</summary>
 public sealed class SessionService(SwSession session)
 {
-    public static string ServerVersion { get; } =
-        typeof(SessionService).Assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion.Split('+')[0] ?? "0.0.0";
+    public static string ServerVersion { get; } = BuildVersion.Of(typeof(SessionService));
 
     /// <summary>
     /// Status that never hangs: the Win32 part (dialogs, UI blocked, running operation) is read directly; the COM part

@@ -1,4 +1,3 @@
-using System.Reflection;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -11,8 +10,7 @@ namespace SolidWorksMcp.Server.Hosting;
 /// <summary>Everything the host needs; shared by Program and the catalog test.</summary>
 public static class ServerSetup
 {
-    public static string Version =>
-        typeof(ServerSetup).Assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion.Split('+')[0] ?? "0.0.0";
+    public static string Version => BuildVersion.Of(typeof(ServerSetup));
 
     public static void Configure(IHostApplicationBuilder builder, bool fileLog = true)
     {

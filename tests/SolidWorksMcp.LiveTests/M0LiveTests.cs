@@ -31,6 +31,14 @@ public class M0LiveTests(LiveFixture fx) : LiveTest(fx)
     }
 
     [Fact]
+    public async Task Status_names_the_commit_the_server_was_built_from()
+    {
+        var st = await new SessionService(S).StatusAsync();
+        // The SDK stamps the commit (+<sha>, .dirty from a changed tree); sw_status keeps it, shortened to 7.
+        Assert.Matches(@"^\d+\.\d+\.\d+[^+]*\+[0-9a-f]{7}(\.dirty)?$", st.ServerVersion);
+    }
+
+    [Fact]
     public async Task Box_extrude_matches_the_oracle()
     {
         string doc = await BlockAsync("box");
