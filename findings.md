@@ -842,3 +842,6 @@ Build `bin\0.1.0-20261110-144220`, `serverVersion` `0.1.0-sw2023-20261110-144220
    centreline one one hatched face, the one through the ear holes three.
 4. **Calls**: 28 for the whole test, 13.3k characters, 1 error (deliberate: the typo
    beside a bad library). 5 calls on S28. No `sw_help`.
+
+Sorted into S28, its follow-ups held (1); S14, met again, a section's `modelBoxMm` (2); S5
+(3); S9 (4).

@@ -10,8 +10,9 @@ Three sections: **Open**, not yet fixed; **Waiting**, fixed and not yet settled 
 merged, a fix not yet run in a session); **Closed**, merged upstream, run and held, or
 decided against, with the record.
 
-**Open: S4, S5, S7, S9 to S15, S18, S22 to S27, S29.** S5 and S7 wait a while for
-upstream's answer to issues #2 and #4.
+**Open: S4, S5, S7, S9 to S15, S18, S22 to S27, S29.** Next: S14's section `modelBoxMm`
+(build `…-144220`, its last paragraph). S5 and S7 wait a while for upstream's answer to
+issues #2 and #4.
 
 ---
 
@@ -24,8 +25,8 @@ upstream's answer to issues #2 and #4.
 Upstream: issue #2. Usage until fixed: import by File > Open and `doc_activate`, or check
 `solidBodies` after `doc_open`. Still so in builds `…-204719`, `…-215810` and `…-230924`:
 a STEP round trip gave 16 surface bodies and no solid. Again in `…-235702`,
-`…-010708`, `…-014952`, `…-024431`, `…-034022`, `…-064352`, `…-091645`, `…-115800` and
-`…-134233` (export `solids: 1`, import 16 surface bodies).
+`…-010708`, `…-014952`, `…-024431`, `…-034022`, `…-064352`, `…-091645`, `…-115800`,
+`…-134233` and `…-144220` (export `solids: 1`, import 16 surface bodies).
 
 **S7. `dimension_set` accepts a change that splits the body.** Upstream: issue #4. Usage:
 read `bodies` in the result after each `dimension_set`.
@@ -41,7 +42,8 @@ full sheet lists and two `drw_info` calls 42% of them), `…-014952` (28 calls, 
 `…-024431` (42 calls, 21.2k), `…-034022` (25 calls, 11.6k), `…-064352` (28 calls, 13.2k;
 8 dimension adds at ≈110–600 characters each, one `drw_info` of 1.6k to read a section's
 orientation), `…-091645` (30 calls, 16.8k; the largest `feature_list` 2.1k and
-`feature_mirror` 1.9k) and `…-134233` (34 calls, 16.2k; 14 of them on S28).
+`feature_mirror` 1.9k), `…-134233` (34 calls, 16.2k; 14 of them on S28) and `…-144220`
+(28 calls, 13.3k).
 
 **S10. Drawing format and title block.** Precision and decimal separator of drawing
 dimensions, parentheses for reference dimensions, `n×` in hole callouts, DWG NO from a
@@ -85,6 +87,14 @@ the row of an existing dimension from the same edge, its dimension line on the o
 the two texts side by side, `textAtMm` echoed, no warning; the result does not show a clash
 with the view's other dimensions. Again in `…-064352`: a dimension's `textAtMm` at y 292 on an
 A3 sheet (297 high) put the text over the border's zone strip, `textAtMm` echoed, no warning.
+Again in `…-144220` (point 2): a section's `modelBoxMm` is the whole model's box, not what
+the view shows. Cut through a tray's side ears looking along +X at 1:2, `boundsMm`
+horizontal 72.68–107.32, `modelBoxMm` 67.24–101.38 (the full 68.28 mm extent), while the
+PDF draws the section from 78.6 to 101.35: one edge right, the other 11.4 sheet mm off. The
+section's checks passed. A caller placing text or a view from `modelBoxMm`, as
+`drw_views_standard`'s description suggests for plain views, lands beside the section.
+Local, either: the cut geometry's box for a section, or a word in the description that a
+section keeps the model's box.
 
 **S15. `tools\install.ps1` registers at user scope under the name `solidworks`.** That
 clashes with any other server of that name. Usage: `-NoRegister`, and register by hand at
@@ -424,8 +434,13 @@ old `solidworks-mcp.sldmat`, whose PETG equals the one in `Custom Materials`, mo
 to `solidworks-mcp.sldmat.retired` (point 4), so `material_set {name:"PETG"}` needs no
 `database`. Seen once while testing: the custom material's cantilever bent 0.4035 mm
 against 0.4013 ± 0.002 and passed on a rerun. Closed 2026-11-10 on the owner's word; the
-follow-ups in build `20261110-144220` (tag `build-20261110-144220`), to check in its
-scenario test.
+follow-ups in build `20261110-144220` (tag `build-20261110-144220`). Held in its scenario
+test (findings 2026-11-10, build `…-144220`, point 1): `material_set {name:"PETG"}` with no
+`database` passed, the library untouched; a `material_add` into `Custom Materials` changed
+only the 11 added lines (BOM, `UTF-16`, `"/>"`, CRLF and the last line end as before); a
+typo beside a corrupted library gave `IO_ERROR` with the closest names first, and a name in
+a library that parses passed with the warning. The rewrite during `material_set` was not
+met there either.
 
 **S8. One relation or dimension per call.** A fully defined sketch took ≈15 calls. Asked:
 relations and dimensions in `sketch_add` or a batch tool, each still verified. Upstream has
