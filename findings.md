@@ -747,3 +747,53 @@ Build `bin\0.1.0-20261110-115800`, `serverVersion` `0.1.0-sw2023-20261110-115800
 
 Sorted into S8, held, closed (1, 5); S28 new (2); S5 (4). Not filed (3): the SOLIDWORKS
 session's state, gone after the restart; (4) S21 still holds.
+
+**2026-11-10: scenario test of build 134233 (S28: `material_add` into `Custom Materials`)**
+
+Build `bin\0.1.0-20261110-134233`, `serverVersion` `0.1.0-sw2023-20261110-134233+943e3e9`
+(= tag `build-20261110-134233`). Same SOLIDWORKS process as the fork's live tests of the
+build; one other server process was attached (`otherServerPids`).
+
+1. **S28 held.** On a copy of a thin-walled tray part, with
+   `Custom Materials.sldmat` holding one material SOLIDWORKS wrote (a plastic with seven
+   properties) and the old `solidworks-mcp` library holding PETG:
+   (a) `material_add {name:"PETG", 1270, 2 GPa, 0.38}` with no `database` went into
+   `Custom Materials`, `backup` named, and the backup was the old file byte for byte; all
+   three checks passed. A second write kept that backup unchanged.
+   (b) `material_set {name:"PETG"}` was `ENTITY_AMBIGUOUS` (in `Custom Materials` and
+   `solidworks-mcp`), hint "Pass 'database'"; with `database:"Custom Materials"` it passed,
+   0.221420661 kg, density matches. The library was not touched by SOLIDWORKS (same hash
+   and time after the call).
+   (c) `material_add` of the existing material's name in lower case with `overwrite:true`:
+   `NOT_OWNED`, left alone. `PETG` again without `overwrite`: `INVALID_ARGUMENT` with the
+   hint to pass it; with it, `replaced: true`, other material unchanged. `PETG` with
+   `overwrite:true` into the old `solidworks-mcp` library: replaced, no backup (its own).
+   (d) A copy of the library SOLIDWORKS corrupted in the test of build `…-115800`, put in
+   the custom material folder under another name: `material_list` warns with the parser's
+   line and leaves it out of `databases`; `material_add` into it, `material_set` from it,
+   and `material_set` of a name found nowhere all `IO_ERROR`, naming the file, "Line 3,
+   position 4", that SOLIDWORKS can rewrite a library it has loaded, and to move it aside or
+   restore it. The file was not written (same hash). The rewrite during `material_set` was
+   not met in this SOLIDWORKS session either, so that branch is still untested.
+2. **The library keeps tabs and CRLF, not its bytes.** After the first `material_add`, the
+   declaration read `encoding="utf-16"` (was `UTF-16`) and every empty element of the
+   material the server did not write gained a space before `/>`
+   (`<EX … value="0.20E+10" />`). Values and order unchanged, SOLIDWORKS reads it, and
+   the check "other materials read back unchanged" is true by value. Only cosmetic, but a
+   diff of the user's library shows every line of their own materials changed.
+   Writing the same material twice gives the same bytes.
+3. **A name typo becomes a library error while any library does not parse.**
+   `material_set` of an unknown name with an unreadable library present gives only the
+   `IO_ERROR` about that library; the closest names from the libraries that parse (the
+   usual miss) are not listed. Right that it can't say "not found" for sure; the closest
+   names would still help.
+4. **Lesson: PETG now sits in two libraries**, so every `material_set {name:"PETG"}`
+   needs `database` until the old `solidworks-mcp` library is retired.
+5. **Short checks.** A 10 mm block extruded in a new part, `doc_undo` removed it (volume →
+   0). STEP AP214 export `solids: 1`; `doc_open` of it gave 16 surface bodies, no solid
+   (S5, met again). Interference 0 at the saved position in an assembly opened read-only,
+   closed without flags. Two sections on a 1:2 plan of the part: the centreline one had one
+   hatched face, the one through the ear holes three.
+6. **Calls**: 34 for the whole test, 16.2k characters, 6 errors (all deliberate: the
+   ambiguous name, `NOT_OWNED`, the missing `overwrite`, three `IO_ERROR`). 14 calls on S28.
+   No `sw_help`.
