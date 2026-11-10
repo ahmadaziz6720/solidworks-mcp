@@ -172,6 +172,15 @@ takes another library name. (b) A library that does not parse is a named error i
 it, move it aside or restore it), not `INTERNAL`. A live test for each, failing without it.
 Usage until fixed: add the material to `Custom Materials` by hand (Material editor) and
 `material_set {database:"Custom Materials"}`. Upstream: not yet decided.
+Where to start: `PropertiesService.MaterialAdd.cs` (`OwnDatabase`, the `NotOwned` refusal of
+a library without the server's marker, `CustomMaterialFolder`, which takes the first
+configured material folder outside the installation). On the test machine that folder is
+SOLIDWORKS' default `C:\ProgramData\SOLIDWORKS\SOLIDWORKS 2023\Custom Materials`, holding
+SOLIDWORKS' own `Custom Materials.sldmat` (made at install, no marker) beside
+`solidworks-mcp.sldmat`. So (a) needs a way to add to a library the server did not write
+while keeping its materials untouched (its own marked per material, not per file), and a
+backup of the file before the first write. The parse error comes from `MaterialXml.Parse`
+in `material_add` and from the catalog load behind `material_list` and `material_set`.
 
 ## Waiting
 
