@@ -693,11 +693,19 @@ internal static class ExportFileCheck
 /// </summary>
 internal static class PrefAudit
 {
-    public static Dictionary<(PrefKind Kind, int Pref), string> Take(ISldWorks app)
+    /// <summary>
+    /// Reads the allow-listed options. <paramref name="stl"/> false leaves out the coupled STL group (deviation, angle,
+    /// quality): the deviation SOLIDWORKS reads back follows the size of the active model (verified live: opening a
+    /// 3 m part while a 100 mm one was active), so a call that writes none of the group (doc_open) would report a new
+    /// active document as a changed option.
+    /// </summary>
+    public static Dictionary<(PrefKind Kind, int Pref), string> Take(ISldWorks app, bool stl = true)
     {
         var values = new Dictionary<(PrefKind, int), string>();
+        var skip = stl ? null : SystemPrefIds.GroupOf(PrefKind.Double, SystemPrefIds.StlDeviation);
         foreach (var id in SystemPrefIds.All)
         {
+            if (skip is not null && skip.Contains(id)) continue;
             try { values[id] = PreferenceScope.Read(app, id.Kind, id.Pref); }
             catch (COMException) { /* not readable in this release: not audited */ }
         }

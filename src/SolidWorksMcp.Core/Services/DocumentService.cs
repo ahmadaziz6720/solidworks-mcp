@@ -285,13 +285,14 @@ public sealed class DocumentService(SwSession session)
             if (open.Count(d => string.Equals(ctx.Title(d), title, StringComparison.OrdinalIgnoreCase)) != 1)
                 throw new SwException(ErrorCodes.EntityAmbiguous, $"Several open documents are titled '{title}', so closing by title is unsafe.",
                     "Ask the user to close it.");
-            var others = open.Where(d => !ReferenceEquals(d, target)).ToList();
+            // Titles now: a document SOLIDWORKS closes along with this one has no title to read afterwards.
+            var others = open.Where(d => !ReferenceEquals(d, target)).Select(d => (Doc: d, Title: ctx.Title(d))).ToList();
             ctx.App.CloseDoc(title);
             var after = ctx.App.Documents();
             if (after.Any(d => ReferenceEquals(d, target)))
                 throw new SwException(ErrorCodes.VerifyFailed, $"'{title}' is still open after CloseDoc.",
                     "A dialog may have interrupted the close; check dialog_list.");
-            var lost = others.Where(o => !after.Any(a => ReferenceEquals(a, o))).Select(ctx.Title).ToList();
+            var lost = others.Where(o => !after.Any(a => ReferenceEquals(a, o.Doc))).Select(o => o.Title.Length > 0 ? o.Title : "(untitled)").ToList();
             if (lost.Count > 0) ctx.Warn($"SOLIDWORKS also closed: {string.Join(", ", lost)}.");
             ctx.Documents.Remove(target);
             ctx.Entities.Forget(target);

@@ -175,7 +175,7 @@ public sealed class OpenService(SwSession session)
         int errors = 0, warnings = 0;
         int options = (int)swOpenDocOptions_e.swOpenDocOptions_Silent | (readOnly ? (int)swOpenDocOptions_e.swOpenDocOptions_ReadOnly : 0);
         IModelDoc2? doc;
-        var prefsBefore = PrefAudit.Take(ctx.App);
+        var prefsBefore = PrefAudit.Take(ctx.App, stl: false); // doc_open writes no STL option
         try
         {
             using var prefs = ctx.SystemPrefs();
@@ -265,7 +265,7 @@ public sealed class OpenService(SwSession session)
 
         int errors = 0;
         IModelDoc2? doc;
-        var options = PrefAudit.Take(ctx.App);
+        var options = PrefAudit.Take(ctx.App, stl: false); // an STL import sets the import options, not the STL export group
         try
         {
             using var prefs = ctx.SystemPrefs();

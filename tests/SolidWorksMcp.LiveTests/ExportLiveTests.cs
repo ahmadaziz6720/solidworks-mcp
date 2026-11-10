@@ -343,6 +343,23 @@ public class ExportLiveTests(LiveFixture fx) : LiveTest(fx)
     }
 
     [Fact]
+    public async Task Opening_a_part_does_not_report_the_stl_options_solidworks_derives_on_open()
+    {
+        // A part far larger than the 100 mm block, opened while the block is active: the STL deviation SOLIDWORKS
+        // reads back follows the size of the active model.
+        string doc = await NewPartAsync("open_big");
+        var sk = new SketchService(S);
+        await sk.StartAsync(doc, new EntityRef { Name = "top" }, false);
+        await sk.AddAsync(doc, [new SketchEntity { Kind = "rectangle", Center = [0, 0], WidthMm = 3000, HeightMm = 2000 }]);
+        await new FeatureService(S).ExtrudeAsync(new ExtrudeRequest { Doc = doc, DepthMm = 1000 });
+        string file = Path.Combine(_dir, "open_big_copy.sldprt");
+        await new DocumentService(S).SaveAsync(doc, "copy", file, false);
+        await BlockAsync("open_small"); // now the active document
+        var r = await Open(file, readOnly: true);
+        Assert.DoesNotContain(r.Warnings ?? [], w => w.Contains("Double 2") || w.Contains("Double 3") || w.Contains("Integer 78"));
+    }
+
+    [Fact]
     public async Task A_file_that_is_already_open_is_not_reopened_and_keeps_its_access()
     {
         string doc = await BlockAsync("already");

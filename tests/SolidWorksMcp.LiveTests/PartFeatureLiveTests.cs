@@ -659,6 +659,30 @@ public class PartFeatureLiveTests(LiveFixture fx) : LiveTest(fx)
     }
 
     [Fact]
+    public async Task Mirror_of_a_boss_with_a_face_merged_into_the_body_does_not_warn()
+    {
+        string doc = await BlockAsync("mirror_merged");
+        // A rib along the −x edge of the top face, and a 20 x 10 x 20 boss against it: the boss's top merges with the
+        // rib's into one face of the boss (600 + 400 mm²) and its −x face lies inside the rib, while its mirrored copy
+        // stands free on the +x side.
+        await Sk.StartAsync(doc, new EntityRef { At = [-45, 20, 0] }, false);
+        await Sk.AddAsync(doc, [new SketchEntity { Kind = "rectangle", Corners = [[-50, 20, -30], [-40, 20, 30]] }]);
+        await Fs.ExtrudeAsync(new ExtrudeRequest { Doc = doc, DepthMm = 10 });
+        await Sk.StartAsync(doc, new EntityRef { At = [-30, 20, 0] }, false);
+        await Sk.AddAsync(doc, [new SketchEntity { Kind = "rectangle", Corners = [[-40, 20, -10], [-20, 20, 10]] }]);
+        var boss = await Fs.ExtrudeAsync(new ExtrudeRequest { Doc = doc, DepthMm = 10 });
+        Assert.Equal(4000, boss.Verified.VolumeDeltaMm3, V);
+
+        var r = await Pf.MirrorAsync(new MirrorRequest { Doc = doc, Features = [boss.Feature.Name], Plane = new EntityRef { Name = "right" } });
+        Assert.Equal(4000, r.Verified.VolumeDeltaMm3, V);
+        Assert.Equal(1, r.Model.Bodies);
+        Assert.DoesNotContain(r.Warnings ?? [], w => w.Contains("not found where expected"));
+        // Seed faces 1600 mm², the copy's 1200: every seed face found reflected, so a check, not a warning.
+        Assert.DoesNotContain(r.Warnings ?? [], w => w.Contains("overlap, merge or are clipped"));
+        Assert.Contains(r.Verified.Checks!, c => c.Contains("x the seed's area") && (c.Contains("0.75") || c.Contains("0,75"))); // the test host keeps the machine's culture
+    }
+
+    [Fact]
     public async Task Mirror_into_the_body_or_about_a_curved_face_is_rejected()
     {
         string doc = await BlockAsync("mirror_bad");

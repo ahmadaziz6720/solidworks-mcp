@@ -1138,7 +1138,10 @@ public sealed partial class PartFeatureService(SwSession session)
                 var res = Signatures(faces, out double resArea);
                 var (matched, total) = Score(seedSigs, res, [Rigid.Reflect(q0, m)]);
                 if (matched == 0) return [$"no mirrored face is the reflection of a seed face about the plane through [{Pt(q0)}] with normal [{Dir(m)}]"];
-                AreaCheck(ctx, seedArea, resArea, 1);
+                // Every seed face found reflected: an area difference only says the copy meets the body differently
+                // from the seed (a face that merges into the body on one side and not the other), not that it is wrong.
+                if (matched == total) AreaNote(checks, seedArea, resArea);
+                else AreaCheck(ctx, seedArea, resArea, 1);
                 PositionsCheck(ctx, new Hypothesis(1, 1, matched, total), checks, $"reflected about [{Dir(m)}] through [{Pt(q0)}]");
                 return [];
             }, q.KeepOnFailure, api, "The mirrored copy must touch the body; check the plane.");
@@ -1447,6 +1450,15 @@ public sealed partial class PartFeatureService(SwSession session)
         double ratio = resArea / (seedArea * instances);
         if (Math.Abs(ratio - 1) > 1e-3)
             ctx.Warn($"The new faces' area is {Math.Round(ratio, 3)} x {instances} seed copies: instances overlap, merge or are clipped.");
+    }
+
+    /// <summary>A mirror whose faces all matched: the copy's area against the seed's, as a check rather than a warning.</summary>
+    private static void AreaNote(List<string> checks, double seedArea, double resArea)
+    {
+        if (seedArea <= 0) return;
+        double ratio = resArea / seedArea;
+        if (Math.Abs(ratio - 1) > 1e-3)
+            checks.Add($"the copy's faces have {Math.Round(ratio, 3)} x the seed's area: it meets the body differently from the seed");
     }
 
     /// <summary>A rigid motion (rotation or reflection matrix plus translation) acting on column vectors.</summary>

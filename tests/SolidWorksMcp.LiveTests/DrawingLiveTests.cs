@@ -147,6 +147,26 @@ public class DrawingLiveTests(LiveFixture fx) : LiveTest(fx)
     }
 
     [Fact]
+    public async Task Closing_a_drawing_names_what_solidworks_closed_with_it()
+    {
+        // A drawing opened from its file loads the part it shows behind it; closing the drawing may close that too.
+        var (drw, _) = await ViewsAsync("drw_close", ["front"]);
+        string drwFile = (await Docs.SaveAsync(drw, "as", Path.Combine(_dir, "drw_close.slddrw"), false)).SavedTo!;
+        await Docs.CloseAsync(drw, save: false, discard: false);
+        await Docs.CloseAsync(Path.Combine(_dir, "drw_close.sldprt"), save: false, discard: true);
+        var opened = await new OpenService(S).OpenAsync(drwFile, false, null);
+        _drawings.Add(opened.Document.Handle);
+        var closed = await Docs.CloseAsync(opened.Document.Handle, save: false, discard: true);
+        var empty = await Docs.CloseAsync((await Docs.NewAsync("drawing", "mmgs", null, $"drw_close_new_{Guid.NewGuid().ToString("N")[..6]}")).Document.Handle,
+            save: false, discard: true);
+        foreach (var w in (closed.Warnings ?? []).Concat(empty.Warnings ?? []).Where(w => w.StartsWith("SOLIDWORKS also closed", StringComparison.Ordinal)))
+        {
+            var names = w["SOLIDWORKS also closed: ".Length..].TrimEnd('.').Split(", ");
+            Assert.All(names, n => Assert.False(string.IsNullOrWhiteSpace(n), $"a blank name in \"{w}\""));
+        }
+    }
+
+    [Fact]
     public async Task Sheet_setup_changes_what_is_given_and_keeps_the_rest()
     {
         string drw = await DrawingAsync("drw_sheet");
