@@ -365,7 +365,8 @@ publishes with `-p:Version=<v>-sw2023-<stamp>`, and it held in the scenario test
 `BuildVersion` keeps it shortened to 7 (`0.1.0-sw2023-<stamp>+<commit>`), for `sw_status`
 and the MCP server info, and `Directory.Build.props` appends `.dirty` when `src` or the
 props differ from that commit. A live test fails without it (`"0.1.0"`); unit tests for
-the format. Not yet in a registered build. Upstream: perhaps the commit part, without the
+the format. In build `…-091645` (its `serverVersion` `…-091645+76edd54`); scenario test
+not run yet. Upstream: perhaps the commit part, without the
 stamp; not yet decided.
 
 **S17. Warnings and texts that were noise**, each met in every scenario test from build
@@ -384,8 +385,10 @@ coupled STL group out of their audit; `model_export`, which writes it, still che
 tests, each failing without its fix: a boss against a rib (seed faces 1600 mm², the copy's
 1200), a 3 m part opened while a 100 mm one is active, a drawing opened from its file and a
 new one closed. Export, Mirror, M0 and the close tests 31/32 on 2023 SP3; the one that
-fails is M0's revision check, which expects 2025 (`33.`), as under S2. Not yet in a
-registered build. Upstream: (b) and (c) are general; a PR not yet decided.
+fails is M0's revision check, which expects 2025 (`33.`), as under S2. In build
+`…-091645`, after the four areas' live tests in full, 119/122 (the revision check, and
+auto dimensions and center marks inserting nothing, all three as under S2); scenario test
+not run yet. Upstream: (b) and (c) are general; a PR not yet decided.
 
 **S21. A document opened `readOnly:true` became dirty without an edit**: an assembly after
 only `asm_interference`, `model_info` and `view_screenshot`; a drawing after
@@ -396,7 +399,7 @@ document this server opened read-only closes without `save` or `discard`, its ch
 discarded, the result's message saying so (`discardedChanges: true`); the user's
 documents are still never discarded, and one opened for editing still needs one of them.
 The `doc_close` description says so. A live test fails without it (`has unsaved
-changes`). Not yet in a registered build. Upstream: not yet decided.
+changes`). In build `…-091645`; scenario test not run yet. Upstream: not yet decided.
 
 ## Closed
 
