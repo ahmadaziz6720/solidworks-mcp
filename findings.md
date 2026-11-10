@@ -639,3 +639,45 @@ Build `bin\0.1.0-20261110-064352`; `sw_status` reports `serverVersion`
    `drw_info` (1.6k) to read the second section's orientation. No `sw_help`.
 
 Sorted into S20, held, follow-up (d) new (1, 2, 3); S14 (4); S25 new (5); S19, S5, S21, S17 (6); S9 (7).
+
+**2026-11-10: scenario test of build 091645 (build identity, three noise fixes, read-only close)**
+
+Build `bin\0.1.0-20261110-091645`, `serverVersion` `0.1.0-sw2023-20261110-091645+76edd54`.
+
+1. **S16 held.** `sw_status` gave `serverVersion` `0.1.0-sw2023-20261110-091645+76edd54`
+   from the first call; the commit equals the one tag `build-20261110-091645` points at,
+   no `.dirty`. The session no longer needs the registration or git to name its build.
+2. **S17 held, all three.** (a) On a copy of a finished part, an ear feature's mirror was
+   deleted and made again with `feature_mirror` about the front plane: volume +7183.229,
+   9/9 faces reflected, the area ratio (1.052) only as a check line ("it meets the body
+   differently from the seed"), no warning. (b) No `doc_open` warned `Double 2`: an
+   assembly and a drawing opened with nothing active, a ~230 mm part and a STEP import
+   opened while a 10 mm part was active. (c) `doc_close` of an assembly listed `also
+   closed: <part>, <part>.` and of a drawing `also closed: <part>.`, names filled.
+3. **S21 held.** An assembly opened `readOnly:true`, then `asm_interference`,
+   `model_info` and `view_screenshot` (dirty after): `doc_close` with no flags closed it,
+   "opened read-only, so its unsaved changes were discarded", `discardedChanges: true`.
+   A drawing opened read-only, then `doc_rebuild`: the same. A part opened for editing and
+   changed still got `DIRTY` from `doc_close` with no flags, as it should. File dates of
+   the read-only documents unchanged on disk.
+4. **`feature_delete` with `deleteChildren` warned once per absorbed sketch of a child.**
+   Deleting a mirror feature with two hole features under it: `removed` listed the
+   mirror, the two holes and their four sketches, each with a `why` ("absorbed by
+   <hole>"), and `warnings` repeated each sketch, "SOLIDWORKS also removed 'SketchN'
+   (absorbed by <hole>), which was not planned." Four warnings on a delete that did what
+   was asked: a child's absorbed sketches go with the child in SOLIDWORKS whatever
+   `deleteAbsorbed` says. The `why` already says it; the warning reads as if something
+   went wrong. Same kind as S17.
+5. **A drawing's referenced part is listed `foreign`.** After `doc_open` of a drawing
+   (read-only), `doc_list` showed the part it references as a separate document, `access:
+   foreign`, though the user never opened it; `doc_close` of the drawing then closed it
+   too (`also closed`). Right in SOLIDWORKS terms, but `foreign` reads as "the user's
+   document", which the `doc_close` description says is never closed. Small; a session
+   reading `doc_list` should know a reference loaded by a drawing or assembly shows up so.
+6. **Short checks.** In a new part `doc_undo` after a boss extrude removed it (volume →
+   0). STEP AP214 export reported `solids: 1`; `doc_open` of it gave 16 surface bodies, no
+   solid (S5, met again). Assembly interference 0 at the saved position.
+7. **Calls**: 30 for the whole test, 16.8k characters of results, 2 errors (the intended
+   `DIRTY` in 3, and one call sent without its arguments). The largest results were
+   `feature_list` (2.1k) to find the mirror and `feature_mirror` (1.9k, nine new faces).
+   No `sw_help`.
