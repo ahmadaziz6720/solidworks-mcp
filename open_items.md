@@ -10,8 +10,8 @@ Three sections: **Open**, not yet fixed; **Waiting**, fixed and not yet settled 
 merged, a fix not yet run in a session); **Closed**, merged upstream, run and held, or
 decided against, with the record.
 
-**Open: S4, S5, S7, S9 to S15, S18, S22 to S28.** S5 and S7 wait a while for upstream's
-answer to issues #2 and #4.
+**Open: S4, S5, S7, S9 to S15, S18, S22 to S27, S29.** S28 waits for its scenario test. S5
+and S7 wait a while for upstream's answer to issues #2 and #4.
 
 ---
 
@@ -155,32 +155,14 @@ Usage: a part listed after opening a drawing or an assembly may be its reference
 with it. Local, small: mark such a document (an `access` value or a `loadedBy`), and say in
 the `doc_list` description. Not yet decided.
 
-**S28. `material_add` keeps its own library; a library that does not parse fails
-`INTERNAL`.** In the scenario test of build `…-115800` (point 2): `material_set` of a
-material from this server's library failed `VERIFY_FAILED`, and during the call SOLIDWORKS
-put its own XML header in front of the server's UTF-16 file, so the library no longer
-parsed. `material_list` only warned; `material_add {…, overwrite:true}` then failed
-`INTERNAL: XmlException` with nothing on what to do, and `material_set` hinted at the
-name. After a SOLIDWORKS restart the same call passed and the library was left alone: the
-rewrite came from that SOLIDWORKS session's state, not the build. Decided 2026-11-10 by the
-owner: `material_add` writes into SOLIDWORKS' own custom library, `Custom Materials.sldmat`
-in the custom material folder, as its default, in place of a library of its own. Local:
-(a) the default database is `Custom Materials`; the server adds a material there and never
-changes or removes one it did not write (`overwrite` only for its own); `database` still
-takes another library name. (b) A library that does not parse is a named error in
-`material_add` and `material_set` (which file, the line, that SOLIDWORKS may have rewritten
-it, move it aside or restore it), not `INTERNAL`. A live test for each, failing without it.
-Usage until fixed: add the material to `Custom Materials` by hand (Material editor) and
-`material_set {database:"Custom Materials"}`. Upstream: not yet decided.
-Where to start: `PropertiesService.MaterialAdd.cs` (`OwnDatabase`, the `NotOwned` refusal of
-a library without the server's marker, `CustomMaterialFolder`, which takes the first
-configured material folder outside the installation). On the test machine that folder is
-SOLIDWORKS' default `C:\ProgramData\SOLIDWORKS\SOLIDWORKS 2023\Custom Materials`, holding
-SOLIDWORKS' own `Custom Materials.sldmat` (made at install, no marker) beside
-`solidworks-mcp.sldmat`. So (a) needs a way to add to a library the server did not write
-while keeping its materials untouched (its own marked per material, not per file), and a
-backup of the file before the first write. The parse error comes from `MaterialXml.Parse`
-in `material_add` and from the catalog load behind `material_list` and `material_set`.
+**S29. `A_table_makes_three_sizes_each_with_its_own_volume_and_reads_back` fails on 2023
+SP3.** A Configuration live test: the table read back has no `$MATERIAL` column
+(`Collection: ["D1@Boss-Extrude1", "$STATE@Cut-Extrude1", "$PRP@PartNo"]`, `Not found:
+"$MATERIAL"`), though its rows set `AISI 1020`. Seen 2026-11-10 while fixing S28, with and
+without that fix (on `4533273` too), in a SOLIDWORKS session open since before the
+scenario test of build `…-115800`, whose point 2 met a SOLIDWORKS state that broke
+`material_set` until a restart. Not yet looked into: that session's state, a 2023
+difference in reading a table's material column, or the test.
 
 ## Waiting
 
@@ -390,6 +372,37 @@ the end of the class so it merges clean with PR #8), PR #9;
 Drawing and Contract live tests 47/47 on it on 2023 SP3. `ddca400` stays local, as it
 stands on PR #8. Editing a dimension's value (T10.4) stays out: a drawing
 dimension's value follows the model. Closes when PR #9 is settled.
+
+**S28. `material_add` kept its own library; a library that did not parse failed
+`INTERNAL`.** In the scenario test of build `…-115800` (point 2): `material_set` of a
+material from this server's library failed `VERIFY_FAILED`, and during the call SOLIDWORKS
+put its own XML header in front of the server's UTF-16 file, so the library no longer
+parsed. `material_list` only warned; `material_add {…, overwrite:true}` then failed
+`INTERNAL: XmlException` with nothing on what to do, and `material_set` hinted at the
+name. After a SOLIDWORKS restart the same call passed and the library was left alone: the
+rewrite came from that SOLIDWORKS session's state, not the build. Decided 2026-11-10 by the
+owner: `material_add` writes into SOLIDWORKS' own custom library, `Custom Materials.sldmat`
+in the custom material folder, as its default, in place of a library of its own.
+Local: `bbc98e6` on `sw2023`. (a) The default database is `Custom Materials`. The marker
+moved from the file to each material's `description`, which SOLIDWORKS keeps: a material
+the server did not write is refused `NOT_OWNED` whatever the case of its name, `overwrite`
+replaces only its own, and a library the server created (`solidworks-mcp.sldmat`) still
+owns all its materials. A library it did not create is copied to
+`<file>.before-solidworks-mcp` before its first write (result `backup`); the file keeps its
+layout (tabs, CRLF), and a check reads its other materials back unchanged. (b) A library
+that does not parse is `IO_ERROR` naming the file and the parser's line, that SOLIDWORKS
+can rewrite a library it has loaded, and to move it aside or restore it (the backup named
+when there is one): in `material_add`, and in `material_set` for that database, for a name
+not found while a library does not parse, and when SOLIDWORKS rewrote the library while
+failing to apply a material from it. Live tests on 2023 SP3, each failing without the fix:
+`A_custom_material_is_listed_assigned_and_used_by_simulation_with_its_own_stiffness` (now
+into `Custom Materials`: its own materials listed unchanged, one of them refused with
+`overwrite`, `material_set` from it and the simulation; the file restored byte for byte)
+and `A_material_library_that_does_not_parse_is_a_named_io_error_in_material_add_and_material_set`
+(S28's corrupted header). The rewrite during `material_set` has no live test: it could not be
+brought about. Usage until the build: add the material to `Custom Materials` by hand
+(Material editor) and `material_set {database:"Custom Materials"}`. Upstream: not yet
+decided. Not yet run in a scenario test.
 
 ## Closed
 
