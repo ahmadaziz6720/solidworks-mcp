@@ -402,7 +402,8 @@ and `A_material_library_that_does_not_parse_is_a_named_io_error_in_material_add_
 (S28's corrupted header). The rewrite during `material_set` has no live test: it could not be
 brought about. Usage until the build: add the material to `Custom Materials` by hand
 (Material editor) and `material_set {database:"Custom Materials"}`. Upstream: not yet
-decided. Not yet run in a scenario test.
+decided. In build `20261110-134233` (tag `build-20261110-134233`, `PropertiesLiveTests`
+16/16 on it); not yet run in a scenario test.
 
 ## Closed
 
