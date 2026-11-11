@@ -10,9 +10,10 @@ Three sections: **Open**, not yet fixed; **Waiting**, fixed and not yet settled 
 merged, a fix not yet run in a session); **Closed**, merged upstream, run and held, or
 decided against, with the record.
 
-**Open: S4, S5, S7, S9 to S15, S18, S24, S27, S30 to S32.** Next: S30 (a stale material name) and S31 (a dry run that disagrees), then S24 (a delete that moves other
+**Open: S4, S5, S7, S9 to S15, S18, S24, S27, S30 to S39.** Next: S30 (a stale material name) and S31 (a dry run that disagrees), then S24 (a delete that moves other
 dimensions) and S27 (a reference shown as `foreign`), both small; then S18's `doc_pack`.
-S5 and S7 wait a while for upstream's answer to issues #2 and #4.
+S5 and S7 wait a while for upstream's answer to issues #2 and #4. Of the new ones, S37
+and S38 were met in use; S33 to S36 come from reading the source and the roadmap.
 
 ---
 
@@ -29,7 +30,9 @@ a STEP round trip gave 16 surface bodies and no solid. Again in `…-235702`,
 `…-134233`, `…-144220` and `20261111-140208` (export `solids: 1`, import 16 surface bodies).
 
 **S7. `dimension_set` accepts a change that splits the body.** Upstream: issue #4. Usage:
-read `bodies` in the result after each `dimension_set`.
+read `bodies` in the result after each `dimension_set`. A model driven by global variables
+changes through `equation_set`, whose result has no `bodies`: read `model_mass` after it
+until S37 (b).
 
 **S9. `sw_help` at session start reads ≈23.5k characters.** Usage: a short note of the tools
 and conventions the sessions here use, read instead. Where the note lives (a skill, the
@@ -44,7 +47,9 @@ full sheet lists and two `drw_info` calls 42% of them), `…-014952` (28 calls, 
 orientation), `…-091645` (30 calls, 16.8k; the largest `feature_list` 2.1k and
 `feature_mirror` 1.9k), `…-134233` (34 calls, 16.2k; 14 of them on S28) `…-144220`
 (28 calls, 13.3k) and `20261111-140208` (60 calls, 25.2k for seven items; one `edge_list`
-spent on a wrong pick, S25).
+spent on a wrong pick, S25). On 2026-11-11 a session wrote a caller's manual against the
+tool reference (findings, that day's first entry), and one built a machined part by it on
+`20261111-140208`: 83 calls, 32.4k, no `sw_help`, 43 of the calls `equation_set` (S37).
 
 **S10. Drawing format and title block.** Precision and decimal separator of drawing
 dimensions, parentheses for reference dimensions, `n×` in hole callouts, DWG NO from a
@@ -165,6 +170,77 @@ pick one diameter off a hole's centre rightly got "used the nearest one, 2.25 mm
 but 2.25 is also the radius and it read as the centre case, and an `edge_list` call went
 to finding the real centre; when the edge taken is a circle, that warning can name its
 centre and radius. Local, small. Not yet fixed.
+
+**S33. No equations linked to a file.** From reading the source (findings 2026-11-11,
+first entry, point 1): `equation_set`, `equation_list` and `equation_delete` act on one
+document, and nothing reaches `IEquationMgr.FilePath` or `LinkToFile`. A design of several
+part files that share key sizes holds each as its own global variable per part: a change
+is one `equation_set` per part, and one made by hand in one part does not reach the others.
+`asm_part_new` with a face (T9.22 partly, T9.23 not built) and `part_derive` `insert`
+(solids, surfaces, material) do not cover it. Local: link, unlink and read a document's
+external equation file, `equation_list` naming each variable's source; general, fit for a
+PR. Not yet decided.
+
+**S34. Reading and checking a model costs a caller listings and judgment.** From reading
+`ROADMAP.md` and the tool reference (findings 2026-11-11, first entry, points 2 to 4).
+(a) `model_review` against a rules file (T20.8, partly built): a feature left with its
+default name, a fillet or chamfer before the last boss, cut or hole, a sketch on a face or
+edge of a later feature, a literal dimension where a global variable of that meaning
+exists, no global variable at all. A caller now checks these from `feature_list`. (b)
+Explain a model in one call (T20.7, not built): each feature with the dimensions that drive
+it, sketch relations and fragile references, in place of `model_info`, `feature_list`,
+`dimension_list` and `equation_list`. (c) Session export as a replayable recipe (T3.15,
+not built), an idea for now. Upstream roadmap items; (a) first if built. Not yet decided.
+
+**S35. `model_compare` against an earlier revision of the same file name.** From the
+source, not run (findings 2026-11-11, first entry, point 5): `other` is opened with
+`OpenDoc6`, and SOLIDWORKS does not open a second document of a name already open, so the
+call ends `IoError`, whose hint (compare by handle) cannot help. For an assembly copied
+under another name, its components resolve to the open documents of those names, so two
+revisions compare the same parts and nothing says so. Local: the description names both,
+or the tool copies `other` to a temporary name and warns when an assembly's components
+came from memory. To confirm live first. Not yet decided.
+
+**S36. Tools no session had run.** From the tool reference (findings 2026-11-11, first
+entry, point 6): `equation_set`, `feature_rename`, `model_review`, `model_compare`,
+`asm_component_list` and `asm_mate_list` on an assembly built by hand, `asm_part_new`,
+`asm_replace`, `doc_activate` with `allowEdit`. The scenario test covers a part, a STEP
+round trip, a two-part assembly and a drawing. Run since on build `20261111-140208`
+(that day's second entry, points 1, 5, 6), all held: `equation_set` (ten globals,
+thirteen dimensions linked, among them an offset plane's offset, a pattern's spacings and
+a placement sketch's dimensions; the volume after a change of all ten against a hand
+figure, 173487.816 mm³ against 173487.8), `feature_rename` on a feature and a sketch, and
+`model_review` with and without findings. Proposed: a scenario item that opens an assembly
+built by hand, reads its components and mates and changes one dimension; one that sets a
+global variable, renames a feature and reads `model_review`. Usage: the scenario test,
+the owner's call.
+
+**S37. `equation_set` takes one equation per call and says nothing of the body.** In a
+machined part on build `20261111-140208` (findings 2026-11-11, second entry, points 2, 3).
+(a) 43 of 83 calls were `equation_set`: 10 globals created, 13 dimensions linked, 20 to
+change the ten and set them back, each call a rebuild. Proposed: `equations:[{lhs,
+expression}]`, one rebuild, all or nothing and verified per row, as `dimension_set
+{values}` and `sketch_constrain {steps}` are. Same kind as S8 (Closed). (b) Its result
+carries no `volumeDeltaMm3` or `bodies`, unlike `dimension_set`'s, which refuses an
+equation-driven dimension: in a model driven by global variables S7's usage line cannot be
+followed from the result, and a `model_mass` after each change was needed. Bears on S7.
+Local; then PR. Not yet decided.
+
+**S38. `feature_hole` leaves its placement sketch under-defined, unreported.** In the same
+part (point 4): the result names the hole's own sketch dimensions but not the placement
+sketch or its status; only `model_review` showed it, as `info`
+(`sketch_under_defined`), and a pattern of the hole rests on a point that can move.
+Workaround, 5 calls: `sketch_edit`, one `sketch_constrain` (horizontal and vertical from
+the origin, `fully`), `sketch_finish`, two `equation_set`. Local: return the placement
+sketch's name and constrained status, an option to dimension each point from the origin;
+perhaps `model_review` ranks an under-defined sketch as a warning. Not yet decided.
+
+**S39. Two small result follow-ups from the same part** (point 7). (a) `sketch_add` of a
+centre rectangle returns six segments and `sides` names four: the two construction
+diagonals, needed for a midpoint relation to the origin, are not named and were guessed.
+(b) `material_list {filter:"6061"}`: 4 rows in 1268 characters, about two thirds the list
+of databases, repeated on every call. Same kind as S22 (Closed). Local, small. Not yet
+fixed.
 
 ## Waiting
 

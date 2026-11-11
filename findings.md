@@ -960,6 +960,9 @@ model. Every point is a missing tool or an untested path, none a failure seen.
    existing assembly, reads its components and mates, and changes one dimension; and one
    that sets a global variable, renames a feature and reads `model_review`.
 
+Sorted into S33 new (1); S34 new (2, 3, 4); S35 new (5); S36 new (6). The manual itself:
+S9.
+
 **2026-11-11: a machined part from scratch by a caller's manual: global variables, equations, renames, `model_review`**
 
 Build `bin\0.1.0-20261111-140208` (`8ea77a4`). A plate with a cylindrical boss, a bore
@@ -1011,3 +1014,6 @@ the previous entry's point 6 (tools no entry had met): `equation_set`, `feature_
    the origin) are not named as such, and were guessed. `material_list {filter:"6061"}`
    returned 4 rows in 1268 characters, about two thirds of it the list of databases,
    repeated on every call.
+
+Sorted into S37 new (2, 3); S38 new (4); S39 new (7); S36, held (1, 5, 6). S7 (3); S9,
+the call count.
