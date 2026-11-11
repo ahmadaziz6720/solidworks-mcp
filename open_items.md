@@ -10,7 +10,7 @@ Three sections: **Open**, not yet fixed; **Waiting**, fixed and not yet settled 
 merged, a fix not yet run in a session); **Closed**, merged upstream, run and held, or
 decided against, with the record.
 
-**Open: S4, S5, S7, S10 to S14, S24, S27, S30, S32 to S36, S39, S46.**
+**Open: S4, S5, S7, S10 to S14, S24, S27, S30, S32 to S36, S46.**
 Decided 2026-11-11 by the owner, each in its item below. Every open item can be worked on
 but these: S4, S5, S7 and S12 wait on upstream; S10, S11, S33 and S34 are parked until a
 job needs them; S36 is done in the scenario test, not here. S43 and S44 were found on
@@ -22,8 +22,8 @@ the small ones; drawings after; the release last.
 
 1. Modelling, large: S37, S42, S41, S45, S40 and S38 are done (Waiting, on `sw2023`, in
    no build yet).
-2. Modelling, smaller: S43, S18, S31 and S44 are done (Waiting); S30 probed, waits on
-   the owner. **Next**: S39, S27, S35 (confirm live, then the description), S6's
+2. Modelling, smaller: S43, S18, S31, S44 and S39 are done (Waiting); S30 probed, waits
+   on the owner. **Next**: S27, S35 (confirm live, then the description), S6's
    wording, then pushed to `fix/angular-supplement` (PR #6).
 3. Drawings: S14 (the largest: view axes, border and title block, extents), S24, S32,
    S13 (a description line).
@@ -216,13 +216,6 @@ built by hand, reads its components and mates and changes one dimension; one tha
 global variable, renames a feature and reads `model_review`. Usage: the scenario test,
 the owner's call. Decided 2026-11-11 by the owner: both scenario items, written into the
 scenario test where it is kept, not here. Closes when they are there.
-
-**S39. Two small result follow-ups from the same part** (point 7). (a) `sketch_add` of a
-centre rectangle returns six segments and `sides` names four: the two construction
-diagonals, needed for a midpoint relation to the origin, are not named and were guessed.
-(b) `material_list {filter:"6061"}`: 4 rows in 1268 characters, about two thirds the list
-of databases, repeated on every call. Same kind as S22 (Closed). Local, small. Not yet
-fixed.
 
 **S46. A release is registered in one project, the server in two.** From reading a
 session's call count (findings 2026-11-11, fourth entry): `CLAUDE.md`'s release step 4
@@ -679,6 +672,18 @@ chamfer live test now asserts no warning and adds one on a boss's concave base; 
 code before it carried the warning. Chamfer tests and the two others that make
 chamfers passed. To check in the scenario test: an `equal` chamfer's result has no
 warning.
+
+**S39. Two small result follow-ups from the same part** (point 7). (a) `sketch_add` of a
+centre rectangle returns six segments and `sides` names four: the two construction
+diagonals, needed for a midpoint relation to the origin, are not named and were guessed.
+(b) `material_list {filter:"6061"}`: 4 rows in 1268 characters, about two thirds the list
+of databases, repeated on every call. Same kind as S22 (Closed). Local, small. Fixed on
+`sw2023`: (a) in `7742f2c`, a centre rectangle's entity names its two construction
+diagonals in `diagonals` (a corner rectangle has none); (b) in `0470a2e`, `material_list`
+with a filter lists only the databases it reaches (by name or by a row found), all of
+them without one. A live test of each fails without it (no
+`diagonals`; 4 of 5 databases holding none of the rows). To check in the scenario test:
+a centre rectangle's `diagonals`, and `material_list {filter:"6061"}`'s length.
 
 ## Closed
 
