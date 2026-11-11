@@ -29,13 +29,14 @@ public sealed class FeatureTools(SwSession session)
         [Description("Draft outward instead of inward.")] bool draftOutward = false,
         [Description("Rename the new feature.")] string? name = null,
         [Description("Keep the feature even if verification fails (for diagnosis).")] bool keepOnFailure = false,
+        [Description("true: newFaces in full, not only id and surface.")] bool faceDetail = false,
         [Description("Document (handle, title or path); default: the target document.")] string? doc = null,
         CancellationToken cancellationToken = default) =>
         Output.Json(_svc.ExtrudeAsync(new ExtrudeRequest
         {
             Doc = doc, Sketch = sketch, Cut = cut, End = end, DepthMm = depthMm, Direction = direction, Merge = merge,
             DraftDeg = draftDeg, DraftOutward = draftOutward, Name = name, KeepOnFailure = keepOnFailure,
-        }, cancellationToken), progress, "feature_extrude");
+        }, cancellationToken), progress, "feature_extrude", faceDetail);
 
     [McpServerTool(Name = "feature_fillet", Title = "Fillet", ReadOnly = false, Destructive = false, Idempotent = false, OpenWorld = false)]
     [Description("Rounds edges (and/or all edges of faces) with a constant radius, e.g. edges:[{where:{curve:'line', parallelTo:'y'}, " +
@@ -55,13 +56,14 @@ public sealed class FeatureTools(SwSession session)
         [Description("Also round tangent-connected edges.")] bool propagate = true,
         [Description("Rename the new feature.")] string? name = null,
         [Description("Keep the feature even if verification fails (for diagnosis).")] bool keepOnFailure = false,
+        [Description("true: newFaces in full, not only id and surface.")] bool faceDetail = false,
         [Description("Document (handle, title or path); default: the target document.")] string? doc = null,
         CancellationToken cancellationToken = default) =>
         Output.Json(_svc.FilletAsync(new FilletRequest
         {
             Doc = doc, Kind = kind, Edges = edges, Faces = faces, Faces2 = faces2, CenterFaces = centerFaces, RadiusMm = radiusMm, RadiiMm = radiiMm,
             StartAt = startAt, Propagate = propagate, Name = name, KeepOnFailure = keepOnFailure,
-        }, cancellationToken), progress, "feature_fillet");
+        }, cancellationToken), progress, "feature_fillet", faceDetail);
 
     [McpServerTool(Name = "feature_thread", Title = "Modelled thread", ReadOnly = false, Destructive = false, Idempotent = false, OpenWorld = false)]
     [Description("A modelled (helical) ISO metric thread from a circular edge: a shaft's end gets an external thread (Metric Die), a " +
@@ -76,12 +78,13 @@ public sealed class FeatureTools(SwSession session)
         [Description("Left-handed thread.")] bool leftHanded = false,
         [Description("Rename the new feature.")] string? name = null,
         [Description("Keep the feature even if verification fails (for diagnosis).")] bool keepOnFailure = false,
+        [Description("true: newFaces in full, not only id and surface.")] bool faceDetail = false,
         [Description("Document (handle, title or path); default: the target document.")] string? doc = null,
         CancellationToken cancellationToken = default) =>
         Output.Json(_svc.ThreadAsync(new ThreadRequest
         {
             Doc = doc, Edge = edge, Size = size, DepthMm = depthMm, Method = method, LeftHanded = leftHanded, Name = name, KeepOnFailure = keepOnFailure,
-        }, cancellationToken), progress, "feature_thread");
+        }, cancellationToken), progress, "feature_thread", faceDetail);
 
     [McpServerTool(Name = "feature_split_line", Title = "Split line", ReadOnly = false, Destructive = false, Idempotent = false, OpenWorld = false)]
     [Description("Splits faces by projecting a sketch onto them (a load or fixture region, a partial face to paint or draft). Uses the " +
@@ -93,8 +96,9 @@ public sealed class FeatureTools(SwSession session)
         [Description("both (default) | normal | reverse: project both ways, or one way along/against the sketch normal.")] string direction = "both",
         [Description("Rename the new feature.")] string? name = null,
         [Description("Keep the feature even if verification fails (for diagnosis).")] bool keepOnFailure = false,
+        [Description("true: newFaces in full, not only id and surface.")] bool faceDetail = false,
         [Description("Document (handle, title or path); default: the target document.")] string? doc = null,
         CancellationToken cancellationToken = default) =>
         Output.Json(_svc.SplitLineAsync(new SplitLineRequest { Doc = doc, Faces = faces, Sketch = sketch, Direction = direction, Name = name, KeepOnFailure = keepOnFailure },
-            cancellationToken), progress, "feature_split_line");
+            cancellationToken), progress, "feature_split_line", faceDetail);
 }

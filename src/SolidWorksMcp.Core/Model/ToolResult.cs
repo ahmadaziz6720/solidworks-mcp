@@ -34,5 +34,25 @@ public static class ResultJson
         Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
     };
 
-    public static string Serialize<T>(T value) => JsonSerializer.Serialize(value, value?.GetType() ?? typeof(T), Options);
+    /// <summary>
+    /// The result as compact JSON. A result that lists a feature's new faces gives each one's id and surface only (S45:
+    /// up to twelve faces in full were 2 to 4k characters, read for one id or none); <paramref name="faceDetail"/> keeps
+    /// them in full.
+    /// </summary>
+    public static string Serialize<T>(T value, bool faceDetail = false)
+    {
+        if (faceDetail || value is not INewFaces { NewFaces: { Count: > 0 } faces })
+            return JsonSerializer.Serialize(value, value?.GetType() ?? typeof(T), Options);
+        var node = JsonSerializer.SerializeToNode(value, value.GetType(), Options)!.AsObject();
+        var brief = new System.Text.Json.Nodes.JsonArray();
+        foreach (var f in faces) brief.Add(new System.Text.Json.Nodes.JsonObject { ["id"] = f.Id, ["surface"] = f.Surface });
+        node["newFaces"] = brief; // in place: the property keeps its position
+        return node.ToJsonString(Options);
+    }
+}
+
+/// <summary>A result that lists the faces a feature made (<see cref="ResultJson.Serialize"/> shortens the list).</summary>
+public interface INewFaces
+{
+    IReadOnlyList<FaceInfo>? NewFaces { get; }
 }

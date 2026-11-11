@@ -8,11 +8,12 @@ namespace SolidWorksMcp.Server.Tools;
 internal static class Output
 {
     /// <summary>Awaits a service call, reporting progress every 5 s while it runs, and returns its compact JSON.</summary>
-    public static async Task<string> Json<T>(Task<T> task, IProgress<ProgressNotificationValue>? progress, string operation)
+    public static async Task<string> Json<T>(Task<T> task, IProgress<ProgressNotificationValue>? progress, string operation,
+        bool faceDetail = false)
         where T : ToolResult
     {
         await Heartbeat(task, progress, operation).ConfigureAwait(false);
-        return ResultJson.Serialize(await task.ConfigureAwait(false));
+        return ResultJson.Serialize(await task.ConfigureAwait(false), faceDetail);
     }
 
     public static async Task Heartbeat(Task task, IProgress<ProgressNotificationValue>? progress, string operation)

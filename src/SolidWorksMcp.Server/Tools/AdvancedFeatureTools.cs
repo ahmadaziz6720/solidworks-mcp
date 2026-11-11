@@ -36,13 +36,14 @@ public sealed class AdvancedFeatureTools(SwSession session)
         [Description(MergeDesc)] bool merge = true,
         [Description(NameDesc)] string? name = null,
         [Description(KeepDesc)] bool keepOnFailure = false,
+        [Description("true: newFaces in full, not only id and surface.")] bool faceDetail = false,
         [Description(DocDesc)] string? doc = null,
         CancellationToken cancellationToken = default) =>
         Output.Json(_svc.SweepAsync(new SweepRequest
         {
             Doc = doc, Profile = profile, Path = path, Guides = guides, Cut = cut, TwistDeg = twistDeg, Merge = merge,
             CircularProfileDiameterMm = circularProfileDiameterMm, Name = name, KeepOnFailure = keepOnFailure,
-        }, cancellationToken), progress, "feature_sweep");
+        }, cancellationToken), progress, "feature_sweep", faceDetail);
 
     [McpServerTool(Name = "feature_loft", Title = "Loft (boss or cut)", ReadOnly = false, Destructive = false, Idempotent = false, OpenWorld = false)]
     [Description("Loft / blend / transition through closed profiles in order (sketches on separate planes, or faces), optionally with guide " +
@@ -57,12 +58,13 @@ public sealed class AdvancedFeatureTools(SwSession session)
         [Description(MergeDesc)] bool merge = true,
         [Description(NameDesc)] string? name = null,
         [Description(KeepDesc)] bool keepOnFailure = false,
+        [Description("true: newFaces in full, not only id and surface.")] bool faceDetail = false,
         [Description(DocDesc)] string? doc = null,
         CancellationToken cancellationToken = default) =>
         Output.Json(_svc.LoftAsync(new LoftRequest
         {
             Doc = doc, Profiles = profiles, Guides = guides, Cut = cut, Closed = closed, Merge = merge, Name = name, KeepOnFailure = keepOnFailure,
-        }, cancellationToken), progress, "feature_loft");
+        }, cancellationToken), progress, "feature_loft", faceDetail);
 
     [McpServerTool(Name = "feature_helix", Title = "Helix / spiral", ReadOnly = false, Destructive = false, Idempotent = false, OpenWorld = false)]
     [Description("Helix / spiral curve (springs, threads, coils) from a sketch with one circle (center, radius); it climbs along the sketch " +
@@ -100,12 +102,13 @@ public sealed class AdvancedFeatureTools(SwSession session)
         [Description("Draft the other way (reverse the pull direction).")] bool flip = false,
         [Description(NameDesc)] string? name = null,
         [Description(KeepDesc)] bool keepOnFailure = false,
+        [Description("true: newFaces in full, not only id and surface.")] bool faceDetail = false,
         [Description(DocDesc)] string? doc = null,
         CancellationToken cancellationToken = default) =>
         Output.Json(_svc.DraftAsync(new DraftRequest
         {
             Doc = doc, Faces = faces, Neutral = neutral, AngleDeg = angleDeg, Flip = flip, Name = name, KeepOnFailure = keepOnFailure,
-        }, cancellationToken), progress, "feature_draft");
+        }, cancellationToken), progress, "feature_draft", faceDetail);
 
     [McpServerTool(Name = "feature_rib", Title = "Rib", ReadOnly = false, Destructive = false, Idempotent = false, OpenWorld = false)]
     [Description("Rib / gusset / stiffener from an open sketch (usually a line between walls), thickened and extended to the part. Verified: " +
@@ -121,13 +124,14 @@ public sealed class AdvancedFeatureTools(SwSession session)
         [Description("Draft angle in degrees.")] double? draftDeg = null,
         [Description(NameDesc)] string? name = null,
         [Description(KeepDesc)] bool keepOnFailure = false,
+        [Description("true: newFaces in full, not only id and surface.")] bool faceDetail = false,
         [Description(DocDesc)] string? doc = null,
         CancellationToken cancellationToken = default) =>
         Output.Json(_svc.RibAsync(new RibRequest
         {
             Doc = doc, Sketch = sketch, ThicknessMm = thicknessMm, BothSides = bothSides, FlipMaterial = flipMaterial,
             NormalToSketch = normalToSketch, DraftDeg = draftDeg, Name = name, KeepOnFailure = keepOnFailure,
-        }, cancellationToken), progress, "feature_rib");
+        }, cancellationToken), progress, "feature_rib", faceDetail);
 
     [McpServerTool(Name = "feature_thread_cosmetic", Title = "Cosmetic thread", ReadOnly = false, Destructive = false, Idempotent = false, OpenWorld = false)]
     [Description("Cosmetic thread annotation (no geometry) on the circular edge of a hole or shaft, e.g. for tapped holes; size M6 gives a " +
@@ -142,11 +146,12 @@ public sealed class AdvancedFeatureTools(SwSession session)
         [Description("none (default: the diameter as given) | ansi_metric | iso | ansi_inch | din | jis; a standard needs size.")] string? standard = null,
         [Description(NameDesc)] string? name = null,
         [Description(KeepDesc)] bool keepOnFailure = false,
+        [Description("true: newFaces in full, not only id and surface.")] bool faceDetail = false,
         [Description(DocDesc)] string? doc = null,
         CancellationToken cancellationToken = default) =>
         Output.Json(_svc.CosmeticThreadAsync(new CosmeticThreadRequest
         {
             Doc = doc, Edge = edge, Standard = standard, Size = size, DiameterMm = diameterMm, DepthMm = depthMm, ThroughAll = throughAll,
             Name = name, KeepOnFailure = keepOnFailure,
-        }, cancellationToken), progress, "feature_thread_cosmetic");
+        }, cancellationToken), progress, "feature_thread_cosmetic", faceDetail);
 }

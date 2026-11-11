@@ -28,7 +28,7 @@ public sealed class BodyRotation
 }
 
 /// <summary>Result of the bodies and surfaces tools: the feature, the verification evidence and the bodies it made or changed.</summary>
-public sealed class BodyResult : ToolResult
+public sealed class BodyResult : ToolResult, INewFaces
 {
     public required FeatureRef Feature { get; init; }
     public IReadOnlyList<FeatureRef>? AlsoCreated { get; init; }

@@ -29,13 +29,14 @@ public sealed class SheetMetalTools(SwSession session)
         [Description("Thicken along the sketch normal.")] bool reverse = false,
         [Description("Closed profile sketch (default: the open sketch, else the last finished one).")] string? sketch = null,
         [Description(KeepDesc)] bool keepOnFailure = false,
+        [Description("true: newFaces in full, not only id and surface.")] bool faceDetail = false,
         [Description(DocDesc)] string? doc = null,
         CancellationToken cancellationToken = default) =>
         Output.Json(_svc.BaseFlangeAsync(new BaseFlangeRequest
         {
             Doc = doc, Sketch = sketch, ThicknessMm = thicknessMm, BendRadiusMm = bendRadiusMm, KFactor = kFactor, Reverse = reverse,
             KeepOnFailure = keepOnFailure,
-        }, cancellationToken), progress, "sheetmetal_base_flange");
+        }, cancellationToken), progress, "sheetmetal_base_flange", faceDetail);
 
     [McpServerTool(Name = "sheetmetal_edge_flange", Title = "Sheet-metal edge flange", ReadOnly = false, Destructive = false, Idempotent = false, OpenWorld = false)]
     [Description("Sheet-metal edge flange: bends a wall up from straight edges of the sheet's face (experimental: several API " +
@@ -49,13 +50,14 @@ public sealed class SheetMetalTools(SwSession session)
         [Description("material_inside | material_outside | bend_outside")] string position = "material_inside",
         [Description("Bend radius in mm (default: the sheet's).")] double? bendRadiusMm = null,
         [Description(KeepDesc)] bool keepOnFailure = false,
+        [Description("true: newFaces in full, not only id and surface.")] bool faceDetail = false,
         [Description(DocDesc)] string? doc = null,
         CancellationToken cancellationToken = default) =>
         Output.Json(_svc.EdgeFlangeAsync(new EdgeFlangeRequest
         {
             Doc = doc, Edges = edges, LengthMm = lengthMm, AngleDeg = angleDeg, Position = position, BendRadiusMm = bendRadiusMm,
             KeepOnFailure = keepOnFailure,
-        }, cancellationToken), progress, "sheetmetal_edge_flange");
+        }, cancellationToken), progress, "sheetmetal_edge_flange", faceDetail);
 
     [McpServerTool(Name = "sheetmetal_miter_flange", Title = "Sheet-metal miter flange", ReadOnly = false, Destructive = false, Idempotent = false, OpenWorld = false)]
     [Description("Sheet-metal miter flange: one flange along a chain of straight edges of the sheet's face (top or bottom), mitered " +
@@ -70,13 +72,14 @@ public sealed class SheetMetalTools(SwSession session)
         [Description("Bend radius in mm (default: the sheet's).")] double? bendRadiusMm = null,
         [Description("Rip gap at the mitered corners in mm.")] double gapMm = 0.1,
         [Description(KeepDesc)] bool keepOnFailure = false,
+        [Description("true: newFaces in full, not only id and surface.")] bool faceDetail = false,
         [Description(DocDesc)] string? doc = null,
         CancellationToken cancellationToken = default) =>
         Output.Json(_svc.MiterFlangeAsync(new MiterFlangeRequest
         {
             Doc = doc, Edges = edges, LengthMm = lengthMm, AngleDeg = angleDeg, Position = position, BendRadiusMm = bendRadiusMm, GapMm = gapMm,
             KeepOnFailure = keepOnFailure,
-        }, cancellationToken), progress, "sheetmetal_miter_flange");
+        }, cancellationToken), progress, "sheetmetal_miter_flange", faceDetail);
 
     [McpServerTool(Name = "sheetmetal_hem", Title = "Sheet-metal hem", ReadOnly = false, Destructive = false, Idempotent = false, OpenWorld = false)]
     [Description("Sheet-metal hem: folds the sheet back on itself along straight edges of its face, closed (flat on the sheet), open " +
@@ -93,13 +96,14 @@ public sealed class SheetMetalTools(SwSession session)
         [Description("inside (default) | outside: the hem's material inside or outside the sheet's edge.")] string? position = null,
         [Description("Fold to the other side of the sheet.")] bool reverse = false,
         [Description(KeepDesc)] bool keepOnFailure = false,
+        [Description("true: newFaces in full, not only id and surface.")] bool faceDetail = false,
         [Description(DocDesc)] string? doc = null,
         CancellationToken cancellationToken = default) =>
         Output.Json(_svc.HemAsync(new HemRequest
         {
             Doc = doc, Edges = edges, Type = type, LengthMm = lengthMm, GapMm = gapMm, RadiusMm = radiusMm, AngleDeg = angleDeg,
             Position = position, Reverse = reverse, KeepOnFailure = keepOnFailure,
-        }, cancellationToken), progress, "sheetmetal_hem");
+        }, cancellationToken), progress, "sheetmetal_hem", faceDetail);
 
     [McpServerTool(Name = "sheetmetal_bend", Title = "Sheet-metal sketched bend", ReadOnly = false, Destructive = false, Idempotent = false, OpenWorld = false)]
     [Description("Sketched bend: bends the sheet along a line across its face (model mm; the tool sketches it), the fixedAt side " +
@@ -115,13 +119,14 @@ public sealed class SheetMetalTools(SwSession session)
         [Description("centerline | material_inside (default) | material_outside | bend_outside")] string? position = null,
         [Description("Bend to the other side of the sheet.")] bool flip = false,
         [Description(KeepDesc)] bool keepOnFailure = false,
+        [Description("true: newFaces in full, not only id and surface.")] bool faceDetail = false,
         [Description(DocDesc)] string? doc = null,
         CancellationToken cancellationToken = default) =>
         Output.Json(_svc.BendAsync(new SketchedBendRequest
         {
             Doc = doc, FromMm = fromMm, ToMm = toMm, FixedAtMm = fixedAtMm, AngleDeg = angleDeg, RadiusMm = radiusMm, Position = position,
             Flip = flip, KeepOnFailure = keepOnFailure,
-        }, cancellationToken), progress, "sheetmetal_bend");
+        }, cancellationToken), progress, "sheetmetal_bend", faceDetail);
 
     [McpServerTool(Name = "sheetmetal_flatten", Title = "Flatten / fold sheet metal", ReadOnly = false, Destructive = false, Idempotent = true, OpenWorld = false)]
     [Description("Flatten (flat:true) or fold back (flat:false) a sheet-metal part through its Flat-Pattern feature. Verified: the " +

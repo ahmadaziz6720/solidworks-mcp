@@ -49,6 +49,32 @@ public class UnitsTests
         }
         finally { CultureInfo.CurrentCulture = old; }
     }
+
+    [Fact]
+    public void A_feature_result_lists_new_faces_by_id_and_surface_unless_asked_in_full()
+    {
+        var r = new Core.Model.FeatureResult
+        {
+            Feature = new Core.Model.FeatureRef { Name = "Boss-Extrude1", Type = "Extrusion" },
+            Verified = new Core.Model.Verified { Material = "added" },
+            Model = new Core.Model.ModelState { VolumeMm3 = 1000, Bodies = 1 },
+            NewFaces =
+            [
+                new Core.Model.FaceInfo { Id = "F1", Surface = "plane", AreaMm2 = 100, PickMm = [1, 2, 3], Normal = [0, 1, 0], Feature = "Boss-Extrude1" },
+                new Core.Model.FaceInfo { Id = "F2", Surface = "cylinder", AreaMm2 = 50, PickMm = [4, 5, 6], RadiusMm = 3 },
+            ],
+            NewFaceCount = 2,
+        };
+        string brief = Core.Model.ResultJson.Serialize(r);
+        Assert.Contains("\"newFaces\":[{\"id\":\"F1\",\"surface\":\"plane\"},{\"id\":\"F2\",\"surface\":\"cylinder\"}],\"newFaceCount\":2", brief);
+        Assert.DoesNotContain("pickMm", brief);
+        string full = Core.Model.ResultJson.Serialize(r, faceDetail: true);
+        Assert.Contains("\"pickMm\":[1,2,3]", full);
+        Assert.Contains("\"radiusMm\":3", full);
+        // Everything but the faces is the same text.
+        Assert.Equal(full[..full.IndexOf("\"newFaces\"", StringComparison.Ordinal)], brief[..brief.IndexOf("\"newFaces\"", StringComparison.Ordinal)]);
+        Assert.Equal(full[full.IndexOf("\"newFaceCount\"", StringComparison.Ordinal)..], brief[brief.IndexOf("\"newFaceCount\"", StringComparison.Ordinal)..]);
+    }
 }
 
 public class Vec3Tests

@@ -114,8 +114,9 @@ public static class Guide
         (backupPath in the result). Exports report the path actually written.
 
         **Results.** Compact JSON: doc, the tool's data, warnings[] (read them) and dialogsHandled[].
-        - Feature tools report the feature, verified {volumeDeltaMm3, material, checks}, newFaces (with ids), dimensions
-          and the model's box. A failed feature is rolled back.
+        - Feature tools report the feature, verified {volumeDeltaMm3, material, checks}, newFaces (each one's id and
+          surface; faceDetail=true adds area, pick point and normal or axis), dimensions and the model's box. A failed
+          feature is rolled back.
         - Lists take limit and offset, and return total and truncated.
 
         **Long calls** send progress. A TIMEOUT means the call may still finish: check sw_status (recentOps) first.

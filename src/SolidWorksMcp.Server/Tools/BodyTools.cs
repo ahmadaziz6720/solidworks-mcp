@@ -33,12 +33,13 @@ public sealed class BodyTools(SwSession session)
         [Description("{axis:[x,y,z], point:[x,y,z] mm (default origin), angleDeg} (right-hand rule).")] BodyRotation? rotate = null,
         [Description("0 = move; n = make n copies (the originals stay).")] int copies = 0,
         [Description(KeepDesc)] bool keepOnFailure = false,
+        [Description("true: newFaces in full, not only id and surface.")] bool faceDetail = false,
         [Description(DocDesc)] string? doc = null,
         CancellationToken cancellationToken = default) =>
         Output.Json(_bodies.MoveAsync(new BodyMoveRequest
         {
             Doc = doc, Bodies = bodies, TranslateMm = translateMm, Rotate = rotate, Copies = copies, KeepOnFailure = keepOnFailure,
-        }, cancellationToken), progress, "body_move");
+        }, cancellationToken), progress, "body_move", faceDetail);
 
     [McpServerTool(Name = "body_delete", Title = "Delete/keep bodies", ReadOnly = false, Destructive = true, Idempotent = false, OpenWorld = false)]
     [Description("Delete bodies, or keep only the listed ones (Delete/Keep Body feature; undo by deleting it). Verified: exactly " +
@@ -48,9 +49,10 @@ public sealed class BodyTools(SwSession session)
         [Description("Bodies to delete (or to keep), e.g. [{id:'B2'}].")] EntityRef[] bodies,
         [Description("delete | keep_only")] string mode = "delete",
         [Description(KeepDesc)] bool keepOnFailure = false,
+        [Description("true: newFaces in full, not only id and surface.")] bool faceDetail = false,
         [Description(DocDesc)] string? doc = null,
         CancellationToken cancellationToken = default) =>
-        Output.Json(_bodies.DeleteAsync(doc, bodies, mode, keepOnFailure, cancellationToken), progress, "body_delete");
+        Output.Json(_bodies.DeleteAsync(doc, bodies, mode, keepOnFailure, cancellationToken), progress, "body_delete", faceDetail);
 
     [McpServerTool(Name = "body_combine", Title = "Combine bodies", ReadOnly = false, Destructive = false, Idempotent = false, OpenWorld = false)]
     [Description("Combine solid bodies: add (union), subtract (main minus tools), common (intersection). Verified by the bodies' " +
@@ -62,9 +64,10 @@ public sealed class BodyTools(SwSession session)
         [Description("The other bodies, e.g. [{id:'B2'}].")] EntityRef[] tools,
         [Description("add | subtract | common")] string operation,
         [Description(KeepDesc)] bool keepOnFailure = false,
+        [Description("true: newFaces in full, not only id and surface.")] bool faceDetail = false,
         [Description(DocDesc)] string? doc = null,
         CancellationToken cancellationToken = default) =>
-        Output.Json(_bodies.CombineAsync(doc, main, tools, operation, keepOnFailure, cancellationToken), progress, "body_combine");
+        Output.Json(_bodies.CombineAsync(doc, main, tools, operation, keepOnFailure, cancellationToken), progress, "body_combine", faceDetail);
 
     [McpServerTool(Name = "body_split", Title = "Split body", ReadOnly = false, Destructive = false, Idempotent = false, OpenWorld = false)]
     [Description("Split solid bodies with a plane, planar face or sketch (the pieces stay in the part; experimental). Verified: more " +
@@ -74,9 +77,10 @@ public sealed class BodyTools(SwSession session)
         [Description("Trim tool: {name:'right'}, a planar face {at:[x,y,z]} or a sketch {name:'Sketch2'}.")] EntityRef tool,
         [Description("Only this solid body (default: all the tool crosses).")] EntityRef? body = null,
         [Description(KeepDesc)] bool keepOnFailure = false,
+        [Description("true: newFaces in full, not only id and surface.")] bool faceDetail = false,
         [Description(DocDesc)] string? doc = null,
         CancellationToken cancellationToken = default) =>
-        Output.Json(_bodies.SplitAsync(doc, body, tool, keepOnFailure, cancellationToken), progress, "body_split");
+        Output.Json(_bodies.SplitAsync(doc, body, tool, keepOnFailure, cancellationToken), progress, "body_split", faceDetail);
 
     // ------------------------------------------------------------------ surfaces
 
@@ -90,12 +94,13 @@ public sealed class BodyTools(SwSession session)
         [Description("Mid-plane: half the depth on each side.")] bool bothSides = false,
         [Description(SketchDesc)] string? sketch = null,
         [Description(KeepDesc)] bool keepOnFailure = false,
+        [Description("true: newFaces in full, not only id and surface.")] bool faceDetail = false,
         [Description(DocDesc)] string? doc = null,
         CancellationToken cancellationToken = default) =>
         Output.Json(_surfaces.ExtrudeAsync(new SurfaceExtrudeRequest
         {
             Doc = doc, Sketch = sketch, DepthMm = depthMm, Direction = direction, BothSides = bothSides, KeepOnFailure = keepOnFailure,
-        }, cancellationToken), progress, "surface_extrude");
+        }, cancellationToken), progress, "surface_extrude", faceDetail);
 
     [McpServerTool(Name = "surface_revolve", Title = "Revolved surface", ReadOnly = false, Destructive = false, Idempotent = false, OpenWorld = false)]
     [Description("Revolved surface: spins a sketch profile around an axis, by default the sketch's only centerline (experimental). " +
@@ -106,12 +111,13 @@ public sealed class BodyTools(SwSession session)
         [Description("Axis in the sketch plane: a centerline {name:'Line2'}, a reference axis or a straight edge.")] EntityRef? axis = null,
         [Description(SketchDesc)] string? sketch = null,
         [Description(KeepDesc)] bool keepOnFailure = false,
+        [Description("true: newFaces in full, not only id and surface.")] bool faceDetail = false,
         [Description(DocDesc)] string? doc = null,
         CancellationToken cancellationToken = default) =>
         Output.Json(_surfaces.RevolveAsync(new SurfaceRevolveRequest
         {
             Doc = doc, Sketch = sketch, Axis = axis, AngleDeg = angleDeg, KeepOnFailure = keepOnFailure,
-        }, cancellationToken), progress, "surface_revolve");
+        }, cancellationToken), progress, "surface_revolve", faceDetail);
 
     [McpServerTool(Name = "surface_planar", Title = "Planar surface", ReadOnly = false, Destructive = false, Idempotent = false, OpenWorld = false)]
     [Description("Planar surface filling a closed sketch profile, or a closed loop of edges in one plane (experimental). Verified: a " +
@@ -121,9 +127,10 @@ public sealed class BodyTools(SwSession session)
         [Description("Boundary edges instead of a sketch, e.g. [{where:{extreme:'+y'},expect:4}].")] EntityRef[]? edges = null,
         [Description(SketchDesc)] string? sketch = null,
         [Description(KeepDesc)] bool keepOnFailure = false,
+        [Description("true: newFaces in full, not only id and surface.")] bool faceDetail = false,
         [Description(DocDesc)] string? doc = null,
         CancellationToken cancellationToken = default) =>
-        Output.Json(_surfaces.PlanarAsync(doc, sketch, edges, keepOnFailure, cancellationToken), progress, "surface_planar");
+        Output.Json(_surfaces.PlanarAsync(doc, sketch, edges, keepOnFailure, cancellationToken), progress, "surface_planar", faceDetail);
 
     [McpServerTool(Name = "surface_fill", Title = "Filled surface", ReadOnly = false, Destructive = false, Idempotent = false, OpenWorld = false)]
     [Description("Filled surface: a patch over a closed loop of edges (a hole in a surface, an open end), optionally merged with the " +
@@ -136,12 +143,13 @@ public sealed class BodyTools(SwSession session)
         [Description("Merge the patch with the adjacent surfaces.")] bool merge = false,
         [Description("Form a solid when the surfaces enclose a volume.")] bool solid = false,
         [Description(KeepDesc)] bool keepOnFailure = false,
+        [Description("true: newFaces in full, not only id and surface.")] bool faceDetail = false,
         [Description(DocDesc)] string? doc = null,
         CancellationToken cancellationToken = default) =>
         Output.Json(_surfaces.FillAsync(new SurfaceFillRequest
         {
             Doc = doc, Edges = edges, Continuity = continuity, Merge = merge, Solid = solid, KeepOnFailure = keepOnFailure,
-        }, cancellationToken), progress, "surface_fill");
+        }, cancellationToken), progress, "surface_fill", faceDetail);
 
     [McpServerTool(Name = "surface_trim", Title = "Trim, extend or untrim surfaces", ReadOnly = false, Destructive = false, Idempotent = false, OpenWorld = false)]
     [Description("Surface editing. kind trim: cut surfaces with a tool (plane, sketch or surface) or each other (surfaces), keeping the " +
@@ -160,13 +168,14 @@ public sealed class BodyTools(SwSession session)
         [Description("extend: linearly instead of along the surface.")] bool linear = false,
         [Description("untrim a face: holes (default), outer or all.")] string? edge = null,
         [Description(KeepDesc)] bool keepOnFailure = false,
+        [Description("true: newFaces in full, not only id and surface.")] bool faceDetail = false,
         [Description(DocDesc)] string? doc = null,
         CancellationToken cancellationToken = default) =>
         Output.Json(_surfaces.TrimAsync(new SurfaceTrimRequest
         {
             Doc = doc, Kind = kind, Tool = tool, Surfaces = surfaces, KeepAt = keepAt, RemoveAt = removeAt, Edges = edges, Faces = faces,
             DistanceMm = distanceMm, Linear = linear, Edge = edge, KeepOnFailure = keepOnFailure,
-        }, cancellationToken), progress, "surface_trim");
+        }, cancellationToken), progress, "surface_trim", faceDetail);
 
     [McpServerTool(Name = "surface_offset", Title = "Offset surface", ReadOnly = false, Destructive = false, Idempotent = false, OpenWorld = false)]
     [Description("Offset surface: copies faces at a distance along their normals (0 = a copy; experimental). Verified: a new surface " +
@@ -177,9 +186,10 @@ public sealed class BodyTools(SwSession session)
         [Description("Offset distance in mm (0 or more).")] double distanceMm,
         [Description("Offset against the face normals (into a solid).")] bool flip = false,
         [Description(KeepDesc)] bool keepOnFailure = false,
+        [Description("true: newFaces in full, not only id and surface.")] bool faceDetail = false,
         [Description(DocDesc)] string? doc = null,
         CancellationToken cancellationToken = default) =>
-        Output.Json(_surfaces.OffsetAsync(doc, faces, distanceMm, flip, keepOnFailure, cancellationToken), progress, "surface_offset");
+        Output.Json(_surfaces.OffsetAsync(doc, faces, distanceMm, flip, keepOnFailure, cancellationToken), progress, "surface_offset", faceDetail);
 
     [McpServerTool(Name = "surface_knit", Title = "Knit surfaces", ReadOnly = false, Destructive = false, Idempotent = false, OpenWorld = false)]
     [Description("Knit (sew) surface bodies that share edges into one; trySolid closes a watertight set into a solid (experimental). " +
@@ -189,9 +199,10 @@ public sealed class BodyTools(SwSession session)
         [Description("Surface bodies: {id:'B3'} (body_list) or {at:[x,y,z]} on one of their faces.")] EntityRef[] surfaces,
         [Description("Try to form a solid from a closed set.")] bool trySolid = false,
         [Description(KeepDesc)] bool keepOnFailure = false,
+        [Description("true: newFaces in full, not only id and surface.")] bool faceDetail = false,
         [Description(DocDesc)] string? doc = null,
         CancellationToken cancellationToken = default) =>
-        Output.Json(_surfaces.KnitAsync(doc, surfaces, trySolid, keepOnFailure, cancellationToken), progress, "surface_knit");
+        Output.Json(_surfaces.KnitAsync(doc, surfaces, trySolid, keepOnFailure, cancellationToken), progress, "surface_knit", faceDetail);
 
     [McpServerTool(Name = "surface_thicken", Title = "Thicken surface", ReadOnly = false, Destructive = false, Idempotent = false, OpenWorld = false)]
     [Description("Thicken a surface body into a solid. Verified: a flat sheet gains exactly area x thickness (both: the total is " +
@@ -202,9 +213,10 @@ public sealed class BodyTools(SwSession session)
         [Description("Thickness in mm.")] double thicknessMm,
         [Description("one | other | both (sides of the surface).")] string side = "one",
         [Description(KeepDesc)] bool keepOnFailure = false,
+        [Description("true: newFaces in full, not only id and surface.")] bool faceDetail = false,
         [Description(DocDesc)] string? doc = null,
         CancellationToken cancellationToken = default) =>
-        Output.Json(_surfaces.ThickenAsync(doc, surface, thicknessMm, side, keepOnFailure, cancellationToken), progress, "surface_thicken");
+        Output.Json(_surfaces.ThickenAsync(doc, surface, thicknessMm, side, keepOnFailure, cancellationToken), progress, "surface_thicken", faceDetail);
 
     // ------------------------------------------------------------------ direct face editing
 
@@ -221,11 +233,12 @@ public sealed class BodyTools(SwSession session)
         [Description("move: [dx,dy,dz] mm.")] double[]? translateMm = null,
         [Description("Name for the new feature.")] string? name = null,
         [Description(KeepDesc)] bool keepOnFailure = false,
+        [Description("true: newFaces in full, not only id and surface.")] bool faceDetail = false,
         [Description(DocDesc)] string? doc = null,
         CancellationToken cancellationToken = default) =>
         Output.Json(_faces.EditAsync(new FaceEditRequest
         {
             Doc = doc, Op = op, Faces = faces, Heal = heal, DistanceMm = distanceMm, TranslateMm = translateMm, Name = name,
             KeepOnFailure = keepOnFailure,
-        }, cancellationToken), progress, "face_edit");
+        }, cancellationToken), progress, "face_edit", faceDetail);
 }

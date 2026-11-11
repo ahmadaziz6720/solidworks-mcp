@@ -120,7 +120,7 @@ public sealed class ToleranceInfo
 }
 
 /// <summary>Result of every feature-creating tool.</summary>
-public sealed class FeatureResult : ToolResult
+public sealed class FeatureResult : ToolResult, INewFaces
 {
     public required FeatureRef Feature { get; init; }
     public IReadOnlyList<FeatureRef>? AlsoCreated { get; init; }

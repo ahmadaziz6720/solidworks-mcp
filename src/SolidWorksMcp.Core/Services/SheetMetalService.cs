@@ -26,7 +26,7 @@ public sealed class SheetMetalParams
 }
 
 /// <summary>Result of the sheet-metal feature tools.</summary>
-public sealed class SheetMetalResult : ToolResult
+public sealed class SheetMetalResult : ToolResult, INewFaces
 {
     public required FeatureRef Feature { get; init; }
     public IReadOnlyList<FeatureRef>? AlsoCreated { get; init; }

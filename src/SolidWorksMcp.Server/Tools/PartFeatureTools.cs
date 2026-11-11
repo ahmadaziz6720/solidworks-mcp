@@ -35,13 +35,14 @@ public sealed class PartFeatureTools(SwSession session)
         [Description("Merge the result with existing bodies (boss).")] bool merge = true,
         [Description(NameDesc)] string? name = null,
         [Description(KeepDesc)] bool keepOnFailure = false,
+        [Description("true: newFaces in full, not only id and surface.")] bool faceDetail = false,
         [Description(DocDesc)] string? doc = null,
         CancellationToken cancellationToken = default) =>
         Output.Json(_svc.RevolveAsync(new RevolveRequest
         {
             Doc = doc, Sketch = sketch, Axis = axis, AngleDeg = angleDeg, Angle2Deg = angle2Deg, Cut = cut, Merge = merge,
             Name = name, KeepOnFailure = keepOnFailure,
-        }, cancellationToken), progress, "feature_revolve");
+        }, cancellationToken), progress, "feature_revolve", faceDetail);
 
     [McpServerTool(Name = "feature_chamfer", Title = "Chamfer", ReadOnly = false, Destructive = false, Idempotent = false, OpenWorld = false)]
     [Description("Chamfer / bevel edges: equal distance, two distances or distance + angle. Edges by id, point or query, e.g. " +
@@ -57,13 +58,14 @@ public sealed class PartFeatureTools(SwSession session)
         [Description("Swap which face the first distance (or the angle) applies to.")] bool flip = false,
         [Description(NameDesc)] string? name = null,
         [Description(KeepDesc)] bool keepOnFailure = false,
+        [Description("true: newFaces in full, not only id and surface.")] bool faceDetail = false,
         [Description(DocDesc)] string? doc = null,
         CancellationToken cancellationToken = default) =>
         Output.Json(_svc.ChamferAsync(new ChamferRequest
         {
             Doc = doc, Edges = edges, Type = type, DistanceMm = distanceMm, Distance2Mm = distance2Mm, AngleDeg = angleDeg, Flip = flip,
             Name = name, KeepOnFailure = keepOnFailure,
-        }, cancellationToken), progress, "feature_chamfer");
+        }, cancellationToken), progress, "feature_chamfer", faceDetail);
 
     [McpServerTool(Name = "feature_shell", Title = "Shell", ReadOnly = false, Destructive = false, Idempotent = false, OpenWorld = false)]
     [Description("Shell / hollow out a solid: removes the given faces (open sides) and leaves walls of constant thickness, inward or " +
@@ -76,12 +78,13 @@ public sealed class PartFeatureTools(SwSession session)
         [Description("Grow the walls outward instead of inward.")] bool outward = false,
         [Description(NameDesc)] string? name = null,
         [Description(KeepDesc)] bool keepOnFailure = false,
+        [Description("true: newFaces in full, not only id and surface.")] bool faceDetail = false,
         [Description(DocDesc)] string? doc = null,
         CancellationToken cancellationToken = default) =>
         Output.Json(_svc.ShellAsync(new ShellRequest
         {
             Doc = doc, RemoveFaces = removeFaces, ThicknessMm = thicknessMm, Outward = outward, Name = name, KeepOnFailure = keepOnFailure,
-        }, cancellationToken), progress, "feature_shell");
+        }, cancellationToken), progress, "feature_shell", faceDetail);
 
     [McpServerTool(Name = "feature_hole", Title = "Hole Wizard holes", ReadOnly = false, Destructive = false, Idempotent = false, OpenWorld = false)]
     [Description("Hole Wizard holes at points on planar faces, drilled against the face normal: drill, clearance (fit), counterbore, " +
@@ -102,13 +105,14 @@ public sealed class PartFeatureTools(SwSession session)
         [Description("The planar face for all holes (default: the face under each point).")] EntityRef? face = null,
         [Description("Rename the new feature (several holes: name1, name2, ...).")] string? name = null,
         [Description(KeepDesc)] bool keepOnFailure = false,
+        [Description("true: newFaces in full, not only id and surface.")] bool faceDetail = false,
         [Description(DocDesc)] string? doc = null,
         CancellationToken cancellationToken = default) =>
         Output.Json(_svc.HoleAsync(new HoleRequest
         {
             Doc = doc, Points = points, Face = face, Type = type, Standard = standard, Size = size, DiameterMm = diameterMm, Fit = fit,
             End = end, DepthMm = depthMm, Name = name, KeepOnFailure = keepOnFailure,
-        }, cancellationToken), progress, "feature_hole");
+        }, cancellationToken), progress, "feature_hole", faceDetail);
 
     [McpServerTool(Name = "feature_pattern_linear", Title = "Linear pattern", ReadOnly = false, Destructive = false, Idempotent = false, OpenWorld = false)]
     [Description("Linear pattern / array of features along a model axis (\"+x\") or a straight edge, axis or planar face, optionally in a " +
@@ -126,13 +130,14 @@ public sealed class PartFeatureTools(SwSession session)
         [Description("Distance between instances in direction 2 in mm.")] double? spacing2Mm = null,
         [Description(NameDesc)] string? name = null,
         [Description(KeepDesc)] bool keepOnFailure = false,
+        [Description("true: newFaces in full, not only id and surface.")] bool faceDetail = false,
         [Description(DocDesc)] string? doc = null,
         CancellationToken cancellationToken = default) =>
         Output.Json(_svc.LinearPatternAsync(new LinearPatternRequest
         {
             Doc = doc, Features = features, Direction = direction, DirectionRef = directionRef, Count = count, SpacingMm = spacingMm,
             Direction2 = direction2, Count2 = count2, Spacing2Mm = spacing2Mm, Name = name, KeepOnFailure = keepOnFailure,
-        }, cancellationToken), progress, "feature_pattern_linear");
+        }, cancellationToken), progress, "feature_pattern_linear", faceDetail);
 
     [McpServerTool(Name = "feature_pattern_circular", Title = "Circular pattern", ReadOnly = false, Destructive = false, Idempotent = false, OpenWorld = false)]
     [Description("Circular / polar pattern of features around an axis: a reference axis, a cylindrical face or a circular or straight edge; " +
@@ -147,13 +152,14 @@ public sealed class PartFeatureTools(SwSession session)
         [Description("Spread the instances evenly over totalAngleDeg.")] bool equalSpacing = true,
         [Description(NameDesc)] string? name = null,
         [Description(KeepDesc)] bool keepOnFailure = false,
+        [Description("true: newFaces in full, not only id and surface.")] bool faceDetail = false,
         [Description(DocDesc)] string? doc = null,
         CancellationToken cancellationToken = default) =>
         Output.Json(_svc.CircularPatternAsync(new CircularPatternRequest
         {
             Doc = doc, Features = features, Axis = axis, Count = count, TotalAngleDeg = totalAngleDeg, EqualSpacing = equalSpacing,
             Name = name, KeepOnFailure = keepOnFailure,
-        }, cancellationToken), progress, "feature_pattern_circular");
+        }, cancellationToken), progress, "feature_pattern_circular", faceDetail);
 
     [McpServerTool(Name = "feature_pattern_curve", Title = "Curve-driven pattern", ReadOnly = false, Destructive = false, Idempotent = false, OpenWorld = false)]
     [Description("Patterns features along a curve: an edge or a sketch segment, e.g. {type:'sketch_segment', name:'Arc1', sketch:'Sketch3'}. " +
@@ -169,13 +175,14 @@ public sealed class PartFeatureTools(SwSession session)
         [Description("tangent (turn with the curve) | seed (keep the seed's orientation).")] string align = "tangent",
         [Description(NameDesc)] string? name = null,
         [Description(KeepDesc)] bool keepOnFailure = false,
+        [Description("true: newFaces in full, not only id and surface.")] bool faceDetail = false,
         [Description(DocDesc)] string? doc = null,
         CancellationToken cancellationToken = default) =>
         Output.Json(_svc.CurvePatternAsync(new CurvePatternRequest
         {
             Doc = doc, Features = features, Curve = curve, Count = count, SpacingMm = spacingMm, Reverse = reverse, Align = align,
             Name = name, KeepOnFailure = keepOnFailure,
-        }, cancellationToken), progress, "feature_pattern_curve");
+        }, cancellationToken), progress, "feature_pattern_curve", faceDetail);
 
     [McpServerTool(Name = "feature_pattern_fill", Title = "Fill pattern", ReadOnly = false, Destructive = false, Idempotent = false, OpenWorld = false)]
     [Description("Fills a flat face with round holes (holeDiameterMm, cut through) or copies of seed features: perforation (staggered " +
@@ -193,13 +200,14 @@ public sealed class PartFeatureTools(SwSession session)
         [Description("perforation: stagger angle, degrees (default 60).")] double? staggerDeg = null,
         [Description(NameDesc)] string? name = null,
         [Description(KeepDesc)] bool keepOnFailure = false,
+        [Description("true: newFaces in full, not only id and surface.")] bool faceDetail = false,
         [Description(DocDesc)] string? doc = null,
         CancellationToken cancellationToken = default) =>
         Output.Json(_svc.FillPatternAsync(new FillPatternRequest
         {
             Doc = doc, Face = face, SpacingMm = spacingMm, HoleDiameterMm = holeDiameterMm, Features = features, Layout = layout, MarginMm = marginMm,
             DirectionRef = directionRef, StaggerDeg = staggerDeg, Name = name, KeepOnFailure = keepOnFailure,
-        }, cancellationToken), progress, "feature_pattern_fill");
+        }, cancellationToken), progress, "feature_pattern_fill", faceDetail);
 
     [McpServerTool(Name = "feature_mirror", Title = "Mirror features", ReadOnly = false, Destructive = false, Idempotent = false, OpenWorld = false)]
     [Description("Mirror features about a plane or a planar face. Verified: a MirrorPattern feature without errors, the volume or faces " +
@@ -210,12 +218,13 @@ public sealed class PartFeatureTools(SwSession session)
         [Description("Mirror plane: {name:'right'}, a plane's name, or a planar face {at:[x,y,z]}.")] EntityRef plane,
         [Description(NameDesc)] string? name = null,
         [Description(KeepDesc)] bool keepOnFailure = false,
+        [Description("true: newFaces in full, not only id and surface.")] bool faceDetail = false,
         [Description(DocDesc)] string? doc = null,
         CancellationToken cancellationToken = default) =>
         Output.Json(_svc.MirrorAsync(new MirrorRequest
         {
             Doc = doc, Features = features, Plane = plane, Name = name, KeepOnFailure = keepOnFailure,
-        }, cancellationToken), progress, "feature_mirror");
+        }, cancellationToken), progress, "feature_mirror", faceDetail);
 
     [McpServerTool(Name = "feature_deform", Title = "Wrap, dome, indent", ReadOnly = false, Destructive = false, Idempotent = false, OpenWorld = false)]
     [Description("Shape features. wrap {sketch, faces, type emboss|deboss|scribe, depthMm}: a closed sketch onto planar or curved faces. " +
@@ -237,6 +246,7 @@ public sealed class PartFeatureTools(SwSession session)
         [Description("indent: cut the tool's shape out.")] bool cut = false,
         [Description(NameDesc)] string? name = null,
         [Description(KeepDesc)] bool keepOnFailure = false,
+        [Description("true: newFaces in full, not only id and surface.")] bool faceDetail = false,
         [Description(DocDesc)] string? doc = null,
         CancellationToken cancellationToken = default) =>
         Output.Json(_svc.DeformAsync(new DeformRequest
@@ -244,7 +254,7 @@ public sealed class PartFeatureTools(SwSession session)
             Doc = doc, Kind = kind, Sketch = sketch, Faces = faces, Type = type, DepthMm = depthMm, Reverse = reverse, Elliptical = elliptical,
             Body = body, Tool = tool, ClearanceMm = clearanceMm, Cut = cut, Name = name,
             KeepOnFailure = keepOnFailure,
-        }, cancellationToken), progress, "feature_deform");
+        }, cancellationToken), progress, "feature_deform", faceDetail);
 
     [McpServerTool(Name = "mold_split", Title = "Mold core and cavity", ReadOnly = false, Destructive = false, Idempotent = false, OpenWorld = false)]
     [Description("Splits a molded part's tool into cavity and core: optional shrinkage scale, parting line at the edges between faces " +

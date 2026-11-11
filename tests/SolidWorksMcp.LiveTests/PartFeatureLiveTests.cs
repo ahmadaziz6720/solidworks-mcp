@@ -452,6 +452,36 @@ public class PartFeatureLiveTests(LiveFixture fx) : LiveTest(fx)
         Assert.Equal(120000, (await Ins.ModelInfoAsync(doc)).VolumeMm3!.Value, V);
     }
 
+    // ------------------------------------------------------------------ results
+
+    [Fact]
+    public async Task A_feature_result_lists_its_new_faces_short_and_the_ids_still_resolve()
+    {
+        // S45: a boss on the block gives three faces; as a tool returns them they are id and surface only, and in full
+        // with faceDetail. The short list is enough to go on: the cap's id takes the next sketch.
+        string doc = await BlockAsync("faces_short");
+        var boss = await BossAsync(doc, 0, 0);
+        string brief = ResultJson.Serialize(boss);
+        Assert.DoesNotContain("pickMm", brief);
+        Assert.DoesNotContain("areaMm2", brief);
+        var faces = System.Text.Json.JsonDocument.Parse(brief).RootElement.GetProperty("newFaces").EnumerateArray()
+            .Select(f => (Id: f.GetProperty("id").GetString()!, Surface: f.GetProperty("surface").GetString()!, Fields: f.EnumerateObject().Count()))
+            .ToList();
+        Assert.Equal(boss.NewFaces!.Count, faces.Count);
+        Assert.All(faces, f => Assert.Equal(2, f.Fields));
+        Assert.Contains(faces, f => f.Surface == "cylinder");
+        Assert.True(brief.Length < ResultJson.Serialize(boss, faceDetail: true).Length - 200, "the short list saves little");
+        Assert.Contains("pickMm", ResultJson.Serialize(boss, faceDetail: true));
+
+        // The boss's cap is its plane face at y = 30: found by its id alone.
+        string cap = boss.NewFaces!.Single(f => f.Surface == "plane" && Math.Abs(f.PickMm[1] - 30) < 1e-6).Id;
+        Assert.Contains(faces, f => f.Id == cap && f.Surface == "plane");
+        await Sk.StartAsync(doc, new EntityRef { Id = cap }, false);
+        await Sk.AddAsync(doc, [new SketchEntity { Kind = "circle", Center = [0, 30, 0], RadiusMm = 2 }]);
+        var pin = await Fs.ExtrudeAsync(new ExtrudeRequest { Doc = doc, DepthMm = 5 });
+        Assert.Equal(Math.PI * 4 * 5, pin.Verified.VolumeDeltaMm3, Vq);
+    }
+
     // ------------------------------------------------------------------ linear pattern
 
     [Fact]
