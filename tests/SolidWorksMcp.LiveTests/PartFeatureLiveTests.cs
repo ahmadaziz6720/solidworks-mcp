@@ -337,6 +337,28 @@ public class PartFeatureLiveTests(LiveFixture fx) : LiveTest(fx)
     }
 
     [Fact]
+    public async Task Hole_names_each_placement_sketch_and_warns_while_it_is_under_defined()
+    {
+        // S38: the result named the hole's own sketch dimensions but not the sketch that places it, which SOLIDWORKS leaves
+        // under defined; only model_review showed it (info, sketch_under_defined).
+        string doc = await BlockAsync("hole_place");
+        var r = await Pf.HoleAsync(new HoleRequest { Doc = doc, Points = [[-20, 20, 0], [20, 20, 0]], DiameterMm = 5, End = "through_all" });
+        Assert.Equal(2, r.PlacementSketches!.Count);
+        Assert.Equal([r.Feature.Name, Assert.Single(r.AlsoCreated!).Name], r.PlacementSketches.Select(p => p.Feature));
+        Assert.All(r.PlacementSketches, p => Assert.Equal("under", p.Constrained));
+        Assert.Equal(2, r.PlacementSketches.Select(p => p.Sketch).Distinct().Count());
+        // Not the hole's profile sketch, which carries its diameter and depth.
+        Assert.Contains(r.Dimensions!, x => x.Name.StartsWith("Hole Dia.@", StringComparison.Ordinal));
+        Assert.DoesNotContain(r.Dimensions!, x => x.Name.EndsWith("@" + r.PlacementSketches[0].Sketch, StringComparison.Ordinal));
+
+        // The oracle: model_review lists exactly these as under defined among the holes' sketches, not the hole profiles.
+        var review = await new ReviewService(S).ReviewAsync(doc);
+        var under = review.Issues.Where(i => i.Kind == "sketch_under_defined").Select(i => i.Where).ToHashSet();
+        Assert.All(r.PlacementSketches, p => Assert.Contains(p.Sketch, under));
+        Assert.All(r.PlacementSketches, p => Assert.Contains(r.Warnings!, w => w.Contains($"placement sketch '{p.Sketch}' is under defined")));
+    }
+
+    [Fact]
     public async Task Hole_through_all_at_two_points_makes_two_named_features()
     {
         string doc = await BlockAsync("hole_two");

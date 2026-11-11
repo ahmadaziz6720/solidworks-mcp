@@ -628,9 +628,31 @@ public sealed partial class PartFeatureService(SwSession session)
                 }
             }
             if (plan.Note is not null) ctx.Warn(plan.Note);
+            var placements = mains.Select(HolePlacement).OfType<PlacementSketch>().ToList();
+            foreach (var p in placements.Where(p => p.Constrained != "fully"))
+                ctx.Warn($"{p.Feature}: its placement sketch '{p.Sketch}' is " +
+                         (p.Constrained == "under" ? "under defined" : $"not fully defined ({p.Constrained})") + ", so the hole (and a pattern of it) can " +
+                         "move: sketch_edit it, sketch_constrain its point(s) from the origin until it reads fully, then sketch_finish.");
             var outcome = new FeatureOutcome(mains[0], mains, first, last, checksAll.Distinct().ToList());
-            return FeatureVerifier.Result(ctx, d, outcome, resolved: resolved);
+            return FeatureVerifier.Result(ctx, d, outcome, resolved: resolved, placementSketches: placements.Count == 0 ? null : placements);
         }, RunOptions.Write(q.Doc) with { Timeout = timeout }, ct);
+    }
+
+    /// <summary>
+    /// The sketch that places a Hole Wizard hole, read after it is made (S38). Of the hole's two sketches it is the one
+    /// with points and no segment other than construction geometry; the other is the hole's profile.
+    /// </summary>
+    private static PlacementSketch? HolePlacement(IFeature hole)
+    {
+        foreach (var c in Tree.Children(hole))
+        {
+            if (c.GetTypeName2() is not ("ProfileFeature" or "3DProfileFeature")) continue;
+            if ((object?)c.GetSpecificFeature2() is not ISketch sk) continue;
+            if (sk.Segments().Any(s => !s.ConstructionGeometry)) continue;
+            if (ComArgs.Objects<ISketchPoint>((object?)sk.GetSketchPoints2()).Count == 0) continue;
+            return new PlacementSketch { Feature = hole.Name, Sketch = c.Name, Constrained = AsmParse.ConstrainedName(sk.GetConstrainedStatus()) };
+        }
+        return null;
     }
 
     /// <summary>

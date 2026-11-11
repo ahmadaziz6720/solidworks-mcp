@@ -131,5 +131,17 @@ public sealed class FeatureResult : ToolResult, INewFaces
     public IReadOnlyList<FaceInfo>? NewFaces { get; init; }
     public int? NewFaceCount { get; init; }
     public IReadOnlyList<DimensionInfo>? Dimensions { get; init; }
+    /// <summary>feature_hole: the sketch that places each hole, and whether it is fully defined.</summary>
+    public IReadOnlyList<PlacementSketch>? PlacementSketches { get; init; }
     public IReadOnlyList<Geometry.ResolvedInfo>? Resolved { get; init; }
+}
+
+/// <summary>The sketch that places a Hole Wizard hole (its center points), read after the hole is made.</summary>
+public sealed class PlacementSketch
+{
+    /// <summary>The hole feature it places.</summary>
+    public required string Feature { get; init; }
+    public required string Sketch { get; init; }
+    /// <summary>under | fully | over | no_solution | invalid | unknown, as sketch_finish's 'constrained'.</summary>
+    public required string Constrained { get; init; }
 }

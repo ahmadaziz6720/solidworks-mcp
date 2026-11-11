@@ -170,7 +170,7 @@ internal static class FeatureVerifier
 
     /// <summary>Builds the standard result of a feature tool.</summary>
     public static FeatureResult Result(SwContext ctx, IModelDoc2 doc, FeatureOutcome o, string? consumedSketch = null,
-        Vec3? direction = null, IReadOnlyList<ResolvedInfo>? resolved = null)
+        Vec3? direction = null, IReadOnlyList<ResolvedInfo>? resolved = null, IReadOnlyList<PlacementSketch>? placementSketches = null)
     {
         double dv = o.After.Volume - o.Before.Volume;
         var faces = Describe.FeatureFaces(ctx, doc, o.Main, 12, out int faceTotal);
@@ -197,6 +197,7 @@ internal static class FeatureVerifier
             NewFaces = faces,
             NewFaceCount = faceTotal,
             Dimensions = Dimensions(o.Main),
+            PlacementSketches = placementSketches,
             Resolved = resolved,
         };
     }
