@@ -10,13 +10,15 @@ Three sections: **Open**, not yet fixed; **Waiting**, fixed and not yet settled 
 merged, a fix not yet run in a session); **Closed**, merged upstream, run and held, or
 decided against, with the record.
 
-**Open: S4, S5, S7, S9 to S15, S18, S24, S27, S30 to S46.** Next: S46 (a release left
-unregistered in a second project, a step in `CLAUDE.md`), then S41 and S42, two results
-reported `ok` that were wrong; then S30 (a stale material name) and S31 (a dry run that
-disagrees), then S24 (a delete that moves other dimensions) and S27 (a reference shown as
-`foreign`), both small; then S18's `doc_pack`. S5 and S7 wait a while for upstream's
-answer to issues #2 and #4. Of the new ones, S37, S38 and S40 to S45 were met in use; S33
-to S36 come from reading the source and the roadmap.
+**Open: S4, S5, S7, S10 to S14, S18, S24, S27, S30 to S46.** Decided 2026-11-11 by the
+owner, each in its item below. Every open item can be worked on but these: S4, S5, S7 and
+S12 wait on upstream; S10, S11, S33 and S34 are parked until a job needs them; S36 is done
+in the scenario test, not here. Order: S46 (a line in `CLAUDE.md`), S41 and S42 (results
+reported `ok` that were wrong), S40, S37, S38, S30, S31, S43, S44, S45; then the small
+ones, S32, S39, S24, S27, S18, S13 and S35's description; S6's wording into PR #6; S14
+last, the largest. S40 to S45 were found on build `…-064352`; their code is unchanged in
+`20261111-140208`. Each fix starts with its live test on the current build: an item whose
+test does not fail there is closed instead.
 
 ---
 
@@ -37,33 +39,17 @@ read `bodies` in the result after each `dimension_set`. A model driven by global
 changes through `equation_set`, whose result has no `bodies`: read `model_mass` after it
 until S37 (b).
 
-**S9. `sw_help` at session start reads ≈23.5k characters.** Usage: a short note of the tools
-and conventions the sessions here use, read instead. Where the note lives (a skill, the
-global `CLAUDE.md`, a memory) is the owner's call. The scenario test of build `…-181555`
-followed a recorded call sequence and made no `sw_help` call at all; so did those of
-`…-195750`, `…-204719` and `…-215810` (28 calls, 13.2k characters for the whole test), and
-`…-230924` (41 calls, 43.2k characters; 44% of them the sheet's note list and three note
-edits, S3 and S22), `…-235702` (33 calls, 27.1k) and `…-010708` (28 calls, 16.0k; two
-full sheet lists and two `drw_info` calls 42% of them), `…-014952` (28 calls, 16.5k),
-`…-024431` (42 calls, 21.2k), `…-034022` (25 calls, 11.6k), `…-064352` (28 calls, 13.2k;
-8 dimension adds at ≈110–600 characters each, one `drw_info` of 1.6k to read a section's
-orientation), `…-091645` (30 calls, 16.8k; the largest `feature_list` 2.1k and
-`feature_mirror` 1.9k), `…-134233` (34 calls, 16.2k; 14 of them on S28) `…-144220`
-(28 calls, 13.3k) and `20261111-140208` (60 calls, 25.2k for seven items; one `edge_list`
-spent on a wrong pick, S25). On 2026-11-11 a session wrote a caller's manual against the
-tool reference (findings, that day's first entry), and one built a machined part by it on
-`20261111-140208`: 83 calls, 32.4k, no `sw_help`, 43 of the calls `equation_set` (S37).
-
 **S10. Drawing format and title block.** Precision and decimal separator of drawing
 dimensions, parentheses for reference dimensions, `n×` in hole callouts, DWG NO from a
 property, material and weight, section label text and place, unaligning a view, rotating
 a projected view (a side view projected from a top view came rotated 90°). Upstream
 ROADMAP T10.3, T10.10, T10.12 partly. Not yet decided which to build. Usage for hole
 callouts until then: model holes as one feature plus a pattern, end condition through, so
-the callout gets `n×` and "through".
+the callout gets `n×` and "through". Parked 2026-11-11 by the owner: taken up when a job
+needs it.
 
 **S11. No dimension to a section's cut face.** `drw_dimension_add` takes model entities only.
-Not yet decided.
+Parked 2026-11-11 by the owner: taken up when a job needs it.
 
 **S12. Section orientation is not in the tool description.** Arrow side and view direction
 (findings 2026-11-09, point 12). Upstream: proposed in PR #1's text; a description change
@@ -74,8 +60,8 @@ On a part with fully defined sketches: 25 dimensions, construction ones among th
 duplicates, overlapping texts, some off the sheet, none for features whose sketches had
 none. Without a delete tool they could not be removed, so the drawing was restarted; with
 S3's `drw_annotation_edit` (Waiting) they can be deleted one by one. Usage: manual
-`drw_dimension_add` only. Not yet decided whether to fix, or to say in the description
-that the result needs cleaning.
+`drw_dimension_add` only. Decided 2026-11-11 by the owner: no code change; the
+description says the result needs cleaning and points to `drw_dimension_add`.
 
 **S14. A drawing view's axes and the sheet's drawable area are not reported.** Which model
 axis points where on the sheet (in a top view model −Z points up) decides the side for an
@@ -118,10 +104,6 @@ labels, dimension and note extents) stay open. Met again in that test: two `diam
 dimensions on the same hole edge without `textAtMm` were both placed at the same sheet
 point, the second a duplicate, with no warning for either.
 
-**S15. `tools\install.ps1` registers at user scope under the name `solidworks`.** That
-clashes with any other server of that name. Usage: `-NoRegister`, and register by hand at
-local scope. Upstream: perhaps an option for the name and scope; not yet decided.
-
 **S18. `doc_pack` faults.** (1) From a document opened `readOnly:true`, the copies still
 reference the originals (`VERIFY_FAILED: Some copies still reference other files`), three
 times; read-only is the likely cause, not yet tested with a writable open. Workaround that
@@ -129,7 +111,9 @@ held: close all, remove the originals, reopen the copies. (2) `includeDrawings:t
 no drawing when the drawings lie in another folder, and reports success; Pack and Go only
 looks next to the model. (3) Missing: new names per file (only prefix or suffix). Local:
 refuse or reopen a read-only source, report `noDrawingsFound`, say both in the description;
-then PR. (3) not yet decided.
+then PR. (3) not yet decided. Decided 2026-11-11 by the owner: (1) refuse a source opened
+read-only, with a hint to open it writable; (2) report `noDrawingsFound`; both in the
+description. (3) parked.
 
 **S24. `drw_annotation_edit` delete moves other dimensions, unreported.** In the scenario
 test of build `…-024431`: three horizontal dimensions stacked below a view, text at y 109,
@@ -138,7 +122,8 @@ both at y 109: SOLIDWORKS had closed up the stack. The result says only that the
 went down by one and the name is no longer listed; in a drawing that keeps them, the
 layout changes without a word. Bears on S3 (Closed), whose tool it is. Local: read the
 view's other annotations' positions before and after a delete and name each that moved.
-Not yet decided whether to put them back as well.
+Decided 2026-11-11 by the owner: name each that moved, before and after; do not put them
+back (a caller moves one with `drw_annotation_edit` if it wants).
 
 **S27. A document loaded as a reference shows as `foreign` in `doc_list`.** In the scenario
 test of build `…-091645` (point 5): after `doc_open` of a drawing (read-only), the part it
@@ -147,7 +132,8 @@ it, and `doc_close` of the drawing closed it too (`also closed`). Right in SOLID
 terms, but `foreign` reads as the user's document, which `doc_close` says it never closes.
 Usage: a part listed after opening a drawing or an assembly may be its reference, loaded
 with it. Local, small: mark such a document (an `access` value or a `loadedBy`), and say in
-the `doc_list` description. Not yet decided.
+the `doc_list` description. Decided 2026-11-11 by the owner: a `loadedBy` field naming the
+document that loaded it; `access` keeps its values.
 
 **S30. `model_mass` and `material_set` name a material the configuration does not have.**
 In the scenario test of build `20261111-140208` (point 1): with a material in rows A and
@@ -182,7 +168,7 @@ is one `equation_set` per part, and one made by hand in one part does not reach 
 `asm_part_new` with a face (T9.22 partly, T9.23 not built) and `part_derive` `insert`
 (solids, surfaces, material) do not cover it. Local: link, unlink and read a document's
 external equation file, `equation_list` naming each variable's source; general, fit for a
-PR. Not yet decided.
+PR. Parked 2026-11-11 by the owner: taken up when a design of several parts needs it.
 
 **S34. Reading and checking a model costs a caller listings and judgment.** From reading
 `ROADMAP.md` and the tool reference (findings 2026-11-11, first entry, points 2 to 4).
@@ -193,7 +179,8 @@ exists, no global variable at all. A caller now checks these from `feature_list`
 Explain a model in one call (T20.7, not built): each feature with the dimensions that drive
 it, sketch relations and fragile references, in place of `model_info`, `feature_list`,
 `dimension_list` and `equation_list`. (c) Session export as a replayable recipe (T3.15,
-not built), an idea for now. Upstream roadmap items; (a) first if built. Not yet decided.
+not built), an idea for now. Upstream roadmap items; (a) first if built. Parked 2026-11-11
+by the owner: taken up when a job needs it.
 
 **S35. `model_compare` against an earlier revision of the same file name.** From the
 source, not run (findings 2026-11-11, first entry, point 5): `other` is opened with
@@ -202,7 +189,9 @@ call ends `IoError`, whose hint (compare by handle) cannot help. For an assembly
 under another name, its components resolve to the open documents of those names, so two
 revisions compare the same parts and nothing says so. Local: the description names both,
 or the tool copies `other` to a temporary name and warns when an assembly's components
-came from memory. To confirm live first. Not yet decided.
+came from memory. To confirm live first. Decided 2026-11-11 by the owner: confirm both
+live, then a line in the tool's description naming each case; the copy to a temporary
+name parked.
 
 **S36. Tools no session had run.** From the tool reference (findings 2026-11-11, first
 entry, point 6): `equation_set`, `feature_rename`, `model_review`, `model_compare`,
@@ -216,7 +205,8 @@ figure, 173487.816 mm³ against 173487.8), `feature_rename` on a feature and a s
 `model_review` with and without findings. Proposed: a scenario item that opens an assembly
 built by hand, reads its components and mates and changes one dimension; one that sets a
 global variable, renames a feature and reads `model_review`. Usage: the scenario test,
-the owner's call.
+the owner's call. Decided 2026-11-11 by the owner: both scenario items, written into the
+scenario test where it is kept, not here. Closes when they are there.
 
 **S37. `equation_set` takes one equation per call and says nothing of the body.** In a
 machined part on build `20261111-140208` (findings 2026-11-11, second entry, points 2, 3).
@@ -227,7 +217,8 @@ expression}]`, one rebuild, all or nothing and verified per row, as `dimension_s
 carries no `volumeDeltaMm3` or `bodies`, unlike `dimension_set`'s, which refuses an
 equation-driven dimension: in a model driven by global variables S7's usage line cannot be
 followed from the result, and a `model_mass` after each change was needed. Bears on S7.
-Local; then PR. Not yet decided.
+Local; then PR. Decided 2026-11-11 by the owner: both, (a) many equations in one call, one
+rebuild, all or nothing, each verified; (b) `volumeDeltaMm3` and `bodies` in the result.
 
 **S38. `feature_hole` leaves its placement sketch under-defined, unreported.** In the same
 part (point 4): the result names the hole's own sketch dimensions but not the placement
@@ -236,7 +227,10 @@ sketch or its status; only `model_review` showed it, as `info`
 Workaround, 5 calls: `sketch_edit`, one `sketch_constrain` (horizontal and vertical from
 the origin, `fully`), `sketch_finish`, two `equation_set`. Local: return the placement
 sketch's name and constrained status, an option to dimension each point from the origin;
-perhaps `model_review` ranks an under-defined sketch as a warning. Not yet decided.
+perhaps `model_review` ranks an under-defined sketch as a warning. Decided 2026-11-11 by
+the owner: the placement sketch's name and constrained status in the result, and a warning
+when it is under-defined; no dimensioning option (`sketch_constrain` does it in one call);
+`model_review`'s rank stays.
 
 **S39. Two small result follow-ups from the same part** (point 7). (a) `sketch_add` of a
 centre rectangle returns six segments and `sides` names four: the two construction
@@ -254,7 +248,8 @@ twice. Workaround: `keepOnFailure:true`, the volume read from the next result; o
 path `name` is not applied (`Cut-Extrude2` kept), one `feature_rename` more. Local: a
 blind cut with no floor face passes on its volume change with a check line saying it
 broke out; `name` applied on the `keepOnFailure` path; perhaps an `upToFace` or
-`through next` end. Not yet decided.
+`through next` end. Decided 2026-11-11 by the owner: the first two (the check is in
+`FeatureService`, the "no floor face" line); `upToFace` / `through next` parked.
 
 **S41. `feature_pattern_linear` `direction2` ignores its sign, reported `ok`.** Same parts
 (point 2): a 2 x 2 pattern, the second direction ran toward +z whether `direction2` was
@@ -282,7 +277,8 @@ relations moves the free line whole, and a second merge pulled the shape back in
 flipped solution; redraw at the held points' exact coordinates instead of merging onto
 them. Local: a warning when a dimension or relation reverses a segment's direction or
 moves an end point further than the value's change explains, in the single tools and in
-`sketch_constrain`. Not yet decided.
+`sketch_constrain`. Decided 2026-11-11 by the owner: a warning, not a refusal, since a
+flip can be what the caller meant.
 
 **S43. `sketch_offset` has no dimension a caller can name, and reads under-defined.** Same
 parts (point 6), met in both: the offset's dimension could not be found (`D5@<sketch>`
@@ -301,7 +297,8 @@ in the interop patch or behind a version check. Not yet probed.
 **S45. Feature results list every new face.** Same parts (point 11): `feature_extrude`,
 `feature_mirror` and `feature_fillet` list up to twelve new faces each, 2 to 4k
 characters, read for one id or none. Same kind as S22 (Closed), whose fix did not cover
-faces. Local, small: ids only by default, or a `faces:false`. Not yet decided.
+faces. Local, small: ids only by default, or a `faces:false`. Decided 2026-11-11 by the
+owner: a short list by default (each face's id and kind), the full detail by a flag.
 
 **S46. A release is registered in one project, the server in two.** From reading a
 session's call count (findings 2026-11-11, fourth entry): `CLAUDE.md`'s release step 4
@@ -318,6 +315,9 @@ each. The owner's call. Taken up outside this repo the same day: a session-start
 the owner's re-registers a project's `solidworks-mcp` on the newest `build-` tag, run by
 hand once (it moved the stale project to `20261111-140208`), not yet run at a session
 start. With it, step 4 may only need to say that the hook does the other projects.
+Decided 2026-11-11 by the owner: a line in step 4, to register the new exe by hand in
+every project `~/.claude.json` lists with `solidworks-mcp`, until that hook has held at
+a session start.
 
 ## Waiting
 
@@ -399,7 +399,8 @@ angle that is now 7.500423°", and its `textAt` was accepted. One wording left f
 small: the accepted call's check says "the angle that is now 7.500423°, not on the one
 between the rays, now 172.499577°" in a result where they are 10° and 170°; "was" fits a
 result (the hint, given before any change, keeps "now"). Closes when that wording is in
-PR #6 and it is merged or refused.
+PR #6 and it is merged or refused. Decided 2026-11-11 by the owner: fix that wording on
+`sw2023`, then push it with `f1d5fb8`'s change to `fix/angular-supplement`, joining PR #6.
 
 **S20. `drw_dimension_add` returned some dimensions without a value check, silently.** In the
 scenario test of build `…-204719`, 9 of 23: every one with a circular edge in it (a line to
@@ -542,6 +543,27 @@ dimension's value follows the model. Closes when PR #9 is settled.
 ## Closed
 
 Each goes back to Waiting if it is sent upstream, as S3 did.
+
+**S9. `sw_help` at session start reads ≈23.5k characters.** Usage: a short note of the tools
+and conventions the sessions here use, read instead. Where the note lives (a skill, the
+global `CLAUDE.md`, a memory) is the owner's call. The scenario test of build `…-181555`
+followed a recorded call sequence and made no `sw_help` call at all; so did those of
+`…-195750`, `…-204719` and `…-215810` (28 calls, 13.2k characters for the whole test), and
+`…-230924` (41 calls, 43.2k characters; 44% of them the sheet's note list and three note
+edits, S3 and S22), `…-235702` (33 calls, 27.1k) and `…-010708` (28 calls, 16.0k; two
+full sheet lists and two `drw_info` calls 42% of them), `…-014952` (28 calls, 16.5k),
+`…-024431` (42 calls, 21.2k), `…-034022` (25 calls, 11.6k), `…-064352` (28 calls, 13.2k;
+8 dimension adds at ≈110–600 characters each, one `drw_info` of 1.6k to read a section's
+orientation), `…-091645` (30 calls, 16.8k; the largest `feature_list` 2.1k and
+`feature_mirror` 1.9k), `…-134233` (34 calls, 16.2k; 14 of them on S28) `…-144220`
+(28 calls, 13.3k) and `20261111-140208` (60 calls, 25.2k for seven items; one `edge_list`
+spent on a wrong pick, S25). On 2026-11-11 a session wrote a caller's manual against the
+tool reference (findings, that day's first entry), and one built a machined part by it on
+`20261111-140208`: 83 calls, 32.4k, no `sw_help`, 43 of the calls `equation_set` (S37). Closed 2026-11-11 on the owner's word, not taken here: a caller's note belongs with the skill that drives the server, outside this repo.
+
+**S15. `tools\install.ps1` registers at user scope under the name `solidworks`.** That
+clashes with any other server of that name. Usage: `-NoRegister`, and register by hand at
+local scope. Upstream: perhaps an option for the name and scope; not yet decided. Closed 2026-11-11 on the owner's word, not taken: the server is registered by hand at local scope, and a session-start hook of the owner's keeps each project on the newest build (S46).
 
 **S29. `A_table_makes_three_sizes_each_with_its_own_volume_and_reads_back` fails on 2023
 SP3.** A Configuration live test: the table read back has no `$MATERIAL` column
