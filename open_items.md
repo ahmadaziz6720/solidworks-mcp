@@ -10,7 +10,7 @@ Three sections: **Open**, not yet fixed; **Waiting**, fixed and not yet settled 
 merged, a fix not yet run in a session); **Closed**, merged upstream, run and held, or
 decided against, with the record.
 
-**Open: S4, S5, S7, S10 to S14, S24, S30, S32 to S36, S46.**
+**Open: S4, S5, S7, S10 to S14, S24, S30, S32 to S34, S36, S46.**
 Decided 2026-11-11 by the owner, each in its item below. Every open item can be worked on
 but these: S4, S5, S7 and S12 wait on upstream; S10, S11, S33 and S34 are parked until a
 job needs them; S36 is done in the scenario test, not here. S43 and S44 were found on
@@ -22,9 +22,9 @@ the small ones; drawings after; the release last.
 
 1. Modelling, large: S37, S42, S41, S45, S40 and S38 are done (Waiting, on `sw2023`, in
    no build yet).
-2. Modelling, smaller: S43, S18, S31, S44, S39 and S27 are done (Waiting); S30 probed,
-   waits on the owner. **Next**: S35 (confirm live, then the description), S6's wording,
-   then pushed to `fix/angular-supplement` (PR #6).
+2. Modelling, smaller: S43, S18, S31, S44, S39, S27 and S35 are done (Waiting); S30
+   probed, waits on the owner. **Next**: S6's wording, then pushed to
+   `fix/angular-supplement` (PR #6).
 3. Drawings: S14 (the largest: view axes, border and title block, extents), S24, S32,
    S13 (a description line).
 4. Release: S46's line in `CLAUDE.md` step 4, then a build as that file says, every
@@ -180,17 +180,6 @@ it, sketch relations and fragile references, in place of `model_info`, `feature_
 `dimension_list` and `equation_list`. (c) Session export as a replayable recipe (T3.15,
 not built), an idea for now. Upstream roadmap items; (a) first if built. Parked 2026-11-11
 by the owner: taken up when a job needs it.
-
-**S35. `model_compare` against an earlier revision of the same file name.** From the
-source, not run (findings 2026-11-11, first entry, point 5): `other` is opened with
-`OpenDoc6`, and SOLIDWORKS does not open a second document of a name already open, so the
-call ends `IoError`, whose hint (compare by handle) cannot help. For an assembly copied
-under another name, its components resolve to the open documents of those names, so two
-revisions compare the same parts and nothing says so. Local: the description names both,
-or the tool copies `other` to a temporary name and warns when an assembly's components
-came from memory. To confirm live first. Decided 2026-11-11 by the owner: confirm both
-live, then a line in the tool's description naming each case; the copy to a temporary
-name parked.
 
 **S36. Tools no session had run.** From the tool reference (findings 2026-11-11, first
 entry, point 6): `equation_set`, `feature_rename`, `model_review`, `model_compare`,
@@ -691,6 +680,25 @@ drawing's handle; on the code before, null); Export and TopDown live tests and t
 test, which open files, passed. Only `doc_open` marks; a reference loaded otherwise (an
 `asm_insert`) has none. To check in the scenario test: `doc_open` of a drawing, then
 `doc_list`.
+
+**S35. `model_compare` against an earlier revision of the same file name.** From the
+source, not run (findings 2026-11-11, first entry, point 5): `other` is opened with
+`OpenDoc6`, and SOLIDWORKS does not open a second document of a name already open, so the
+call ends `IoError`, whose hint (compare by handle) cannot help. For an assembly copied
+under another name, its components resolve to the open documents of those names, so two
+revisions compare the same parts and nothing says so. Local: the description names both,
+or the tool copies `other` to a temporary name and warns when an assembly's components
+came from memory. To confirm live first. Decided 2026-11-11 by the owner: confirm both
+live, then a line in the tool's description naming each case; the copy to a temporary
+name parked. Confirmed live 2026-11-11 and fixed in `4e6d556` on `sw2023`. (1) Worse than
+read: a full path to the earlier revision was taken for the open document of that file
+name, so the call ended "'other' is this document", and with another open document of
+that name it would have compared that one, reported `ok`. A full path is now that file;
+SOLIDWORKS does not open it, and the `IoError` names the open document in the way and
+how to get past it. (2) The copied assembly opened and read 30 mm deep, the open part's
+size, not the 20 mm of its own files. Both named in the description. A live test of both
+(on the code before, `INVALID_ARGUMENT` for the first). To check in the scenario test:
+`model_compare` against a copy of an open part in another folder under its name.
 
 ## Closed
 
