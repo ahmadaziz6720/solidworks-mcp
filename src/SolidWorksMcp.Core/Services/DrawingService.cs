@@ -1902,6 +1902,69 @@ public sealed partial class DrawingService(SwSession session)
         return new SheetRect(x0 * 1000, y0 * 1000, x1 * 1000, y1 * 1000);
     }
 
+    /// <summary>
+    /// The box on the sheet (mm) of what a view of a part draws: its visible edges through the model-to-sheet transform,
+    /// a line by its ends, a full circle by its projected radius, any other edge by points along it. A section draws only
+    /// what lies behind its cut, so the whole model's box (<see cref="Project"/>) can be wider than the view. Null when
+    /// the view gives no edges (an assembly's are asked per component, and are not read here).
+    /// </summary>
+    private static SheetRect? VisibleBox(IView v, double[] xf)
+    {
+        if (xf.Length < 13) return null;
+        var t = new Xform(xf);
+        var o = t.ApplyPoint(Vec3.Zero);
+        double x0 = double.MaxValue, y0 = double.MaxValue, x1 = double.MinValue, y1 = double.MinValue;
+        void Add(Vec3 model, double rx = 0, double ry = 0)
+        {
+            var s = t.ApplyPoint(model);
+            x0 = Math.Min(x0, s.X - rx); y0 = Math.Min(y0, s.Y - ry); x1 = Math.Max(x1, s.X + rx); y1 = Math.Max(y1, s.Y + ry);
+        }
+        int n = 0;
+        foreach (var e in ComArgs.Objects<IEdge>((object?)v.GetVisibleEntities2(null, (int)swViewEntityType_e.swViewEntityType_Edge)))
+        {
+            var cp = e.CurveParams(); // [start xyz, end xyz, t0, t1, ...]
+            if (cp.Length < 8) continue;
+            var c = e.Curve();
+            string kind = Topology.CurveKind(c);
+            var a = Vec3.From(cp, 0);
+            var b = Vec3.From(cp, 3);
+            if (kind == "circle" && a.DistanceTo(b) < 1e-9)
+            {
+                // The circle is c + r(cos θ·u1 + sin θ·u2): mapped to the sheet, it reaches √(s1² + s2²) along each sheet axis.
+                var p = ComArgs.Doubles((object?)c!.CircleParams);
+                var k = Vec3.From(p, 3).Normalized();
+                var u1 = Perp(k);
+                var u2 = k.Cross(u1).Normalized();
+                var s1 = t.ApplyPoint(u1 * p[6]) - o;
+                var s2 = t.ApplyPoint(u2 * p[6]) - o;
+                Add(Vec3.From(p), Math.Sqrt(s1.X * s1.X + s2.X * s2.X), Math.Sqrt(s1.Y * s1.Y + s2.Y * s2.Y));
+            }
+            else if (kind == "line")
+            {
+                Add(a);
+                Add(b);
+            }
+            else
+            {
+                const int steps = 16;
+                for (int i = 0; i <= steps; i++)
+                {
+                    var pt = e.EvalAt(cp[6] + (cp[7] - cp[6]) * i / steps);
+                    if (pt.Length >= 3) Add(Vec3.From(pt));
+                }
+            }
+            n++;
+        }
+        return n == 0 ? null : new SheetRect(x0 * 1000, y0 * 1000, x1 * 1000, y1 * 1000);
+    }
+
+    /// <summary>A unit vector perpendicular to <paramref name="k"/>.</summary>
+    private static Vec3 Perp(Vec3 k)
+    {
+        var seed = Math.Abs(k.X) < 0.9 ? new Vec3(1, 0, 0) : new Vec3(0, 1, 0);
+        return k.Cross(seed).Normalized();
+    }
+
     private static SheetRect Outline(ViewHit hit) =>
         SheetRect.FromMeters(hit.View.DrwOutline())
         ?? throw new SwException(ErrorCodes.Internal, $"The outline of view '{hit.Name}' could not be read.");
@@ -2150,7 +2213,16 @@ public sealed partial class DrawingService(SwSession session)
         SheetRect? box = null;
         if (type != (int)swDrawingViewTypes_e.swDrawingDetailView && type != (int)swDrawingViewTypes_e.swDrawingSheet)
         {
-            try { box = v.ReferencedDocument is IModelDoc2 m ? Project(xf, ModelBox(m)) : null; }
+            try
+            {
+                var shown = v.ReferencedDocument;
+                box = shown is null ? null : Project(xf, ModelBox(shown));
+                // A section draws what lies behind its cut, which can be narrower than the model: its visible edges say.
+                if (box is SheetRect whole && type == (int)swDrawingViewTypes_e.swDrawingSectionView &&
+                    shown!.GetType() == (int)swDocumentTypes_e.swDocPART && VisibleBox(v, xf) is SheetRect drawn &&
+                    drawn.Inside(whole, 0.01))
+                    box = drawn;
+            }
             catch (COMException) { /* no model loaded */ }
         }
         string? model = null, config = null;

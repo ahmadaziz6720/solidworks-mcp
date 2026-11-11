@@ -316,6 +316,7 @@ public sealed class DrawingTools(SwSession session)
     [McpServerTool(Name = "drw_info", Title = "Drawing info", ReadOnly = true, Destructive = false, Idempotent = true, OpenWorld = false)]
     [Description("Drawing overview: sheets (size, scale, projection, format) and their views (name, type, orientation, scale, centerMm, " +
                  "boundsMm, modelBoxMm, model, configuration, parent) with annotation counts (dimensions, notes, tables, center marks; a view's own label as viewLabels, not a note). " +
+                 "modelBoxMm is where the model is drawn; for a section of a part, the side behind the cut only (from its visible edges), for a section of an assembly the whole model's box. " +
                  "Positions are sheet mm from the lower-left corner.")]
     public async Task<string> DrwInfo(
         [Description(DocDesc)] string? doc = null,

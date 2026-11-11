@@ -345,6 +345,43 @@ public class DrawingLiveTests(LiveFixture fx) : LiveTest(fx)
     }
 
     [Fact]
+    public async Task A_section_s_model_box_is_what_lies_behind_the_cut()
+    {
+        // The block with a taller end: 100 (y) from x = 30 to 50, 60 elsewhere. Cut at x = 0, the section draws one side
+        // only: 60 high looking towards -x, 100 high towards +x. The whole model's box is 100 high either way.
+        string doc = await NewPartAsync("drw_section_box");
+        await Sk.StartAsync(doc, new EntityRef { Name = "front" }, false);
+        await Sk.AddAsync(doc, [new SketchEntity { Kind = "rectangle", Center = [0, 0], WidthMm = 100, HeightMm = 60 }]);
+        await Fs.ExtrudeAsync(new ExtrudeRequest { Doc = doc, DepthMm = 20 });
+        await Sk.StartAsync(doc, new EntityRef { Name = "front" }, false);
+        await Sk.AddAsync(doc, [new SketchEntity { Kind = "rectangle", Center = [40, 0], WidthMm = 20, HeightMm = 100 }]);
+        await Fs.ExtrudeAsync(new ExtrudeRequest { Doc = doc, DepthMm = 20 });
+        string path = (await Docs.SaveAsync(doc, "as", Path.Combine(_dir, "drw_section_box.sldprt"), false)).SavedTo!;
+        string drw = await DrawingAsync("drw_section_box");
+        var front = (await Drw.ViewsStandardAsync(path, ["front"], null, drw)).Views[0];
+        var b = front.ModelBoxMm!;
+        double s = ScaleOf(front.Scale);
+        Assert.Equal(100 * s, b[3] - b[1], L);
+        double cx = b[0] + 50 * s; // x = 0
+
+        var one = (await Drw.SectionAsync(front.Name, [cx, b[1] - 10], [cx, b[3] + 10], null, null, drw)).View;
+        var other = (await Drw.SectionAsync(front.Name, [cx, b[3] + 10], [cx, b[1] - 10], null, null, drw)).View;
+        Assert.NotEqual(one.Orientation, other.Orientation); // the line's direction turns the view around
+        foreach (var v in new[] { one, other })
+        {
+            double high = v.Orientation == "right" ? 60 : 100; // "right" shows the right side: it looks towards -x
+            Assert.True(v.Orientation is "right" or "left", $"the section looks {v.Orientation}");
+            AssertBoxSize(v, 20, high);
+            var box = v.ModelBoxMm!;
+            Assert.True(box[0] >= v.BoundsMm![0] && box[2] <= v.BoundsMm[2] && box[1] >= v.BoundsMm[1] && box[3] <= v.BoundsMm[3], "inside the outline");
+        }
+        // drw_info gives the same boxes.
+        var info = (await Drw.InfoAsync(drw)).Sheets[0].Views!;
+        Assert.Equal(one.ModelBoxMm, info.Single(v => v.Name == one.Name).ModelBoxMm);
+        Assert.Equal(other.ModelBoxMm, info.Single(v => v.Name == other.Name).ModelBoxMm);
+    }
+
+    [Fact]
     public async Task A_drawing_shows_no_open_sketch_before_or_after_a_section()
     {
         // In a drawing SketchManager.ActiveSketch always names the sheet's or the active view's own sketch, from the new
