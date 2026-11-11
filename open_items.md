@@ -22,9 +22,9 @@ the small ones; drawings after; the release last.
 
 1. Modelling, large: S37, S42, S41, S45, S40 and S38 are done (Waiting, on `sw2023`, in
    no build yet).
-2. Modelling, smaller: S43 is done (Waiting). **Next**: S30 (probe first), S18 (1, 2),
-   S31, S44 (probe first), S39, S27, S35 (confirm live, then the description), S6's
-   wording, then pushed to `fix/angular-supplement` (PR #6).
+2. Modelling, smaller: S43 is done (Waiting); S30 probed, waits on the owner. **Next**:
+   S18 (1, 2), S31, S44 (probe first), S39, S27, S35 (confirm live, then the
+   description), S6's wording, then pushed to `fix/angular-supplement` (PR #6).
 3. Drawings: S14 (the largest: view axes, border and title block, extents), S24, S32,
    S13 (a description line).
 4. Release: S46's line in `CLAUDE.md` step 4, then a build as that file says, every
@@ -159,7 +159,18 @@ both `ok`; the table, which reads by the configuration's name, gave none for `De
 Both read `GetMaterialPropertyName2("")`. Likely the material that reached `Default`
 while row A was set (S29's cause) and was given back by name still answers to `""`; not
 probed. Local: read by the active configuration's name in both, and probe whether S29's
-putting back leaves something behind under `""`. Not yet fixed.
+putting back leaves something behind under `""`. Probed 2026-11-11 on `sw2023` at
+`fa434e5`, live: a block, `config_table` rows A (`AISI 1020`), B, C, `material_set` 6061
+in C with `Default` active. Read by each configuration's name, `Default` has no material
+until it is activated again after A, B and C; from then on `GetMaterialPropertyName2`
+by its own name, by `""` and `MaterialIdName` all give `AISI 1020`, after a rebuild too,
+while its mass reads 1000 kg/m³ and its body names no material. So reading by the
+active configuration's name does not fix it: SOLIDWORKS keeps a name it does not apply.
+A test that fails on it (`model_mass` names `AISI 1020` in `Default`) and the reads by
+name in six services were written and set aside, not committed. Waits on the owner: what the tools
+report when the name and the density disagree (e.g. the name with a warning, or no
+material), and whether to look for where the name comes from (S29's putting back, or
+`Default`'s activation).
 
 **S31. `feature_delete` `dryRun` says kept what the delete removes.** In the scenario test
 of build `20261111-140208` (point 3, from S26): a mirror with two Hole Wizard children,
