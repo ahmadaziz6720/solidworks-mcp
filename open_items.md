@@ -23,8 +23,8 @@ the small ones; drawings after; the release last.
 1. Modelling, large: S37, S42, S41, S45, S40 and S38 are done (Waiting, on `sw2023`, in
    no build yet).
 2. Modelling, smaller: S43, S18, S31, S44, S39, S27 and S35 are done (Waiting); S30
-   probed, waits on the owner. **Next**: S6's wording, then pushed to
-   `fix/angular-supplement` (PR #6).
+   probed, waits on the owner. S6's wording is done on `sw2023` and on
+   `fix/angular-supplement`, the push to PR #6 waiting on the owner's word.
 3. Drawings: S14 (the largest: view axes, border and title block, extents), S24, S32,
    S13 (a description line).
 4. Release: S46's line in `CLAUDE.md` step 4, then a build as that file says, every
@@ -297,6 +297,11 @@ between the rays, now 172.499577°" in a result where they are 10° and 170°; "
 result (the hint, given before any change, keeps "now"). Closes when that wording is in
 PR #6 and it is merged or refused. Decided 2026-11-11 by the owner: fix that wording on
 `sw2023`, then push it with `f1d5fb8`'s change to `fix/angular-supplement`, joining PR #6.
+Fixed in `48d111f` on `sw2023`: the accepted call's check says "the angle that was
+7.500423°, not on the one between the rays, then 172.499577°"; the hint keeps "now". The
+live test of the hint asserts it; the 33 angle tests passed. Both commits cherry-picked
+clean onto `fix/angular-supplement` (`aa59f21`, `434d9e8`, in its worktree), not pushed
+yet: the push joins PR #6.
 
 **S20. `drw_dimension_add` returned some dimensions without a value check, silently.** In the
 scenario test of build `…-204719`, 9 of 23: every one with a circular edge in it (a line to
