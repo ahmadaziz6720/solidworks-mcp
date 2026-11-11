@@ -236,7 +236,9 @@ public sealed partial class PropertiesService(SwSession session)
                 Materials = page,
                 Total = rows.Count,
                 Truncated = skip + page.Count < rows.Count ? true : null,
-                Databases = cat.Databases,
+                // With a filter, only the databases it reaches (S39): the whole list came back on every call.
+                Databases = f.Length == 0 ? cat.Databases
+                    : cat.Databases.Where(db => Has(db.Name, f) || rows.Any(m => m.Database.Equals(db.Name, StringComparison.OrdinalIgnoreCase))).ToList(),
             };
         }, null, ct);
 

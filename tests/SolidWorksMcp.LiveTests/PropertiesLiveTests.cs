@@ -210,6 +210,9 @@ public class PropertiesLiveTests(LiveFixture fx) : LiveTest(fx)
 
         var page = await P.MaterialListAsync(null, 5, 0);
         Assert.Equal(5, page.Materials.Count);
+        // S39 (b): a filter's databases are those it reaches, not the whole list repeated on every call.
+        Assert.All(r.Databases, db => Assert.Contains(r.Materials, x => x.Database == db.Name));
+        Assert.True(r.Databases.Count < page.Databases.Count, $"{r.Databases.Count} of {page.Databases.Count} databases");
         Assert.True(page.Truncated);
         Assert.True(page.Total > 100, $"total {page.Total}");
         var next = await P.MaterialListAsync(null, 5, 5);
@@ -219,6 +222,7 @@ public class PropertiesLiveTests(LiveFixture fx) : LiveTest(fx)
         Assert.Empty(none.Materials);
         Assert.Equal(0, none.Total);
         Assert.Contains(none.Warnings!, w => w.Contains("No material matches"));
+        Assert.Empty(none.Databases);
     }
 
     [Fact]
