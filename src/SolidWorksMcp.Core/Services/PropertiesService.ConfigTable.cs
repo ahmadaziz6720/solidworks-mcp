@@ -391,13 +391,54 @@ public sealed partial class PropertiesService
                 break;
             case ColKind.Material:
                 var m = (MaterialCatalog.Entry)v;
-                ((IPartDoc)d).SetMaterialPropertyName2(cfg, m.Database, m.Name);
+                SetMaterialIn(ctx, d, cfg, m.Database, m.Name);
                 break;
             case ColKind.ComponentConfig:
                 var cc = Component(d, c.Target) ?? throw new SwException(ErrorCodes.EntityNotFound, $"Component '{c.Target}' is gone.");
                 cc.ReferencedConfiguration = (string)v;
                 break;
         }
+    }
+
+    /// <summary>
+    /// Sets the material of one configuration and of no other. On SOLIDWORKS 2023 SetMaterialPropertyName2 with a
+    /// configuration's name reaches other configurations too: the active one when another is named, and the rest when
+    /// the active one is named (their mass shows it once they are activated, the name read back not always). Two
+    /// measures, which together held against each configuration's mass: with other configurations present the call is
+    /// made while another one is active, and the others are read before and after, one that changed given back what
+    /// it had. One that can't be put back is warned about.
+    /// </summary>
+    private static void SetMaterialIn(SwContext ctx, IModelDoc2 d, string cfg, string db, string name)
+    {
+        var part = (IPartDoc)d;
+        var others = new List<(string Name, string Material, string Db)>();
+        foreach (var n in ConfigNames(d))
+        {
+            if (n.Equals(cfg, StringComparison.OrdinalIgnoreCase)) continue;
+            string had = part.GetMaterialPropertyName2(n, out string hadDb) ?? "";
+            others.Add((n, had, hadDb ?? ""));
+        }
+        string active = ActiveConfig(d);
+        bool away = others.Count > 0 && active.Equals(cfg, StringComparison.OrdinalIgnoreCase);
+        if (away) Activate(d, others[0].Name);
+        try { part.SetMaterialPropertyName2(cfg, db, name); }
+        finally { if (away) Activate(d, active); }
+        var stuck = new List<string>();
+        foreach (var o in others)
+        {
+            if ((part.GetMaterialPropertyName2(o.Name, out _) ?? "") == o.Material) continue;
+            part.SetMaterialPropertyName2(o.Name, o.Db, o.Material);
+            if ((part.GetMaterialPropertyName2(o.Name, out _) ?? "") != o.Material) stuck.Add(o.Name);
+        }
+        // Putting the others back must not have taken the material from this one.
+        if (stuck.Count == 0 && others.Count > 0 && (part.GetMaterialPropertyName2(cfg, out _) ?? "") != name)
+        {
+            part.SetMaterialPropertyName2(cfg, db, name);
+            stuck.AddRange(others.Where(o => (part.GetMaterialPropertyName2(o.Name, out _) ?? "") != o.Material).Select(o => o.Name));
+        }
+        if (stuck.Count > 0)
+            ctx.Warn($"SOLIDWORKS also set the material '{name}' in {string.Join(", ", stuck.Select(x => $"'{x}'"))}, " +
+                     $"not only in '{cfg}', and it could not be put back there (set each one's material to keep them apart).");
     }
 
     /// <summary>A value in the active configuration, as SetActive takes it (null: a missing property or component).</summary>

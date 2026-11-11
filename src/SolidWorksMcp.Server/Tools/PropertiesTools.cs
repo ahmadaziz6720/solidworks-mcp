@@ -35,7 +35,7 @@ public sealed class PropertiesTools(SwSession session)
         IProgress<ProgressNotificationValue> progress,
         [Description("Material name as material_list shows it.")] string name,
         [Description("Database from material_list (default: the one that has the name).")] string? database = null,
-        [Description("Configuration (default: the active one).")] string? configuration = null,
+        [Description("Configuration (default: the active one). A named one is set alone: the others keep their material, or none.")] string? configuration = null,
         [Description(DocArg)] string? doc = null,
         CancellationToken cancellationToken = default) =>
         Output.Json(_svc.MaterialSetAsync(doc, name, database, configuration, cancellationToken), progress, "material_set");

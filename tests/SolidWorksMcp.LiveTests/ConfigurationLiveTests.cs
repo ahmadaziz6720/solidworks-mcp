@@ -61,6 +61,31 @@ public class ConfigurationLiveTests(LiveFixture fx) : LiveTest(fx)
     private static double Block(double h, bool hole) => 100 * 60 * h - (hole ? Hole * h : 0);
 
     [Fact]
+    public async Task A_material_set_in_one_configuration_stays_out_of_the_others()
+    {
+        // On SOLIDWORKS 2023 a material set in the active configuration reaches the others; the mass of each, activated, is the oracle.
+        string doc = await HoledBlockAsync("cfg_mat");
+        string start = (await P.ConfigListAsync(doc)).Active;
+        await P.ConfigTableAsync(doc, [Row("Short", ("D1@Boss-Extrude1", 10)), Row("Long", ("D1@Boss-Extrude1", 40))]);
+        var far = await P.MaterialSetAsync(doc, "AISI 304", null, "Long"); // not the active one
+        Assert.Equal("Long", far.Configuration);
+        await P.ConfigActivateAsync(doc, "Short");
+        var here = await P.MaterialSetAsync(doc, "AISI 1020", null, "Short"); // the active one, named
+        Assert.Null(here.Warnings);
+        Assert.Equal("Short", (await P.ConfigListAsync(doc)).Active);
+        Assert.Equal(7900, here.DensityKgM3!.Value, 1.0);
+
+        var t = (await P.ConfigTableAsync(doc, null, ["$MATERIAL"])).Rows.ToDictionary(x => x.Configuration);
+        Assert.Equal("AISI 304", t["Long"].Values["$MATERIAL"]);
+        Assert.Equal("AISI 1020", t["Short"].Values["$MATERIAL"]);
+        Assert.Null(t[start].Values["$MATERIAL"]);
+        foreach (var (cfg, h, density) in new[] { ("Long", 40.0, 8000.0), (start, 20.0, 1000.0), ("Short", 10.0, 7900.0) })
+        {
+            await P.ConfigActivateAsync(doc, cfg);
+            Assert.Equal(Block(h, true) * 1e-9 * density, (await new MeasureService(S).MassAsync(doc, null)).MassKg, 1e-5);
+        }
+    }
+    [Fact]
     public async Task A_table_makes_three_sizes_each_with_its_own_volume_and_reads_back()
     {
         string doc = await HoledBlockAsync("cfg_table");
@@ -91,6 +116,8 @@ public class ConfigurationLiveTests(LiveFixture fx) : LiveTest(fx)
         Assert.Equal("unsuppressed", byName["Long"].Values["$STATE@Cut-Extrude1"]);
         Assert.Equal("B-40", byName["Long"].Values["$PRP@PartNo"]);
         Assert.Equal("AISI 1020", byName["Short"].Values["$MATERIAL"]);
+        Assert.Null(byName["Long"].Values["$MATERIAL"]); // the material went to its own row only
+        Assert.Null(byName[start].Values["$MATERIAL"]);
 
         // An update of one existing configuration leaves the others alone.
         var u = await P.ConfigTableAsync(doc, [Row("Long", ("D1@Boss-Extrude1", 30))]);

@@ -266,7 +266,8 @@ public sealed partial class PropertiesService(SwSession session)
             string db = entry?.Database ?? MaterialCatalog.ApiName(string.IsNullOrWhiteSpace(database) ? MaterialCatalog.DefaultDatabase : database!.Trim());
 
             string prev = part.GetMaterialPropertyName2(cfg, out string prevDb) ?? "";
-            part.SetMaterialPropertyName2(cfg, db, material);
+            if (cfg.Length > 0) SetMaterialIn(ctx, d, cfg, db, material); // a named configuration: that one only
+            else part.SetMaterialPropertyName2(cfg, db, material);
             string now = part.GetMaterialPropertyName2(cfg, out string nowDb) ?? "";
             var checks = new List<string>();
             if (!string.Equals(now, material, StringComparison.Ordinal))
