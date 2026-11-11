@@ -10,10 +10,13 @@ Three sections: **Open**, not yet fixed; **Waiting**, fixed and not yet settled 
 merged, a fix not yet run in a session); **Closed**, merged upstream, run and held, or
 decided against, with the record.
 
-**Open: S4, S5, S7, S9 to S15, S18, S24, S27, S30 to S39.** Next: S30 (a stale material name) and S31 (a dry run that disagrees), then S24 (a delete that moves other
-dimensions) and S27 (a reference shown as `foreign`), both small; then S18's `doc_pack`.
-S5 and S7 wait a while for upstream's answer to issues #2 and #4. Of the new ones, S37
-and S38 were met in use; S33 to S36 come from reading the source and the roadmap.
+**Open: S4, S5, S7, S9 to S15, S18, S24, S27, S30 to S46.** Next: S46 (a release left
+unregistered in a second project, a step in `CLAUDE.md`), then S41 and S42, two results
+reported `ok` that were wrong; then S30 (a stale material name) and S31 (a dry run that
+disagrees), then S24 (a delete that moves other dimensions) and S27 (a reference shown as
+`foreign`), both small; then S18's `doc_pack`. S5 and S7 wait a while for upstream's
+answer to issues #2 and #4. Of the new ones, S37, S38 and S40 to S45 were met in use; S33
+to S36 come from reading the source and the roadmap.
 
 ---
 
@@ -241,6 +244,77 @@ diagonals, needed for a midpoint relation to the origin, are not named and were 
 (b) `material_list {filter:"6061"}`: 4 rows in 1268 characters, about two thirds the list
 of databases, repeated on every call. Same kind as S22 (Closed). Local, small. Not yet
 fixed.
+
+**S40. A blind cut whose far end leaves the body is refused, though SOLIDWORKS made it.**
+In two printed parts on build `…-064352` (findings 2026-11-11, third entry, point 1): a
+hole through a plate and a pocket opening through a slanted underside, `feature_extrude`
+cut, blind, gave `VERIFY_FAILED: ... no floor face at 12 mm along [-1, 0, 0]` and was
+rolled back; the cut was right. `through_all` would have gone through other walls. Met
+twice. Workaround: `keepOnFailure:true`, the volume read from the next result; on that
+path `name` is not applied (`Cut-Extrude2` kept), one `feature_rename` more. Local: a
+blind cut with no floor face passes on its volume change with a check line saying it
+broke out; `name` applied on the `keepOnFailure` path; perhaps an `upToFace` or
+`through next` end. Not yet decided.
+
+**S41. `feature_pattern_linear` `direction2` ignores its sign, reported `ok`.** Same parts
+(point 2): a 2 x 2 pattern, the second direction ran toward +z whether `direction2` was
+`-z` or `+z`; `ok` with two warnings (`4/6 instance faces`, `2 of 6 instance faces were
+not found`) and a volume change of one instance. The misplaced instances cut air, so
+nothing failed, and a mirror of that pattern then cut two holes where none belonged.
+Direction 1 is redone flipped when it runs backwards; direction 2 is not, though the code
+has a `flip2` (a partial match is taken as the best hypothesis, not as a reversal). No
+pattern commit since that build. Workaround: a pattern in one direction, then
+`feature_mirror`. (b) Point 3: with `directionRef`, `direction:"-y"` is refused (`not
+parallel to edge`) with a hint to give the sign as `"+"/"-"`, and `"+"` is then refused
+(`'+' is not an axis`); leaving `direction` out worked. The hint names a value the tool
+does not take. Local: a pattern with instance faces missing is refused, or redone
+flipped in direction 2; the hint fixed. Not yet fixed.
+
+**S42. `sketch_dimension_add` angular can flip a segment and report the angle matched.**
+Same parts (point 4): two lines meeting at a vertex 130° apart, 50° asked, `textAt` inside
+the wedge: the solver mirrored one line, the result read `value reads back 50°, geometry
+measures 50°`, only the `changed` list showed the line now running the other way, and the
+sketch went `fully` defined in the wrong shape. Bears on S6, whose fix keeps the
+supplement by `textAt` and checks the value, not the shape. Workaround: delete and
+redraw the line, dimension the angle the rays really make first, the distances after.
+Usage (point 5): `sketch_relation_add` `merge` of a free line's end onto a point held by
+relations moves the free line whole, and a second merge pulled the shape back into the
+flipped solution; redraw at the held points' exact coordinates instead of merging onto
+them. Local: a warning when a dimension or relation reverses a segment's direction or
+moves an end point further than the value's change explains, in the single tools and in
+`sketch_constrain`. Not yet decided.
+
+**S43. `sketch_offset` has no dimension a caller can name, and reads under-defined.** Same
+parts (point 6), met in both: the offset's dimension could not be found (`D5@<sketch>`
+not found after four dimensions), so no equation can drive it; and a sketch that read
+`constrained: fully` while open is listed `sketch_under_defined` by `model_review` once
+it holds an offset. Local: return the offset dimension's full name in the result; read
+why `model_review` and the sketch's own status disagree. Not yet looked into.
+
+**S44. `feature_chamfer` `equal` makes a chamfer with no faces on 2023.** Same parts (point
+7): on a concave edge and on a circular edge, `'Chamfer1' was created but has no faces`,
+then the tool fell back to distance-distance by itself and held. Twice in two tries.
+Reported success, the right chamfer. Local, small: if `swChamferEqualDistance` never works
+on 2023 SP3 (a live probe first), go straight to distance-distance and drop the warning,
+in the interop patch or behind a version check. Not yet probed.
+
+**S45. Feature results list every new face.** Same parts (point 11): `feature_extrude`,
+`feature_mirror` and `feature_fillet` list up to twelve new faces each, 2 to 4k
+characters, read for one id or none. Same kind as S22 (Closed), whose fix did not cover
+faces. Local, small: ids only by default, or a `faces:false`. Not yet decided.
+
+**S46. A release is registered in one project, the server in two.** From reading a
+session's call count (findings 2026-11-11, fourth entry): `CLAUDE.md`'s release step 4
+registers the new exe "(scope local, in the owner's project)". The server is registered
+at local scope in two of the owner's projects, each with its own exe path in
+`~/.claude.json`; builds up to `…-064352` went to both, the five after it only to the one
+where the scenario test runs. A session in the other project ran two parts and an
+assembly on `…-064352`, without `sketch_constrain` (S8), ~150 of ~330 calls single
+relations and dimensions. `sw_status` reported the old build rightly; nothing compared it
+with the latest release. Bears on S15 and S16. Local, in this repo's release steps:
+step 4 reads every project's `mcpServers.solidworks-mcp.command` from `~/.claude.json`,
+names each on an older build in the question to the owner, and registers the new exe in
+each. The owner's call.
 
 ## Waiting
 
@@ -657,6 +731,10 @@ the supplementary sector, 8 steps in one call, 1.2k (before: 8 calls, 3.3k); vol
 the earlier builds' to the last digit. The part's geometry and design-intent steps took 33
 calls and 21.1k characters, against 49 and 26.9k in build `…-195750` and ≈53 and ≈35k in
 the baseline. Closed 2026-11-10 on the owner's word. Upstream: a PR not yet decided.
+Met again 2026-11-11 (findings, third entry, point 8) by a session left on build
+`…-064352`, before the fix: ~150 of ~330 calls single relations and dimensions. Cause:
+S46. Asked there too: horizontal / vertical inferred for lines drawn so in `sketch_add`;
+not taken for now, `sketch_constrain` covers the call count.
 
 **S16. The build a session runs could not be told from inside it.** `sw_status` reported
 `serverVersion` `0.1.0` only. A session open across a rebuild keeps the old process while
@@ -699,7 +777,8 @@ about the front plane, 9/9 faces reflected, the area ratio 1.052 a check line, n
 warning; (b) no `doc_open` warned `Double 2`, an assembly, a drawing, a ~230 mm part and a
 STEP import opened, the last two while a 10 mm part was active; (c) `doc_close` of an
 assembly and of a drawing listed the parts also closed by name. Closed 2026-11-10 on the
-owner's word. Upstream: (b) and (c) are general; a PR not yet decided.
+owner's word. Upstream: (b) and (c) are general; a PR not yet decided. (b) met again
+2026-11-11 (findings, third entry, point 10) on build `…-064352`, before the fix (S46).
 
 **S21. A document opened `readOnly:true` became dirty without an edit**: an assembly after
 only `asm_interference`, `model_info` and `view_screenshot`; a drawing after

@@ -1079,6 +1079,10 @@ Build `0.1.0-sw2023-20261110-064352`. About 330 calls over two parts and an asse
     with `access: owned` and every feature there. A sketch open at the time of the save
     came back closed with its segments kept.
 
+Sorted into S40 new (1); S41 new (2, 3); S42 new (4, 5); S43 new (6); S44 new (7); S45 new
+(11). S8, Closed, met on a build before its fix (8), cause in S46. S17, Closed, met on a
+build before its fix (10). Not filed (9, 12): held as documented.
+
 **2026-11-11: a release left unregistered in a second project that uses the server**
 
 Build `0.1.0-sw2023-20261110-064352` (the one a second project still runs); latest
@@ -1098,3 +1102,5 @@ by a call.
    project that registers the server and re-registers each, or reads them from
    `~/.claude.json` (`projects.*.mcpServers.solidworks-mcp.command`) and names any left on
    an older build in the question to the owner.
+
+Sorted into S46 new (1).
