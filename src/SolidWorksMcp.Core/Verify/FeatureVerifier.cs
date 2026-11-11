@@ -41,7 +41,31 @@ internal static class FeatureVerifier
     /// </summary>
     public static FeatureOutcome Check(SwContext ctx, IModelDoc2 doc, Snapshot before, FeatureSpec spec,
         Func<IFeature, Snapshot, List<string>, IEnumerable<string>>? intent = null, bool keepOnFailure = false,
-        object? apiResult = null)
+        object? apiResult = null, string? nameIfKept = null)
+    {
+        try
+        {
+            return CheckCore(ctx, doc, before, spec, intent, keepOnFailure, apiResult);
+        }
+        catch (SwException ex) when (keepOnFailure && !string.IsNullOrWhiteSpace(nameIfKept) &&
+                                     ex.Message.EndsWith(KeptSuffix, StringComparison.Ordinal))
+        {
+            // A feature kept after a failed check gets the name the call asked for, as one that passed would (S40).
+            var kept = Snapshot.Take(doc).Features.Where(kv => !before.Features.ContainsKey(kv.Key)).Select(kv => kv.Value)
+                .FirstOrDefault(f => spec.Types.Contains(f.GetTypeName2()));
+            if (kept is null) throw;
+            string was = kept.Name;
+            kept.Name = nameIfKept;
+            string named = kept.Name == nameIfKept ? $" The result was kept as '{nameIfKept}' (keepOnFailure)."
+                : $" The result was kept as '{kept.Name}' (keepOnFailure); it could not be renamed to '{nameIfKept}'.";
+            throw new SwException(ex.Code, ex.Message[..^KeptSuffix.Length].Replace($"'{was}'", $"'{kept.Name}'") + named, ex.Hint, ex);
+        }
+    }
+
+    private const string KeptSuffix = " The result was kept (keepOnFailure).";
+
+    private static FeatureOutcome CheckCore(SwContext ctx, IModelDoc2 doc, Snapshot before, FeatureSpec spec,
+        Func<IFeature, Snapshot, List<string>, IEnumerable<string>>? intent, bool keepOnFailure, object? apiResult)
     {
         var after = Snapshot.Take(doc);
         var created = after.Features.Where(kv => !before.Features.ContainsKey(kv.Key)).Select(kv => kv.Value).ToList();
@@ -103,7 +127,7 @@ internal static class FeatureVerifier
         string code, string message, string? hint)
     {
         if (keep)
-            throw new SwException(code, message + " The result was kept (keepOnFailure).", hint);
+            throw new SwException(code, message + KeptSuffix, hint);
         string rb = Rollback(ctx, doc, before);
         throw new SwException(code, message + " " + rb, hint);
     }

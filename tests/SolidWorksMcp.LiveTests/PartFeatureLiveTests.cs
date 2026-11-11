@@ -482,6 +482,36 @@ public class PartFeatureLiveTests(LiveFixture fx) : LiveTest(fx)
         Assert.Equal(Math.PI * 4 * 5, pin.Verified.VolumeDeltaMm3, Vq);
     }
 
+    [Fact]
+    public async Task A_blind_cut_that_leaves_the_body_passes_on_its_volume_and_a_kept_failure_takes_its_name()
+    {
+        // S40: a blind cut 30 deep from the top of the 20 mm block has no floor: it used to be refused ("no floor face at
+        // 30 mm") and rolled back, though the cut was the one asked for.
+        string doc = await BlockAsync("cut_breaks_out");
+        await Sk.StartAsync(doc, new EntityRef { At = [-20, 20, 0] }, false);
+        await Sk.AddAsync(doc, [new SketchEntity { Kind = "circle", Center = [-20, 20, 0], RadiusMm = 3 }]);
+        var through = await Fs.ExtrudeAsync(new ExtrudeRequest { Doc = doc, Cut = true, DepthMm = 30, Name = "ThroughHole" });
+        Assert.Equal(-Math.PI * 9 * 20, through.Verified.VolumeDeltaMm3, Vq);
+        Assert.Equal("ThroughHole", through.Feature.Name);
+        Assert.Contains(through.Verified.Checks!, c => c.Contains("broke out of the body"));
+
+        // A cut that ends inside the body still shows its floor, and no such line.
+        await Sk.StartAsync(doc, new EntityRef { At = [20, 20, 0] }, false);
+        await Sk.AddAsync(doc, [new SketchEntity { Kind = "circle", Center = [20, 20, 0], RadiusMm = 3 }]);
+        var pocket = await Fs.ExtrudeAsync(new ExtrudeRequest { Doc = doc, Cut = true, DepthMm = 5 });
+        Assert.Equal(-Math.PI * 9 * 5, pocket.Verified.VolumeDeltaMm3, Vq);
+        Assert.Contains(pocket.Verified.Checks!, c => c.Contains("floor at 5 mm"));
+        Assert.DoesNotContain(pocket.Verified.Checks!, c => c.Contains("broke out"));
+
+        // A failure kept with keepOnFailure takes the name the call gave: a boss that lies inside the block adds nothing.
+        await Sk.StartAsync(doc, new EntityRef { Name = "top" }, false);
+        await Sk.AddAsync(doc, [new SketchEntity { Kind = "circle", Center = [0, 0, 20], RadiusMm = 3 }]);
+        var kept = await Assert.ThrowsAsync<SwException>(() =>
+            Fs.ExtrudeAsync(new ExtrudeRequest { Doc = doc, DepthMm = 10, Name = "Inner", KeepOnFailure = true }));
+        Assert.Contains("kept as 'Inner' (keepOnFailure)", kept.Message);
+        Assert.Contains((await Ins.FeatureListAsync(doc, false, 500, 0)).Features, f => f.Name == "Inner");
+    }
+
     // ------------------------------------------------------------------ linear pattern
 
     [Fact]

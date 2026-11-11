@@ -94,7 +94,7 @@ public sealed partial class FeatureService(SwSession session)
 
             var o = FeatureVerifier.Check(ctx, d, before, q.Cut ? CutSpec : BossSpec,
                 (main, after, checks) => ExtrudeIntent(main, end, depth, origin, dirModel, q.Cut, checks),
-                q.KeepOnFailure, api);
+                q.KeepOnFailure, api, q.Name);
             entry.LastSketch = null; // consumed
             Rename(ctx, o.Main, q.Name);
             return FeatureVerifier.Result(ctx, d, o, sketchFeat.Name, dirModel);
@@ -114,9 +114,21 @@ public sealed partial class FeatureService(SwSession session)
             var p = Topology.InteriorPoint(f);
             offsets.Add((p - origin).Dot(dir));
         }
+        // A cut whose far end leaves the body has no floor there (a hole through a plate, a pocket that opens through a
+        // slanted underside). With no floor anywhere but where one was asked, that is the cut made as asked: it passes on
+        // the volume it removed, and a check line says it broke out (S40). A floor at another depth still fails.
+        bool brokeOutOnly = cut && offsets.All(x => expect.Any(e => Math.Abs(x - e) < 1e-6));
         foreach (var e in expect)
         {
             if (offsets.Any(x => Math.Abs(x - e) < 1e-6)) checks.Add($"{(cut ? "floor" : "cap")} at {Units.Mm(e)} mm");
+            else if (brokeOutOnly)
+            {
+                string? depthDim = end == "blind"
+                    ? FeatureVerifier.Dimensions(main).FirstOrDefault(x => x.Unit == "mm" && Math.Abs(x.Value - Units.Mm(depth)) < 1e-6)?.Name
+                    : null;
+                checks.Add($"no floor at {Units.Mm(e)} mm: the cut broke out of the body before its end" +
+                           (depthDim is null ? "" : $" ({depthDim} reads {Units.Mm(depth)} mm)"));
+            }
             else
                 yield return $"no {(cut ? "floor" : "cap")} face at {Units.Mm(e)} mm along [{TopoQuery.Fmt(Units.Unit(dir))}]" +
                              (offsets.Count == 0 ? "" : $" (planar faces at {string.Join(", ", offsets.Select(x => Units.Mm(x)))} mm)");
