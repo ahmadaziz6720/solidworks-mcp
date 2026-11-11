@@ -13,12 +13,25 @@ decided against, with the record.
 **Open: S4, S5, S7, S10 to S14, S18, S24, S27, S30 to S46.** Decided 2026-11-11 by the
 owner, each in its item below. Every open item can be worked on but these: S4, S5, S7 and
 S12 wait on upstream; S10, S11, S33 and S34 are parked until a job needs them; S36 is done
-in the scenario test, not here. Order: S46 (a line in `CLAUDE.md`), S41 and S42 (results
-reported `ok` that were wrong), S40, S37, S38, S30, S31, S43, S44, S45; then the small
-ones, S32, S39, S24, S27, S18, S13 and S35's description; S6's wording into PR #6; S14
-last, the largest. S40 to S45 were found on build `…-064352`; their code is unchanged in
-`20261111-140208`. Each fix starts with its live test on the current build: an item whose
-test does not fail there is closed instead.
+in the scenario test, not here. S40 to S45 were found on build `…-064352`; their code is
+unchanged in `20261111-140208`. Each fix starts with its live test on the current build:
+an item whose test does not fail there is closed instead.
+
+**Order of work** (the owner, 2026-11-11): modelling first, the largest code first, then
+the small ones; drawings after; the release last.
+
+1. Modelling, large: S37 (`equation_set` batch and its volume), S42 (a warning when a
+   segment flips, single tools and `sketch_constrain`), S41 (`direction2`'s sign and the
+   `directionRef` hint), S45 (a short face list in every feature result), S40 (a blind
+   cut that breaks out; `name` on `keepOnFailure`), S38 (the hole's placement sketch).
+2. Modelling, smaller: S43 (look into the offset's dimension first), S30 (probe first),
+   S18 (1, 2), S31, S44 (probe first), S39, S27, S35 (confirm live, then the
+   description), S6's wording, then pushed to `fix/angular-supplement` (PR #6).
+3. Drawings: S14 (the largest: view axes, border and title block, extents), S24, S32,
+   S13 (a description line).
+4. Release: S46's line in `CLAUDE.md` step 4, then a build as that file says, every
+   project registered, and the opening sentence for the scenario test. A build may come
+   earlier, after a group, when the owner asks.
 
 ---
 
