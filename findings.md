@@ -1017,3 +1017,84 @@ the previous entry's point 6 (tools no entry had met): `equation_set`, `feature_
 
 Sorted into S37 new (2, 3); S38 new (4); S39 new (7); S36, held (1, 5, 6). S7 (3); S9,
 the call count.
+
+**2026-11-11: two printed parts of ~25 and ~10 features built from sketches, and their assembly**
+
+Build `0.1.0-sw2023-20261110-064352`. About 330 calls over two parts and an assembly.
+
+1. `feature_extrude` cut, blind, whose far end leaves the body (a hole through a plate, a
+   pocket that opens through a slanted underside): `VERIFY_FAILED: ... no floor face at 12 mm
+   along [-1, 0, 0]`, rolled back, though SOLIDWORKS made the right cut. `through_all` was no
+   option, the cut would have gone on through other walls. Workaround: `keepOnFailure:true`,
+   then the volume read from the next feature's result; the `name` given is not applied on
+   that path (the feature stays `Cut-Extrude2`), one `feature_rename` more. Met twice. No
+   open item covers it. Asked: a blind cut that breaks out passes on its volume, or an
+   `upToFace` / `through next` end.
+2. `feature_pattern_linear` with `direction2`: the second direction ran toward +z whether
+   `direction2` was `-z` or `+z`, reported `ok` with two warnings (`4/6 instance faces`,
+   `2 of 6 instance faces were not found`) and a volume change of one instance for a
+   2 x 2 pattern. The instances in the wrong place cut air, so nothing failed. Direction 1
+   is flipped when SOLIDWORKS runs it backwards; direction 2 is not. A mirror made from
+   that pattern then cut two holes where none belonged. Workaround: a pattern in one
+   direction, then `feature_mirror`. Reported success: yes, wrongly. No open item.
+3. `feature_pattern_linear` with `directionRef`: `direction:"-y"` was refused (`not parallel
+   to edge`), its hint says to give the sign as `"+"/"-"`, and `"+"` is then refused (`'+' is
+   not an axis`). Leaving `direction` out worked. The hint names a value the tool does not
+   take.
+4. `sketch_dimension_add` angular between two lines that meet at a vertex, `textAt` inside
+   the wedge between the rays, 50 asked where the rays stood 130 apart: the solver flipped
+   one line to the mirrored solution, the result said `value reads back 50°, geometry
+   measures 50°`, and only the `changed` list showed a line now running the other way. The
+   sketch then went `fully` defined in the wrong shape. Bears on S6. Workaround: delete the
+   line, redraw it, dimension the angle the rays really make (130) first, the distances
+   after. Asked: a warning when a dimension flips a segment's direction or moves an end
+   point further than the value's own change explains.
+5. `sketch_relation_add` `merge` of a free line's end onto a point held by relations moved
+   the free line whole, so a second merge pulled the shape back into the flipped solution
+   of point 4. Right in SOLIDWORKS terms; for the next session: redraw at the exact
+   coordinates of the held points, do not merge onto them.
+6. `sketch_offset`: the offset has no dimension a caller can name (`D5@<sketch>` not found
+   after four dimensions), so it cannot be driven by an equation; and a sketch that reads
+   `constrained: fully` while open is listed `sketch_under_defined` by `model_review` once
+   it holds an offset. Met in both parts. No open item.
+7. `feature_chamfer` `equal`, on a concave edge and on a circular edge: `'Chamfer1' was
+   created but has no faces`, then the tool fell back to distance-distance by itself and
+   held. Twice in two tries: the equal type may never work on this version.
+8. `sketch_add` draws without relations (a closed polyline of axis-parallel lines has
+   none), so each sketch took 2 relation calls and 3 to 6 dimension calls; of the ~330
+   calls about 150 were `sketch_relation_add` and `sketch_dimension_add`. S8 met again:
+   relations and dimensions in the `sketch_add` call, or horizontal / vertical inferred
+   for lines drawn so, would have halved the job.
+9. Relations on several entities in one call (`vertical` on three lines, `equal` on three
+   circles, points aligned with `horizontal` / `vertical`) all worked and are worth using;
+   a polygon's side is picked by a point off its midpoint, since the midpoint lies on the
+   construction circle too (`ENTITY_AMBIGUOUS`, rightly).
+10. `doc_open` of a part: `SOLIDWORKS system options changed during this call and are not
+    back to the user's values: Double 2 was 0.000131..., now 0.0000920...`. Bears on S17 if
+    that is among the noise it lists; otherwise new.
+11. Results of `feature_extrude`, `feature_mirror` and `feature_fillet` list up to twelve
+    new faces each, 2 to 4k characters, read for one id or none. S22 met again: a
+    `faces:false`, or ids only.
+12. SOLIDWORKS was restarted between two turns; the document the user had saved reopened
+    with `access: owned` and every feature there. A sketch open at the time of the save
+    came back closed with its segments kept.
+
+**2026-11-11: a release left unregistered in a second project that uses the server**
+
+Build `0.1.0-sw2023-20261110-064352` (the one a second project still runs); latest
+release `0.1.0-sw2023-20261111-140208`. Found while reading a session's call count, not
+by a call.
+
+1. The release steps in `CLAUDE.md`, step 4, register the new exe "(scope local, in the
+   owner's project)", one project. The server is registered at local scope in two of the
+   owner's projects, each holding its own exe path in `~/.claude.json`. Builds `…-064352`
+   and before were registered in both; the five after it (`…-091645` to `…-140208`) only
+   in the project where the scenario test runs. A session in the other project then ran a
+   job of two parts and an assembly on `…-064352`, without `sketch_constrain` (build
+   `…-115800`), and spent ~150 of ~330 calls on `sketch_relation_add` and
+   `sketch_dimension_add` one each. `sw_status` reported the old build rightly; nothing
+   compared it with the latest release. Bears on S15 (registration by hand at local
+   scope) and S16 (the build seen from inside a session). Proposed: step 4 lists every
+   project that registers the server and re-registers each, or reads them from
+   `~/.claude.json` (`projects.*.mcpServers.solidworks-mcp.command`) and names any left on
+   an older build in the question to the owner.
