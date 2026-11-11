@@ -314,7 +314,10 @@ relations and dimensions. `sw_status` reported the old build rightly; nothing co
 with the latest release. Bears on S15 and S16. Local, in this repo's release steps:
 step 4 reads every project's `mcpServers.solidworks-mcp.command` from `~/.claude.json`,
 names each on an older build in the question to the owner, and registers the new exe in
-each. The owner's call.
+each. The owner's call. Taken up outside this repo the same day: a session-start hook of
+the owner's re-registers a project's `solidworks-mcp` on the newest `build-` tag, run by
+hand once (it moved the stale project to `20261111-140208`), not yet run at a session
+start. With it, step 4 may only need to say that the hook does the other projects.
 
 ## Waiting
 
