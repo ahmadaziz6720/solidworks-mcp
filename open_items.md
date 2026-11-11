@@ -10,7 +10,7 @@ Three sections: **Open**, not yet fixed; **Waiting**, fixed and not yet settled 
 merged, a fix not yet run in a session); **Closed**, merged upstream, run and held, or
 decided against, with the record.
 
-**Open: S4, S5, S7, S10 to S14, S24, S27, S30, S32 to S36, S46.**
+**Open: S4, S5, S7, S10 to S14, S24, S30, S32 to S36, S46.**
 Decided 2026-11-11 by the owner, each in its item below. Every open item can be worked on
 but these: S4, S5, S7 and S12 wait on upstream; S10, S11, S33 and S34 are parked until a
 job needs them; S36 is done in the scenario test, not here. S43 and S44 were found on
@@ -22,9 +22,9 @@ the small ones; drawings after; the release last.
 
 1. Modelling, large: S37, S42, S41, S45, S40 and S38 are done (Waiting, on `sw2023`, in
    no build yet).
-2. Modelling, smaller: S43, S18, S31, S44 and S39 are done (Waiting); S30 probed, waits
-   on the owner. **Next**: S27, S35 (confirm live, then the description), S6's
-   wording, then pushed to `fix/angular-supplement` (PR #6).
+2. Modelling, smaller: S43, S18, S31, S44, S39 and S27 are done (Waiting); S30 probed,
+   waits on the owner. **Next**: S35 (confirm live, then the description), S6's wording,
+   then pushed to `fix/angular-supplement` (PR #6).
 3. Drawings: S14 (the largest: view axes, border and title block, extents), S24, S32,
    S13 (a description line).
 4. Release: S46's line in `CLAUDE.md` step 4, then a build as that file says, every
@@ -129,16 +129,6 @@ layout changes without a word. Bears on S3 (Closed), whose tool it is. Local: re
 view's other annotations' positions before and after a delete and name each that moved.
 Decided 2026-11-11 by the owner: name each that moved, before and after; do not put them
 back (a caller moves one with `drw_annotation_edit` if it wants).
-
-**S27. A document loaded as a reference shows as `foreign` in `doc_list`.** In the scenario
-test of build `…-091645` (point 5): after `doc_open` of a drawing (read-only), the part it
-references was listed as a document of its own, `access: foreign`, though nobody opened
-it, and `doc_close` of the drawing closed it too (`also closed`). Right in SOLIDWORKS
-terms, but `foreign` reads as the user's document, which `doc_close` says it never closes.
-Usage: a part listed after opening a drawing or an assembly may be its reference, loaded
-with it. Local, small: mark such a document (an `access` value or a `loadedBy`), and say in
-the `doc_list` description. Decided 2026-11-11 by the owner: a `loadedBy` field naming the
-document that loaded it; `access` keeps its values.
 
 **S30. `model_mass` and `material_set` name a material the configuration does not have.**
 In the scenario test of build `20261111-140208` (point 1): with a material in rows A and
@@ -684,6 +674,23 @@ with a filter lists only the databases it reaches (by name or by a row found), a
 them without one. A live test of each fails without it (no
 `diagonals`; 4 of 5 databases holding none of the rows). To check in the scenario test:
 a centre rectangle's `diagonals`, and `material_list {filter:"6061"}`'s length.
+
+**S27. A document loaded as a reference shows as `foreign` in `doc_list`.** In the scenario
+test of build `…-091645` (point 5): after `doc_open` of a drawing (read-only), the part it
+references was listed as a document of its own, `access: foreign`, though nobody opened
+it, and `doc_close` of the drawing closed it too (`also closed`). Right in SOLIDWORKS
+terms, but `foreign` reads as the user's document, which `doc_close` says it never closes.
+Usage: a part listed after opening a drawing or an assembly may be its reference, loaded
+with it. Local, small: mark such a document (an `access` value or a `loadedBy`), and say in
+the `doc_list` description. Decided 2026-11-11 by the owner: a `loadedBy` field naming the
+document that loaded it; `access` keeps its values. Fixed in `e340317` on `sw2023`: `doc_open` marks
+each document that came in with the one it opened and that the server does not own;
+`doc_list` gives it `loadedBy`, that document's handle; the description says so. The
+drawing-close live test now reads `doc_list` first (the part foreign, `loadedBy` the
+drawing's handle; on the code before, null); Export and TopDown live tests and the pack
+test, which open files, passed. Only `doc_open` marks; a reference loaded otherwise (an
+`asm_insert`) has none. To check in the scenario test: `doc_open` of a drawing, then
+`doc_list`.
 
 ## Closed
 
