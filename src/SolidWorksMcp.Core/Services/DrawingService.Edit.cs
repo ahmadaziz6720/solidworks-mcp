@@ -83,7 +83,12 @@ public sealed partial class DrawingService
     public Task<DrwAnnotationListResult> AnnotationListAsync(string? view, string? kind, string? doc, CancellationToken ct = default) =>
         AnnotationListAsync(view, kind, false, doc, ct);
 
-    public Task<DrwAnnotationListResult> AnnotationListAsync(string? view, string? kind, bool format, string? doc, CancellationToken ct = default)
+    public Task<DrwAnnotationListResult> AnnotationListAsync(string? view, string? kind, bool format, string? doc, CancellationToken ct = default) =>
+        AnnotationListAsync(view, kind, format, false, doc, ct);
+
+    /// <summary>A text over 80 characters comes cut to its start and its length unless <paramref name="fullText"/>.</summary>
+    public Task<DrwAnnotationListResult> AnnotationListAsync(string? view, string? kind, bool format, bool fullText, string? doc,
+        CancellationToken ct = default)
     {
         string? k = DrawingLayout.Norm(kind);
         if (k is not null && !AnnotationKinds.Contains(k))
@@ -100,7 +105,7 @@ public sealed partial class DrawingService
                 Doc = ctx.Title(ctx.Doc),
                 Sheet = sheet,
                 Count = all.Count,
-                Annotations = all.Take(MaxAnnotations).ToList(),
+                Annotations = all.Take(MaxAnnotations).Select(i => fullText ? i : Brief(i)).ToList(),
                 FormatNotesSkipped = skipped > 0 ? skipped : null,
                 Truncated = all.Count > MaxAnnotations ? true : null,
             };

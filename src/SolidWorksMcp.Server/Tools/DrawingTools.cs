@@ -249,14 +249,16 @@ public sealed class DrawingTools(SwSession session)
     [McpServerTool(Name = "drw_annotation_list", Title = "List drawing annotations", ReadOnly = true, Destructive = false, Idempotent = true, OpenWorld = false)]
     [Description("Lists the dimensions, notes, balloons, view labels, symbols, tables and center marks of the current sheet or one " +
                  "view: name, kind, view, text or value, position (sheet mm) and attachment. The sheet format's notes (border, title " +
-                 "block) are left out unless format=true. The names are what drw_annotation_edit takes.")]
+                 "block) are left out unless format=true. A text over 80 characters comes as its start and its length unless " +
+                 "fullText=true. The names are what drw_annotation_edit takes.")]
     public async Task<string> DrwAnnotationList(
         [Description("One view, or the sheet's name for the notes on the sheet itself; default: the current sheet and all its views.")] string? view = null,
         [Description("Only this kind: dimension | hole_callout | note | balloon | view_label | table | center_mark | center_line | datum | surface_finish | gtol | weld | other")] string? kind = null,
         [Description("Also list the sheet format's notes (marked format; not editable here).")] bool format = false,
+        [Description("Give every text whole (a long note); default: cut over 80 characters.")] bool fullText = false,
         [Description(DocDesc)] string? doc = null,
         CancellationToken cancellationToken = default) =>
-        ResultJson.Serialize(await _svc.AnnotationListAsync(view, kind, format, doc, cancellationToken));
+        ResultJson.Serialize(await _svc.AnnotationListAsync(view, kind, format, fullText, doc, cancellationToken));
 
     [McpServerTool(Name = "drw_annotation_edit", Title = "Move, delete or retext an annotation", ReadOnly = false, Destructive = true, Idempotent = false, OpenWorld = false)]
     [Description("Moves a drawing dimension, note, view label or symbol to atMm, deletes it (doc_undo does not work in drawings), or " +
@@ -316,7 +318,7 @@ public sealed class DrawingTools(SwSession session)
     [McpServerTool(Name = "drw_info", Title = "Drawing info", ReadOnly = true, Destructive = false, Idempotent = true, OpenWorld = false)]
     [Description("Drawing overview: sheets (size, scale, projection, format) and their views (name, type, orientation, scale, centerMm, " +
                  "boundsMm, modelBoxMm, model, configuration, parent) with annotation counts (dimensions, notes, tables, center marks; a view's own label as viewLabels, not a note). " +
-                 "modelBoxMm is where the model is drawn; for a section of a part, the side behind the cut only (from its visible edges), for a section of an assembly the whole model's box. " +
+                 "model is the file's full path in the first view that shows it and its file name in the others. modelBoxMm is where the model is drawn; for a section of a part, the side behind the cut only (from its visible edges), for a section of an assembly the whole model's box. " +
                  "Positions are sheet mm from the lower-left corner.")]
     public async Task<string> DrwInfo(
         [Description(DocDesc)] string? doc = null,

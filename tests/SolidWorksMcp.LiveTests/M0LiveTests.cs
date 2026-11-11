@@ -39,6 +39,19 @@ public class M0LiveTests(LiveFixture fx) : LiveTest(fx)
     }
 
     [Fact]
+    public async Task Status_gives_a_failed_call_s_error_code_not_its_text()
+    {
+        // The caller of a failed call has read its error; recentOps repeated the whole text, hint included, for ten calls.
+        string doc = await BlockAsync("status_ops");
+        var failed = await Assert.ThrowsAsync<SwException>(() => new PropertiesService(S).MaterialSetAsync(doc, "No Such Material 12345"));
+        Assert.True(failed.ToAgentText().Length > 60, failed.ToAgentText());
+        var st = await new SessionService(S).StatusAsync();
+        var op = st.RecentOps!.Last(o => o.Name == "material_set");
+        Assert.StartsWith("failed", op.Status);
+        Assert.Equal(failed.Code, op.Error);
+    }
+
+    [Fact]
     public async Task Box_extrude_matches_the_oracle()
     {
         string doc = await BlockAsync("box");

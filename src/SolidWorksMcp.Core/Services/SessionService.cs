@@ -72,6 +72,20 @@ public sealed class SessionService(SwSession session)
     public static string ServerVersion { get; } = BuildVersion.Of(typeof(SessionService));
 
     /// <summary>
+    /// recentOps without the error texts their callers already read: a failed call keeps its error code only. A call its
+    /// caller gave up on (a timeout) keeps the whole text, since nobody received it.
+    /// </summary>
+    internal static IReadOnlyList<LastOperation> Brief(IReadOnlyList<LastOperation> ops) =>
+        ops.Select(o => o.Error is { } e && !o.Status.Contains("gave up", StringComparison.Ordinal) ? o with { Error = CodeOf(e) } : o).ToList();
+
+    private static string CodeOf(string error)
+    {
+        int colon = error.IndexOf(':');
+        if (colon is > 0 and <= 40 && error[..colon].All(c => char.IsAsciiLetterUpper(c) || c == '_')) return error[..colon];
+        return error.Length > 80 ? error[..80] + "…" : error;
+    }
+
+    /// <summary>
     /// Status that never hangs: the Win32 part (dialogs, UI blocked, running operation) is read directly; the COM part
     /// is skipped with a note when SOLIDWORKS is blocked or busy.
     /// </summary>
@@ -95,7 +109,7 @@ public sealed class SessionService(SwSession session)
             UiBlocked = blocked,
             Dialogs = dialogs.Count == 0 ? null : dialogs,
             RunningOperation = current is null ? null : $"{current.Name} ({current.ElapsedS:0.0} s)",
-            RecentOps = session.Dispatcher.Recent is { Count: > 0 } r ? r : null,
+            RecentOps = session.Dispatcher.Recent is { Count: > 0 } r ? Brief(r) : null,
             LateCompletions = session.Dispatcher.LateCompletions is { Count: > 0 } l ? l : null,
             PendingPreferenceRestores = pending.Count == 0 ? null : pending,
             OtherServerPids = others.Count == 0 ? null : others,

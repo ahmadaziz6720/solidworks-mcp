@@ -1782,6 +1782,7 @@ public sealed partial class DrawingService(SwSession session)
             var sheets = new List<DrwSheet>();
             int total = 0;
             bool truncated = false;
+            var models = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             foreach (var name in drw.DrwSheetNames())
             {
                 var sh = drw.DrwSheet(name);
@@ -1790,7 +1791,10 @@ public sealed partial class DrawingService(SwSession session)
                 foreach (var v in sh.DrwViews())
                 {
                     if (total >= MaxViews) { truncated = true; break; }
-                    views.Add(ViewInfo(ctx, v, true));
+                    var info = ViewInfo(ctx, v, true);
+                    // A model's full path once; the views after it name the file only.
+                    if (info.Model is { } path && !models.Add(path)) info = info with { Model = Path.GetFileName(path) };
+                    views.Add(info);
                     total++;
                 }
                 var sheetView = bySheet.FirstOrDefault(a => a.Count > 0 && string.Equals(a[0].GetName2(), name, StringComparison.OrdinalIgnoreCase))?[0];

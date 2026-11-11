@@ -16,7 +16,7 @@ public sealed class SessionTools(SwSession session)
     [McpMeta("anthropic/alwaysLoad", true)]
     [Description("Status of the SOLIDWORKS connection: version, open documents (handle, owned/adopted/foreign, dirty), the target document, " +
                  "open sketch, visible dialogs, whether a modal dialog blocks SOLIDWORKS, the running operation and recentOps (what happened " +
-                 "to calls that timed out). Never hangs: works even while SOLIDWORKS is busy. Call it first, and after any TIMEOUT.")]
+                 "to calls that timed out; a failed call shows its error code, and its text only when the caller gave up on it). Never hangs: works even while SOLIDWORKS is busy. Call it first, and after any TIMEOUT.")]
     public async Task<string> SwStatus(CancellationToken cancellationToken = default) =>
         ResultJson.Serialize(await _svc.StatusAsync(cancellationToken));
 

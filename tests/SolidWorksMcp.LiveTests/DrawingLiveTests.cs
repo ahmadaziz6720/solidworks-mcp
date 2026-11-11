@@ -258,7 +258,9 @@ public class DrawingLiveTests(LiveFixture fx) : LiveTest(fx)
         // drw_info lists every view created, with its model.
         var info = await Drw.InfoAsync(drw);
         Assert.Equal(r.Views.Select(v => v.Name).OrderBy(n => n), info.Sheets[0].Views!.Select(v => v.Name).OrderBy(n => n));
-        Assert.All(info.Sheets[0].Views!, v => Assert.Equal(path, v.Model, ignoreCase: true));
+        // The file's full path in the first view, its file name in the others (S22).
+        Assert.Equal(path, info.Sheets[0].Views![0].Model, ignoreCase: true);
+        Assert.All(info.Sheets[0].Views!.Skip(1), v => Assert.Equal(Path.GetFileName(path), v.Model, ignoreCase: true));
 
         // The drawing exports to PDF through model_export.
         var pdf = await new ExportService(S).ExportAsync(new ExportRequest { Doc = drw, Path = Path.Combine(_dir, "views.pdf") });
@@ -922,13 +924,14 @@ public class DrawingLiveTests(LiveFixture fx) : LiveTest(fx)
         Assert.Contains("text read back", typedNote.Checks!);
         Assert.Equal("SWMCP ADD\nTYPED", typedNote.Text); // what the note holds, not the input as typed
         Assert.Equal("SWMCP ADD\nTYPED", (await Drw.AnnotationListAsync(null, "note", drw)).Annotations.Single(a => a.Name == typedNote.Note).Text);
-        // A long text comes back cut in the edit's result (S22), whole in the list.
+        // A long text comes back cut in the edit's result and in the list (S22), whole in the list with fullText.
         string longText = string.Join("\n", Enumerable.Range(1, 12).Select(n => $"SWMCP LONG LINE {n}"));
         var lng = await Drw.AnnotationEditAsync(typedNote.Note, "move", [60, 75], null, null, drw);
         var lngText = await Drw.AnnotationEditAsync(typedNote.Note, "text", null, longText, null, drw);
         Assert.Contains("characters)", lngText.After!.Text);
         Assert.True(lngText.After.Text!.Length < 100, lngText.After.Text);
-        Assert.Equal(longText, (await Drw.AnnotationListAsync(null, "note", drw)).Annotations.Single(a => a.Name == typedNote.Note).Text);
+        Assert.Equal(lngText.After.Text, (await Drw.AnnotationListAsync(null, "note", drw)).Annotations.Single(a => a.Name == typedNote.Note).Text);
+        Assert.Equal(longText, (await Drw.AnnotationListAsync(null, "note", false, true, drw)).Annotations.Single(a => a.Name == typedNote.Note).Text);
         Assert.Equal(60, lng.After!.AtMm![0], 0.01);
 
         // Delete one dimension and the sheet note: gone from the list, the counts one fewer each.
