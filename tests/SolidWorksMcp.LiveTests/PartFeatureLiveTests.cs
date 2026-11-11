@@ -225,6 +225,16 @@ public class PartFeatureLiveTests(LiveFixture fx) : LiveTest(fx)
         Assert.Equal("EdgeBreak", r.Feature.Name);
         Assert.Contains(r.Verified.Checks!, c => c.Contains("legs measured on 1 edge"));
         Assert.Contains(r.NewFaces!, f => f.Surface == "plane" && Math.Abs(f.AreaMm2 - 100 * 3 * Math.Sqrt(2)) < 1e-3);
+        // S44: on 2023 SP3 the equal-distance type made a chamfer with no faces on every edge tried, and each call warned
+        // that it fell back to distance-distance. The same geometry, now without the failed attempt or the warning.
+        Assert.Null(r.Warnings);
+
+        // A concave circular edge, the base of a boss: an equal chamfer adds material there.
+        string doc2 = await BlockAsync("chamfer_equal_concave");
+        await BossAsync(doc2, 0, 0);
+        var c = await Pf.ChamferAsync(new ChamferRequest { Doc = doc2, Edges = [new EntityRef { At = [5, 20, 0] }], DistanceMm = 1 });
+        Assert.Equal("added", c.Verified.Material);
+        Assert.Null(c.Warnings);
     }
 
     [Fact]

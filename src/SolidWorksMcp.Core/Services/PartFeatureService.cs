@@ -358,6 +358,12 @@ public sealed partial class PartFeatureService(SwSession session)
             FeatureOutcome o;
             switch (type)
             {
+                case "equal" when EqualChamferBroken(session.Revision):
+                    // VERIFIED live on SOLIDWORKS 2023 SP3 (S44): the equal-distance type makes a chamfer with no faces on
+                    // every edge tried (convex and concave, straight and circular); distance-distance with equal legs is
+                    // the same geometry, so it is used straight away and nothing is warned.
+                    o = Attempt((int)swChamferType_e.swChamferDistanceDistance, d1, d1);
+                    break;
                 case "equal":
                     try
                     {
@@ -380,6 +386,10 @@ public sealed partial class PartFeatureService(SwSession session)
             Rename(ctx, o.Main, q.Name);
             return FeatureVerifier.Result(ctx, d, o, resolved: resolved);
         }, RunOptions.Write(q.Doc), ct);
+
+    /// <summary>SOLIDWORKS 2023 (revision 31), where the equal-distance chamfer type makes no geometry (S44); other versions untried.</summary>
+    internal static bool EqualChamferBroken(string? revision) =>
+        int.TryParse((revision ?? "").Split('.')[0], out int major) && major == 31;
 
     /// <summary>A straight edge between two planar faces: its line and the wedge angle the chamfer cuts (or fills).</summary>
     private sealed record EdgeLegs(Vec3 P, Vec3 U, double Wedge, string Label);
