@@ -10,7 +10,7 @@ Three sections: **Open**, not yet fixed; **Waiting**, fixed and not yet settled 
 merged, a fix not yet run in a session); **Closed**, merged upstream, run and held, or
 decided against, with the record.
 
-**Open: S4, S5, S7, S10 to S14, S18, S24, S27, S30 to S36, S39, S44, S46.**
+**Open: S4, S5, S7, S10 to S14, S24, S27, S30 to S36, S39, S44, S46.**
 Decided 2026-11-11 by the owner, each in its item below. Every open item can be worked on
 but these: S4, S5, S7 and S12 wait on upstream; S10, S11, S33 and S34 are parked until a
 job needs them; S36 is done in the scenario test, not here. S43 and S44 were found on
@@ -22,8 +22,8 @@ the small ones; drawings after; the release last.
 
 1. Modelling, large: S37, S42, S41, S45, S40 and S38 are done (Waiting, on `sw2023`, in
    no build yet).
-2. Modelling, smaller: S43 is done (Waiting); S30 probed, waits on the owner. **Next**:
-   S18 (1, 2), S31, S44 (probe first), S39, S27, S35 (confirm live, then the
+2. Modelling, smaller: S43 and S18 are done (Waiting); S30 probed, waits on the owner.
+   **Next**: S31, S44 (probe first), S39, S27, S35 (confirm live, then the
    description), S6's wording, then pushed to `fix/angular-supplement` (PR #6).
 3. Drawings: S14 (the largest: view axes, border and title block, extents), S24, S32,
    S13 (a description line).
@@ -119,17 +119,6 @@ section kept the full height. The item's other points (axes, the border and titl
 labels, dimension and note extents) stay open. Met again in that test: two `diameter`
 dimensions on the same hole edge without `textAtMm` were both placed at the same sheet
 point, the second a duplicate, with no warning for either.
-
-**S18. `doc_pack` faults.** (1) From a document opened `readOnly:true`, the copies still
-reference the originals (`VERIFY_FAILED: Some copies still reference other files`), three
-times; read-only is the likely cause, not yet tested with a writable open. Workaround that
-held: close all, remove the originals, reopen the copies. (2) `includeDrawings:true` copies
-no drawing when the drawings lie in another folder, and reports success; Pack and Go only
-looks next to the model. (3) Missing: new names per file (only prefix or suffix). Local:
-refuse or reopen a read-only source, report `noDrawingsFound`, say both in the description;
-then PR. (3) not yet decided. Decided 2026-11-11 by the owner: (1) refuse a source opened
-read-only, with a hint to open it writable; (2) report `noDrawingsFound`; both in the
-description. (3) parked.
 
 **S24. `drw_annotation_edit` delete moves other dimensions, unreported.** In the scenario
 test of build `…-024431`: three horizontal dimensions stacked below a view, text at y 109,
@@ -656,6 +645,26 @@ SOLIDWORKS adds none. A live test (a fully defined 100 x 60 rectangle offset 5 o
 both-sides one now reading two dimensions of 5; unit tests 260/260. To check in the
 scenario test: an offset's result names its dimension, an `equation_set` on it holds,
 and `model_review` does not list the sketch.
+
+**S18. `doc_pack` faults.** (1) From a document opened `readOnly:true`, the copies still
+reference the originals (`VERIFY_FAILED: Some copies still reference other files`), three
+times; read-only is the likely cause, not yet tested with a writable open. Workaround that
+held: close all, remove the originals, reopen the copies. (2) `includeDrawings:true` copies
+no drawing when the drawings lie in another folder, and reports success; Pack and Go only
+looks next to the model. (3) Missing: new names per file (only prefix or suffix). Local:
+refuse or reopen a read-only source, report `noDrawingsFound`, say both in the description;
+then PR. (3) not yet decided. Decided 2026-11-11 by the owner: (1) refuse a source opened
+read-only, with a hint to open it writable; (2) report `noDrawingsFound`; both in the
+description. (3) parked. Fixed in `fc5e4a4` on `sw2023`. (1) Confirmed live: from an
+assembly opened read-only the copies were written and `VERIFY_FAILED` said they still
+referenced the originals; such a document is now refused before anything is written
+(`INVALID_ARGUMENT`, "open read-only", the hint to close and open it writable). (2) With
+drawings asked for and none in Pack and Go's list, `noDrawingsFound: true` and a warning
+that it looks only next to each model under its name. Both in the description. The pack
+live test now does both (on the code before, the read-only pack got `VERIFY_FAILED`);
+the two pack tests passed, unit tests 260/260. (3) stays parked, out of this item. To
+check in the scenario test: `doc_pack` of a read-only document is refused, and a part
+whose drawing lies elsewhere reads `noDrawingsFound`.
 
 ## Closed
 
