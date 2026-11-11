@@ -519,7 +519,8 @@ public sealed partial class FeatureManagementService(SwSession session)
     /// <summary>
     /// What deleting <paramref name="targets"/> removes: the targets; every feature that depends on them, transitively
     /// (only with deleteChildren, else <paramref name="dependents"/> makes the call refuse); and the absorbed sub-features
-    /// (profile sketches) of everything deleted (only with deleteAbsorbed, else they are returned in <paramref name="kept"/>).
+    /// (profile sketches) of the targets (only with deleteAbsorbed, else they are returned in <paramref name="kept"/>). A
+    /// deleted child's absorbed sketches go with it whatever deleteAbsorbed says (VERIFIED, S31), so they are planned.
     /// </summary>
     private static List<Planned> DeletePlan(IReadOnlyList<IFeature> targets, bool deleteChildren, bool deleteAbsorbed,
         out List<Dependent> dependents, out List<Planned> kept)
@@ -527,19 +528,21 @@ public sealed partial class FeatureManagementService(SwSession session)
         var plan = targets.Select(t => new Planned(t, SafeId(t), "requested")).ToList();
         var ids = plan.Select(p => p.Id).ToHashSet();
         var absorbed = new List<Planned>();
-        void AbsorbedOf(IFeature owner)
+        void AbsorbedOf(IFeature owner, List<Planned> into)
         {
             foreach (var c in Tree.Children(owner))
-                if (SafeId(c) is int id && id >= 0 && ids.Add(id)) absorbed.Add(new Planned(c, id, $"absorbed by {owner.Name}"));
+                if (SafeId(c) is int id && id >= 0 && ids.Add(id)) into.Add(new Planned(c, id, $"absorbed by {owner.Name}"));
         }
-        foreach (var t in targets) AbsorbedOf(t);
+        foreach (var t in targets) AbsorbedOf(t, absorbed);
         dependents = Dependents(targets, ids);
         if (deleteChildren)
         {
             foreach (var x in dependents)
                 if (ids.Add(x.Id)) plan.Add(new Planned(x.Feature, x.Id, $"child of {x.Parent}"));
-            // A deleted child's own sketch is listed too, so the dry run never under-reports what may go.
-            foreach (var x in dependents) AbsorbedOf(x.Feature);
+            // A deleted child's own sketches go with it, deleteAbsorbed or not.
+            var childSketches = new List<Planned>();
+            foreach (var x in dependents) AbsorbedOf(x.Feature, childSketches);
+            plan.AddRange(childSketches);
         }
         if (deleteAbsorbed) plan.AddRange(absorbed);
         kept = deleteAbsorbed ? [] : absorbed;

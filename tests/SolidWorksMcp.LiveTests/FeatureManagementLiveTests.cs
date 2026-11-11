@@ -266,7 +266,11 @@ public class FeatureManagementLiveTests(LiveFixture fx) : LiveTest(fx)
         var b = await BlockAsync("fm_delete_child_sketch");
         var hole = await new PartFeatureService(S).HoleAsync(new HoleRequest { Doc = b.Doc, Points = [[0, 20, 0]], Type = "drill", DiameterMm = 6, End = "blind", DepthMm = 5 });
 
+        // S31: the dry run listed the hole's sketches under keptAbsorbed; the delete then removed them. They must agree.
+        var dry = await M.DeleteAsync(b.Doc, [b.Extrude], deleteChildren: true, dryRun: true);
         var r = await M.DeleteAsync(b.Doc, [b.Extrude], deleteChildren: true);
+        Assert.Equal(r.Removed.Select(x => (x.Name, x.Why)).Order(), dry.Removed.Select(x => (x.Name, x.Why)).Order());
+        Assert.Equal(r.KeptAbsorbed, dry.KeptAbsorbed);
         Assert.Equal("requested", r.Removed.Single(x => x.Name == b.Extrude).Why);
         Assert.StartsWith("child of", r.Removed.Single(x => x.Name == hole.Feature.Name).Why);
         Assert.Contains(r.Removed, x => x.Why == $"absorbed by {hole.Feature.Name}");
