@@ -269,7 +269,14 @@ internal static class EntityResolver
                     $"No {KindName(kind)} within {Units.Mm(tol)} mm of {where}; nearest: {string.Join("; ", cands)}.",
                     "Pass an id, a point on the intended entity, or a larger tolMm.");
             }
-            ctx.Warn($"{argName}: no {KindName(kind)} exactly at {where}; used the nearest one, {Units.Mm(best.Dist)} mm away.");
+            // A point at a hole's centre is not a near miss of its edge: say that the circle centred there was taken.
+            var asked = partSpace ? world : best.Scope.ToLocal.ApplyPoint(world);
+            if (best.Obj is IEdge circle && Topology.Describe(circle) is { Curve: "circle", Center: { } centre, Radius: { } radius } &&
+                centre.DistanceTo(asked) <= Math.Max(tol, 1e-6))
+                ctx.Warn($"{argName}: {where} is the centre of a circular edge (radius {Units.Mm(radius)} mm), not a point on it; " +
+                         "used the circle centred there.");
+            else
+                ctx.Warn($"{argName}: no {KindName(kind)} exactly at {where}; used the nearest one, {Units.Mm(best.Dist)} mm away.");
         }
         string id = ctx.Entities.IdFor(doc, best.Obj, Prefix(kind), KindName(kind),
             best.Obj switch { IFace2 f => Topology.SurfaceKind(f.Surface()), IEdge e => Topology.CurveKind(e.Curve()), _ => null },

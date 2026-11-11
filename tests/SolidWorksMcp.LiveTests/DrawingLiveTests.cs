@@ -659,6 +659,32 @@ public class DrawingLiveTests(LiveFixture fx) : LiveTest(fx)
             Assert.Contains(dim.Checks!, c => c.Contains("with Ø across the circle, seen edge-on"));
             Assert.DoesNotContain(dim.Warnings ?? [], w => w.Contains("not compared"));
         }
+
+        // S20 (d): the edge is drawn horizontally, so there is no vertical dimension of it. The refusal's hint told to
+        // check that the entity can carry the dimension, "a circle for radial/diameter"; it now says why and what to use.
+        var ex = await Fails(ErrorCodes.FeatureFailed, () => Drw.DimensionAddAsync(sec.Name, back, null, "vertical", null, drw));
+        Assert.Contains("seen edge-on", ex.Hint);
+        Assert.Contains("Use kind linear or horizontal", ex.Hint);
+        Assert.DoesNotContain("can carry this kind", ex.Hint);
+    }
+
+    [Fact]
+    public async Task A_point_at_a_hole_s_centre_takes_the_circle_and_says_so()
+    {
+        // S25: a pick at the centre of a small hole resolved to its edge with "no edge exactly at ...; used the nearest
+        // one, 1 mm away" (the radius), which reads as a near miss. The centre is a way to name the hole: say so.
+        var (doc, path) = await BlockAsync("drw_dim_centre");
+        await new PartFeatureService(S).HoleAsync(new HoleRequest { Doc = doc, Points = [[30, 0, 20]], Type = "drill", DiameterMm = 2, End = "blind", DepthMm = 10 });
+        await Docs.SaveAsync(doc, "inPlace", null, false);
+        string drw = await DrawingAsync("drw_dim_centre");
+        var front = (await Drw.ViewsStandardAsync(path, ["front"], null, drw)).Views.Single();
+        var dim = await Drw.DimensionAddAsync(front.Name, new EntityRef { Type = "edge", At = [30, 0, 20] }, null, "diameter", null, drw);
+        Assert.Equal(2, dim.Value, 1e-6);
+        Assert.Contains(dim.Warnings!, w => w.Contains("is the centre of a circular edge (radius 1 mm)") && w.Contains("used the circle centred there"));
+        Assert.DoesNotContain(dim.Warnings!, w => w.Contains("used the nearest one"));
+        // A point off the edge that is not its centre is still a near miss.
+        var near = await Drw.DimensionAddAsync(front.Name, new EntityRef { Type = "edge", At = [30.5, 0, 20] }, null, "diameter", null, drw);
+        Assert.Contains(near.Warnings!, w => w.Contains("used the nearest one"));
     }
 
     // ------------------------------------------------------------------ M8 WP2: sheets, flat-pattern / auxiliary views, breaks
