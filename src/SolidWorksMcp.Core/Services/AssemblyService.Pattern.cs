@@ -377,10 +377,13 @@ public sealed partial class AssemblyService
         bool signGiven = false;
         if (want is Vec3 w2)
         {
-            if (!u.IsParallelTo(w2, Units.Rad(1)) && !u.IsParallelTo(-w2, Units.Rad(1)))
-                throw SwException.InvalidArgument($"'{arg}' [{Dir(w2)}] is not parallel to {m.Label} [{Dir(u)}].",
-                    $"Leave '{arg}' out, or give its sign as \"+\"/\"-\" of the reference's own direction.");
-            if (u.Dot(w2) < 0) u = -u;
+            // With a reference the axis only says which way along it: the sense that points toward that axis (S41).
+            double along = u.Normalized().Dot(w2.Normalized());
+            if (Math.Abs(along) < Math.Sin(Units.Rad(1)))
+                throw SwException.InvalidArgument($"'{arg}' [{Dir(w2)}] is square to {m.Label} [{Dir(u)}], so it can't say which way along it.",
+                    $"Give an assembly axis the reference runs partly along (\"+x\" … \"-z\"): the pattern follows the reference toward that side. " +
+                    $"Or leave '{arg}' out for the reference's own direction.");
+            if (along < 0) u = -u;
             signGiven = true;
         }
         return FromMateRef(ctx, m, g.P, u.Normalized(), signGiven, arg + "Ref");

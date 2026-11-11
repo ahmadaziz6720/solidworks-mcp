@@ -119,7 +119,7 @@ public sealed class PartFeatureTools(SwSession session)
         [Description(FeaturesDesc)] string[] features,
         [Description("Instances in direction 1, the seed included.")] int count,
         [Description("Distance between instances in mm.")] double spacingMm,
-        [Description("+x | -x | +y | -y | +z | -z; with directionRef, the sign along it.")] string? direction = null,
+        [Description("+x | -x | +y | -y | +z | -z; with directionRef, which way along it: toward that axis (it need not be parallel).")] string? direction = null,
         [Description("Straight edge, axis or planar face (its normal) giving direction 1, instead of a model axis.")] EntityRef? directionRef = null,
         [Description("Second direction, a model axis such as \"+z\".")] string? direction2 = null,
         [Description("Instances in direction 2, the seed row included.")] int? count2 = null,

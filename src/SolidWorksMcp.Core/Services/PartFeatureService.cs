@@ -855,6 +855,11 @@ public sealed partial class PartFeatureService(SwSession session)
             // of the retry decides whether that is the requested direction.
             bool signs = dir1.SignGiven || dir2 is { SignGiven: true };
             var tried = new List<(bool, bool)>();
+            // Instances that leave no faces (a cut off the part) say nothing of the sense they ran in. A pattern that
+            // leaves a whole direction without one found instance is taken back and that direction tried the other way;
+            // 'unproven' is the sense to go back to when the other way is no better (S41).
+            (bool, bool)? unproven = null;
+            bool final = false; // making 'unproven' again: taken as it comes, with its warnings
             while (true)
             {
                 tried.Add((flip1, flip2));
@@ -868,6 +873,7 @@ public sealed partial class PartFeatureService(SwSession session)
 
                 Hypothesis? best = null;
                 bool reversed = false;
+                (bool, bool)? other = null;
                 int instances = n1 * n2 - 1;
                 FeatureOutcome o;
                 try
@@ -887,10 +893,24 @@ public sealed partial class PartFeatureService(SwSession session)
                         if (h.Matched == 0)
                             return [$"no instance faces at the expected offsets ({n1} x {Units.Mm(s1)} mm along ±[{Dir(dir1.U)}]" +
                                     (dir2 is null ? "" : $", {n2} x {Units.Mm(s2)} mm along ±[{Dir(dir2.U)}]") + ")"];
-                        if (Reversed(h, hyps[0], dir1, dir2))
+                        if (!final && Reversed(h, hyps[0], dir1, dir2))
                         {
                             reversed = true;
                             return []; // redone below with the flip
+                        }
+                        if (!final && !q.KeepOnFailure && h.Matched < h.Total)
+                        {
+                            // Found(first): an instance beyond the seed's own row along that direction left faces where
+                            // this hypothesis puts it, which proves the direction's sense.
+                            bool Found(bool first) => Score(seedSigs, res, GridSample(n1, n2).Where(ij => first ? ij.I > 0 : ij.J > 0)
+                                .Select(ij => Rigid.Translate(dir1.U * (ij.I * s1 * h.S1) + (dir2?.U ?? Vec3.Zero) * (ij.J * s2 * h.S2)))).Matched > 0;
+                            bool lost1 = dir1.SignGiven && n1 > 1 && !Found(true), lost2 = dir2 is { SignGiven: true } && n2 > 1 && !Found(false);
+                            var flipped = (lost1 ? !flip1 : flip1, lost2 ? !flip2 : flip2);
+                            if ((lost1 || lost2) && !tried.Contains(flipped))
+                            {
+                                other = flipped;
+                                return []; // taken back below, and that direction tried the other way
+                            }
                         }
                         AreaCheck(ctx, seedArea, resArea, instances);
                         PositionsCheck(ctx, h, checks, $"{n1} x {Units.Mm(s1)} mm along [{Dir(dir1.U * h.S1)}]" +
@@ -901,8 +921,16 @@ public sealed partial class PartFeatureService(SwSession session)
                 catch (SwException ex) when (signs && seedSigs.Count > 0 && !q.KeepOnFailure &&
                                              ex.Code is ErrorCodes.FeatureFailed or ErrorCodes.RebuildError or ErrorCodes.VerifyFailed)
                 {
-                    var next = NextSense(tried, dir1.SignGiven, dir2 is { SignGiven: true }, flip1, flip2);
-                    if (next is null || NewFeatures(d, before))
+                    bool stuck = NewFeatures(d, before);
+                    // The other way of an unproven direction failed outright: back to the one that placed some instances.
+                    if (!final && !stuck && unproven is { } back)
+                    {
+                        (flip1, flip2) = back;
+                        final = true;
+                        continue;
+                    }
+                    var next = final ? null : NextSense(tried, dir1.SignGiven, dir2 is { SignGiven: true }, flip1, flip2);
+                    if (next is null || stuck)
                         throw tried.Count > 1
                             ? new SwException(ex.Code, ex.Message + $" (tried {tried.Count} senses of the direction)", ex.Hint, ex)
                             : ex;
@@ -910,6 +938,16 @@ public sealed partial class PartFeatureService(SwSession session)
                     continue;
                 }
 
+                if (other is { } flipped)
+                {
+                    string rb = FeatureVerifier.Rollback(ctx, d, before);
+                    if (NewFeatures(d, before))
+                        throw new SwException(ErrorCodes.FeatureFailed,
+                            $"The pattern left instances out and could not be removed to try the direction the other way: {rb}");
+                    unproven = (flip1, flip2);
+                    (flip1, flip2) = flipped;
+                    continue;
+                }
                 if (reversed && best is not null)
                 {
                     var fix = (dir1.SignGiven && best.S1 < 0 ? !flip1 : flip1, dir2 is { SignGiven: true } && best.S2 < 0 ? !flip2 : flip2);
@@ -917,14 +955,24 @@ public sealed partial class PartFeatureService(SwSession session)
                     if (NewFeatures(d, before))
                         throw new SwException(ErrorCodes.FeatureFailed, $"The pattern came out reversed and could not be removed to redo it: {rb}");
                     if (tried.Contains(fix))
+                    {
+                        // The requested sense is the one that left instances out: made again and kept, with its warnings.
+                        if (unproven is { } back && back == fix)
+                        {
+                            (flip1, flip2) = back;
+                            final = true;
+                            continue;
+                        }
                         throw new SwException(ErrorCodes.VerifyFailed,
                             "feature_pattern_linear: along the requested direction the pattern produced nothing usable; only the opposite " +
                             $"direction does. {rb}", "Check the direction's sign, the spacing and the count: the instances must land on the body.");
+                    }
                     (flip1, flip2) = fix;
                     continue;
                 }
                 var actual = best is null ? dir1.U : dir1.U * best.S1;
                 var extra = new List<string> { PerInstance(o, n1 * n2 - 1) };
+                if (final) extra.Add("the other sense of the direction was tried too: it is the requested one that leaves instances out");
                 if (flip1 || flip2) extra.Add("direction flipped (SOLIDWORKS' default ran the other way)");
                 if (BoxGrowth(o, actual, dir1.Principal) is { } grew) extra.Add(grew);
                 if (extra.Count > 0) o = o with { Checks = [.. o.Checks, .. extra] };
@@ -968,9 +1016,14 @@ public sealed partial class PartFeatureService(SwSession session)
         bool signGiven = false;
         if (want is Vec3 w2)
         {
-            if (!u.IsParallelTo(w2, Units.Rad(1)))
-                throw SwException.InvalidArgument($"'{arg}' [{Dir(w2)}] is not parallel to {r.Label} [{Dir(u)}].", $"Leave '{arg}' out, or give its sign as \"+\"/\"-\" of the reference's own direction.");
-            if (u.Dot(w2) < 0) u = -u;
+            // With a reference the axis only says which way along it: the sense that points toward that axis. The
+            // reference need not be parallel to it, only not square to it (S41).
+            double along = u.Normalized().Dot(w2.Normalized());
+            if (Math.Abs(along) < Math.Sin(Units.Rad(1)))
+                throw SwException.InvalidArgument($"'{arg}' [{Dir(w2)}] is square to {r.Label} [{Dir(u)}], so it can't say which way along it.",
+                    $"Give a model axis the reference runs partly along (\"+x\" … \"-z\"): the pattern follows the reference toward that side. " +
+                    $"Or leave '{arg}' out for the reference's own direction.");
+            if (along < 0) u = -u;
             signGiven = true;
         }
         return new DirSpec((doc, mark) => r.Select(doc, true, mark), u, signGiven, r.Label, r.Info(arg + "Ref"), false);

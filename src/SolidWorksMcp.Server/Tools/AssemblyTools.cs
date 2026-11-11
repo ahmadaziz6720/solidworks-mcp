@@ -170,7 +170,7 @@ public sealed class AssemblyTools(SwSession session)
         [Description("Seed components (top level), e.g. [\"bolt-1\"].")] string[] components,
         [Description("linear/circular: instances, the seed included.")] int? count = null,
         [Description("linear: distance between instances in mm.")] double? spacingMm = null,
-        [Description("linear: +x | -x | +y | -y | +z | -z (assembly axes); with directionRef, the sign along it.")] string? direction = null,
+        [Description("linear: +x | -x | +y | -y | +z | -z (assembly axes); with directionRef, which way along it: toward that axis (it need not be parallel).")] string? direction = null,
         [Description("linear: a straight edge, axis, plane or planar face giving the direction, e.g. {component:'rail-1', type:'edge', at:[x,y,z]}.")] EntityRef? directionRef = null,
         [Description("linear: second direction, an assembly axis such as \"+z\".")] string? direction2 = null,
         [Description("linear: instances in direction 2, the seed row included.")] int? count2 = null,

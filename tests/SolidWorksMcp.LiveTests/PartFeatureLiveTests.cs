@@ -502,6 +502,68 @@ public class PartFeatureLiveTests(LiveFixture fx) : LiveTest(fx)
     }
 
     [Fact]
+    public async Task Linear_pattern_runs_direction_2_the_requested_way_when_its_own_way_leaves_the_part()
+    {
+        // S41: from z = 20 the second row belongs at z = -10. SOLIDWORKS' own sense puts it at z = 50, off the block, where
+        // the cuts leave no faces: it used to come back ok with two rows' worth of holes missing and two warnings.
+        string doc = await BlockAsync("lpat_grid_minus_z");
+        var seed = await HoleCutAsync(doc, -40, 20);
+        var r = await Pf.LinearPatternAsync(new LinearPatternRequest
+        {
+            Doc = doc, Features = [seed.Feature.Name], Direction = "+x", Count = 3, SpacingMm = 20,
+            Direction2 = "-z", Count2 = 2, Spacing2Mm = 30,
+        });
+        Assert.Equal(5 * seed.Verified.VolumeDeltaMm3, r.Verified.VolumeDeltaMm3, Vq);
+        Assert.Contains(r.Verified.Checks!, c => c.Contains("expected positions: 5/5"));
+        Assert.Null(r.Warnings);
+        await AssertHoleAxesAsync([-40, -40, -20, -20, 0, 0], doc, 0);
+        await AssertHoleAxesAsync([-10, -10, -10, 20, 20, 20], doc, 2);
+
+        // The requested sense is the one that leaves the part: toward +z from z = 20. The other way is tried, fits, and is
+        // not taken; the result is the pattern as asked, with its warning.
+        string doc2 = await BlockAsync("lpat_grid_off");
+        var seed2 = await HoleCutAsync(doc2, -40, 20);
+        var off = await Pf.LinearPatternAsync(new LinearPatternRequest
+        {
+            Doc = doc2, Features = [seed2.Feature.Name], Direction = "+x", Count = 3, SpacingMm = 20,
+            Direction2 = "+z", Count2 = 2, Spacing2Mm = 30,
+        });
+        Assert.Equal(2 * seed2.Verified.VolumeDeltaMm3, off.Verified.VolumeDeltaMm3, Vq);
+        Assert.Contains(off.Warnings!, w => w.Contains("instance faces were not found"));
+        Assert.Contains(off.Verified.Checks!, c => c.Contains("it is the requested one that leaves instances out"));
+        await AssertHoleAxesAsync([20, 20, 20], doc2, 2);
+    }
+
+    [Fact]
+    public async Task Linear_pattern_along_a_slanted_edge_takes_the_side_the_axis_names()
+    {
+        // S41 (b): a 10 mm chamfer on the block's upright corner edge leaves a top edge from (40, 20, 30) to (50, 20, 20).
+        // 'direction' with a reference says which way along it; "-x" was refused as not parallel, with a hint to pass "+".
+        string doc = await BlockAsync("lpat_slanted");
+        await Pf.ChamferAsync(new ChamferRequest { Doc = doc, Edges = [new EntityRef { At = [50, 10, 30] }], DistanceMm = 10 });
+        var seed = await HoleCutAsync(doc, 0, 0);
+        var slanted = new EntityRef { Type = "edge", At = [45, 20, 25] };
+        double step = 20 / Math.Sqrt(2);
+        var r = await Pf.LinearPatternAsync(new LinearPatternRequest
+        {
+            Doc = doc, Features = [seed.Feature.Name], DirectionRef = slanted, Direction = "-x", Count = 2, SpacingMm = 20,
+        });
+        Assert.Equal(seed.Verified.VolumeDeltaMm3, r.Verified.VolumeDeltaMm3, Vq);
+        Assert.Equal(-Math.Sqrt(0.5), r.DirectionModel![0], 1e-6);
+        Assert.Equal(Math.Sqrt(0.5), r.DirectionModel![2], 1e-6);
+        await AssertHoleAxesAsync([Math.Round(-step, 3), 0], doc, 0);
+        await AssertHoleAxesAsync([0, Math.Round(step, 3)], doc, 2);
+
+        // Square to the reference, an axis can't say which way.
+        var square = await Assert.ThrowsAsync<SwException>(() => Pf.LinearPatternAsync(new LinearPatternRequest
+        {
+            Doc = doc, Features = [seed.Feature.Name], DirectionRef = slanted, Direction = "+y", Count = 2, SpacingMm = 20,
+        }));
+        Assert.Equal(ErrorCodes.InvalidArgument, square.Code);
+        Assert.DoesNotContain("\"+\"/\"-\"", square.Hint!);
+    }
+
+    [Fact]
     public async Task Linear_pattern_along_an_edge_reference()
     {
         string doc = await BlockAsync("lpat_edge");
