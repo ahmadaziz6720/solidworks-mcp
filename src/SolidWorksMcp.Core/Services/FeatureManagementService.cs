@@ -446,6 +446,7 @@ public sealed partial class FeatureManagementService(SwSession session)
                     "Pass deleteChildren=true to delete them too (dryRun=true lists everything first), or delete or suppress them yourself.");
 
             var reasons = plan.ToDictionary(p => p.Id, p => p.Why);
+            var requested = targets.Select(SafeId).ToHashSet();
             var before = Snapshot.Take(d);
             var known = before.Features.ToDictionary(kv => kv.Key, kv => (Name: SafeName(kv.Value), Type: SafeType(kv.Value)));
             var owners = SubFeatureOwners(d);
@@ -481,8 +482,12 @@ public sealed partial class FeatureManagementService(SwSession session)
                 if (reasons.TryGetValue(id, out var r)) why = r;
                 else
                 {
-                    why = owners.TryGetValue(id, out var o) && gone.Contains(o.Id) ? $"absorbed by {o.Name}" : "also removed";
-                    ctx.Warn($"SOLIDWORKS also removed '{known[id].Name}' ({why}), which was not planned.");
+                    bool absorbed = owners.TryGetValue(id, out var o) && gone.Contains(o.Id);
+                    why = absorbed ? $"absorbed by {o.Name}" : "also removed";
+                    // A child's absorbed sketches go with the child whatever deleteAbsorbed says: listed with their why, not
+                    // warned. A requested feature that was to keep its sketches and lost one is still warned about.
+                    bool expected = absorbed && (deleteAbsorbed || !requested.Contains(o.Id));
+                    if (!expected) ctx.Warn($"SOLIDWORKS also removed '{known[id].Name}' ({why}), which was not planned.");
                 }
                 removed.Add(new RemovedFeature { Name = known[id].Name, Type = known[id].Type, Why = why });
             }

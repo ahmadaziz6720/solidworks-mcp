@@ -258,6 +258,23 @@ public class FeatureManagementLiveTests(LiveFixture fx) : LiveTest(fx)
     }
 
     [Fact]
+    public async Task Feature_delete_with_children_lists_a_child_s_sketch_without_a_warning()
+    {
+        // A Hole Wizard hole in the block's top face: a child of the extrude, with sketches of its own that are not all
+        // children of the extrude. Deleted with its parent, they go with the hole whatever deleteAbsorbed says: each is
+        // listed with its why, and none is a warning (there was one per sketch, "which was not planned").
+        var b = await BlockAsync("fm_delete_child_sketch");
+        var hole = await new PartFeatureService(S).HoleAsync(new HoleRequest { Doc = b.Doc, Points = [[0, 20, 0]], Type = "drill", DiameterMm = 6, End = "blind", DepthMm = 5 });
+
+        var r = await M.DeleteAsync(b.Doc, [b.Extrude], deleteChildren: true);
+        Assert.Equal("requested", r.Removed.Single(x => x.Name == b.Extrude).Why);
+        Assert.StartsWith("child of", r.Removed.Single(x => x.Name == hole.Feature.Name).Why);
+        Assert.Contains(r.Removed, x => x.Why == $"absorbed by {hole.Feature.Name}");
+        Assert.DoesNotContain(r.Removed, x => x.Why == "also removed");
+        Assert.Null(r.Warnings);
+        Assert.Equal(new[] { b.Sketch }, r.KeptAbsorbed!); // the requested feature's own sketch stays, as asked
+    }
+    [Fact]
     public async Task Feature_delete_keeps_the_absorbed_sketch_by_default()
     {
         var b = await BlockAsync("fm_delete_keep");
