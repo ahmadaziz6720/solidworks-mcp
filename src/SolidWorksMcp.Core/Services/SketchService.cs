@@ -43,6 +43,8 @@ public sealed class SketchEntityResult
     public required IReadOnlyList<string> Segments { get; init; }
     /// <summary>rectangle: {bottom, right, top, left} → segment name.</summary>
     public IReadOnlyDictionary<string, string>? Sides { get; init; }
+    /// <summary>Centre rectangle: its two construction diagonals, whose midpoint is the centre.</summary>
+    public IReadOnlyList<string>? Diagonals { get; init; }
     public string? ConstructionCircle { get; init; }
     public IReadOnlyList<string>? Checks { get; init; }
 }
@@ -552,6 +554,7 @@ public sealed class SketchService(SwSession session)
             checks.Add(what);
         }
         IReadOnlyDictionary<string, string>? sides = null;
+        List<string>? diagonals = null;
         string? constructionCircle = null;
         switch (kind)
         {
@@ -573,6 +576,10 @@ public sealed class SketchService(SwSession session)
                     ["left"] = mids.MinBy(m => m.Mid.X).Name,
                     ["right"] = mids.MaxBy(m => m.Mid.X).Name,
                 };
+                // A centre rectangle also draws its two diagonals as construction lines (S39): named so a midpoint
+                // relation to the origin needs no guess.
+                diagonals = lines.Where(l => l.ConstructionGeometry).Select(l => l.GetName()).ToList();
+                if (diagonals.Count == 0) diagonals = null;
                 break;
             }
             case "circle":
@@ -619,6 +626,7 @@ public sealed class SketchService(SwSession session)
             Label = e.Label,
             Segments = segs.Select(s => s.GetName()).ToList(),
             Sides = sides,
+            Diagonals = diagonals,
             ConstructionCircle = constructionCircle,
             Checks = checks.Count == 0 ? null : checks,
         };

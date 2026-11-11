@@ -623,6 +623,26 @@ public class SketchEditLiveTests(LiveFixture fx) : LiveTest(fx)
     }
 
     [Fact]
+    public async Task A_centre_rectangle_names_its_two_construction_diagonals()
+    {
+        // S39 (a): six segments came back and sides named four; the two construction diagonals had to be guessed.
+        var (doc, _, added) = await SketchAsync("rect_diag", "front", Rect(100, 60),
+            new SketchEntity { Kind = "rectangle", Corners = [[100, 0], [140, 30]] });
+        var centre = added.Entities[0];
+        Assert.Equal(6, centre.Segments.Count);
+        Assert.Equal(2, centre.Diagonals!.Count);
+        Assert.Empty(centre.Diagonals.Intersect(centre.Sides!.Values));
+        var info = await Ed.InfoAsync(doc, null);
+        foreach (var n in centre.Diagonals)
+        {
+            var s = Assert.Single(info.Segments, x => x.Name == n);
+            Assert.True(s.Construction);
+            Assert.Equal(Math.Sqrt(100 * 100 + 60 * 60), s.LengthMm!.Value, L);
+        }
+        Assert.Null(added.Entities[1].Diagonals); // a corner rectangle draws none
+    }
+
+    [Fact]
     public async Task Constrain_defines_a_rectangle_fully_in_one_call()
     {
         var (doc, sketch, added) = await SketchAsync("con_rect", "front",
