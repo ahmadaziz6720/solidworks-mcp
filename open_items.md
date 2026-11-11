@@ -10,7 +10,7 @@ Three sections: **Open**, not yet fixed; **Waiting**, fixed and not yet settled 
 merged, a fix not yet run in a session); **Closed**, merged upstream, run and held, or
 decided against, with the record.
 
-**Open: S4, S5, S7, S10 to S14, S18, S24, S27, S30 to S46.** Decided 2026-11-11 by the
+**Open: S4, S5, S7, S10 to S14, S18, S24, S27, S30 to S36, S38 to S46.** Decided 2026-11-11 by the
 owner, each in its item below. Every open item can be worked on but these: S4, S5, S7 and
 S12 wait on upstream; S10, S11, S33 and S34 are parked until a job needs them; S36 is done
 in the scenario test, not here. S40 to S45 were found on build `…-064352`; their code is
@@ -20,7 +20,7 @@ an item whose test does not fail there is closed instead.
 **Order of work** (the owner, 2026-11-11): modelling first, the largest code first, then
 the small ones; drawings after; the release last.
 
-1. Modelling, large: S37 (`equation_set` batch and its volume), S42 (a warning when a
+1. Modelling, large: S37 (done, Waiting), S42 (a warning when a
    segment flips, single tools and `sketch_constrain`), S41 (`direction2`'s sign and the
    `directionRef` hint), S45 (a short face list in every feature result), S40 (a blind
    cut that breaks out; `name` on `keepOnFailure`), S38 (the hole's placement sketch).
@@ -50,7 +50,7 @@ a STEP round trip gave 16 surface bodies and no solid. Again in `…-235702`,
 **S7. `dimension_set` accepts a change that splits the body.** Upstream: issue #4. Usage:
 read `bodies` in the result after each `dimension_set`. A model driven by global variables
 changes through `equation_set`, whose result has no `bodies`: read `model_mass` after it
-until S37 (b).
+until the build with S37 (b), then `model.bodies` in its result.
 
 **S10. Drawing format and title block.** Precision and decimal separator of drawing
 dimensions, parentheses for reference dimensions, `n×` in hole callouts, DWG NO from a
@@ -220,18 +220,6 @@ built by hand, reads its components and mates and changes one dimension; one tha
 global variable, renames a feature and reads `model_review`. Usage: the scenario test,
 the owner's call. Decided 2026-11-11 by the owner: both scenario items, written into the
 scenario test where it is kept, not here. Closes when they are there.
-
-**S37. `equation_set` takes one equation per call and says nothing of the body.** In a
-machined part on build `20261111-140208` (findings 2026-11-11, second entry, points 2, 3).
-(a) 43 of 83 calls were `equation_set`: 10 globals created, 13 dimensions linked, 20 to
-change the ten and set them back, each call a rebuild. Proposed: `equations:[{lhs,
-expression}]`, one rebuild, all or nothing and verified per row, as `dimension_set
-{values}` and `sketch_constrain {steps}` are. Same kind as S8 (Closed). (b) Its result
-carries no `volumeDeltaMm3` or `bodies`, unlike `dimension_set`'s, which refuses an
-equation-driven dimension: in a model driven by global variables S7's usage line cannot be
-followed from the result, and a `model_mass` after each change was needed. Bears on S7.
-Local; then PR. Decided 2026-11-11 by the owner: both, (a) many equations in one call, one
-rebuild, all or nothing, each verified; (b) `volumeDeltaMm3` and `bodies` in the result.
 
 **S38. `feature_hole` leaves its placement sketch under-defined, unreported.** In the same
 part (point 4): the result names the hole's own sketch dimensions but not the placement
@@ -552,6 +540,36 @@ the end of the class so it merges clean with PR #8), PR #9;
 Drawing and Contract live tests 47/47 on it on 2023 SP3. `ddca400` stays local, as it
 stands on PR #8. Editing a dimension's value (T10.4) stays out: a drawing
 dimension's value follows the model. Closes when PR #9 is settled.
+
+**S37. `equation_set` took one equation per call and said nothing of the body.** In a
+machined part on build `20261111-140208` (findings 2026-11-11, second entry, points 2, 3).
+(a) 43 of 83 calls were `equation_set`: 10 globals created, 13 dimensions linked, 20 to
+change the ten and set them back, each call a rebuild. (b) Its result carried no
+`volumeDeltaMm3` or `bodies`, unlike `dimension_set`'s, which refuses an equation-driven
+dimension: in a model driven by global variables S7's usage line could not be followed
+from the result, and a `model_mass` after each change was needed. Bears on S7. Decided
+2026-11-11 by the owner: both. Fixed in `c26b997` on `sw2023`. (a) `equations:[{lhs,
+expression}]` in place of `lhs` / `expression`, up to 100: every row checked before the
+first change (a name another row creates counts as known, a loop inside the batch is
+refused), written so that a variable comes before the equations that use it, one rebuild,
+each row verified as a single call verifies it, and every row put back when one fails.
+(b) `volumeDeltaMm3` and `model {volumeMm3, bodies, box}` for a part, for one equation
+and for a batch. Found while testing, both fixed in it: (c) a rollback left a dimension
+that got its first equation in the call at the new value (deleting the equation keeps
+it); it is set back, and the volume compared with the one before. (d) An equation changed
+in place to one SOLIDWORKS won't take (a slot's depth of 0) was dropped without an error:
+the old text stayed and the call came back `ok` with a warning "SOLIDWORKS stored the
+equation as" the old one, a result reported `ok` that was wrong, in single calls too. It
+is refused `VERIFY_FAILED` ("kept the previous equation") and rolled back. A new equation
+of that kind was already refused by SOLIDWORKS (`FEATURE_FAILED`); the rows written before
+it are now taken back. Two new live tests (a slot block: three equations in one call with
+the slot's row before the variable it uses, the volume against the slot's own, a slot
+through the block reading `bodies: 2`; a batch refused at the arguments, at a new
+equation of 0 and at a changed one, the equations and the volume as before each time);
+the second fails without (d), no exception thrown. With the two older equation tests 4/4
+on 2023 SP3, Contract 7/7, unit tests 259/259. To check in the scenario test: a part of
+global variables set up in one call, its call count against the 83, and `bodies` after a
+change that splits it. Upstream: a PR not yet decided.
 
 ## Closed
 
