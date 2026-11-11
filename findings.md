@@ -845,3 +845,62 @@ Build `bin\0.1.0-20261110-144220`, `serverVersion` `0.1.0-sw2023-20261110-144220
 
 Sorted into S28, its follow-ups held (1); S14, met again, a section's `modelBoxMm` (2); S5
 (3); S9 (4).
+
+**2026-11-11: scenario test of build 140208 (S29, S14, S22, S25, S26, S20 d, S6)**
+
+Build `bin\0.1.0-20261111-140208`, `serverVersion` `0.1.0-sw2023-20261111-140208+8ea77a4`
+(= tag `build-20261111-140208`).
+
+1. **S29 held; `model_mass` and `material_set` still read a stale material name.** A 20 ×
+   20 block, `config_table` rows A, B, C (`D1` 10/20/30) with `$MATERIAL` `AISI 1020` in A
+   only, `Default` active: rows A 0.0316 kg, B 0.008, C 0.012. Then `material_set
+   {name:"6061 Alloy", configuration:"C"}` with `Default` active. Each configuration
+   activated and measured: A 7900 kg/m³ 0.0316, B 1000 0.008, C 2700 0.0324, `Default` 1000
+   0.004; the table read back `Default` null, A `AISI 1020`, B null, C `6061 Alloy`. Right.
+   But `model_mass` in `Default` gave `"material":"AISI 1020"` beside density 1000, and a
+   following `material_set {name:"ABS"}` (no `configuration`, `Default` active) reported
+   `"previous":"AISI 1020"`, both reported `ok`. `model_mass` reads
+   `GetMaterialPropertyName2("")`; the table reads by the configuration's name and gets none.
+   Likely the row's material that reached `Default` (S29's cause) and was taken back by name
+   still answers to `""`; not probed further, and `material_set`'s read of `previous` not
+   looked up in the code. That `material_set` changed `Default`
+   only (A, B, C kept theirs): the branch S29 had not looked into held on this part.
+2. **S6 held; one wording left.** Two lines at a shared vertex, the slope at 7.5°,
+   `sketch_dimension_add angular` 10° without `textAt`: refused `VERIFY_FAILED`, hint "To
+   set the angle that is now 7.500423°, pass textAt inside it, e.g. textAt [62.581, 0.825]".
+   With that `textAt` accepted, 10° measured. The accepted call's check reads "the dimension
+   is on the angle that is now 7.500423°, not on the one between the rays, now 172.499577°",
+   while after the call they are 10° and 170°: in a result, "was" fits.
+3. **S26 held; `dryRun` disagrees.** On a copy of a thin-walled tray part, `feature_delete`
+   of a mirror with `deleteChildren`: the mirror, its two Hole Wizard children and their four
+   sketches (`absorbed by <hole>`), no warning. The same call with `dryRun:true` just before
+   listed those four sketches under `keptAbsorbed`, then the real call removed them. A
+   `dryRun` that says kept what will go.
+4. **S14's section point held.** A section through a tray's side holes (looking along +X,
+   1:2): `modelBoxMm` horizontal 78.624–101.376, the PDF's 78.6–101.35 (was 67.24–101.38),
+   both in `drw_info` of a saved drawing and in a new `drw_view_section` result; the
+   centreline section's box is the full height, as it should be. Met again (S14): two
+   `diameter` dimensions on the same hole edge, no `textAtMm`, both placed at the same sheet
+   point, the second one a duplicate; no warning for either.
+5. **S22 held.** `sw_status` after a failed call: 1.26k characters for ten `recentOps`, the
+   failure as `"error":"VERIFY_FAILED"` only. A sheet's note list with a 1405-character
+   note: 232 characters, `"NOTES… (1405 characters)"`. `drw_info` with three views 1.44k
+   (was 1.6k), the full path in the first view only. Left: `drw_views_standard` and
+   `drw_view_section` results still carry the full path, which `drw_info` cut.
+6. **S25 held.** `drw_dimension_add diameter` picked at a 4.5 mm hole's centre: "… is the
+   centre of a circular edge (radius 2.25 mm), not a point on it; used the circle centred
+   there". Lesson: a first pick 4.5 mm off the centre (on the circle's far side, mistaken for
+   it) got the old warning, "used the nearest one, 2.25 mm away", rightly, but 2.25 is also
+   the radius and read as the centre case; an `edge_list` call found the real centre. The
+   old warning naming the circle's centre when the edge is a circle would have saved it.
+7. **S20 (d) held.** In a section view, `vertical` on a hole edge seen edge-on and drawn
+   horizontally: `FEATURE_FAILED`, hint "a circle seen edge-on in this view, drawn as a
+   horizontal segment of its diameter, so it has no vertical extent. Use kind linear or
+   horizontal …". (c) held again: `linear` on the same edge, `expected` 4.5 with the Ø check.
+8. **Short checks.** A 20 mm block extruded 10, `doc_undo` removed it (volume → 0). STEP
+   AP214 export `solids: 1`; `doc_open` of it gave 16 surface bodies, no solid (S5, met
+   again). Interference 0 at the saved position in an assembly opened read-only. Two new
+   sections on a 1:2 plan: the centreline one one hatched face, the one through the side
+   holes three.
+9. **Calls**: 60 for the whole test, 25.2k characters, 2 errors (both deliberate: S6's
+   refusal and S20 d's). One `edge_list` spent on the wrong pick of point 6. No `sw_help`.
