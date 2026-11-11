@@ -27,7 +27,8 @@ public sealed class DocumentTools(SwSession session)
 
     [McpServerTool(Name = "doc_list", Title = "List documents", ReadOnly = true, Destructive = false, Idempotent = true, OpenWorld = false)]
     [Description("Lists open documents: handle (D1…), title, path, type, dirty, access (owned = created by this server; adopted = the user " +
-                 "allowed edits; foreign = the user's, read-only), active and target flags, units.")]
+                 "allowed edits; foreign = the user's, read-only), active and target flags, units. loadedBy: a reference that doc_open " +
+                 "loaded with another document (a drawing's model), that document's handle; closing it may close this one too.")]
     public async Task<string> DocList(CancellationToken cancellationToken = default) =>
         ResultJson.Serialize(await _svc.ListAsync(cancellationToken));
 

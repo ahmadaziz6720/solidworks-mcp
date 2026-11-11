@@ -156,6 +156,11 @@ public class DrawingLiveTests(LiveFixture fx) : LiveTest(fx)
         await Docs.CloseAsync(Path.Combine(_dir, "drw_close.sldprt"), save: false, discard: true);
         var opened = await new OpenService(S).OpenAsync(drwFile, false, null);
         _drawings.Add(opened.Document.Handle);
+        // S27: the part it loaded showed as a foreign document of its own; it now names the drawing that loaded it.
+        var part = Assert.Single((await Docs.ListAsync()).Documents, x => x.Type == "part" && x.Title.StartsWith("drw_close", StringComparison.OrdinalIgnoreCase));
+        Assert.Equal("foreign", part.Access);
+        Assert.Equal(opened.Document.Handle, part.LoadedBy);
+        Assert.Null(opened.Document.LoadedBy);
         var closed = await Docs.CloseAsync(opened.Document.Handle, save: false, discard: true);
         var empty = await Docs.CloseAsync((await Docs.NewAsync("drawing", "mmgs", null, $"drw_close_new_{Guid.NewGuid().ToString("N")[..6]}")).Document.Handle,
             save: false, discard: true);

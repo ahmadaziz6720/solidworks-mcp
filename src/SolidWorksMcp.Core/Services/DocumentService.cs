@@ -21,6 +21,8 @@ public sealed class DocInfo
     public bool Target { get; init; }
     public string? Units { get; init; }
     public string? Configuration { get; init; }
+    /// <summary>A reference loaded with another document by doc_open: that document's handle. Closing it may close this one.</summary>
+    public string? LoadedBy { get; init; }
 }
 
 public sealed class DocResult : ToolResult
@@ -332,6 +334,7 @@ public sealed class DocumentService(SwSession session)
             Target = ctx.Documents.Target is not null && DocLocator.SameDoc(ctx.Documents.Target, d),
             Units = UnitName(d.Extension.GetUserPreferenceInteger((int)swUserPreferenceIntegerValue_e.swUnitSystem, 0)),
             Configuration = cfg,
+            LoadedBy = entry.Class == DocClass.Foreign ? entry.LoadedBy : null,
         };
     }
 

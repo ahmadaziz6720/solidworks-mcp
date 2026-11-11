@@ -199,7 +199,16 @@ public sealed class OpenService(SwSession session)
 
         ctx.Documents.SetClass(doc, DocClass.Owned, readOnly ? "opened (read-only)" : "opened");
         ctx.Documents.Target = doc;
-        ctx.Documents.Track(doc).StampAfterLastOp = doc.GetUpdateStamp();
+        var opened = ctx.Documents.Track(doc);
+        opened.StampAfterLastOp = doc.GetUpdateStamp();
+        // The documents it loaded as references (a drawing's model, an assembly's parts) show in doc_list as foreign: say
+        // which document brought them in, and doc_close of it may close them too (S27).
+        foreach (var r in ctx.App.Documents().Where(x => !ReferenceEquals(x, doc) && !DocLocator.SameDoc(x, doc) &&
+                                                      !before.Any(b => ReferenceEquals(b, x) || DocLocator.SameDoc(b, x))))
+        {
+            var re = ctx.Documents.Track(r);
+            if (re.Class == DocClass.Foreign) re.LoadedBy ??= opened.Handle;
+        }
 
         // Read back what was asked for.
         string got = DocumentRegistry.SafePath(doc);

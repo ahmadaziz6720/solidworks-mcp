@@ -45,6 +45,8 @@ internal sealed class DocumentRegistry
         /// <summary>The last sketch the server finished in this document (feature tools default to it).</summary>
         public string? LastSketch { get; set; }
         public string? BackupPath { get; set; }
+        /// <summary>The handle of the document whose doc_open loaded this one as a reference (S27).</summary>
+        public string? LoadedBy { get; set; }
     }
 
     /// <summary>The document server operations act on by default (set by doc_new / doc_open / doc_activate).</summary>
