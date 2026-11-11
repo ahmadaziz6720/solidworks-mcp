@@ -10,9 +10,9 @@ Three sections: **Open**, not yet fixed; **Waiting**, fixed and not yet settled 
 merged, a fix not yet run in a session); **Closed**, merged upstream, run and held, or
 decided against, with the record.
 
-**Open: S4, S5, S7, S9 to S15, S18, S22 to S27, S29.** Next: S14's section `modelBoxMm`
-(build `…-144220`, its last paragraph). S5 and S7 wait a while for upstream's answer to
-issues #2 and #4.
+**Open: S4, S5, S7, S9 to S15, S18, S24, S27.** Next: S24 (a delete that moves other
+dimensions) and S27 (a reference shown as `foreign`), both small; then S18's `doc_pack`.
+S5 and S7 wait a while for upstream's answer to issues #2 and #4.
 
 ---
 
@@ -94,7 +94,15 @@ PDF draws the section from 78.6 to 101.35: one edge right, the other 11.4 sheet 
 section's checks passed. A caller placing text or a view from `modelBoxMm`, as
 `drw_views_standard`'s description suggests for plain views, lands beside the section.
 Local, either: the cut geometry's box for a section, or a word in the description that a
-section keeps the model's box.
+section keeps the model's box. That point is fixed in `ff6eaec` on `sw2023` (the owner,
+2026-11-11: the box, not the word): for a section of a part `modelBoxMm` is the box of
+what the view draws, from its visible edges (a line by its ends, a full circle by its
+projected radius, other edges by points along them), taken when it lies inside the
+model's box; a section of an assembly keeps the model's box, and `drw_info` says both.
+New live test (a block with a taller end cut in the middle, both ways round: 60 high one
+way, 100 the other) fails without it. In build `20261111-140208`; to check in its
+scenario test. The item's other points (axes, the border and title block, labels,
+dimension and note extents) stay open.
 
 **S15. `tools\install.ps1` registers at user scope under the name `solidworks`.** That
 clashes with any other server of that name. Usage: `-NoRegister`, and register by hand at
@@ -109,6 +117,52 @@ looks next to the model. (3) Missing: new names per file (only prefix or suffix)
 refuse or reopen a read-only source, report `noDrawingsFound`, say both in the description;
 then PR. (3) not yet decided.
 
+**S24. `drw_annotation_edit` delete moves other dimensions, unreported.** In the scenario
+test of build `…-024431`: three horizontal dimensions stacked below a view, text at y 109,
+101 and 93 mm. After the one at 109 was deleted, the `before` of the next two deletes gave
+both at y 109: SOLIDWORKS had closed up the stack. The result says only that the count
+went down by one and the name is no longer listed; in a drawing that keeps them, the
+layout changes without a word. Bears on S3 (Closed), whose tool it is. Local: read the
+view's other annotations' positions before and after a delete and name each that moved.
+Not yet decided whether to put them back as well.
+
+**S27. A document loaded as a reference shows as `foreign` in `doc_list`.** In the scenario
+test of build `…-091645` (point 5): after `doc_open` of a drawing (read-only), the part it
+references was listed as a document of its own, `access: foreign`, though nobody opened
+it, and `doc_close` of the drawing closed it too (`also closed`). Right in SOLIDWORKS
+terms, but `foreign` reads as the user's document, which `doc_close` says it never closes.
+Usage: a part listed after opening a drawing or an assembly may be its reference, loaded
+with it. Local, small: mark such a document (an `access` value or a `loadedBy`), and say in
+the `doc_list` description. Not yet decided.
+
+## Waiting
+
+**S29. `A_table_makes_three_sizes_each_with_its_own_volume_and_reads_back` fails on 2023
+SP3.** A Configuration live test: the table read back has no `$MATERIAL` column
+(`Collection: ["D1@Boss-Extrude1", "$STATE@Cut-Extrude1", "$PRP@PartNo"]`, `Not found:
+"$MATERIAL"`), though its rows set `AISI 1020`. Seen 2026-11-10 while fixing S28, with and
+without that fix (on `4533273` too), in a SOLIDWORKS session open since before the
+scenario test of build `…-115800`, whose point 2 met a SOLIDWORKS state that broke
+`material_set` until a restart. Not yet looked into: that session's state, a 2023
+difference in reading a table's material column, or the test. Looked into 2026-11-11, in a SOLIDWORKS session just started: it still failed, so not
+the session's state. Cause, found live: on 2023 SP3 `SetMaterialPropertyName2` with a
+configuration's name reaches other configurations too. A material set for the active
+configuration went to every configuration (each one's mass shows it once activated), and
+one set for another configuration reached the active one. So `config_table` gave a row's
+`$MATERIAL` to every configuration and reported it as that row's, a result reported `ok`
+that was wrong, and the table read back had no `$MATERIAL` column because the
+configurations all read alike; `material_set` with `configuration` did the same. Fixed in
+`ba35548` on `sw2023`: with other configurations present the call is made while another
+one is active, the others' materials are read before and after, and one that changed is
+given back what it had (none included); one that can't be put back is a warning. New
+live test (a material set in two of three configurations, each configuration's mass
+against its own density) fails without it (`Expected: 0,118`, `Actual: 0,947`); the
+table test passes again and also reads no material in the rows that set none.
+Configuration live tests 5/5. Not changed: `material_set` with no `configuration`, which
+may reach every configuration of a part that has several; not yet looked into. In build
+`20261111-140208`; to check in its scenario test: a part with three configurations, a
+material in one by `config_table` and in another by `material_set`, the mass of each.
+
 **S22. Results that repeat what the caller already has.** `drw_note_add` echoes the whole
 note text (1.4k characters back for a 1.4k note); `sw_status` repeats ten `recentOps`
 with their full error texts, up to 2.6k characters per call. Found in the scenario test of
@@ -121,21 +175,16 @@ echo and `sw_status`'s `recentOps` stay; the first cut in `c5df767` (S3 f). Buil
 `drw_note_add`'s cut held in `…-010708` (S3 f); `drw_annotation_list` still gives a
 note's text in full (a sheet list 1.6k to 2.0k, mostly the 1.4k note); again in `…-014952`,
 `kind: note` 1.6k for the one note. Also there: `drw_info` repeats the model's full path in
-every view, 1.6k for three views.
-
-**S23. `Tolerances_read_back_and_fits_follow_the_ISO_tables` fails on 2023 SP3.** A
-FeatureManagement live test: `Expected: 0,021`, `Actual: 0`. Seen 2026-11-09 while fixing
-S19, with and without that fix, in a SOLIDWORKS session open since 18:05. Not yet looked
-into: a long session, a 2023 difference in reading tolerances or fits, or the test.
-
-**S24. `drw_annotation_edit` delete moves other dimensions, unreported.** In the scenario
-test of build `…-024431`: three horizontal dimensions stacked below a view, text at y 109,
-101 and 93 mm. After the one at 109 was deleted, the `before` of the next two deletes gave
-both at y 109: SOLIDWORKS had closed up the stack. The result says only that the count
-went down by one and the name is no longer listed; in a drawing that keeps them, the
-layout changes without a word. Bears on S3 (Closed), whose tool it is. Local: read the
-view's other annotations' positions before and after a delete and name each that moved.
-Not yet decided whether to put them back as well.
+every view, 1.6k for three views. Fixed in `ff3494f` on `sw2023`: `recentOps` keeps a failed call's error code, the whole
+text only for a call its caller gave up on (a timeout, which nobody read);
+`drw_annotation_list` cuts a text over 80 characters to its start and its length, as the
+edit does, unless `fullText=true`; `drw_info` gives a model's full path in the first view
+that shows it and its file name in the views after. Live tests: a failed `material_set`
+read back from `sw_status` as its code, failing without the fix; the views' `model`,
+failing without it; the list's cut asserted in the annotations test, not run without the
+fix (it takes the new parameter). In build `20261111-140208`; to check in its scenario
+test: the characters of `sw_status` after a failed call, of a sheet list with the long
+note, and of `drw_info` with three views.
 
 **S25. A point at a hole's centre resolves to the hole's edge with a bare distance.** In the
 scenario test of build `…-064352` (point 5): a dimension's entity given at a hole's centre
@@ -144,7 +193,12 @@ resolved to the hole's edge with "no edge exactly at …; used the nearest one, 
 is not on the edge; but a session that thinks in hole centres reads the warning as a near
 miss. Local, small: when the point is a circular edge's centre, the warning says so
 (`used the circle centred there`). Usage until then: pick a hole's edge on the circle. Then
-PR with other resolver work; not yet decided.
+PR with other resolver work; not yet decided. Fixed in `0b21139` on `sw2023`: when the point is the centre of the circular edge taken,
+the warning reads "… is the centre of a circular edge (radius r mm), not a point on it;
+used the circle centred there"; a point off the edge that is not its centre keeps the old
+warning, and `strict` is as it was. New live test (a diameter picked at a 2 mm hole's
+centre, and 0.5 mm off it) fails without it. In build `20261111-140208`; to check in its
+scenario test. Upstream: not yet decided.
 
 **S26. `feature_delete` with `deleteChildren` warns once per absorbed sketch of a child.** In
 the scenario test of build `…-091645` (point 4): deleting a mirror with two hole features
@@ -154,27 +208,12 @@ under it, `removed` listed the mirror, the two holes and their four sketches, ea
 what was asked: a child's absorbed sketches go with the child whatever `deleteAbsorbed`
 says. Same kind as S17. Local, small: a sketch absorbed by a feature that is itself removed
 is planned, listed with its `why` and not warned; a sketch removed that nothing removed
-absorbed still warns. Then PR with other noise fixes; not yet decided.
-
-**S27. A document loaded as a reference shows as `foreign` in `doc_list`.** In the scenario
-test of build `…-091645` (point 5): after `doc_open` of a drawing (read-only), the part it
-references was listed as a document of its own, `access: foreign`, though nobody opened
-it, and `doc_close` of the drawing closed it too (`also closed`). Right in SOLIDWORKS
-terms, but `foreign` reads as the user's document, which `doc_close` says it never closes.
-Usage: a part listed after opening a drawing or an assembly may be its reference, loaded
-with it. Local, small: mark such a document (an `access` value or a `loadedBy`), and say in
-the `doc_list` description. Not yet decided.
-
-**S29. `A_table_makes_three_sizes_each_with_its_own_volume_and_reads_back` fails on 2023
-SP3.** A Configuration live test: the table read back has no `$MATERIAL` column
-(`Collection: ["D1@Boss-Extrude1", "$STATE@Cut-Extrude1", "$PRP@PartNo"]`, `Not found:
-"$MATERIAL"`), though its rows set `AISI 1020`. Seen 2026-11-10 while fixing S28, with and
-without that fix (on `4533273` too), in a SOLIDWORKS session open since before the
-scenario test of build `…-115800`, whose point 2 met a SOLIDWORKS state that broke
-`material_set` until a restart. Not yet looked into: that session's state, a 2023
-difference in reading a table's material column, or the test.
-
-## Waiting
+absorbed still warns. Then PR with other noise fixes; not yet decided. Fixed in `0bcb0ea` on `sw2023`: a sketch absorbed by a removed feature is listed with its
+`why` and not warned about, unless that feature is one the call named and was to keep its
+sketches (`deleteAbsorbed` false). New live test (a block with a Hole Wizard hole, the
+block deleted with its children: no warning, the hole's sketch `absorbed by` it) fails
+without it. In build `20261111-140208`; to check in its scenario test. Upstream: not yet
+decided.
 
 **S1. `drw_view_section` / `drw_view_detail` drew in view-sketch coordinates.** Local:
 `1de5067` + `3f43c50` on `sw2023`, run and held 2026-11-09 in build `…-163234`. Upstream:
@@ -246,8 +285,10 @@ build `…-195750`, in a real sketch and in the bare two-line repro (one extra c
 sketch made with `textAt` from the start). Left open from that test, local and small, for
 PR #6 too: the hint and the accepted call's check name the acute angle by its current
 size (`To set the 7.5° angle` when 10° was asked), which reads like a value to use; say
-"the angle that is now 7.5°". Closes when that wording is in and PR #6 is merged or
-refused.
+"the angle that is now 7.5°". Done in `f1d5fb8` on `sw2023`, the hint and the check, each
+asserted in the live test of the hint; in build `20261111-140208`. Not yet on
+`fix/angular-supplement`: a push there joins PR #6, the owner's call. Closes when that
+wording is in PR #6 and it is merged or refused.
 
 **S20. `drw_dimension_add` returned some dimensions without a value check, silently.** In the
 scenario test of build `…-204719`, 9 of 23: every one with a circular edge in it (a line to
@@ -324,7 +365,10 @@ drawn horizontally is refused `FEATURE_FAILED` with the generic hint "Check that
 entities can carry this kind of dimension (… a circle for radial/diameter)", which reads as
 if it should have worked; the server knows the circle is seen edge-on and its drawn
 direction, so the hint can say so and point to `linear` or the other direction. Nothing
-made, the failure reported honestly. Upstream: branch `fix/dimension-circles` (one commit
+made, the failure reported honestly. (d) fixed in `0b21139` on `sw2023`: the hint says the
+circle is seen edge-on, drawn as a segment of its diameter with no extent that way, and
+to use `linear` or the other direction; asserted in the edge-on live test, which fails
+without it. In build `20261111-140208`; to check in its scenario test. Upstream: branch `fix/dimension-circles` (one commit
 `5a54b9f`, `8c88427`, `8b0fbbd` and `23bd0d7` squashed onto `upstream/main`), PR #10; Drawing and Contract live tests 46/46 on it on 2023 SP3 (the
 interop patch on top, uncommitted). Closes when PR #10 is settled.
 
@@ -386,6 +430,14 @@ dimension's value follows the model. Closes when PR #9 is settled.
 ## Closed
 
 Each goes back to Waiting if it is sent upstream, as S3 did.
+
+**S23. `Tolerances_read_back_and_fits_follow_the_ISO_tables` fails on 2023 SP3.** A
+FeatureManagement live test: `Expected: 0,021`, `Actual: 0`. Seen 2026-11-09 while fixing
+S19, with and without that fix, in a SOLIDWORKS session open since 18:05. Not yet looked
+into: a long session, a 2023 difference in reading tolerances or fits, or the test. Looked into 2026-11-11: it passed in a SOLIDWORKS session started minutes before, alone
+and in the FeatureManagement live tests in full (89 of 89 with SketchEdit). Its failures
+came from SOLIDWORKS sessions open for hours, not from the server or the test. Closed
+2026-11-11 on the owner's word.
 
 **S28. `material_add` kept its own library; a library that did not parse failed
 `INTERNAL`.** In the scenario test of build `…-115800` (point 2): `material_set` of a
