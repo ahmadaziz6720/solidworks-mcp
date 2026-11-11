@@ -10,7 +10,7 @@ Three sections: **Open**, not yet fixed; **Waiting**, fixed and not yet settled 
 merged, a fix not yet run in a session); **Closed**, merged upstream, run and held, or
 decided against, with the record.
 
-**Open: S4, S5, S7, S9 to S15, S18, S24, S27.** Next: S24 (a delete that moves other
+**Open: S4, S5, S7, S9 to S15, S18, S24, S27, S30.** Next: S30 (a stale material name), S24 (a delete that moves other
 dimensions) and S27 (a reference shown as `foreign`), both small; then S18's `doc_pack`.
 S5 and S7 wait a while for upstream's answer to issues #2 and #4.
 
@@ -26,7 +26,7 @@ Upstream: issue #2. Usage until fixed: import by File > Open and `doc_activate`,
 `solidBodies` after `doc_open`. Still so in builds `…-204719`, `…-215810` and `…-230924`:
 a STEP round trip gave 16 surface bodies and no solid. Again in `…-235702`,
 `…-010708`, `…-014952`, `…-024431`, `…-034022`, `…-064352`, `…-091645`, `…-115800`,
-`…-134233` and `…-144220` (export `solids: 1`, import 16 surface bodies).
+`…-134233`, `…-144220` and `20261111-140208` (export `solids: 1`, import 16 surface bodies).
 
 **S7. `dimension_set` accepts a change that splits the body.** Upstream: issue #4. Usage:
 read `bodies` in the result after each `dimension_set`.
@@ -42,8 +42,9 @@ full sheet lists and two `drw_info` calls 42% of them), `…-014952` (28 calls, 
 `…-024431` (42 calls, 21.2k), `…-034022` (25 calls, 11.6k), `…-064352` (28 calls, 13.2k;
 8 dimension adds at ≈110–600 characters each, one `drw_info` of 1.6k to read a section's
 orientation), `…-091645` (30 calls, 16.8k; the largest `feature_list` 2.1k and
-`feature_mirror` 1.9k), `…-134233` (34 calls, 16.2k; 14 of them on S28) and `…-144220`
-(28 calls, 13.3k).
+`feature_mirror` 1.9k), `…-134233` (34 calls, 16.2k; 14 of them on S28) `…-144220`
+(28 calls, 13.3k) and `20261111-140208` (60 calls, 25.2k for seven items; one `edge_list`
+spent on a wrong pick, S25).
 
 **S10. Drawing format and title block.** Precision and decimal separator of drawing
 dimensions, parentheses for reference dimensions, `n×` in hole callouts, DWG NO from a
@@ -101,8 +102,13 @@ projected radius, other edges by points along them), taken when it lies inside t
 model's box; a section of an assembly keeps the model's box, and `drw_info` says both.
 New live test (a block with a taller end cut in the middle, both ways round: 60 high one
 way, 100 the other) fails without it. In build `20261111-140208`; to check in its
-scenario test. The item's other points (axes, the border and title block, labels,
-dimension and note extents) stay open.
+scenario test. Held there (findings 2026-11-11, point 4): the same section through a
+tray's side holes read 78.624–101.376 against the PDF's 78.6–101.35 (was 67.24–101.38),
+in `drw_info` of a saved drawing and in a new `drw_view_section` result; a centreline
+section kept the full height. The item's other points (axes, the border and title block,
+labels, dimension and note extents) stay open. Met again in that test: two `diameter`
+dimensions on the same hole edge without `textAtMm` were both placed at the same sheet
+point, the second a duplicate, with no warning for either.
 
 **S15. `tools\install.ps1` registers at user scope under the name `solidworks`.** That
 clashes with any other server of that name. Usage: `-NoRegister`, and register by hand at
@@ -135,6 +141,15 @@ Usage: a part listed after opening a drawing or an assembly may be its reference
 with it. Local, small: mark such a document (an `access` value or a `loadedBy`), and say in
 the `doc_list` description. Not yet decided.
 
+**S30. `model_mass` and `material_set` name a material the configuration does not have.**
+In the scenario test of build `20261111-140208` (point 1): with a material in rows A and
+C only, `model_mass` in `Default` gave `"material":"AISI 1020"` beside a density of 1000,
+and a following `material_set` with no `configuration` reported `"previous":"AISI 1020"`,
+both `ok`; the table, which reads by the configuration's name, gave none for `Default`.
+Both read `GetMaterialPropertyName2("")`. Likely the material that reached `Default`
+while row A was set (S29's cause) and was given back by name still answers to `""`; not
+probed. Local: read by the active configuration's name in both, and probe whether S29's
+putting back leaves something behind under `""`. Not yet fixed.
 ## Waiting
 
 **S29. `A_table_makes_three_sizes_each_with_its_own_volume_and_reads_back` fails on 2023
@@ -162,6 +177,11 @@ Configuration live tests 5/5. Not changed: `material_set` with no `configuration
 may reach every configuration of a part that has several; not yet looked into. In build
 `20261111-140208`; to check in its scenario test: a part with three configurations, a
 material in one by `config_table` and in another by `material_set`, the mass of each.
+Held there (findings 2026-11-11, point 1): `AISI 1020` in row A only, `6061 Alloy` by
+`material_set` in C with `Default` active, each configuration activated and measured:
+A 7900 kg/m³, B 1000, C 2700, `Default` 1000, and the table read back the same. A
+`material_set` with no `configuration` then changed `Default` only, so the branch not
+looked into held on that part. What it found beside it is S30.
 
 **S22. Results that repeat what the caller already has.** `drw_note_add` echoes the whole
 note text (1.4k characters back for a 1.4k note); `sw_status` repeats ten `recentOps`
@@ -184,7 +204,11 @@ read back from `sw_status` as its code, failing without the fix; the views' `mod
 failing without it; the list's cut asserted in the annotations test, not run without the
 fix (it takes the new parameter). In build `20261111-140208`; to check in its scenario
 test: the characters of `sw_status` after a failed call, of a sheet list with the long
-note, and of `drw_info` with three views.
+note, and of `drw_info` with three views. Held there (findings 2026-11-11, point 5):
+`sw_status` 1.26k for ten `recentOps`, the failure as its code only; a sheet's note list
+with a 1405-character note 232 characters; `drw_info` with three views 1.44k (was 1.6k).
+Follow-up from it, small: (a) the results of `drw_views_standard` and `drw_view_section`
+still carry the model's full path in each view, which `drw_info` cut.
 
 **S25. A point at a hole's centre resolves to the hole's edge with a bare distance.** In the
 scenario test of build `…-064352` (point 5): a dimension's entity given at a hole's centre
@@ -198,7 +222,12 @@ the warning reads "… is the centre of a circular edge (radius r mm), not a poi
 used the circle centred there"; a point off the edge that is not its centre keeps the old
 warning, and `strict` is as it was. New live test (a diameter picked at a 2 mm hole's
 centre, and 0.5 mm off it) fails without it. In build `20261111-140208`; to check in its
-scenario test. Upstream: not yet decided.
+scenario test. Held there (findings 2026-11-11, point 6): a diameter picked at a 4.5 mm
+hole's centre gave the new warning. Follow-up from it, small: (a) a pick one diameter off
+the centre, on the circle's far side, rightly got the old warning, "used the nearest one,
+2.25 mm away", but 2.25 is also the radius and it read as the centre case; an `edge_list`
+call was spent finding the real centre. When the edge taken is a circle, the old warning
+can name its centre and radius too. Upstream: not yet decided.
 
 **S26. `feature_delete` with `deleteChildren` warns once per absorbed sketch of a child.** In
 the scenario test of build `…-091645` (point 4): deleting a mirror with two hole features
@@ -212,8 +241,13 @@ absorbed still warns. Then PR with other noise fixes; not yet decided. Fixed in 
 `why` and not warned about, unless that feature is one the call named and was to keep its
 sketches (`deleteAbsorbed` false). New live test (a block with a Hole Wizard hole, the
 block deleted with its children: no warning, the hole's sketch `absorbed by` it) fails
-without it. In build `20261111-140208`; to check in its scenario test. Upstream: not yet
-decided.
+without it. In build `20261111-140208`; to check in its scenario test. Held there
+(findings 2026-11-11, point 3): a mirror deleted with its two Hole Wizard children and
+their four sketches, each `absorbed by <hole>`, no warning. Follow-up from it: (a) the
+same call with `dryRun:true` listed those four sketches under `keptAbsorbed`, and the real
+call then removed them: a dry run that says kept what will go. The plan should list a
+child's absorbed sketches as removed whatever `deleteAbsorbed` says, as the delete does.
+Upstream: not yet decided.
 
 **S1. `drw_view_section` / `drw_view_detail` drew in view-sketch coordinates.** Local:
 `1de5067` + `3f43c50` on `sw2023`, run and held 2026-11-09 in build `…-163234`. Upstream:
@@ -269,7 +303,7 @@ back a boss extrude. Closes when PR #8 is settled. Tracking drawing changes by v
 annotation counts stays a later option. A misplaced drawing item is moved or removed with
 S3's tools (Waiting) instead of an undo. Held again in build `…-230924`: refused in a
 drawing, the hint naming the three edit tools; in a part an undo took back a boss
-extrude. In a part again in `…-014952`, `…-024431`, `…-034022`, `…-064352` and `…-091645`.
+extrude. In a part again in `…-014952`, `…-024431`, `…-034022`, `…-064352`, `…-091645` and `20261111-140208`.
 
 **S6. `sketch_dimension_add` angular refused the acute angle at a shared vertex.** Local:
 `18cbc57` on `sw2023`. The supplement is kept when `textAt` lies in its sector, and the value
@@ -287,8 +321,13 @@ PR #6 too: the hint and the accepted call's check name the acute angle by its cu
 size (`To set the 7.5° angle` when 10° was asked), which reads like a value to use; say
 "the angle that is now 7.5°". Done in `f1d5fb8` on `sw2023`, the hint and the check, each
 asserted in the live test of the hint; in build `20261111-140208`. Not yet on
-`fix/angular-supplement`: a push there joins PR #6, the owner's call. Closes when that
-wording is in PR #6 and it is merged or refused.
+`fix/angular-supplement`: a push there joins PR #6, the owner's call. Held in the scenario
+test of build `20261111-140208` (findings 2026-11-11, point 2): the hint reads "To set the
+angle that is now 7.500423°", and its `textAt` was accepted. One wording left from it,
+small: the accepted call's check says "the angle that is now 7.500423°, not on the one
+between the rays, now 172.499577°" in a result where they are 10° and 170°; "was" fits a
+result (the hint, given before any change, keeps "now"). Closes when that wording is in
+PR #6 and it is merged or refused.
 
 **S20. `drw_dimension_add` returned some dimensions without a value check, silently.** In the
 scenario test of build `…-204719`, 9 of 23: every one with a circular edge in it (a line to
@@ -368,7 +407,8 @@ direction, so the hint can say so and point to `linear` or the other direction. 
 made, the failure reported honestly. (d) fixed in `0b21139` on `sw2023`: the hint says the
 circle is seen edge-on, drawn as a segment of its diameter with no extent that way, and
 to use `linear` or the other direction; asserted in the edge-on live test, which fails
-without it. In build `20261111-140208`; to check in its scenario test. Upstream: branch `fix/dimension-circles` (one commit
+without it. In build `20261111-140208`. Held in its scenario test (findings 2026-11-11,
+point 7): `FEATURE_FAILED` with the new hint; (c) held again. Upstream: branch `fix/dimension-circles` (one commit
 `5a54b9f`, `8c88427`, `8b0fbbd` and `23bd0d7` squashed onto `upstream/main`), PR #10; Drawing and Contract live tests 46/46 on it on 2023 SP3 (the
 interop patch on top, uncommitted). Closes when PR #10 is settled.
 

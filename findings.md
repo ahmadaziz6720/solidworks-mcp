@@ -904,3 +904,7 @@ Build `bin\0.1.0-20261111-140208`, `serverVersion` `0.1.0-sw2023-20261111-140208
    holes three.
 9. **Calls**: 60 for the whole test, 25.2k characters, 2 errors (both deliberate: S6's
    refusal and S20 d's). One `edge_list` spent on the wrong pick of point 6. No `sw_help`.
+
+Sorted into S30 new, S9 (1, 9). Held: S29 (1); S6, one wording left (2); S26, follow-up (a)
+(3); S14's section point, and met again (4); S22, follow-up (a) (5); S25, follow-up (a)
+(6); S20 d (7). S5 and S19 met again (8).
