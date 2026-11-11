@@ -10,7 +10,7 @@ Three sections: **Open**, not yet fixed; **Waiting**, fixed and not yet settled 
 merged, a fix not yet run in a session); **Closed**, merged upstream, run and held, or
 decided against, with the record.
 
-**Open: S4, S5, S7, S10 to S14, S24, S27, S30 to S36, S39, S44, S46.**
+**Open: S4, S5, S7, S10 to S14, S24, S27, S30, S32 to S36, S39, S44, S46.**
 Decided 2026-11-11 by the owner, each in its item below. Every open item can be worked on
 but these: S4, S5, S7 and S12 wait on upstream; S10, S11, S33 and S34 are parked until a
 job needs them; S36 is done in the scenario test, not here. S43 and S44 were found on
@@ -22,8 +22,8 @@ the small ones; drawings after; the release last.
 
 1. Modelling, large: S37, S42, S41, S45, S40 and S38 are done (Waiting, on `sw2023`, in
    no build yet).
-2. Modelling, smaller: S43 and S18 are done (Waiting); S30 probed, waits on the owner.
-   **Next**: S31, S44 (probe first), S39, S27, S35 (confirm live, then the
+2. Modelling, smaller: S43, S18 and S31 are done (Waiting); S30 probed, waits on the
+   owner. **Next**: S44 (probe first), S39, S27, S35 (confirm live, then the
    description), S6's wording, then pushed to `fix/angular-supplement` (PR #6).
 3. Drawings: S14 (the largest: view axes, border and title block, extents), S24, S32,
    S13 (a description line).
@@ -160,13 +160,6 @@ name in six services were written and set aside, not committed. Waits on the own
 report when the name and the density disagree (e.g. the name with a warning, or no
 material), and whether to look for where the name comes from (S29's putting back, or
 `Default`'s activation).
-
-**S31. `feature_delete` `dryRun` says kept what the delete removes.** In the scenario test
-of build `20261111-140208` (point 3, from S26): a mirror with two Hole Wizard children,
-`deleteChildren`, `dryRun:true` listed the holes' four sketches under `keptAbsorbed`; the
-real call then removed them, each `absorbed by <hole>`. A child's absorbed sketches go
-with the child whatever `deleteAbsorbed` says. Local, small: the plan lists them as
-removed with that `why`, so the dry run and the delete agree. Not yet fixed.
 
 **S32. Two small result follow-ups from the scenario test of build `20261111-140208`.**
 (a) From S22 (point 5): the results of `drw_views_standard` and `drw_view_section` still
@@ -665,6 +658,19 @@ live test now does both (on the code before, the read-only pack got `VERIFY_FAIL
 the two pack tests passed, unit tests 260/260. (3) stays parked, out of this item. To
 check in the scenario test: `doc_pack` of a read-only document is refused, and a part
 whose drawing lies elsewhere reads `noDrawingsFound`.
+
+**S31. `feature_delete` `dryRun` says kept what the delete removes.** In the scenario test
+of build `20261111-140208` (point 3, from S26): a mirror with two Hole Wizard children,
+`deleteChildren`, `dryRun:true` listed the holes' four sketches under `keptAbsorbed`; the
+real call then removed them, each `absorbed by <hole>`. A child's absorbed sketches go
+with the child whatever `deleteAbsorbed` says. Local, small: the plan lists them as
+removed with that `why`, so the dry run and the delete agree. Fixed in `40ffab9` on `sw2023`: with `deleteChildren`, a
+child's absorbed sketches are planned as removed (`absorbed by <child>`), whatever
+`deleteAbsorbed` says; it still decides for the requested features' own sketches. The
+live test of a delete with children now runs a dry run first and compares both lists
+with the delete's; on the code before, the dry run lacked the hole's two sketches. The
+FeatureManagement delete tests passed. To check in the scenario test: a mirror with two
+holes, `deleteChildren`, `dryRun` then the delete, the same lists.
 
 ## Closed
 
