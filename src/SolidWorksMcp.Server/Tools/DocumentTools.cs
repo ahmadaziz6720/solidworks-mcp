@@ -55,7 +55,9 @@ public sealed class DocumentTools(SwSession session)
     [McpServerTool(Name = "doc_pack", Title = "Pack and Go", ReadOnly = false, Destructive = true, Idempotent = false, OpenWorld = false)]
     [Description("Pack and Go: copies a saved part, assembly or drawing with every file it references (and the models' drawings) into one " +
                  "folder, optionally renamed with a prefix or suffix, the copies referencing each other. The open document stays as it is. " +
-                 "Verified: every copy written; the copied assemblies and drawings reference the copies only.")]
+                 "Verified: every copy written; the copied assemblies and drawings reference the copies only. A document open read-only " +
+                 "is refused (its copies would reference the originals). Drawings are found only next to each model under its name; " +
+                 "noDrawingsFound says when none was.")]
     public Task<string> DocPack(
         IProgress<ProgressNotificationValue> progress,
         [Description("Target folder (relative paths go under Documents\\solidworks-mcp); default <name>_pack.")] string? folder = null,

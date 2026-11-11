@@ -967,6 +967,26 @@ public class AssemblyLiveTests(LiveFixture fx) : LiveTest(fx)
             // One part, renamed with a suffix, no drawings.
             var one = await pack.PackAsync(new DocPackRequest { Doc = a, Folder = Path.Combine(dir, "one"), Suffix = "_rev2", IncludeDrawings = false });
             Assert.Equal("pk_a_rev2.SLDPRT", Path.GetFileName(Assert.Single(one.Files).To), ignoreCase: true);
+            Assert.Null(one.NoDrawingsFound); // none asked for
+            Assert.Null(r.NoDrawingsFound);    // the assembly's drawing came along
+
+            // S18 (2): drawings asked for, none next to the model: said, not passed over.
+            var lone = await pack.PackAsync(new DocPackRequest { Doc = a, Folder = Path.Combine(dir, "lone") });
+            Assert.True(lone.NoDrawingsFound);
+            Assert.Contains(lone.Warnings!, w => w.Contains("no drawing", StringComparison.Ordinal));
+
+            // S18 (1): from an assembly opened read-only the copies kept referencing the originals; refused before writing.
+            foreach (var h in open)
+                await Docs.CloseAsync(h, save: false, discard: true);
+            open.Clear();
+            var ro = await new OpenService(S).OpenAsync(asmPath, readOnly: true, null);
+            open.Add(ro.Document.Handle);
+            Assert.True(ro.ReadOnly);
+            string roDir = Path.Combine(dir, "readonly");
+            var refused = await Assert.ThrowsAsync<SwException>(() => pack.PackAsync(new DocPackRequest { Doc = ro.Document.Handle, Folder = roDir }));
+            Assert.Equal(ErrorCodes.InvalidArgument, refused.Code);
+            Assert.Contains("read-only", refused.Message, StringComparison.Ordinal);
+            Assert.False(Directory.Exists(roDir) && Directory.EnumerateFiles(roDir).Any(), "nothing written");
         }
         finally
         {

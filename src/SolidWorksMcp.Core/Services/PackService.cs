@@ -34,6 +34,8 @@ public sealed class DocPackResult : ToolResult
 {
     public required string Folder { get; init; }
     public required IReadOnlyList<PackedFile> Files { get; init; }
+    /// <summary>True when drawings were asked for and Pack and Go found none: it looks only next to the models, under their names.</summary>
+    public bool? NoDrawingsFound { get; init; }
     public required IReadOnlyList<string> Checks { get; init; }
 }
 
@@ -92,6 +94,11 @@ public sealed class PackService(SwSession session)
         string src = DocumentRegistry.SafePath(d);
         if (src.Length == 0)
             throw SwException.InvalidArgument($"'{ctx.Title(d)}' has not been saved.", "Save it first (doc_save {mode:'as'}): Pack and Go copies files.");
+        // VERIFIED (S18): from a document opened read-only the copies are written but still reference the originals.
+        if (OpenService.SafeReadOnly(d))
+            throw SwException.InvalidArgument(
+                $"'{ctx.Title(d)}' is open read-only: Pack and Go would write copies that still reference the original files.",
+                "doc_close it, doc_open it without readOnly, then doc_pack.");
         if (d.GetSaveFlag())
             ctx.Warn($"'{ctx.Title(d)}' has unsaved changes; Pack and Go copies what is saved (doc_save first to include them).");
         string folderArg = q.Folder ?? $"{Path.GetFileNameWithoutExtension(src)}_pack";
@@ -114,6 +121,12 @@ public sealed class PackService(SwSession session)
         var to = ComArgs.Strings(targets);
         if (from.Length == 0 || from.Length != to.Length)
             throw new SwException(ErrorCodes.FeatureFailed, $"Pack and Go listed {from.Length} documents and {to.Length} targets.");
+        // Pack and Go finds a model's drawing only beside it under the same name, and copies none otherwise without a word (S18).
+        bool noDrawings = q.IncludeDrawings && !src.EndsWith(".slddrw", StringComparison.OrdinalIgnoreCase) &&
+                          !from.Any(f => f.EndsWith(".slddrw", StringComparison.OrdinalIgnoreCase));
+        if (noDrawings)
+            ctx.Warn("Pack and Go found no drawing to copy: it looks only next to each model, under the model's name. A drawing kept " +
+                     "elsewhere is not in the pack (open it and doc_pack it instead).");
         // Pack and Go leaves out some references without a word (VERIFIED: files under the Windows temp folder): compare its
         // list with the file's own dependencies before anything is written.
         var listed = new HashSet<string>(from.Select(Path.GetFullPath), StringComparer.OrdinalIgnoreCase);
@@ -170,6 +183,7 @@ public sealed class PackService(SwSession session)
             {
                 From = f, To = to[i], SizeBytes = new FileInfo(to[i]).Length, BackupPath = backups[i],
             }).ToList(),
+            NoDrawingsFound = noDrawings ? true : null,
             Checks = checks,
         };
     }
