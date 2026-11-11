@@ -10,7 +10,7 @@ Three sections: **Open**, not yet fixed; **Waiting**, fixed and not yet settled 
 merged, a fix not yet run in a session); **Closed**, merged upstream, run and held, or
 decided against, with the record.
 
-**Open: S4, S5, S7, S10 to S14, S24, S27, S30, S32 to S36, S39, S44, S46.**
+**Open: S4, S5, S7, S10 to S14, S24, S27, S30, S32 to S36, S39, S46.**
 Decided 2026-11-11 by the owner, each in its item below. Every open item can be worked on
 but these: S4, S5, S7 and S12 wait on upstream; S10, S11, S33 and S34 are parked until a
 job needs them; S36 is done in the scenario test, not here. S43 and S44 were found on
@@ -22,9 +22,9 @@ the small ones; drawings after; the release last.
 
 1. Modelling, large: S37, S42, S41, S45, S40 and S38 are done (Waiting, on `sw2023`, in
    no build yet).
-2. Modelling, smaller: S43, S18 and S31 are done (Waiting); S30 probed, waits on the
-   owner. **Next**: S44 (probe first), S39, S27, S35 (confirm live, then the
-   description), S6's wording, then pushed to `fix/angular-supplement` (PR #6).
+2. Modelling, smaller: S43, S18, S31 and S44 are done (Waiting); S30 probed, waits on
+   the owner. **Next**: S39, S27, S35 (confirm live, then the description), S6's
+   wording, then pushed to `fix/angular-supplement` (PR #6).
 3. Drawings: S14 (the largest: view axes, border and title block, extents), S24, S32,
    S13 (a description line).
 4. Release: S46's line in `CLAUDE.md` step 4, then a build as that file says, every
@@ -223,13 +223,6 @@ diagonals, needed for a midpoint relation to the origin, are not named and were 
 (b) `material_list {filter:"6061"}`: 4 rows in 1268 characters, about two thirds the list
 of databases, repeated on every call. Same kind as S22 (Closed). Local, small. Not yet
 fixed.
-
-**S44. `feature_chamfer` `equal` makes a chamfer with no faces on 2023.** Same parts (point
-7): on a concave edge and on a circular edge, `'Chamfer1' was created but has no faces`,
-then the tool fell back to distance-distance by itself and held. Twice in two tries.
-Reported success, the right chamfer. Local, small: if `swChamferEqualDistance` never works
-on 2023 SP3 (a live probe first), go straight to distance-distance and drop the warning,
-in the interop patch or behind a version check. Not yet probed.
 
 **S46. A release is registered in one project, the server in two.** From reading a
 session's call count (findings 2026-11-11, fourth entry): `CLAUDE.md`'s release step 4
@@ -671,6 +664,21 @@ live test of a delete with children now runs a dry run first and compares both l
 with the delete's; on the code before, the dry run lacked the hole's two sketches. The
 FeatureManagement delete tests passed. To check in the scenario test: a mirror with two
 holes, `deleteChildren`, `dryRun` then the delete, the same lists.
+
+**S44. `feature_chamfer` `equal` makes a chamfer with no faces on 2023.** Same parts (point
+7): on a concave edge and on a circular edge, `'Chamfer1' was created but has no faces`,
+then the tool fell back to distance-distance by itself and held. Twice in two tries.
+Reported success, the right chamfer. Local, small: if `swChamferEqualDistance` never works
+on 2023 SP3 (a live probe first), go straight to distance-distance and drop the warning,
+in the interop patch or behind a version check. Probed 2026-11-11, live: the equal type made a chamfer with no
+faces on a convex straight edge, a convex circular edge and a concave circular edge, each
+time. Fixed in `2a1f5ae` on `sw2023`, behind a version check: on revision 31 (2023) an
+equal chamfer is made as distance-distance with equal legs at once, no failed attempt,
+no warning; other versions keep the attempt and its fallback, untried here. The equal
+chamfer live test now asserts no warning and adds one on a boss's concave base; on the
+code before it carried the warning. Chamfer tests and the two others that make
+chamfers passed. To check in the scenario test: an `equal` chamfer's result has no
+warning.
 
 ## Closed
 
