@@ -10,7 +10,7 @@ Three sections: **Open**, not yet fixed; **Waiting**, fixed and not yet settled 
 merged, a fix not yet run in a session); **Closed**, merged upstream, run and held, or
 decided against, with the record.
 
-**Open: S4, S5, S7, S10 to S14, S18, S24, S27, S30 to S36, S39, S43, S44, S46.**
+**Open: S4, S5, S7, S10 to S14, S18, S24, S27, S30 to S36, S39, S44, S46.**
 Decided 2026-11-11 by the owner, each in its item below. Every open item can be worked on
 but these: S4, S5, S7 and S12 wait on upstream; S10, S11, S33 and S34 are parked until a
 job needs them; S36 is done in the scenario test, not here. S43 and S44 were found on
@@ -22,9 +22,9 @@ the small ones; drawings after; the release last.
 
 1. Modelling, large: S37, S42, S41, S45, S40 and S38 are done (Waiting, on `sw2023`, in
    no build yet).
-2. Modelling, smaller, **next**: S43 (look into the offset's dimension first), S30
-   (probe first), S18 (1, 2), S31, S44 (probe first), S39, S27, S35 (confirm live, then
-   the description), S6's wording, then pushed to `fix/angular-supplement` (PR #6).
+2. Modelling, smaller: S43 is done (Waiting). **Next**: S30 (probe first), S18 (1, 2),
+   S31, S44 (probe first), S39, S27, S35 (confirm live, then the description), S6's
+   wording, then pushed to `fix/angular-supplement` (PR #6).
 3. Drawings: S14 (the largest: view axes, border and title block, extents), S24, S32,
    S13 (a description line).
 4. Release: S46's line in `CLAUDE.md` step 4, then a build as that file says, every
@@ -230,13 +230,6 @@ diagonals, needed for a midpoint relation to the origin, are not named and were 
 (b) `material_list {filter:"6061"}`: 4 rows in 1268 characters, about two thirds the list
 of databases, repeated on every call. Same kind as S22 (Closed). Local, small. Not yet
 fixed.
-
-**S43. `sketch_offset` has no dimension a caller can name, and reads under-defined.** Same
-parts (point 6), met in both: the offset's dimension could not be found (`D5@<sketch>`
-not found after four dimensions), so no equation can drive it; and a sketch that read
-`constrained: fully` while open is listed `sketch_under_defined` by `model_review` once
-it holds an offset. Local: return the offset dimension's full name in the result; read
-why `model_review` and the sketch's own status disagree. Not yet looked into.
 
 **S44. `feature_chamfer` `equal` makes a chamfer with no faces on 2023.** Same parts (point
 7): on a concave edge and on a circular edge, `'Chamfer1' was created but has no faces`,
@@ -635,6 +628,23 @@ A live test (two through holes: two placement sketches, each `under`, each in
 holes (Drawing 4, FeatureManagement 1) passed; unit tests 260/260. To check in the
 scenario test: a `feature_hole` result names its placement sketch as `under` with the
 warning; after `sketch_constrain` `model_review` no longer lists it.
+
+**S43. `sketch_offset` has no dimension a caller can name, and reads under-defined.** Same
+parts (point 6), met in both: the offset's dimension could not be found (`D5@<sketch>`
+not found after four dimensions), so no equation can drive it; and a sketch that read
+`constrained: fully` while open is listed `sketch_under_defined` by `model_review` once
+it holds an offset. Local: return the offset dimension's full name in the result; read
+why `model_review` and the sketch's own status disagree. Fixed in `fa434e5` on `sw2023`. The cause: `SketchOffset2` was called with its
+last argument, the dimension, off, so the offset was held by its relation alone; the
+status read while open did not count that until a rebuild, hence `fully` open and
+`under` after. The offset is now made with its dimension (one per side for `both`), and
+the result's `dimensions` names each (`D3@<sketch>`), with a check line, and a warning if
+SOLIDWORKS adds none. A live test (a fully defined 100 x 60 rectangle offset 5 outward:
+`D3 = 5`, still `fully`, not in `model_review` after finish; `D3` set to 8 gives a
+116 x 76 loop) fails without it (`dimensions` null); the six offset tests passed, the
+both-sides one now reading two dimensions of 5; unit tests 260/260. To check in the
+scenario test: an offset's result names its dimension, an `equation_set` on it holds,
+and `model_review` does not list the sketch.
 
 ## Closed
 
