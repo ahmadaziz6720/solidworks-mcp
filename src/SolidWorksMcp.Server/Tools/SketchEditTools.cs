@@ -97,7 +97,8 @@ public sealed class SketchEditTools(SwSession session)
     [McpServerTool(Name = "sketch_offset", Title = "Offset sketch segments", ReadOnly = false, Destructive = false, Idempotent = false, OpenWorld = false)]
     [Description("Offsets segments of the open sketch by a distance. A closed loop goes outward, inward or both (a 100x60 rectangle offset 5 " +
                  "outward gives a 110x70 loop); an open chain goes left, right or both, seen along its first segment from start to end. Verified " +
-                 "on the loop size or side and the new segments' distance; otherwise undone. Returns boxMm.")]
+                 "on the loop size or side and the new segments' distance; otherwise undone. Returns boxMm, and dimensions: the distance's " +
+                 "dimension (one per side), by the name dimension_set and equation_set take.")]
     public async Task<string> SketchOffset(
         [Description("Segments to offset: e.g. the 4 lines of a rectangle, or one of them with chain=true.")] EntityRef[] segments,
         [Description("Offset distance in mm.")] double distanceMm,

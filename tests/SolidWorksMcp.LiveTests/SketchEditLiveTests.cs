@@ -821,6 +821,36 @@ public class SketchEditLiveTests(LiveFixture fx) : LiveTest(fx)
     // ------------------------------------------------------------------ sketch_offset
 
     [Fact]
+    public async Task Offset_names_its_dimension_and_leaves_a_defined_sketch_defined()
+    {
+        // S43: SketchOffset2 was called without its dimension. The offset had no name to drive it by, the sketch read
+        // fully while open and under once rebuilt, and model_review listed it as sketch_under_defined.
+        var (doc, sketch, added) = await SketchAsync("offset_dim", "front",
+            new SketchEntity { Kind = "rectangle", Corners = [[-50, -30], [50, 30]] });
+        string bottom = added.Entities[0].Sides!["bottom"], left = added.Entities[0].Sides!["left"];
+        await Ed.ConstrainAsync(doc, [Dim("linear", 100, Seg(bottom)), Dim("vertical", 60, Seg(left)),
+            Rel("coincident", At(-50, -30), new EntityRef { Name = "origin" })]);
+        var r = await Ed.OffsetAsync(doc, Sides(added, 0).Select(Seg).ToArray(), 5, "outward");
+        var dim = Assert.Single(r.Dimensions!);
+        Assert.Equal("D3@" + sketch, dim.Name);
+        Assert.Equal(5, dim.Value, L);
+        Assert.Contains(r.Checks!, c => c.Contains($"{dim.Name} = 5 mm drives the distance"));
+        Assert.Equal("fully", r.Constrained);
+
+        await Sk.FinishAsync(doc);
+        var review = await new ReviewService(S).ReviewAsync(doc);
+        Assert.DoesNotContain(review.Issues, i => i.Kind == "sketch_under_defined" && i.Where == sketch);
+
+        // The dimension drives the distance: 8 mm makes the outer loop 116 x 76.
+        await new FeatureManagementService(S).DimensionSetAsync(doc, [new DimensionValue { Name = dim.Name, Value = 8 }]);
+        await Ed.EditAsync(doc, sketch);
+        var info = await Ed.InfoAsync(doc, null);
+        Assert.Equal("fully", info.Constrained);
+        Assert.Contains(Solid(info, "line"), s => Math.Abs(s.LengthMm!.Value - 116) < L);
+        Assert.Contains(Solid(info, "line"), s => Math.Abs(s.LengthMm!.Value - 76) < L);
+    }
+
+    [Fact]
     public async Task Offset_rectangle_5_outward_is_110_by_70_and_inward_90_by_50()
     {
         var (doc, _, added) = await SketchAsync("offset", "front", Rect(100, 60));
@@ -856,6 +886,9 @@ public class SketchEditLiveTests(LiveFixture fx) : LiveTest(fx)
         var lines = r.Created!.Where(c => c.Kind == "line" && c.Construction != true).Select(c => c.LengthMm!.Value).OrderBy(x => x).ToList();
         Assert.Equal(new double[] { 50, 50, 70, 70, 90, 90, 110, 110 }, lines.Select(x => Math.Round(x, 6)).ToArray());
         Near([-55, -35, 55, 35], r.BoxMm);
+        // One dimension per side, each named (S43).
+        Assert.Equal(2, r.Dimensions!.Count);
+        Assert.All(r.Dimensions, x => Assert.Equal(5, x.Value, L));
     }
 
     [Fact]

@@ -136,6 +136,8 @@ public sealed class SketchChangeResult : ToolResult
     public IReadOnlyList<string>? Checks { get; init; }
     public required ContourStatus Contours { get; init; }
     public string? Constrained { get; init; }
+    /// <summary>offset: the dimension(s) SOLIDWORKS added for the distance, by the name dimension_set and equation_set take.</summary>
+    public IReadOnlyList<DimensionInfo>? Dimensions { get; init; }
     public IReadOnlyList<ResolvedInfo>? Resolved { get; init; }
 }
 
@@ -1349,6 +1351,7 @@ public sealed class SketchEditService(SwSession session)
             var m2s = SketchService.SketchToModel(sketch).Inverse();
             var refs = Refs(ctx, d, sketch, m2s, segments, "segments", EntityKind.SketchSegment);
             var before = SkState.Take(sketch);
+            var dimsBefore = FeatureVerifier.Dimensions((IFeature)sketch).Select(x => x.Name).ToHashSet(StringComparer.Ordinal);
             var seeds = refs.Select(r => ((ISketchSegment)r.Obj).GetName()).ToList();
             var loop = (chain ? Chain(before, seeds) : seeds).Select(n => before.Segs[n]).ToList();
             bool closed = IsClosedLoop(loop);
@@ -1361,11 +1364,13 @@ public sealed class SketchEditService(SwSession session)
             var ob = BoxOf(loop);
             // Verified: a positive distance offsets a closed loop outward (whatever its orientation) and an open chain to the
             // right of the first selected segment (start → end); a negative one goes the other way; bothDirections makes both.
+            // The last argument adds the distance's dimension: without it the offset is held by its relation alone, so the
+            // sketch reads under defined once rebuilt and no dimension can drive the distance (S43).
             double sign = sd is "inward" or "left" ? -1 : 1;
             d.ClearSelection2(true);
             SelectAll(d, refs, 0);
             bool ok = d.SketchManager.SketchOffset2(sign * dist, sd == "both", chain,
-                (int)swSkOffsetCapEndType_e.swSkOffsetNoCaps, (int)swSkOffsetMakeConstructionType_e.swSkOffsetDontMakeConstruction, false);
+                (int)swSkOffsetCapEndType_e.swSkOffsetNoCaps, (int)swSkOffsetMakeConstructionType_e.swSkOffsetDontMakeConstruction, true);
             d.ClearSelection2(true);
             var after = SkState.Take(sketch);
             var diff = Diff(before, after);
@@ -1396,8 +1401,14 @@ public sealed class SketchEditService(SwSession session)
                 $"{matched} of {made.Count} new segments lie {Units.Mm(dist)} mm from the originals",
             };
             if (matched < made.Count) ctx.Warn($"{made.Count - matched} new segment(s) are not at {Units.Mm(dist)} mm from an original (corner arcs or joins?); check sketch_info.");
+            var dims = FeatureVerifier.Dimensions((IFeature)sketch).Where(x => !dimsBefore.Contains(x.Name)).ToList();
+            if (dims.Count == 0)
+                ctx.Warn("SOLIDWORKS added no dimension for the offset distance: the sketch reads under defined once rebuilt and no " +
+                         "dimension drives the distance; add one with sketch_dimension_add.");
+            else
+                checks.Add($"{string.Join(", ", dims.Select(x => $"{x.Name} = {x.Value} {x.Unit}"))} drives the distance");
             return Change(ctx, d, sketch, "offset", before, after, diff, checks, refs.Select(x => x.Info("segments")).ToList(),
-                side: got ?? sd, box: [Units.Mm(nb.X0), Units.Mm(nb.Y0), Units.Mm(nb.X1), Units.Mm(nb.Y1)]);
+                side: got ?? sd, box: [Units.Mm(nb.X0), Units.Mm(nb.Y0), Units.Mm(nb.X1), Units.Mm(nb.Y1)], dims: dims);
         }, RunOptions.Write(doc), ct);
     }
 
@@ -2175,7 +2186,8 @@ public sealed class SketchEditService(SwSession session)
     }
 
     private static SketchChangeResult Change(SwContext ctx, IModelDoc2 d, ISketch sketch, string op, SkState before, SkState after, SkDiff diff,
-        List<string> checks, IReadOnlyList<ResolvedInfo>? resolved = null, string? side = null, double[]? box = null)
+        List<string> checks, IReadOnlyList<ResolvedInfo>? resolved = null, string? side = null, double[]? box = null,
+        IReadOnlyList<DimensionInfo>? dims = null)
     {
         bool is3D = sketch.Is3D();
         return new SketchChangeResult
@@ -2192,6 +2204,7 @@ public sealed class SketchEditService(SwSession session)
             Checks = checks.Count == 0 ? null : checks,
             Contours = SafeContours(sketch),
             Constrained = ConstrainedName(after.Status),
+            Dimensions = dims is { Count: > 0 } ? dims : null,
             Resolved = resolved,
         };
     }
