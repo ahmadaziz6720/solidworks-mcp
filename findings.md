@@ -908,3 +908,106 @@ Build `bin\0.1.0-20261111-140208`, `serverVersion` `0.1.0-sw2023-20261111-140208
 Sorted into S30 new, S9 (1, 9). Held: S29 (1); S6, one wording left (2); S26, follow-up (a)
 (3); S14's section point, and met again (4); S22, follow-up (a) (5); S25, follow-up (a)
 (6); S20 d (7). S5 and S19 met again (8).
+
+**2026-11-11: a caller's manual written against the tool reference: tools missing for a design of several parts**
+
+No build was run. Read from `docs/tools.md`, `ROADMAP.md` and the source on `sw2023`
+(the tree of build `20261111-140208`), while writing the note S9 asks for: how a
+session plans a part, a design of several part files, and a change to an existing
+model. Every point is a missing tool or an untested path, none a failure seen.
+
+1. **Missing: a document's equations linked to a text file.** `equation_set`,
+   `equation_list` and `equation_delete` act on one document, and nothing in the source
+   reaches `IEquationMgr.FilePath` or `LinkToFile`. A design of several part files that
+   share key sizes (a wheel diameter three parts fit to) has no way to hold one number
+   once: each part gets its own global variable of the same name, a change is one
+   `equation_set` per part, and a change the user makes by hand in one part does not
+   reach the others. The other ways to link files are short of it too: `asm_part_new`
+   with a face is one extrude off that face (T9.22 partly, T9.23 not built), and
+   `part_derive` `insert` carries solids, surfaces and material, not sketches or
+   planes. Proposed: link, unlink and read a document's external equation file, the
+   file's variables listed by `equation_list` with their source. General: fit for a PR.
+2. **`model_review` against a rules file (T20.8, partly built).** The rules a caller now
+   checks by reading `feature_list`: a feature left with its default name; a fillet or
+   chamfer that is not after the last boss, cut or hole; a sketch placed on a face or
+   edge of a later feature; a dimension holding a literal where a global variable of
+   that meaning exists; no global variable at all. As a server check they cost almost
+   no tokens and give the same answer each time. The first of points 2 to 4 to build.
+3. **Explain a model in one call (T20.7, not built).** Reading a part to change it
+   takes `model_info`, `feature_list`, `dimension_list` and `equation_list`, three to
+   five listings of raw rows. One call returning each feature with the dimensions that
+   drive it, the sketch relations, and the fragile references (a sketch on a face a
+   fillet made, an under-defined sketch) is what an edit and a text index of a model
+   both need.
+4. **Session export as a replayable recipe (T3.15, not built).** A part's successful
+   calls as text would give a SOLIDWORKS part a diffable source. The heaviest of the
+   three; an idea for now.
+5. **`model_compare` against an earlier revision of the same file, from the source,
+   not run.** `other` as a file is opened read-only with `OpenDoc6`. A revision copied
+   out of version control keeps its file name, and SOLIDWORKS does not open a second
+   document of that name: the call ends in `IoError`, whose hint says to compare by
+   handle, which cannot help when the two are one name. The caller has to write the
+   copy under another name. For an assembly the copy opens, but its components resolve
+   to the documents of those names already in memory, so two revisions of an assembly
+   compare the same parts and only the top level differs; nothing in the result says
+   so. Proposed: the description names both, or the tool copies `other` to a temporary
+   name itself and warns when an assembly's components came from memory.
+6. **Tools a manual leans on that no entry here has met.** `equation_set`,
+   `feature_rename`, `model_review`, `model_compare`, `asm_component_list` and
+   `asm_mate_list` on an assembly the user built by hand, `asm_part_new`, `asm_replace`,
+   and `doc_activate` with `allowEdit`. The scenario test covers a part, a STEP round
+   trip, a two-part assembly and a drawing. Proposed: a scenario item that opens an
+   existing assembly, reads its components and mates, and changes one dimension; and one
+   that sets a global variable, renames a feature and reads `model_review`.
+
+**2026-11-11: a machined part from scratch by a caller's manual: global variables, equations, renames, `model_review`**
+
+Build `bin\0.1.0-20261111-140208` (`8ea77a4`). A plate with a cylindrical boss, a bore
+through it, a blind counterbore from the boss top on an offset plane, four clearance holes
+(one Hole Wizard hole and a 2 × 2 linear pattern) and four corner fillets; every key size
+a global variable. 83 calls, 32.4k characters of results, no error, no `sw_help`. Bears on
+the previous entry's point 6 (tools no entry had met): `equation_set`, `feature_rename` and
+`model_review` met here, all held.
+
+1. **`equation_set` held on 2023.** Ten global variables created (`PlateLength = 120mm`
+   …); thirteen dimensions linked to them, among them a dimension whose feature had been
+   renamed to a name with spaces (`D1@Base plate sketch = "PlateLength"`), an offset
+   plane's offset (`"PlateThickness" + "BossHeight"`), a linear pattern's two spacings,
+   and a Hole Wizard placement sketch's two dimensions (`"HolePitchX" / 2`). Each result
+   read the value back and `driven: true`. All ten globals then changed to a second set
+   and the volume compared with a hand figure: 173487.816 mm³ against 173487.8, one body,
+   `model_review` clean; set back, 108553.103 mm³ as before. Reported `ok` and right.
+2. **No batch form: 43 of 83 calls were `equation_set`.** One `lhs` per call: 10 to
+   create the globals, 13 to link dimensions (two of them the placement sketch of point
+   4), 20 to change the ten globals and set them
+   back. Each call rebuilds. Proposed: `equations:[{lhs, expression}]` with one rebuild,
+   all or nothing and verified per row, as `dimension_set {values}` and
+   `sketch_constrain {steps}` already are. Wasteful pattern; no item covers it.
+3. **`equation_set`'s result carries no volume or body count**, unlike `dimension_set`'s.
+   `dimension_set` refuses an equation-driven dimension, so in a model whose key sizes
+   are global variables every size change goes through `equation_set`, and S7's usage
+   line (read `bodies` after each `dimension_set`) cannot be followed from the result: a
+   `model_mass` (or `model_review`) after the change was needed. A global change can split
+   a body as a dimension change can. Proposed: the same `volumeDeltaMm3` and `bodies` in
+   the result. Bears on S7.
+4. **`feature_hole` leaves its placement sketch under-defined and does not say so.** The
+   result names the hole's own sketch dimensions (`Hole Dia.@Sketch5`, `Hole Depth@…`) but
+   not the placement sketch (`Sketch6`) or its status. The only sign was `model_review`:
+   `{"severity":"info","kind":"sketch_under_defined","where":"Sketch6"}`; a pattern of
+   that hole then rests on a point that can move. Workaround, 5 calls: `sketch_edit`,
+   one `sketch_constrain` (horizontal and vertical from the origin, `fully`),
+   `sketch_finish`, two `equation_set`. Proposed: `feature_hole` returns the placement
+   sketch's name and constrained status, and an option to dimension each point from the
+   origin; perhaps `model_review` ranks an under-defined sketch as a warning, not info.
+5. **`feature_rename` held**, on a feature and on a sketch: `previous` and the renamed
+   dimensions came back (`D1@Base plate`, `D1@Base plate sketch`). Every feature tool's
+   `name` does the same in the creating call, so `feature_rename` is needed only for a
+   sketch or after the fact.
+6. **`model_review` held**: 459 characters with a missing material (warning) and the
+   under-defined sketch of point 4 (info); 177 characters with nothing found, `20
+   feature(s), 6 sketch(es)`, `geometry checked`.
+7. **Small**: `sketch_add` of a centre rectangle returns six segments, `sides` names four;
+   the two construction diagonals (`Line5`, `Line6`, needed for a midpoint relation to
+   the origin) are not named as such, and were guessed. `material_list {filter:"6061"}`
+   returned 4 rows in 1268 characters, about two thirds of it the list of databases,
+   repeated on every call.
