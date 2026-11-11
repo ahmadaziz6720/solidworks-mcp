@@ -10,7 +10,7 @@ Three sections: **Open**, not yet fixed; **Waiting**, fixed and not yet settled 
 merged, a fix not yet run in a session); **Closed**, merged upstream, run and held, or
 decided against, with the record.
 
-**Open: S4, S5, S7, S10 to S14, S18, S24, S27, S30 to S36, S38 to S46.** Decided 2026-11-11 by the
+**Open: S4, S5, S7, S10 to S14, S18, S24, S27, S30 to S36, S38 to S40, S43 to S46.** Decided 2026-11-11 by the
 owner, each in its item below. Every open item can be worked on but these: S4, S5, S7 and
 S12 wait on upstream; S10, S11, S33 and S34 are parked until a job needs them; S36 is done
 in the scenario test, not here. S40 to S45 were found on build `…-064352`; their code is
@@ -20,9 +20,8 @@ an item whose test does not fail there is closed instead.
 **Order of work** (the owner, 2026-11-11): modelling first, the largest code first, then
 the small ones; drawings after; the release last.
 
-1. Modelling, large: S37 (done, Waiting), S42 (a warning when a
-   segment flips, single tools and `sketch_constrain`), S41 (`direction2`'s sign and the
-   `directionRef` hint), S45 (a short face list in every feature result), S40 (a blind
+1. Modelling, large: S37, S42 and S41 (done, Waiting), S45 (a short face list in every
+   feature result), S40 (a blind
    cut that breaks out; `name` on `keepOnFailure`), S38 (the hole's placement sketch).
 2. Modelling, smaller: S43 (look into the offset's dimension first), S30 (probe first),
    S18 (1, 2), S31, S44 (probe first), S39, S27, S35 (confirm live, then the
@@ -251,35 +250,6 @@ blind cut with no floor face passes on its volume change with a check line sayin
 broke out; `name` applied on the `keepOnFailure` path; perhaps an `upToFace` or
 `through next` end. Decided 2026-11-11 by the owner: the first two (the check is in
 `FeatureService`, the "no floor face" line); `upToFace` / `through next` parked.
-
-**S41. `feature_pattern_linear` `direction2` ignores its sign, reported `ok`.** Same parts
-(point 2): a 2 x 2 pattern, the second direction ran toward +z whether `direction2` was
-`-z` or `+z`; `ok` with two warnings (`4/6 instance faces`, `2 of 6 instance faces were
-not found`) and a volume change of one instance. The misplaced instances cut air, so
-nothing failed, and a mirror of that pattern then cut two holes where none belonged.
-Direction 1 is redone flipped when it runs backwards; direction 2 is not, though the code
-has a `flip2` (a partial match is taken as the best hypothesis, not as a reversal). No
-pattern commit since that build. Workaround: a pattern in one direction, then
-`feature_mirror`. (b) Point 3: with `directionRef`, `direction:"-y"` is refused (`not
-parallel to edge`) with a hint to give the sign as `"+"/"-"`, and `"+"` is then refused
-(`'+' is not an axis`); leaving `direction` out worked. The hint names a value the tool
-does not take. Local: a pattern with instance faces missing is refused, or redone
-flipped in direction 2; the hint fixed. Not yet fixed.
-
-**S42. `sketch_dimension_add` angular can flip a segment and report the angle matched.**
-Same parts (point 4): two lines meeting at a vertex 130° apart, 50° asked, `textAt` inside
-the wedge: the solver mirrored one line, the result read `value reads back 50°, geometry
-measures 50°`, only the `changed` list showed the line now running the other way, and the
-sketch went `fully` defined in the wrong shape. Bears on S6, whose fix keeps the
-supplement by `textAt` and checks the value, not the shape. Workaround: delete and
-redraw the line, dimension the angle the rays really make first, the distances after.
-Usage (point 5): `sketch_relation_add` `merge` of a free line's end onto a point held by
-relations moves the free line whole, and a second merge pulled the shape back into the
-flipped solution; redraw at the held points' exact coordinates instead of merging onto
-them. Local: a warning when a dimension or relation reverses a segment's direction or
-moves an end point further than the value's change explains, in the single tools and in
-`sketch_constrain`. Decided 2026-11-11 by the owner: a warning, not a refusal, since a
-flip can be what the caller meant.
 
 **S43. `sketch_offset` has no dimension a caller can name, and reads under-defined.** Same
 parts (point 6), met in both: the offset's dimension could not be found (`D5@<sketch>`
@@ -570,6 +540,64 @@ the second fails without (d), no exception thrown. With the two older equation t
 on 2023 SP3, Contract 7/7, unit tests 259/259. To check in the scenario test: a part of
 global variables set up in one call, its call count against the 83, and `bodies` after a
 change that splits it. Upstream: a PR not yet decided.
+
+**S42. `sketch_dimension_add` angular could solve to the mirrored shape and report the angle matched.**
+In two printed parts on build `…-064352` (findings 2026-11-11, third entry, point 4): two
+lines meeting at a vertex 130° apart, 50° asked, `textAt` inside the wedge: one line went
+to the mirrored solution, the result read `value reads back 50°, geometry measures 50°`,
+only the `changed` list showed it, and the sketch went `fully` defined in the wrong shape.
+Bears on S6, whose fix keeps the supplement by `textAt` and checks the value, not the
+shape. Workaround: delete and redraw the line, dimension the angle the rays really make
+first, the distances after. Usage (point 5): `sketch_relation_add` `merge` of a free
+line's end onto a point held by relations moves the free line whole, and a second merge
+pulled the shape back into the mirrored solution; redraw at the held points' exact
+coordinates instead of merging onto them. Decided 2026-11-11 by the owner: a warning, not
+a refusal, since it can be what the caller meant. Fixed in `ef2eddd` on `sw2023`, in
+`sketch_dimension_add`, `sketch_relation_add` and each step of `sketch_constrain`
+(the warning starts "Step n:"). Found live first: the solver does not turn a line round
+here. With one line held horizontal and the other fixed the angle is refused as
+over-defining; with freedom left, a line turns by the 80° between 130° and 50°, which is
+the mirrored shape and no reversal. So three signs, one warning each: (a) an angular
+dimension set to within 0.5° of the angle the lines already made across the vertex, while
+it sits on the one between the rays: the warning names both angles, the lines that
+turned and a `textAt` inside the other angle; (b) a line turned by more than 90°, or an
+arc that bends the other way, after a dimension or a relation; (c) for a linear
+dimension, a segment's end moved more than twice what the value changed by, over 1 % of
+the sketch's extent. Three new live tests, each asserting a warning the tools did not
+give: the 130° wedge by the single tool and as step 2 of `sketch_constrain`; a line
+turned round by a horizontal dimension and by a `coincident` relation; a point on a line
+rising 80° moved 28.8 mm by 5 mm of horizontal distance; and no warning for a dimension
+that only moves what it measures. `SketchEditLiveTests` 66/66 on 2023 SP3. (c) also fires
+for a point that slides along a line steeper than 60° to the dimension, where the move
+is right: a warning the owner may find noise. To check in the scenario test: the wedge
+of point 4 warns, and a fully defined sketch of the test part gives no warning.
+
+**S41. `feature_pattern_linear` `direction2` ignored its sign, reported `ok`.** In two
+printed parts on build `…-064352` (findings 2026-11-11, third entry, point 2): a 2 x 2
+pattern, the second direction ran toward +z whether `direction2` was `-z` or `+z`; `ok`
+with two warnings (`4/6 instance faces`, `2 of 6 instance faces were not found`) and a
+volume change of one instance. The misplaced instances cut air, so nothing failed, and a
+mirror of that pattern then cut two holes where none belonged. Workaround: a pattern in
+one direction, then `feature_mirror`. (b) Point 3: with `directionRef`, `direction:"-y"`
+was refused (`not parallel to edge`) with a hint to give the sign as `"+"/"-"`, and `"+"`
+was then refused (`'+' is not an axis`). Fixed in `689a2fa` on `sw2023`. (a) Cause:
+instances that cut air leave no faces, so both senses of direction 2 matched the same
+faces and the pattern was not read as reversed. A pattern that leaves a whole direction
+without one instance found beyond the seed's row is now taken back and that direction
+made the other way; when that fits and is the sense asked, it is kept, with no warning.
+When the sense asked is the one that leaves the part, it is made again and kept as
+before, with its warning and a check line saying the other sense was tried. A pattern
+whose instances merge is not retried: one instance found along a direction proves its
+sense. (b) With `directionRef`, `direction` names the side the pattern runs toward along
+the reference, so an axis not parallel to it is taken; only one square to it is refused,
+with a hint that names what the tool takes. This is more than the hint the item asked
+for: the hint could not be made true otherwise, and a caller had no way to turn a slanted
+reference round. The same in `asm_pattern`; both descriptions say it. Two new live tests
+fail without it (a 3 x 2 grid toward `-z` from z = 20: 2 of 5 instances' volume; a
+pattern along a chamfer's slanted edge toward `-x`: `not parallel to edge E2`). The
+twelve linear pattern tests of the part and three of the assembly pass on 2023 SP3. To
+check in the scenario test: a 2 x 2 pattern whose second direction SOLIDWORKS runs the
+wrong way by itself.
 
 ## Closed
 
