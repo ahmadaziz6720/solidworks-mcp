@@ -10,7 +10,7 @@ Three sections: **Open**, not yet fixed; **Waiting**, fixed and not yet settled 
 merged, a fix not yet run in a session); **Closed**, merged upstream, run and held, or
 decided against, with the record.
 
-**Open: S4, S5, S7, S10 to S14, S18, S24, S27, S30 to S36, S38, S39, S43, S44, S46.**
+**Open: S4, S5, S7, S10 to S14, S18, S24, S27, S30 to S36, S39, S43, S44, S46.**
 Decided 2026-11-11 by the owner, each in its item below. Every open item can be worked on
 but these: S4, S5, S7 and S12 wait on upstream; S10, S11, S33 and S34 are parked until a
 job needs them; S36 is done in the scenario test, not here. S43 and S44 were found on
@@ -20,12 +20,11 @@ live test on the current build: an item whose test does not fail there is closed
 **Order of work** (the owner, 2026-11-11): modelling first, the largest code first, then
 the small ones; drawings after; the release last.
 
-1. Modelling, large: S37, S42, S41, S45 and S40 are done (Waiting, on `sw2023`, in no
-   build yet). **Next: S38** (the hole's placement sketch), not started: no code, no
-   probe.
-2. Modelling, smaller: S43 (look into the offset's dimension first), S30 (probe first),
-   S18 (1, 2), S31, S44 (probe first), S39, S27, S35 (confirm live, then the
-   description), S6's wording, then pushed to `fix/angular-supplement` (PR #6).
+1. Modelling, large: S37, S42, S41, S45, S40 and S38 are done (Waiting, on `sw2023`, in
+   no build yet).
+2. Modelling, smaller, **next**: S43 (look into the offset's dimension first), S30
+   (probe first), S18 (1, 2), S31, S44 (probe first), S39, S27, S35 (confirm live, then
+   the description), S6's wording, then pushed to `fix/angular-supplement` (PR #6).
 3. Drawings: S14 (the largest: view axes, border and title block, extents), S24, S32,
    S13 (a description line).
 4. Release: S46's line in `CLAUDE.md` step 4, then a build as that file says, every
@@ -224,18 +223,6 @@ built by hand, reads its components and mates and changes one dimension; one tha
 global variable, renames a feature and reads `model_review`. Usage: the scenario test,
 the owner's call. Decided 2026-11-11 by the owner: both scenario items, written into the
 scenario test where it is kept, not here. Closes when they are there.
-
-**S38. `feature_hole` leaves its placement sketch under-defined, unreported.** In the same
-part (point 4): the result names the hole's own sketch dimensions but not the placement
-sketch or its status; only `model_review` showed it, as `info`
-(`sketch_under_defined`), and a pattern of the hole rests on a point that can move.
-Workaround, 5 calls: `sketch_edit`, one `sketch_constrain` (horizontal and vertical from
-the origin, `fully`), `sketch_finish`, two `equation_set`. Local: return the placement
-sketch's name and constrained status, an option to dimension each point from the origin;
-perhaps `model_review` ranks an under-defined sketch as a warning. Decided 2026-11-11 by
-the owner: the placement sketch's name and constrained status in the result, and a warning
-when it is under-defined; no dimensioning option (`sketch_constrain` does it in one call);
-`model_review`'s rank stays.
 
 **S39. Two small result follow-ups from the same part** (point 7). (a) `sketch_add` of a
 centre rectangle returns six segments and `sides` names four: the two construction
@@ -625,6 +612,29 @@ without it (`no floor face at 30 mm along [0, -1, 0]`). With the Modelling live 
 10/10 on 2023 SP3. Not run: a pocket that opens through a slanted face on one side
 only, where part of a floor may be left at the asked depth (then it reads as a floor,
 with no line). To check in the scenario test: a blind hole deeper than its plate.
+
+**S38. `feature_hole` leaves its placement sketch under-defined, unreported.** In the same
+part (point 4): the result names the hole's own sketch dimensions but not the placement
+sketch or its status; only `model_review` showed it, as `info`
+(`sketch_under_defined`), and a pattern of the hole rests on a point that can move.
+Workaround, 5 calls: `sketch_edit`, one `sketch_constrain` (horizontal and vertical from
+the origin, `fully`), `sketch_finish`, two `equation_set`. Local: return the placement
+sketch's name and constrained status, an option to dimension each point from the origin;
+perhaps `model_review` ranks an under-defined sketch as a warning. Decided 2026-11-11 by
+the owner: the placement sketch's name and constrained status in the result, and a warning
+when it is under-defined; no dimensioning option (`sketch_constrain` does it in one call);
+`model_review`'s rank stays. Fixed in `dbd72ed` on `sw2023`: the result's
+`placementSketches` gives, per hole, its feature, the sketch that places it and its
+`constrained` status, read after the hole is made (of the hole's two sketches, the one
+with points and no segment but construction geometry; the other is the profile with
+`Hole Dia.`), and a warning names each one not fully defined with the way out
+(`sketch_edit`, `sketch_constrain`, `sketch_finish`). The tool's description says so.
+A live test (two through holes: two placement sketches, each `under`, each in
+`model_review` as `sketch_under_defined`, neither the profile) fails without it
+(`placementSketches` null). The hole tests 10/10 and the five other live tests that make
+holes (Drawing 4, FeatureManagement 1) passed; unit tests 260/260. To check in the
+scenario test: a `feature_hole` result names its placement sketch as `under` with the
+warning; after `sketch_constrain` `model_review` no longer lists it.
 
 ## Closed
 
