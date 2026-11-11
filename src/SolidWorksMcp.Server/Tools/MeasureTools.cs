@@ -82,7 +82,9 @@ public sealed class MeasureTools(SwSession session)
     [McpServerTool(Name = "model_compare", Title = "Compare revisions", ReadOnly = true, Destructive = false, Idempotent = true, OpenWorld = false)]
     [Description("Compares two revisions of a part or assembly: volume, area, mass and size (this − other), the features only one of " +
                  "them has (name and type) and every dimension whose value differs. 'other' is an open document (handle, title, path) " +
-                 "or a file, which is opened read-only and closed again. same=true when nothing differs.")]
+                 "or a file, which is opened read-only and closed again. same=true when nothing differs. SOLIDWORKS opens one document " +
+                 "per file name: a file whose name is open already (an earlier revision in another folder) is refused, and an assembly " +
+                 "file's components are the open documents of their names, so a copied assembly compares the parts in memory, not its own.")]
     public Task<string> ModelCompare(
         IProgress<ProgressNotificationValue> progress,
         [Description("The document to compare with: handle, title or path of an open one, or a file path.")] string other,

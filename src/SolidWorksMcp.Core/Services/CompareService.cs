@@ -57,8 +57,17 @@ public sealed class CompareService(SwSession session)
             var d = ctx.DocOfType(swDocumentTypes_e.swDocPART, swDocumentTypes_e.swDocASSEMBLY);
             IModelDoc2? o = null;
             bool opened = false;
-            try { o = DocLocator.Find(ctx.Documents, ctx.App.Documents(), other); }
-            catch (SwException e) when (e.Code == ErrorCodes.InvalidArgument)
+            try
+            {
+                o = DocLocator.Find(ctx.Documents, ctx.App.Documents(), other);
+                // A full path is that file: DocLocator also takes it for an open document of the same file name in another
+                // folder (S35), which would compare the open one in place of the earlier revision asked for.
+                string full = other.Trim();
+                if (Path.IsPathRooted(full) && !string.Equals(DocumentRegistry.SafePath(o), Path.GetFullPath(full), StringComparison.OrdinalIgnoreCase))
+                    o = null;
+            }
+            catch (SwException e) when (e.Code == ErrorCodes.InvalidArgument) { }
+            if (o is null)
             {
                 string path;
                 try { path = ctx.Paths.ForRead(other, "other"); }
@@ -68,10 +77,23 @@ public sealed class CompareService(SwSession session)
                 }
                 int type = path.EndsWith(".sldasm", StringComparison.OrdinalIgnoreCase) ? (int)swDocumentTypes_e.swDocASSEMBLY : (int)swDocumentTypes_e.swDocPART;
                 int errors = 0, warnings = 0;
+                var openBefore = ctx.App.Documents();
+                // VERIFIED on 2023 SP3 (S35): SOLIDWORKS opens one document per file name, so an earlier revision whose name
+                // is open already (another folder) is not opened. Say which one stands in the way; never compare that one.
+                var sameName = openBefore.FirstOrDefault(x => string.Equals(Path.GetFileName(DocumentRegistry.SafePath(x)), Path.GetFileName(path),
+                    StringComparison.OrdinalIgnoreCase) && !string.Equals(DocumentRegistry.SafePath(x), path, StringComparison.OrdinalIgnoreCase));
+                SwException NameTaken(IModelDoc2 x) => new(ErrorCodes.IoError,
+                    $"SOLIDWORKS did not open '{path}': a document named '{Path.GetFileName(path)}' is open already ({ctx.Documents.Track(x).Handle}, " +
+                    $"{DocumentRegistry.SafePath(x)}), and SOLIDWORKS opens one document per file name.",
+                    "Copy the earlier revision under another file name, or close the open one first.");
                 o = ctx.App.OpenDoc6(path, type, (int)(swOpenDocOptions_e.swOpenDocOptions_Silent | swOpenDocOptions_e.swOpenDocOptions_ReadOnly), "", ref errors, ref warnings)
-                    ?? throw new SwException(ErrorCodes.IoError, $"SOLIDWORKS could not open '{path}' (error {errors}).",
-                        "A document with the same file name may be open already: compare with it by its handle instead.");
-                opened = true;
+                    ?? throw (sameName is not null ? NameTaken(sameName)
+                        : new SwException(ErrorCodes.IoError, $"SOLIDWORKS could not open '{path}' (error {errors}).",
+                            "A document with the same file name may be open already: compare with it by its handle instead."));
+                string got = DocumentRegistry.SafePath(o);
+                if (got.Length == 0 || !string.Equals(Path.GetFullPath(got), Path.GetFullPath(path), StringComparison.OrdinalIgnoreCase))
+                    throw NameTaken(o);
+                opened = !openBefore.Any(x => ReferenceEquals(x, o) || DocLocator.SameDoc(x, o));
             }
             try
             {

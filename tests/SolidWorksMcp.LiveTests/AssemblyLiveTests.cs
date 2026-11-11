@@ -1001,6 +1001,37 @@ public class AssemblyLiveTests(LiveFixture fx) : LiveTest(fx)
     }
 
     [Fact]
+    public async Task Compare_cannot_open_a_revision_of_an_open_name_and_an_assembly_copy_reads_its_parts_from_memory()
+    {
+        // S35, confirmed live; both cases are named in model_compare's description, not worked around.
+        var cube = await CubeAsync("cmp_rev");
+        string asm = await NewAssemblyAsync("cmp_rev_asm");
+        await InsertAsync(asm, cube.Path, [0, 0, 0]);
+        string asmPath = (await Docs.SaveAsync(asm, "as", Path.Combine(_dir, $"cmp_rev_asm_{_tag}.sldasm"), false)).SavedTo!;
+        // The earlier revision, copied aside: the part under its own name in another folder, the assembly renamed.
+        string old = Path.Combine(_dir, "rev1");
+        Directory.CreateDirectory(old);
+        string oldPart = Path.Combine(old, Path.GetFileName(cube.Path));
+        File.Copy(cube.Path, oldPart);
+        string oldAsm = Path.Combine(old, $"cmp_rev_asm_old_{_tag}.sldasm");
+        File.Copy(asmPath, oldAsm);
+        await new FeatureManagementService(S).DimensionSetAsync(cube.Doc, [new DimensionValue { Name = "D1@Boss-Extrude1", Value = 30 }]);
+        var cmp = new CompareService(S);
+
+        // (1) A file whose name is open already is not opened: SOLIDWORKS hands back the open part, which was then refused
+        // as "'other' is this document" (or, for another open document of that name, compared in place of the file).
+        var part = await Assert.ThrowsAsync<SwException>(() => cmp.CompareAsync(cube.Doc, oldPart));
+        Assert.Equal(ErrorCodes.IoError, part.Code);
+        Assert.Contains("is open already", part.Message, StringComparison.Ordinal);
+        Assert.Contains(await TestHooks.OpenTitlesAsync(S), x => x.StartsWith(cube.Name, StringComparison.OrdinalIgnoreCase)); // left open
+
+        // (2) The renamed assembly opens, but its component is the open part: the earlier revision reads 30 mm deep, the
+        // open part's size, not the 20 mm its own files hold. Nothing says so.
+        var r = await cmp.CompareAsync(asm, oldAsm);
+        Assert.Equal(30, r.Metrics.Single(m => m.Name == "sizeZMm").Other, P);
+    }
+
+    [Fact]
     public async Task Review_of_an_assembly_counts_the_floating_component_and_lists_a_suppressed_one()
     {
         var cube = await CubeAsync("rv");
