@@ -38,7 +38,8 @@ public sealed class SketchEditTools(SwSession session)
     [McpServerTool(Name = "sketch_dimension_add", Title = "Add sketch dimension", ReadOnly = false, Destructive = false, Idempotent = false, OpenWorld = false)]
     [Description("Adds a driving dimension in the open sketch and sets its value (no Modify dialog). kind: linear (a line's length, or the distance " +
                  "between two entities), horizontal, vertical, radial or diameter (arc/circle), angular (two lines). Verified: the value reads back " +
-                 "and the geometry measures it; an over-defining or driven result is removed and refused. Returns the name (D1@Sketch1).")]
+                 "and the geometry measures it; an over-defining or driven result is removed and refused. A warning says when the sketch solved to " +
+                 "another shape than drawn (a line turned round or mirrored, an end moved far): read it before going on. Returns the name (D1@Sketch1).")]
     public async Task<string> SketchDimensionAdd(
         [Description("1-2 entities: segments {name:'Line1'}, sketch points {at:[x,y]} or {name:'origin'}.")] EntityRef[] entities,
         [Description("linear | horizontal | vertical | radial | diameter | angular")] string kind,

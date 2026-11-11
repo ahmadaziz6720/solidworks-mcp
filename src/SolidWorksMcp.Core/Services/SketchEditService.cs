@@ -358,7 +358,7 @@ public sealed class SketchEditService(SwSession session)
     }
 
     private static SketchDimensionResult AddDimension(SwContext ctx, IModelDoc2 d, ISketch sketch, string kind, List<Resolved> refs,
-        double? target, double[]? textAt)
+        double? target, double[]? textAt, string? step = null)
     {
         var feat = (IFeature)sketch;
         var s2m = SketchService.SketchToModel(sketch);
@@ -481,6 +481,16 @@ public sealed class SketchEditService(SwSession session)
         var after = SkState.Take(sketch);
         var diff = Diff(before, after);
         bool is3D = false;
+        // The lines already made the asked angle across the vertex: the dimension sat on the angle between the rays, and its
+        // value turned a line into the mirrored shape, where it reads back right and the geometry measures it (S42).
+        if (kind == "angular" && !supplement && target is double ta && expected is double drawn && diff.Changed.Count > 0 &&
+            Math.Abs(Math.PI - drawn - ta) <= SupplementNear)
+            ctx.Warn($"{step}The lines made {Fmt(kind, drawn)} between the rays and already {Fmt(kind, Math.PI - drawn)} across the vertex. " +
+                     $"The dimension is on the angle between the rays, so {Fmt(kind, ta)} turned " +
+                     $"{string.Join(", ", diff.Changed.Take(FlipWarnMax).Select(n => $"'{n}'"))} into the mirrored shape. If the angle across " +
+                     $"the vertex was the one meant, delete and redraw the segment, then pass textAt inside that angle, e.g. textAt " +
+                     $"{SupplementTextPoint(items)} (sketch mm).");
+        WarnFlips(ctx, before, after, diff, is3D, $"{kind} dimension", target is double tv && kind != "angular" ? Math.Abs(tv - v0) : null, step);
         return new SketchDimensionResult
         {
             Doc = ctx.Title(d),
@@ -709,7 +719,8 @@ public sealed class SketchEditService(SwSession session)
         return (rel, spec);
     }
 
-    private static SketchRelationResult AddRelation(SwContext ctx, IModelDoc2 d, ISketch sketch, string rel, RelSpec spec, List<Resolved> refs)
+    private static SketchRelationResult AddRelation(SwContext ctx, IModelDoc2 d, ISketch sketch, string rel, RelSpec spec, List<Resolved> refs,
+        string? step = null)
     {
         string name = ((IFeature)sketch).Name;
         bool is3D = sketch.Is3D();
@@ -791,6 +802,7 @@ public sealed class SketchEditService(SwSession session)
             }
         }
         var diff = Diff(before, after);
+        WarnFlips(ctx, before, after, diff, is3D, $"'{rel}' relation", null, step);
         var related = refs.Where(r => r.Obj is ISketchSegment s && InSketch(s, sketch)).Select(r => ((ISketchSegment)r.Obj).GetName())
             .Where(after.Segs.ContainsKey).Distinct().ToList();
         return new SketchRelationResult
@@ -909,12 +921,12 @@ public sealed class SketchEditService(SwSession session)
                 var refs = pins[i].Select(p => Unpin(sketch, p, now)).ToList();
                 if (step.Spec is not null)
                 {
-                    var r = AddRelation(ctx, d, sketch, step.Kind, step.Spec, refs);
+                    var r = AddRelation(ctx, d, sketch, step.Kind, step.Spec, refs, $"Step {i + 1}: ");
                     done.Add(new SketchConstrainStep { Step = i + 1, Relation = step.Kind, Checks = r.Checks });
                 }
                 else
                 {
-                    var r = AddDimension(ctx, d, sketch, step.Kind, refs, step.Target, step.S.TextAt);
+                    var r = AddDimension(ctx, d, sketch, step.Kind, refs, step.Target, step.S.TextAt, $"Step {i + 1}: ");
                     done.Add(new SketchConstrainStep { Step = i + 1, Dimension = r.Dimension, Kind = step.Kind, Checks = r.Checks });
                 }
             }
@@ -2183,6 +2195,63 @@ public sealed class SketchEditService(SwSession session)
             Resolved = resolved,
         };
     }
+
+    private const int FlipWarnMax = 3;
+
+    /// <summary>How close an asked angle must be to the supplement of the drawn one to read as that supplement (0.5°).</summary>
+    private const double SupplementNear = 0.5 * Math.PI / 180;
+
+    /// <summary>
+    /// A dimension or relation can be satisfied by the mirrored shape, and the value then reads back right (S42). One
+    /// warning names each segment whose direction reversed (a line turned by more than 90°, an arc that bends the other
+    /// way) and, for a dimension whose value changed by <paramref name="valueChange"/> (m; null for a relation or an
+    /// angle), each segment with an end that moved more than twice that. A warning, not a refusal: it can be what was meant.
+    /// </summary>
+    private static void WarnFlips(SwContext ctx, SkState before, SkState after, SkDiff diff, bool is3D, string cause, double? valueChange,
+        string? step)
+    {
+        // Below 1 % of the sketch's extent a move is the solver settling, not another shape.
+        double floor = 1e-5;
+        if (valueChange is not null && before.PointsAt.Count > 1)
+        {
+            var lo = before.PointsAt.Aggregate((a, b) => new Vec3(Math.Min(a.X, b.X), Math.Min(a.Y, b.Y), Math.Min(a.Z, b.Z)));
+            var hi = before.PointsAt.Aggregate((a, b) => new Vec3(Math.Max(a.X, b.X), Math.Max(a.Y, b.Y), Math.Max(a.Z, b.Z)));
+            floor = Math.Max(floor, 0.01 * lo.DistanceTo(hi));
+        }
+        var found = new List<string>();
+        foreach (string n in diff.Changed)
+        {
+            Geo a = before.Segs[n], b = after.Segs[n];
+            if (a.Kind != b.Kind) continue;
+            if (a.Kind == "line")
+            {
+                Vec3 da = a.End - a.Start, db = b.End - b.Start;
+                if (da.Length > Tol && db.Length > Tol && da.Dot(db) < 0)
+                {
+                    found.Add($"'{n}' now runs the other way, from {Show(b.Start, is3D)} to {Show(b.End, is3D)} mm " +
+                              $"(it ran from {Show(a.Start, is3D)} to {Show(a.End, is3D)})");
+                    continue;
+                }
+            }
+            else if (a.Kind == "arc" && a.Dir != b.Dir)
+            {
+                found.Add($"arc '{n}' now bends the other way");
+                continue;
+            }
+            if (valueChange is not double dv) continue;
+            double moved = a.HasEnds ? Math.Max(a.Start.DistanceTo(b.Start), a.End.DistanceTo(b.End)) : a.Center.DistanceTo(b.Center);
+            if (moved > 2 * dv + floor)
+                found.Add($"'{n}' moved {Num(Units.Mm(moved))} mm for a value that changed by {Num(Units.Mm(dv))} mm");
+        }
+        if (found.Count == 0) return;
+        string list = string.Join("; ", found.Take(FlipWarnMax)) + (found.Count > FlipWarnMax ? $"; and {found.Count - FlipWarnMax} more" : "");
+        ctx.Warn($"{step}After the {cause}, {list}. The sketch may have solved to the mirrored shape: if that was not meant, delete and " +
+                 "redraw the segment, then constrain the angle its lines make as drawn before the distances.");
+    }
+
+    private static string Num(double v) => Math.Round(v, 3).ToString(System.Globalization.CultureInfo.InvariantCulture);
+
+    private static string Show(Vec3 p, bool is3D) => "[" + string.Join(", ", Pt(p, is3D).Select(Num)) + "]";
 
     private static List<SketchSegmentInfo>? ChangedList(SkDiff diff, SkState before, SkState after, bool is3D) =>
         NullIfEmpty(diff.Changed.Take(ListMax).Select(n => Info(n, after.Segs[n], is3D, before.Segs[n].Length)).ToList());

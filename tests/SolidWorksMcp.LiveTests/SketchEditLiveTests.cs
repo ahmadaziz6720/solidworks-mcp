@@ -542,6 +542,86 @@ public class SketchEditLiveTests(LiveFixture fx) : LiveTest(fx)
     private static SketchConstraint Dim(string kind, double valueMm, params EntityRef[] entities) =>
         new() { Dimension = kind, Entities = entities, ValueMm = valueMm };
 
+    /// <summary>
+    /// Two lines from one vertex, 130° apart, on the Front plane: the first drawn toward +x, the second 60 mm long. The
+    /// angle across the vertex is 50° as drawn.
+    /// </summary>
+    private async Task<(string Doc, string L1, string L2)> WedgeAsync(string name)
+    {
+        double x = 60 * Math.Cos(130 * Math.PI / 180), y = 60 * Math.Sin(130 * Math.PI / 180);
+        var (doc, _, added) = await SketchAsync(name, "front", Line([0, 0], [60, 0]), Line([0, 0], [x, y]));
+        return (doc, Name(added, 0), Name(added, 1));
+    }
+
+    [Fact]
+    public async Task A_dimension_that_solves_to_the_mirrored_shape_says_so()
+    {
+        // 50° asked with textAt between the rays, which stand 130° apart: the dimension is on the 130°, and 50° turns a line
+        // into the mirrored shape. The value reads back 50° and the geometry measures 50° (S42).
+        var (doc, l1, l2) = await WedgeAsync("flip_dimension");
+        var held = await Ed.ConstrainAsync(doc, [Rel("horizontal", Seg(l1))]);
+        Assert.Null(held.Warnings);
+        var ang = await Ed.DimensionAddAsync(doc, [Seg(l1), Seg(l2)], "angular", valueDeg: 50, textAt: [10.5, 22.5]);
+        Assert.Equal(50, ang.Measured!.Value, 1e-4);
+        Assert.NotNull(ang.Changed);
+        var w = Assert.Single(ang.Warnings!, x => x.Contains("mirrored shape", StringComparison.Ordinal));
+        Assert.Matches(@"already 50[.,]?\d*° across the vertex", w);
+        Assert.Matches(@"textAt \[-?[\d.]+, -?[\d.]+\]", w);
+
+        // A dimension that only moves what it measures gives no warning.
+        var len = await Ed.DimensionAddAsync(doc, [Seg(l1)], "linear", valueMm: 45);
+        Assert.Equal(45, len.Dimension.Value, 1e-6);
+        Assert.Null(len.Warnings);
+
+        // A line turned round: its start fixed at x = 10, its end 100 mm from a fixed point at x = -40, then 30 mm from it.
+        var (doc2, _, added) = await SketchAsync("flip_line", "front", Line([10, 0], [60, 0]), Point([-40, 0]));
+        string line = Name(added, 0);
+        await Ed.ConstrainAsync(doc2, [Rel("horizontal", Seg(line)), Rel("fix", At(10, 0)), Rel("fix", At(-40, 0))]);
+        var dim = await Ed.DimensionAddAsync(doc2, [At(60, 0), At(-40, 0)], "horizontal", valueMm: 30);
+        Assert.Equal(30, dim.Dimension.Value, 1e-6);
+        var w2 = Assert.Single(dim.Warnings!);
+        Assert.Contains("After the horizontal dimension", w2);
+        Assert.Contains($"'{line}' now runs the other way", w2);
+    }
+
+    [Fact]
+    public async Task Constrain_names_the_step_that_mirrored_the_shape_and_a_relation_that_turns_a_line_says_so()
+    {
+        var (doc, l1, l2) = await WedgeAsync("flip_constrain");
+        var r = await Ed.ConstrainAsync(doc,
+        [
+            Rel("horizontal", Seg(l1)),
+            new SketchConstraint { Dimension = "angular", Entities = [Seg(l1), Seg(l2)], ValueDeg = 50, TextAt = [10.5, 22.5] },
+        ]);
+        var w = Assert.Single(r.Warnings!, x => x.Contains("mirrored shape", StringComparison.Ordinal));
+        Assert.StartsWith("Step 2: The lines made", w);
+
+        // A relation: a horizontal line whose start is fixed, its end put on a fixed point on the other side of the start.
+        var (doc2, _, added) = await SketchAsync("flip_relation", "front", Line([10, 0], [60, 0]), Point([-40, 0]));
+        string line = Name(added, 0);
+        await Ed.ConstrainAsync(doc2, [Rel("horizontal", Seg(line)), Rel("fix", At(10, 0)), Rel("fix", At(-40, 0))]);
+        var rel = await Ed.RelationAddAsync(doc2, "coincident", [At(60, 0), At(-40, 0)]);
+        var w2 = Assert.Single(rel.Warnings!);
+        Assert.Contains("After the 'coincident' relation", w2);
+        Assert.Contains($"'{line}' now runs the other way", w2);
+    }
+
+    [Fact]
+    public async Task A_dimension_that_moves_an_end_much_further_than_its_value_changed_says_so()
+    {
+        // A point on a fixed line that rises 80°: 5 mm more of horizontal distance from the origin moves it 28.8 mm along
+        // the line (S42's second sign, the end that moves further than the value explains).
+        double t = Math.Tan(80 * Math.PI / 180);
+        var (doc, _, added) = await SketchAsync("far_move", "front", Line([0, 0], [20, 20 * t]), Line([-30, 0], [10, 10 * t]));
+        string steep = Name(added, 0), free = Name(added, 1);
+        await Ed.ConstrainAsync(doc, [Rel("fix", Seg(steep)), Rel("fix", At(-30, 0)), Rel("coincident", At(10, 10 * t), Seg(steep))]);
+        var dim = await Ed.DimensionAddAsync(doc, [At(10, 10 * t), new EntityRef { Name = "origin" }], "horizontal", valueMm: 15);
+        Assert.Equal(15, dim.Dimension.Value, 1e-6);
+        var w = Assert.Single(dim.Warnings!);
+        Assert.Contains($"'{free}' moved 28.", w);
+        Assert.Contains("for a value that changed by 5 mm", w);
+    }
+
     [Fact]
     public async Task Constrain_defines_a_rectangle_fully_in_one_call()
     {
