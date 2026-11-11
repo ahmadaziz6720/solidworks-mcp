@@ -10,19 +10,19 @@ Three sections: **Open**, not yet fixed; **Waiting**, fixed and not yet settled 
 merged, a fix not yet run in a session); **Closed**, merged upstream, run and held, or
 decided against, with the record.
 
-**Open: S4, S5, S7, S10 to S14, S18, S24, S27, S30 to S36, S38 to S40, S43 to S46.** Decided 2026-11-11 by the
-owner, each in its item below. Every open item can be worked on but these: S4, S5, S7 and
-S12 wait on upstream; S10, S11, S33 and S34 are parked until a job needs them; S36 is done
-in the scenario test, not here. S40 to S45 were found on build `…-064352`; their code is
-unchanged in `20261111-140208`. Each fix starts with its live test on the current build:
-an item whose test does not fail there is closed instead.
+**Open: S4, S5, S7, S10 to S14, S18, S24, S27, S30 to S36, S38, S39, S43, S44, S46.**
+Decided 2026-11-11 by the owner, each in its item below. Every open item can be worked on
+but these: S4, S5, S7 and S12 wait on upstream; S10, S11, S33 and S34 are parked until a
+job needs them; S36 is done in the scenario test, not here. S43 and S44 were found on
+build `…-064352`; their code is unchanged in `20261111-140208`. Each fix starts with its
+live test on the current build: an item whose test does not fail there is closed instead.
 
 **Order of work** (the owner, 2026-11-11): modelling first, the largest code first, then
 the small ones; drawings after; the release last.
 
-1. Modelling, large: S37, S42 and S41 (done, Waiting), S45 (a short face list in every
-   feature result), S40 (a blind
-   cut that breaks out; `name` on `keepOnFailure`), S38 (the hole's placement sketch).
+1. Modelling, large: S37, S42, S41, S45 and S40 are done (Waiting, on `sw2023`, in no
+   build yet). **Next: S38** (the hole's placement sketch), not started: no code, no
+   probe.
 2. Modelling, smaller: S43 (look into the offset's dimension first), S30 (probe first),
    S18 (1, 2), S31, S44 (probe first), S39, S27, S35 (confirm live, then the
    description), S6's wording, then pushed to `fix/angular-supplement` (PR #6).
@@ -30,7 +30,12 @@ the small ones; drawings after; the release last.
    S13 (a description line).
 4. Release: S46's line in `CLAUDE.md` step 4, then a build as that file says, every
    project registered, and the opening sentence for the scenario test. A build may come
-   earlier, after a group, when the owner asks.
+   earlier, after a group, when the owner asks. Before it: `docs/tools.md` regenerated
+   (`solidworks-mcp --tools-md docs\tools.md`), since `equation_set`, the pattern
+   tools, `sketch_dimension_add` and the 37 tools with `faceDetail` changed their
+   descriptions or parameters and the file was left as it was; and the live tests of
+   the areas touched in full (Properties, SketchEdit, PartFeature, Modelling, Assembly),
+   of which only the tests that call the changed code were run.
 
 ---
 
@@ -239,18 +244,6 @@ diagonals, needed for a midpoint relation to the origin, are not named and were 
 of databases, repeated on every call. Same kind as S22 (Closed). Local, small. Not yet
 fixed.
 
-**S40. A blind cut whose far end leaves the body is refused, though SOLIDWORKS made it.**
-In two printed parts on build `…-064352` (findings 2026-11-11, third entry, point 1): a
-hole through a plate and a pocket opening through a slanted underside, `feature_extrude`
-cut, blind, gave `VERIFY_FAILED: ... no floor face at 12 mm along [-1, 0, 0]` and was
-rolled back; the cut was right. `through_all` would have gone through other walls. Met
-twice. Workaround: `keepOnFailure:true`, the volume read from the next result; on that
-path `name` is not applied (`Cut-Extrude2` kept), one `feature_rename` more. Local: a
-blind cut with no floor face passes on its volume change with a check line saying it
-broke out; `name` applied on the `keepOnFailure` path; perhaps an `upToFace` or
-`through next` end. Decided 2026-11-11 by the owner: the first two (the check is in
-`FeatureService`, the "no floor face" line); `upToFace` / `through next` parked.
-
 **S43. `sketch_offset` has no dimension a caller can name, and reads under-defined.** Same
 parts (point 6), met in both: the offset's dimension could not be found (`D5@<sketch>`
 not found after four dimensions), so no equation can drive it; and a sketch that read
@@ -264,12 +257,6 @@ then the tool fell back to distance-distance by itself and held. Twice in two tr
 Reported success, the right chamfer. Local, small: if `swChamferEqualDistance` never works
 on 2023 SP3 (a live probe first), go straight to distance-distance and drop the warning,
 in the interop patch or behind a version check. Not yet probed.
-
-**S45. Feature results list every new face.** Same parts (point 11): `feature_extrude`,
-`feature_mirror` and `feature_fillet` list up to twelve new faces each, 2 to 4k
-characters, read for one id or none. Same kind as S22 (Closed), whose fix did not cover
-faces. Local, small: ids only by default, or a `faces:false`. Decided 2026-11-11 by the
-owner: a short list by default (each face's id and kind), the full detail by a flag.
 
 **S46. A release is registered in one project, the server in two.** From reading a
 session's call count (findings 2026-11-11, fourth entry): `CLAUDE.md`'s release step 4
@@ -598,6 +585,46 @@ pattern along a chamfer's slanted edge toward `-x`: `not parallel to edge E2`). 
 twelve linear pattern tests of the part and three of the assembly pass on 2023 SP3. To
 check in the scenario test: a 2 x 2 pattern whose second direction SOLIDWORKS runs the
 wrong way by itself.
+
+**S45. Feature results listed every new face in full.** In two printed parts on build
+`…-064352` (findings 2026-11-11, third entry, point 11): `feature_extrude`,
+`feature_mirror` and `feature_fillet` listed up to twelve new faces each, 2 to 4k
+characters, read for one id or none. Same kind as S22 (Closed), whose fix did not cover
+faces. Decided 2026-11-11 by the owner: a short list by default (each face's id and
+kind), the full detail by a flag. Fixed in `cbd79a7` on `sw2023`: `newFaces` is
+`[{id, surface}]` unless `faceDetail:true`, which gives each face as before (area, pick
+point, normal or axis, radius). In the 37 tools whose result carries `newFaces`: the
+feature tools, the body and surface tools, `face_edit` and the sheet-metal flanges,
+hem and bend; the server guide says so. The services still return every face in full
+and the cut is made where the result is written, so nothing a tool checks changed. A
+unit test of the two forms and a live test (a boss's three faces as a tool returns them,
+its cap's id from the short list taking the next sketch); the short form is the new
+behaviour, so neither is a test that fails without a fault. Unit tests 260/260,
+Contract 7/7; `tools/list` 242.4 to 246.5 KB for the new parameter. To check in the
+scenario test: the characters of a `feature_extrude`, a `feature_mirror` and a
+`feature_fillet` result against 2 to 4k, and one call with `faceDetail:true`.
+
+**S40. A blind cut whose far end leaves the body was refused, though SOLIDWORKS made it.**
+In two printed parts on build `…-064352` (findings 2026-11-11, third entry, point 1): a
+hole through a plate and a pocket opening through a slanted underside, `feature_extrude`
+cut, blind, gave `VERIFY_FAILED: ... no floor face at 12 mm along [-1, 0, 0]` and was
+rolled back; the cut was right. `through_all` would have gone through other walls. Met
+twice. Workaround: `keepOnFailure:true`, the volume read from the next result; on that
+path `name` was not applied (`Cut-Extrude2` kept), one `feature_rename` more. Decided
+2026-11-11 by the owner: the cut passes on its volume with a check line, and `name` is
+applied on the `keepOnFailure` path; `upToFace` / `through next` parked. Fixed in
+`c1d3bc5` on `sw2023`. (a) A cut with no floor face at all passes on the volume it
+removed, with the check "no floor at 30 mm: the cut broke out of the body before its
+end" and the depth dimension's name; a cut with a floor at another depth than asked is
+still refused, and so is a boss with no cap. (b) A feature kept by `keepOnFailure` takes
+the call's `name`, and the error ends "The result was kept as '<name>' (keepOnFailure)";
+in `feature_extrude` only, the other feature tools keep SOLIDWORKS' name on that path.
+New live test (a blind cut 30 deep in a 20 mm block, its volume the hole's; a 5 mm
+pocket still showing "floor at 5 mm"; a boss inside the body kept as `Inner`) fails
+without it (`no floor face at 30 mm along [0, -1, 0]`). With the Modelling live tests
+10/10 on 2023 SP3. Not run: a pocket that opens through a slanted face on one side
+only, where part of a floor may be left at the asked depth (then it reads as a floor,
+with no line). To check in the scenario test: a blind hole deeper than its plate.
 
 ## Closed
 
