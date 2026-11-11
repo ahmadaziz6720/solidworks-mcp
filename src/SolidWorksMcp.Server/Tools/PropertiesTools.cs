@@ -115,14 +115,19 @@ public sealed class PropertiesTools(SwSession session)
     [Description("Creates or updates the equation of a global variable (lhs W) or a dimension (lhs D1@Boss-Extrude1), e.g. W = 60mm, " +
                  "D1@Boss-Extrude1 = \"W\" / 2. Write units on numbers: bare numbers are document units (a warning says so). Unknown names " +
                  "and circular references are refused. Rebuilds, then verifies the value and the driven dimension; rolled back on failure. " +
-                 "Returns the previous equation.")]
+                 "Several at once with 'equations': one rebuild, each verified, all rolled back if one fails; a row may use a variable " +
+                 "another row creates. Returns the previous equation(s) and, for a part, volumeDeltaMm3 and model {volumeMm3, bodies, " +
+                 "box}: read bodies after a change, a value can split the body.")]
     public Task<string> EquationSet(
         IProgress<ProgressNotificationValue> progress,
-        [Description("Left-hand side without quotes: a global variable (W) or a dimension (D1@Sketch1).")] string lhs,
-        [Description("Right-hand side, e.g. 60mm or \"W\" / 2 + 5mm; names in double quotes.")] string expression,
+        [Description("Left-hand side without quotes: a global variable (W) or a dimension (D1@Sketch1). With 'expression', for one equation.")] string? lhs = null,
+        [Description("Right-hand side, e.g. 60mm or \"W\" / 2 + 5mm; names in double quotes.")] string? expression = null,
+        [Description("Several equations instead of lhs / expression, e.g. [{lhs:'W', expression:'60mm'}, {lhs:'D1@Sketch1', expression:'\"W\" / 2'}].")] EquationInput[]? equations = null,
         [Description(DocArg)] string? doc = null,
         CancellationToken cancellationToken = default) =>
-        Output.Json(_svc.EquationSetAsync(doc, lhs, expression, cancellationToken), progress, "equation_set");
+        equations is null
+            ? Output.Json(_svc.EquationSetAsync(doc, lhs, expression, cancellationToken), progress, "equation_set")
+            : Output.Json(_svc.EquationSetManyAsync(doc, equations, lhs, expression, cancellationToken), progress, "equation_set");
 
     [McpServerTool(Name = "equation_delete", Title = "Delete equation", ReadOnly = false, Destructive = true, Idempotent = false, OpenWorld = false)]
     [Description("Deletes the equation of a left-hand side (a global variable, or a dimension's driving equation; the dimension stays). " +

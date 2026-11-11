@@ -119,6 +119,39 @@ public sealed class EquationSetResult : ToolResult
     /// <summary>For a dimension left-hand side: the dimension after the rebuild (mm / deg / count).</summary>
     public DimensionInfo? Dimension { get; init; }
     public required IReadOnlyList<string> Checks { get; init; }
+    /// <summary>For a part: the change in solid volume over the call, as dimension_set reports it.</summary>
+    public double? VolumeDeltaMm3 { get; init; }
+    /// <summary>For a part: volume, body count and box after the rebuild.</summary>
+    public ModelState? Model { get; init; }
+}
+
+/// <summary>One equation_set entry of a batch.</summary>
+[System.ComponentModel.Description("{lhs:'W', expression:'60mm'}")]
+public sealed class EquationInput
+{
+    [System.ComponentModel.Description("Left-hand side without quotes: a global variable (W) or a dimension (D1@Sketch1).")]
+    public required string Lhs { get; set; }
+
+    [System.ComponentModel.Description("Right-hand side, e.g. 60mm or \"W\" / 2 + 5mm; names in double quotes.")]
+    public required string Expression { get; set; }
+}
+
+/// <summary>One equation of an equation_set batch, as a single call reports it.</summary>
+public sealed class EquationChange
+{
+    public required EquationRow Equation { get; init; }
+    public bool Created { get; init; }
+    public EquationRow? Previous { get; init; }
+    public DimensionInfo? Dimension { get; init; }
+    public required IReadOnlyList<string> Checks { get; init; }
+}
+
+public sealed class EquationBatchResult : ToolResult
+{
+    /// <summary>In the order given.</summary>
+    public required IReadOnlyList<EquationChange> Equations { get; init; }
+    public double? VolumeDeltaMm3 { get; init; }
+    public ModelState? Model { get; init; }
 }
 
 public sealed class EquationDeleteResult : ToolResult
@@ -613,87 +646,174 @@ public sealed partial class PropertiesService(SwSession session)
             return new EquationListResult { Doc = ctx.Title(d), Equations = ReadEquations(EquationMgr(d)) };
         }, RunOptions.Read(doc), ct);
 
-    public Task<EquationSetResult> EquationSetAsync(string? doc, string lhs, string expression, CancellationToken ct = default) =>
+    public Task<EquationSetResult> EquationSetAsync(string? doc, string? lhs, string? expression, CancellationToken ct = default) =>
         session.RunAsync("equation_set", ctx =>
         {
-            string key = EquationText.NormalizeLhs(lhs);
-            string expr = EquationText.Expression(expression);
-            var d = ctx.DocOfType(swDocumentTypes_e.swDocPART, swDocumentTypes_e.swDocASSEMBLY);
-            NoOpenSketch(ctx, d, "equation_set");
-            bool isDim = key.Contains('@');
-            if (isDim && Dim(d, key) is null)
-                throw new SwException(ErrorCodes.EntityNotFound, $"No dimension named '{key}'.",
-                    "Dimension names look like D1@Sketch1 or D1@Boss-Extrude1; feature and sketch results list them.");
-            var em = EquationMgr(d);
-            var before = ReadEquations(em);
-            var prev = before.FirstOrDefault(e => EquationText.SameLhs(e.Lhs, key));
-            CheckReferences(d, key, expr, before);
-            var bare = EquationText.BareNumbers(expr);
-            if (bare.Count > 0)
-                ctx.Warn($"Bare number(s) {string.Join(", ", bare)} in '{expr}' are in the document's units; write units (60mm, 30deg) " +
-                         "unless they are counts or factors.");
-            string text = EquationText.Build(key, expr);
-
-            using var prefs = ctx.SystemPrefs();
-            prefs.Toggle(SystemPrefIds.ShowErrorsEveryRebuild, false); // no modal What's Wrong box on a bad expression
-            bool created = prev is null;
-            if (prev is not null) em.Equation[prev.Index] = text; // assigning Equation(i) updates in place (VERIFIED)
-            else if (em.Add2(-1, text, true) < 0)
-                throw new SwException(ErrorCodes.FeatureFailed, $"SOLIDWORKS rejected the equation {text}.",
-                    "Check the syntax: names in double quotes, units on numbers (60mm), operators and function names.");
-            bool rebuilt = d.EditRebuild3();
-
-            var checks = new List<string>();
-            DimensionInfo? dimInfo = null;
-            var (now, problems) = Verify();
-            if (problems.Count > 0 && now is not null)
-            {
-                // Equations are solved during the rebuild; give dependent features one full rebuild before calling it a failure.
-                rebuilt = d.ForceRebuild3(false);
-                checks.Clear();
-                (now, problems) = Verify();
-                if (problems.Count == 0) checks.Add("values settled after a forced rebuild");
-            }
-            if (problems.Count > 0)
-            {
-                string rb = RestoreEquation(d, em, key, prev);
-                throw new SwException(ErrorCodes.VerifyFailed, $"equation_set {text}: {string.Join("; ", problems)}. {rb}",
-                    "Check the expression (units, quoted names, existing variables) and the dimension name.");
-            }
-            if (!EquationText.SameText(now!.Text, text)) ctx.Warn($"SOLIDWORKS stored the equation as {now.Text}.");
-            if (now.Value == 0 && EquationText.Literal(expr) is null)
-                ctx.Warn($"{now.Text} evaluates to 0; check the expression (SOLIDWORKS may keep an equation it can't evaluate).");
-            if (!rebuilt) ctx.Warn("The rebuild reported problems; feature_list shows features with errors.");
+            var run = SetEquations(ctx, [new EquationPlan(EquationText.NormalizeLhs(lhs), EquationText.Expression(expression))]);
+            var one = run.Changes[0];
             return new EquationSetResult
             {
-                Doc = ctx.Title(d), Equation = now, Created = created, Previous = prev, Dimension = dimInfo, Checks = checks,
+                Doc = run.Doc, Equation = one.Equation, Created = one.Created, Previous = one.Previous, Dimension = one.Dimension,
+                Checks = one.Checks, VolumeDeltaMm3 = run.VolumeDeltaMm3, Model = run.Model,
             };
-
-            // Tier B: the equation is there, evaluates to the literal it was given, and drives its dimension.
-            (EquationRow? Row, List<string> Problems) Verify()
-            {
-                var row = ReadEquations(em).FirstOrDefault(e => EquationText.SameLhs(e.Lhs, key));
-                var found = new List<string>();
-                dimInfo = null;
-                if (row is null) return (null, [$"no equation for \"{key}\" after the rebuild"]);
-                checks.Add($"equation for \"{key}\" present");
-                if (row.Value is not double value) return (row, [$"{row.Text} does not evaluate to a number"]);
-                var (lin, ang) = DocUnitFactors(d);
-                if (EquationText.Literal(expr) is { } lit)
-                {
-                    if (LiteralAgrees(value, lit, lin, ang)) checks.Add($"value {F(value)} matches {expr}");
-                    else found.Add($"it evaluates to {F(value)}, which is not {expr}");
-                }
-                if (isDim && Dim(d, key) is { } dim)
-                {
-                    dimInfo = FeatureVerifier.Dimension(dim);
-                    double factor = dimInfo.Unit switch { "deg" => ang, "count" => 1, _ => lin };
-                    if (Agrees(value, dim.SystemValue, factor)) checks.Add($"{key} = {F(dimInfo.Value)} {dimInfo.Unit}");
-                    else found.Add($"{key} is {F(dimInfo.Value)} {dimInfo.Unit} after the rebuild, but the equation evaluates to {F(value)}");
-                }
-                return (row, found);
-            }
         }, RunOptions.Write(doc) with { Timeout = RebuildTimeout }, ct);
+
+    /// <summary>
+    /// Several equations in one call: all checked before the first change, one rebuild, each verified as a single call
+    /// verifies it, and every one put back when one fails. <paramref name="lhs"/> and <paramref name="expression"/> are
+    /// the single call's arguments, refused here.
+    /// </summary>
+    public Task<EquationBatchResult> EquationSetManyAsync(string? doc, IReadOnlyList<EquationInput>? equations, string? lhs = null,
+        string? expression = null, CancellationToken ct = default) =>
+        session.RunAsync("equation_set", ctx =>
+        {
+            if (!string.IsNullOrWhiteSpace(lhs) || !string.IsNullOrWhiteSpace(expression))
+                throw SwException.InvalidArgument("Give either 'equations' or 'lhs' with 'expression', not both.");
+            var run = SetEquations(ctx, EquationText.RequireEquations(equations).Select(e => new EquationPlan(e.Lhs, e.Expression)).ToList());
+            return new EquationBatchResult { Doc = run.Doc, Equations = run.Changes, VolumeDeltaMm3 = run.VolumeDeltaMm3, Model = run.Model };
+        }, RunOptions.Write(doc) with { Timeout = RebuildTimeout }, ct);
+
+    private sealed record EquationPlan(string Key, string Expr)
+    {
+        public string Text => EquationText.Build(Key, Expr);
+        public bool IsDim => Key.Contains('@');
+    }
+
+    private sealed record EquationRun(string Doc, List<EquationChange> Changes, double? VolumeDeltaMm3, ModelState? Model);
+
+    private sealed record EquationCheck(EquationRow? Row, DimensionInfo? Dimension, List<string> Checks, List<string> Problems);
+
+    /// <summary>
+    /// equation_set's work, for one equation or a batch: every row checked before the first change, the rows written so that
+    /// a variable comes before the equations that use it, one rebuild, each row verified, and all of them put back when one
+    /// fails. For a part the volume and the bodies are read before and after, as dimension_set does.
+    /// </summary>
+    private static EquationRun SetEquations(SwContext ctx, IReadOnlyList<EquationPlan> plan)
+    {
+        var d = ctx.DocOfType(swDocumentTypes_e.swDocPART, swDocumentTypes_e.swDocASSEMBLY);
+        NoOpenSketch(ctx, d, "equation_set");
+        foreach (var p in plan)
+            if (p.IsDim && Dim(d, p.Key) is null)
+                throw new SwException(ErrorCodes.EntityNotFound, $"No dimension named '{p.Key}'.",
+                    "Dimension names look like D1@Sketch1 or D1@Boss-Extrude1; feature and sketch results list them.");
+        var em = EquationMgr(d);
+        var before = ReadEquations(em);
+        var prevs = plan.Select(p => before.FirstOrDefault(e => EquationText.SameLhs(e.Lhs, p.Key))).ToList();
+        // The equations as they will stand after the call: a name another row of the batch defines is a known one.
+        var planned = before.Where(e => !plan.Any(p => EquationText.SameLhs(e.Lhs, p.Key)))
+            .Concat(plan.Select(p => new EquationRow { Index = -1, Text = p.Text, Lhs = p.Key, Global = p.IsDim ? null : true })).ToList();
+        foreach (var p in plan)
+        {
+            CheckReferences(d, p.Key, p.Expr, planned);
+            var bare = EquationText.BareNumbers(p.Expr);
+            if (bare.Count > 0)
+                ctx.Warn($"Bare number(s) {string.Join(", ", bare)} in '{p.Expr}' are in the document's units; write units (60mm, 30deg) " +
+                         "unless they are counts or factors.");
+        }
+        // A dimension that gets its first equation keeps the value that equation gave it once the equation is deleted
+        // again, so a rollback sets its value from before back too.
+        var dimBefore = plan.Select(p => p.IsDim && Dim(d, p.Key) is { } dim ? dim.SystemValue : (double?)null).ToList();
+        bool part = d.GetType() == (int)swDocumentTypes_e.swDocPART;
+        var snapBefore = part ? Snapshot.Take(d) : null;
+
+        using var prefs = ctx.SystemPrefs();
+        prefs.Toggle(SystemPrefIds.ShowErrorsEveryRebuild, false); // no modal What's Wrong box on a bad expression
+        var written = new List<int>();
+        foreach (int i in EquationText.WriteOrder(plan.Select(p => (p.Key, p.Expr)).ToList()))
+        {
+            var p = plan[i];
+            // Looked up now, not taken from the list read before: an equation added by this call may have moved it.
+            int at = prevs[i] is null ? -1 : IndexOfEquation(em, p.Key);
+            if (at >= 0) em.Equation[at] = p.Text; // assigning Equation(i) updates in place (VERIFIED)
+            else if (em.Add2(-1, p.Text, true) < 0)
+                throw new SwException(ErrorCodes.FeatureFailed,
+                    $"SOLIDWORKS rejected the equation {p.Text}.{(written.Count == 0 ? "" : " " + Restore())}",
+                    "Check the syntax: names in double quotes, units on numbers (60mm), operators and function names; and that " +
+                    "the value is one the dimension can take (a depth of 0 is refused).");
+            written.Add(i);
+        }
+        bool rebuilt = d.EditRebuild3(); // one rebuild for the whole batch
+
+        var (lin, ang) = DocUnitFactors(d);
+        var found = Verify();
+        if (found.Any(c => c.Problems.Count > 0 && c.Row is not null))
+        {
+            // Equations are solved during the rebuild; give dependent features one full rebuild before calling it a failure.
+            var unsettled = found.Select(c => c.Problems.Count > 0).ToList();
+            rebuilt = d.ForceRebuild3(false);
+            found = Verify();
+            for (int i = 0; i < found.Count; i++)
+                if (unsettled[i] && found[i].Problems.Count == 0) found[i].Checks.Add("values settled after a forced rebuild");
+        }
+        var failed = Enumerable.Range(0, plan.Count).Where(i => found[i].Problems.Count > 0).ToList();
+        if (failed.Count > 0)
+        {
+            string rb = Restore();
+            string what = plan.Count == 1
+                ? $"equation_set {plan[0].Text}: {string.Join("; ", found[0].Problems)}"
+                : $"equation_set, {failed.Count} of {plan.Count} equations: " +
+                  string.Join(" | ", failed.Take(4).Select(i => $"{plan[i].Text}: {string.Join("; ", found[i].Problems)}")) +
+                  (failed.Count > 4 ? $" | and {failed.Count - 4} more" : "");
+            throw new SwException(ErrorCodes.VerifyFailed, $"{what}. {rb}",
+                "Check the expression (units, quoted names, existing variables) and the dimension name.");
+        }
+        for (int i = 0; i < plan.Count; i++)
+        {
+            var now = found[i].Row!;
+            if (!EquationText.SameText(now.Text, plan[i].Text)) ctx.Warn($"SOLIDWORKS stored the equation as {now.Text}.");
+            if (now.Value == 0 && EquationText.Literal(plan[i].Expr) is null)
+                ctx.Warn($"{now.Text} evaluates to 0; check the expression (SOLIDWORKS may keep an equation it can't evaluate).");
+        }
+        if (!rebuilt) ctx.Warn("The rebuild reported problems; feature_list shows features with errors.");
+        var snapAfter = part ? Snapshot.Take(d) : null;
+        return new EquationRun(ctx.Title(d),
+            plan.Select((p, i) => new EquationChange
+            {
+                Equation = found[i].Row!, Created = prevs[i] is null, Previous = prevs[i], Dimension = found[i].Dimension, Checks = found[i].Checks,
+            }).ToList(),
+            part ? Units.Mm3(snapAfter!.Volume - snapBefore!.Volume) : null, snapAfter?.ToState());
+
+        List<EquationCheck> Verify()
+        {
+            var now = ReadEquations(em);
+            return plan.Select((p, i) => VerifyEquation(d, now, p, prevs[i], lin, ang)).ToList();
+        }
+
+        // The last written first: a new variable goes after the equations that use it.
+        string Restore() =>
+            RestoreEquations(d, em, Enumerable.Reverse(written).Select(i => (plan[i].Key, prevs[i], dimBefore[i])).ToList(), snapBefore);
+    }
+
+    /// <summary>Tier B for one equation: it is there, evaluates to the literal it was given, and drives its dimension.</summary>
+    private static EquationCheck VerifyEquation(IModelDoc2 d, IReadOnlyList<EquationRow> now, EquationPlan p, EquationRow? prev,
+        double lin, double ang)
+    {
+        var checks = new List<string>();
+        var row = now.FirstOrDefault(e => EquationText.SameLhs(e.Lhs, p.Key));
+        if (row is null) return new(null, null, checks, [$"no equation for \"{p.Key}\" after the rebuild"]);
+        // An equation changed in place to one SOLIDWORKS won't take (a depth of 0) is dropped without an error: the old
+        // text stays, and the value and the dimension then agree with each other, on the old equation.
+        if (prev is not null && !EquationText.SameText(row.Text, p.Text) && EquationText.SameText(row.Text, prev.Text))
+            return new(row, null, checks,
+                [$"SOLIDWORKS kept the previous equation {prev.Text} and did not take {p.Expr} (a value the dimension can't have, such as 0?)"]);
+        checks.Add($"equation for \"{p.Key}\" present");
+        if (row.Value is not double value) return new(row, null, checks, [$"{row.Text} does not evaluate to a number"]);
+        var problems = new List<string>();
+        DimensionInfo? dimInfo = null;
+        if (EquationText.Literal(p.Expr) is { } lit)
+        {
+            if (LiteralAgrees(value, lit, lin, ang)) checks.Add($"value {F(value)} matches {p.Expr}");
+            else problems.Add($"it evaluates to {F(value)}, which is not {p.Expr}");
+        }
+        if (p.IsDim && Dim(d, p.Key) is { } dim)
+        {
+            dimInfo = FeatureVerifier.Dimension(dim);
+            double factor = dimInfo.Unit switch { "deg" => ang, "count" => 1, _ => lin };
+            if (Agrees(value, dim.SystemValue, factor)) checks.Add($"{p.Key} = {F(dimInfo.Value)} {dimInfo.Unit}");
+            else problems.Add($"{p.Key} is {F(dimInfo.Value)} {dimInfo.Unit} after the rebuild, but the equation evaluates to {F(value)}");
+        }
+        return new(row, dimInfo, checks, problems);
+    }
 
     /// <summary>
     /// Before anything changes: every name the expression uses exists (SOLIDWORKS can keep an equation it can't evaluate,
@@ -774,28 +894,72 @@ public sealed partial class PropertiesService(SwSession session)
         return list;
     }
 
-    /// <summary>Puts back the previous equation (or removes the new one) after a failed verification.</summary>
-    private static string RestoreEquation(IModelDoc2 d, IEquationMgr em, string key, EquationRow? prev)
+    /// <summary>The index of the equation with that left-hand side, or -1 (the texts only, no values read).</summary>
+    private static int IndexOfEquation(IEquationMgr em, string key)
     {
+        int n = em.GetCount();
+        for (int i = 0; i < n; i++)
+            if (EquationText.Lhs(em.Equation[i] ?? "") is { } lhs && EquationText.SameLhs(lhs, key)) return i;
+        return -1;
+    }
+
+    /// <summary>
+    /// After a failed equation_set: puts every equation the call wrote back as it was (or removes the new ones), in the order
+    /// given, and sets a dimension whose first equation was removed back to its value from before. Returns a sentence for
+    /// the error message; for a part the volume is compared with the one before the call.
+    /// </summary>
+    private static string RestoreEquations(IModelDoc2 d, IEquationMgr em,
+        IReadOnlyList<(string Key, EquationRow? Prev, double? DimBefore)> items, Snapshot? before)
+    {
+        if (items.Count == 0) return "Nothing was changed.";
+        const string look = "equation_list shows the current state.";
         try
         {
-            var now = ReadEquations(em).FirstOrDefault(e => EquationText.SameLhs(e.Lhs, key));
-            if (prev is null)
+            foreach (var (key, prev, _) in items)
             {
-                if (now is not null) em.Delete(now.Index);
+                int at = IndexOfEquation(em, key);
+                if (prev is null)
+                {
+                    if (at >= 0) em.Delete(at);
+                }
+                else if (at >= 0) em.Equation[at] = prev.Text;
+                else em.Add2(-1, prev.Text, true);
             }
-            else if (now is not null) em.Equation[now.Index] = prev.Text;
-            else em.Add2(-1, prev.Text, true);
             d.EditRebuild3();
-            var check = ReadEquations(em).FirstOrDefault(e => EquationText.SameLhs(e.Lhs, key));
-            bool ok = prev is null ? check is null : check is not null && EquationText.SameText(check.Text, prev.Text);
-            if (!ok) return "Rollback incomplete: equation_list shows the current state.";
-            return prev is null ? "Rolled back: the new equation was removed." : $"Rolled back to {prev.Text}.";
+            // Only once the rebuild has let go of them: a dimension still read as equation-driven refuses a value.
+            bool reset = false;
+            foreach (var (key, prev, dimBefore) in items)
+            {
+                if (prev is not null || dimBefore is not double v || Dim(d, key) is not { } dim || Close(dim.SystemValue, v)) continue;
+                dim.SetSystemValue3(v, (int)swSetValueInConfiguration_e.swSetValue_InThisConfiguration, ComArgs.Empty);
+                reset = true;
+            }
+            if (reset) d.EditRebuild3();
+
+            var check = ReadEquations(em);
+            var bad = items.Where(i =>
+            {
+                var c = check.FirstOrDefault(e => EquationText.SameLhs(e.Lhs, i.Key));
+                return i.Prev is null ? c is not null : c is null || !EquationText.SameText(c.Text, i.Prev.Text);
+            }).Select(i => i.Key).ToList();
+            if (bad.Count > 0)
+                return items.Count == 1 ? $"Rollback incomplete: {look}"
+                    : $"Rollback incomplete ({string.Join(", ", bad.Take(6))}): {look}";
+            if (before is not null && !SameVolume(Snapshot.Take(d), before))
+            {
+                d.ForceRebuild3(false);
+                if (!SameVolume(Snapshot.Take(d), before))
+                    return "The equations were put back, but the model's volume is not what it was before the call; model_info shows it.";
+            }
+            if (items.Count > 1) return "Rolled back: every equation is as it was before the call.";
+            return items[0].Prev is null ? "Rolled back: the new equation was removed." : $"Rolled back to {items[0].Prev!.Text}.";
         }
         catch (COMException ex) when (!ComArgs.IsDisconnect(ex))
         {
-            return $"Rollback failed ({ex.Message}); equation_list shows the current state.";
+            return $"Rollback failed ({ex.Message}); {look}";
         }
+
+        static bool SameVolume(Snapshot a, Snapshot b) => Math.Abs(a.Volume - b.Volume) <= 1e-12 + 1e-9 * Math.Abs(b.Volume);
     }
 
     /// <summary>The dimension of that name (D1@Sketch1), or null; IModelDoc2.Parameter may fault on names it can't parse.</summary>
@@ -1371,7 +1535,8 @@ internal static class EquationText
         string s = (lhs ?? "").Trim();
         if (s.Length >= 2 && s[0] == '"' && s[^1] == '"') s = s[1..^1].Trim();
         if (s.Length == 0)
-            throw SwException.InvalidArgument("'lhs' is required: a global variable name (W) or a dimension name (D1@Sketch1).");
+            throw SwException.InvalidArgument("'lhs' is required: a global variable name (W) or a dimension name (D1@Sketch1).",
+                "For several equations in one call, give 'equations' instead: [{lhs:'W', expression:'60mm'}].");
         if (s.Contains('"') || s.Contains('=') || s.Any(char.IsControl))
             throw SwException.InvalidArgument($"'lhs' must be a bare name without quotes or '=' (got {lhs}).", "E.g. lhs W with expression 60mm.");
         var parts = s.Split('@');
@@ -1393,6 +1558,52 @@ internal static class EquationText
     }
 
     public static string Build(string lhs, string expression) => $"\"{lhs}\" = {expression}";
+
+    /// <summary>Checked (lhs, expression) pairs for an equation_set batch: at least one, each as a single call takes it, no left-hand side twice.</summary>
+    public static List<(string Lhs, string Expression)> RequireEquations(IReadOnlyList<EquationInput>? equations)
+    {
+        if (equations is null || equations.Count == 0)
+            throw SwException.InvalidArgument("'equations' must contain at least one {lhs, expression}.",
+                "E.g. equations:[{lhs:'W', expression:'60mm'}, {lhs:'D1@Sketch1', expression:'\"W\" / 2'}].");
+        if (equations.Count > 100) throw SwException.InvalidArgument($"'equations' has {equations.Count} entries (at most 100 per call).");
+        var list = new List<(string Lhs, string Expression)>();
+        for (int i = 0; i < equations.Count; i++)
+        {
+            var e = equations[i] ?? throw SwException.InvalidArgument($"equations[{i}] is null.");
+            string key, expr;
+            try
+            {
+                key = NormalizeLhs(e.Lhs);
+                expr = Expression(e.Expression);
+            }
+            catch (SwException ex) when (ex.Code == ErrorCodes.InvalidArgument)
+            {
+                throw SwException.InvalidArgument($"equations[{i}]: {ex.Message}", ex.Hint);
+            }
+            if (list.Any(x => SameLhs(x.Lhs, key))) throw SwException.InvalidArgument($"\"{key}\" is listed twice in 'equations'.");
+            list.Add((key, expr));
+        }
+        return list;
+    }
+
+    /// <summary>
+    /// The order to write a batch in: a row after the rows of the batch its expression uses, otherwise as given (indices
+    /// into <paramref name="rows"/>). A cycle is refused before this is called; one left over is written as given.
+    /// </summary>
+    public static List<int> WriteOrder(IReadOnlyList<(string Lhs, string Expression)> rows)
+    {
+        var refs = rows.Select(r => ExpressionReferences(r.Expression)).ToList();
+        var left = Enumerable.Range(0, rows.Count).ToList();
+        var order = new List<int>(rows.Count);
+        while (left.Count > 0)
+        {
+            int pick = left.FindIndex(i => !refs[i].Any(r => left.Any(j => j != i && SameLhs(rows[j].Lhs, r))));
+            if (pick < 0) pick = 0;
+            order.Add(left[pick]);
+            left.RemoveAt(pick);
+        }
+        return order;
+    }
 
     /// <summary>Same left-hand side: letter case and a trailing document qualifier ("@Part1.Part") are ignored.</summary>
     public static bool SameLhs(string a, string b) => string.Equals(Key(a), Key(b), StringComparison.OrdinalIgnoreCase);

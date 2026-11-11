@@ -380,6 +380,106 @@ public class PropertiesLiveTests(LiveFixture fx) : LiveTest(fx)
         Assert.Equal(25, Assert.Single(list.Equations, e => e.Lhs == "H").Value!.Value, 1e-6); // unchanged
     }
 
+    private static EquationInput Eq(string lhs, string expression) => new() { Lhs = lhs, Expression = expression };
+
+    /// <summary>
+    /// The block with a 10 mm slot across its top face, cut 5 mm deep: a slot as deep as the block (20) splits it in two.
+    /// Returns the block's depth dimension, the slot's, and the volume the 5 mm slot removed (negative).
+    /// </summary>
+    private async Task<(string Doc, string Depth, string SlotDepth, double SlotMm3)> SlotBlockAsync(string name)
+    {
+        var (doc, depth) = await BlockAsync(name);
+        var sk = new SketchService(S);
+        await sk.StartAsync(doc, new EntityRef { At = [0, 20, 0] }, false);
+        // 120 long, so it crosses the block whichever way the face's sketch lies.
+        await sk.AddAsync(doc, [new SketchEntity { Kind = "rectangle", Center = [0, 0], WidthMm = 10, HeightMm = 120 }]);
+        var cut = await new FeatureService(S).ExtrudeAsync(new ExtrudeRequest { Doc = doc, Cut = true, DepthMm = 5 });
+        var slot = cut.Dimensions!.Where(x => x.Unit == "mm" && Math.Abs(x.Value - 5) < 1e-9).OrderBy(x => x.Name, StringComparer.Ordinal).First();
+        return (doc, depth, slot.Name, cut.Verified.VolumeDeltaMm3);
+    }
+
+    [Fact]
+    public async Task Several_equations_go_in_one_call_and_the_result_carries_the_volume_and_the_bodies()
+    {
+        var (doc, depth, slotDepth, slotMm3) = await SlotBlockAsync("equations_batch");
+        double start = (await new InspectService(S).ModelInfoAsync(doc)).VolumeMm3!.Value;
+
+        // The slot's row comes first and uses C, which the second row creates: written in an order that works (S37 a).
+        var r = await P.EquationSetManyAsync(doc, [Eq(slotDepth, "\"C\" * 2"), Eq("C", "5mm"), Eq("U", "\"C\" + 1mm")]);
+        Assert.Equal(3, r.Equations.Count);
+        Assert.All(r.Equations, e => Assert.True(e.Created));
+        Assert.Equal(10, r.Equations[0].Dimension!.Value, 1e-6);
+        Assert.Equal("C", r.Equations[1].Equation.Lhs);
+        Assert.Equal(5, r.Equations[1].Equation.Value!.Value, 1e-6);
+        Assert.Equal(6, r.Equations[2].Equation.Value!.Value, 1e-6);
+        Assert.Null(r.Warnings);
+        // The slot went from 5 to 10 deep: as much again as it had removed (S37 b).
+        Assert.Equal(slotMm3, r.VolumeDeltaMm3!.Value, 1e-3);
+        Assert.Equal(start + slotMm3, r.Model!.VolumeMm3, 1e-3);
+        Assert.Equal(1, r.Model.Bodies);
+        Assert.Equal(3, (await P.EquationListAsync(doc)).Equations.Count);
+
+        // A second batch changes two of them and gives the block's depth its first equation.
+        var r2 = await P.EquationSetManyAsync(doc, [Eq("C", "2.5mm"), Eq("U", "\"C\" * 4"), Eq(depth, "\"U\" * 3")]);
+        Assert.False(r2.Equations[0].Created);
+        Assert.Contains("5mm", r2.Equations[0].Previous!.Text);
+        Assert.Equal(10, r2.Equations[1].Equation.Value!.Value, 1e-6);
+        Assert.True(r2.Equations[2].Created);
+        Assert.Equal(30, r2.Equations[2].Dimension!.Value, 1e-6);
+        // Back to a 5 mm slot, in a block of 30: 100 x 60 x 10 more.
+        Assert.Equal(60_000 - slotMm3, r2.VolumeDeltaMm3!.Value, 1e-3);
+
+        // A single call reports them too, and here the value splits the body: a slot deeper than the block (S7's usage).
+        var one = await P.EquationSetAsync(doc, slotDepth, "\"U\" * 4");
+        Assert.Equal(40, one.Dimension!.Value, 1e-6);
+        Assert.Equal(5 * slotMm3, one.VolumeDeltaMm3!.Value, 1e-3); // 5 deep -> through the 30
+        Assert.Equal(2, one.Model!.Bodies);
+    }
+
+    [Fact]
+    public async Task A_batch_with_a_row_that_fails_leaves_the_model_as_it_was()
+    {
+        var (doc, depth, slotDepth, _) = await SlotBlockAsync("equations_batch_bad");
+        double start = (await new InspectService(S).ModelInfoAsync(doc)).VolumeMm3!.Value;
+
+        // Refused before anything is written: the arguments, a name twice, an unknown name, a loop inside the batch.
+        Assert.Equal(ErrorCodes.InvalidArgument, await Code(() => P.EquationSetManyAsync(doc, [])));
+        Assert.Equal(ErrorCodes.InvalidArgument, await Code(() => P.EquationSetManyAsync(doc, [Eq("T", "1mm")], "W", "5mm")));
+        Assert.Equal(ErrorCodes.InvalidArgument, await Code(() => P.EquationSetManyAsync(doc, [Eq("T", "1mm"), Eq("t", "2mm")])));
+        Assert.Equal(ErrorCodes.InvalidArgument, await Code(() => P.EquationSetManyAsync(doc, [Eq("T", "1mm"), Eq("U", "")])));
+        Assert.Equal(ErrorCodes.EntityNotFound, await Code(() => P.EquationSetManyAsync(doc, [Eq("T", "15mm"), Eq("U", "\"Nope\" * 2")])));
+        var loop = await Assert.ThrowsAsync<SwException>(() => P.EquationSetManyAsync(doc, [Eq("A", "\"B\" + 1mm"), Eq("B", "\"A\" * 2")]));
+        Assert.Equal(ErrorCodes.InvalidArgument, loop.Code);
+        Assert.Contains("circular", loop.Message);
+        Assert.Empty((await P.EquationListAsync(doc)).Equations);
+
+        // A new equation SOLIDWORKS won't take: the slot's depth can't be 0. The rows before it were written, the block's
+        // depth among them; all of it is taken back, that depth, which had no equation, included.
+        var bad = await Assert.ThrowsAsync<SwException>(() =>
+            P.EquationSetManyAsync(doc, [Eq("T", "15mm"), Eq(depth, "\"T\" * 2"), Eq(slotDepth, "\"T\" - 15mm")]));
+        Assert.True(bad.Code == ErrorCodes.FeatureFailed, $"{bad.Code}: {bad.Message}");
+        Assert.Contains("Rolled back: every equation is as it was before the call", bad.Message);
+        Assert.Empty((await P.EquationListAsync(doc)).Equations);
+        Assert.Equal(start, (await new InspectService(S).ModelInfoAsync(doc)).VolumeMm3!.Value, 1e-3);
+
+        // A row that fails after the rebuild, with equations already there: the slot's equation changed to one that gives 0,
+        // which SOLIDWORKS drops without a word, keeping the old text (it used to come back ok with a warning).
+        // Each is back at its text, the new one is gone, and the volume is the one from before.
+        await P.EquationSetManyAsync(doc, [Eq("T", "15mm"), Eq(depth, "\"T\" * 2"), Eq(slotDepth, "\"T\" - 10mm")]);
+        double grown = (await new InspectService(S).ModelInfoAsync(doc)).VolumeMm3!.Value;
+        bad = await Assert.ThrowsAsync<SwException>(() =>
+            P.EquationSetManyAsync(doc, [Eq("T", "20mm"), Eq("V", "\"T\" + 1mm"), Eq(slotDepth, "\"T\" - 20mm")]));
+        Assert.True(bad.Code == ErrorCodes.VerifyFailed, $"{bad.Code}: {bad.Message}");
+        Assert.Contains("kept the previous equation", bad.Message);
+        Assert.Contains("Rolled back: every equation is as it was before the call", bad.Message);
+        var list = (await P.EquationListAsync(doc)).Equations;
+        Assert.Equal(3, list.Count);
+        Assert.Contains("15mm", Assert.Single(list, e => e.Lhs == "T").Text);
+        Assert.Contains("10mm", Assert.Single(list, e => e.Lhs.StartsWith(slotDepth, StringComparison.OrdinalIgnoreCase)).Text);
+        Assert.DoesNotContain(list, e => e.Lhs == "V");
+        Assert.Equal(grown, (await new InspectService(S).ModelInfoAsync(doc)).VolumeMm3!.Value, 1e-3);
+    }
+
     // ------------------------------------------------------------------ configurations
 
     [Fact]
