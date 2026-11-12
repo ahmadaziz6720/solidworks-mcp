@@ -22,11 +22,37 @@ S24, S32) went out in build `20261112-091908` (`276d378`) and its scenario test 
 2026-11-12; the record is in each item.
 
 **The run of 2026-11-13** (planned with the owner; one session, subagents doing the
-work). Every item below is decided; nothing in it waits on the owner until the release's
-tag and registration question.
+work). Every item below is decided; after the one opening question nothing in it waits
+on the owner.
 
 How it runs:
 
+- **Unattended** (the owner, 2026-11-13: they leave the session once it starts). After
+  reading this brief the session asks the owner **one** question, in one
+  `AskUserQuestion` call, and then runs to the end without stopping or asking again.
+  That question holds everything the run would otherwise stop for: the release's tag
+  and registration (CLAUDE.md step 4, every project named with the build it runs), the
+  push of `sw2023` before the release, and anything in this plan the session reads as
+  unclear. **Plugin questions**: those of the session start (`git-workflow`'s waiting
+  work, `clockify`'s timer, `core`'s session note) go into that one call, up to four
+  questions, or are settled by this brief when it answers them; every later one
+  (`clockify`'s offer after each commit, `git-workflow`'s placement and push notes) is
+  not asked, as the opening sentence rules out questions for the turn ("tanpa nanya
+  apa-apa"), and each is named in one line of the report. The whole run is that one
+  turn: the answer to the opening question comes back inside it.
+- **A decision met mid-run is the session's own**: it takes the option that keeps the
+  server's checks honest and its results true, the smaller change when two are equal,
+  and goes on. Each such decision is written into its item as "Decided 2026-11-13 by
+  the run, not the owner: …, because …", and listed in the run's report, so the owner
+  can review or reverse it.
+- **Never stop on one item.** A fix that does not hold after a reasonable try (its test
+  still failing, a cause not found) is left Open with what was tried written into it,
+  its partial code not committed, and the run goes to the next. SOLIDWORKS hung or
+  gone: restart it and go on. A permission prompt or a dialog nobody answers is the one
+  thing the session cannot pass; it writes where it stood into this section first.
+- **The report at the end**, in Indonesian, in the reply and in a line here: per item
+  Waiting with its commit, Open with why, or Closed (its test did not fail); the
+  decisions the run took; the build and the sentence for the scenario test.
 - **One SOLIDWORKS, so one batch at a time.** Live tests drive the one SOLIDWORKS on this
   machine, and most batches touch the same services (`FeatureService`, `SketchService`,
   `AssemblyService`, `SwContext`), so the batches go one after another on `sw2023` in the
@@ -62,8 +88,8 @@ modelling, the largest first; the release last):
 6. **Session, documents, assemblies**: S57, S60 (a as a probe; b, c, d), S61 (b, c), S62
    (a, c as a probe, d, e), S49, S48 (a to c).
 7. **Release**, as `CLAUDE.md` gives it: `docs/tools.md` regenerated, the live tests of
-   every area this run touched in full, unit tests, publish, `--check-catalog`, then the
-   one question to the owner on the tag and the registration. The scenario test is not
+   every area this run touched in full, unit tests, the push, publish, `--check-catalog`,
+   then the tag and the registration as the opening question's answer gave them. The scenario test is not
    part of this run: once the build is registered, the session ends by giving the owner
    the opening sentence for it, naming the build and the items to check.
 
