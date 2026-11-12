@@ -10,11 +10,11 @@ Three sections: **Open**, not yet fixed; **Waiting**, fixed and not yet settled 
 merged, a fix not yet run in a session); **Closed**, merged upstream, run and held, or
 decided against, with the record.
 
-**Open: S4, S5, S7, S10 to S12, S33, S34, S48, S49, S55 to S57, S59 to S62, S64, S65.** S48 and
+**Open: S4, S5, S7, S10 to S12, S33, S34, S48, S49, S55, S57, S59 to S62, S64, S65.** S48 and
 S49 are from the scenario test of build `20261112-091908`, S50 to S66 from twenty
 working sessions on that build (findings 2026-11-12 and 13); S47, from that scenario
-test too, S50 to S54, S58, S63 and S66 are fixed and Waiting. Reported `ok` while wrong or
-misleading: S60 (a); a failure reported on a success: S56 (a).
+test too, S50 to S54, S56, S58, S63 and S66 are fixed and Waiting. Reported `ok` while wrong or
+misleading: S60 (a).
 Next: the run planned below, every point of it decided 2026-11-13 by the owner. Not in
 it: S4, S5, S7 and S12 wait on upstream; S10, S11, S33 and S34 are parked until a job
 needs them; S61 (a), S62 (b), S64 (c) and S65 (b to d) were offered for this run and not
@@ -260,23 +260,6 @@ cost of a `symmetric` step; then a limit that scales with the steps, or the cost
 description, or the result's time. Decided 2026-11-13 by the owner: a probe of the cost of
 each kind of step first; then a time limit that grows with the steps and their kinds, the
 time in the result, the cost per step in the description.
-
-**S56. Relations SOLIDWORKS adds while drawing go unreported, and a relation it already
-has reads as refused.** On build `20261112-091908` (findings 2026-11-12, "six printed and
-stand-in parts", points 5, 6; "a helical screw part", point 5; "a part's body raised",
-point 2; "a printed part's tree deleted", point 5; "two parts changed mid-tree", point 2;
-2026-11-13, "an existing part edited", point 4; "four small printed parts", point 2). (a)
-`sketch_constrain` `equal` reported `VERIFY_FAILED: … SOLIDWORKS ignored the relation …
-no relation was added`, steps after it not run, while the relation was added: a failure
-reported on a success. (b) `sketch_add` brings relations it does not report: an `equal`
-on a rectangle drawn square, `coincident` to a body's edges on a plane through it,
-polygon centres, segment ends merged onto existing points. The next dimension is then
-refused as over-defining, or a `coincident` "ignored". Lessons the sessions left: ends a
-polyline was drawn onto are merged already, `symmetric` lines do not hold their ends along
-the centreline. Local: `sketch_add` lists the relations and merges SOLIDWORKS made on what
-it drew; the "ignored" check reads whether the relation or its equivalent now holds, and
-says so. Taken into the run of 2026-11-13 as proposed, no choice in it; SOLIDWORKS'
-inference itself is not changed.
 
 **S57. "modified outside this server … (by the user?)" after the server's own calls.** On
 build `20261112-091908`, six sessions, the owner out of SOLIDWORKS each time (findings
@@ -1085,6 +1068,65 @@ definition). After: those two pass (2/2); the live tests on the changed paths, t
 `A_global_variable_drives_the_extrude_depth`, `Several_equations_go_in_one_call_…` and
 `A_table_makes_three_sizes_…`, pass (18/18); the offline `FeatureManagementLogicTests` 24/24
 (`Values_convert_by_dimension_type` with the scalar); contract tests 7/7; unit tests 278/278;
+`--check-catalog` ok; `check_repo` ok. Local: on `sw2023`, in the commit that moves it here;
+not yet in a build. Upstream: not yet decided.
+
+**S56. Relations SOLIDWORKS adds while drawing go unreported, and a relation it already
+has reads as refused.** On build `20261112-091908` (findings 2026-11-12, "six printed and
+stand-in parts", points 5, 6; "a helical screw part", point 5; "a part's body raised",
+point 2; "a printed part's tree deleted", point 5; "two parts changed mid-tree", point 2;
+2026-11-13, "an existing part edited", point 4; "four small printed parts", point 2). (a)
+`sketch_constrain` `equal` reported `VERIFY_FAILED: … SOLIDWORKS ignored the relation …
+no relation was added`, steps after it not run, while the relation was added: a failure
+reported on a success. (b) `sketch_add` brings relations it does not report: an `equal`
+on a rectangle drawn square, `coincident` to a body's edges on a plane through it,
+polygon centres, segment ends merged onto existing points. The next dimension is then
+refused as over-defining, or a `coincident` "ignored". Lessons the sessions left: ends a
+polyline was drawn onto are merged already, `symmetric` lines do not hold their ends along
+the centreline. Local: `sketch_add` lists the relations and merges SOLIDWORKS made on what
+it drew; the "ignored" check reads whether the relation or its equivalent now holds, and
+says so. Taken into the run of 2026-11-13 as proposed, no choice in it; SOLIDWORKS'
+inference itself is not changed.
+Cause: with inference off (`AddToDB`) SOLIDWORKS still relates what it draws (a corner
+rectangle drawn square gets an `equal`, a corner on the origin a `coincident` to it, a
+polygon a `tangent` and `patterned` relations) and merges a segment end drawn on an
+existing end; `sketch_add` read none of it. `SketchAddConstraints` then ignores a relation
+the sketch already has, and `AddRelation` took "nothing added" for a refusal. Fix (new
+`SketchRelations`): `sketch_add` gives each entity `relations` ("equal: Line2, Line1",
+"coincident: origin, Line1 start") and `merged` ("Line5 start merged onto [40, 40] (Line3
+end, Line4 end)"), read from the relations on its segments and their points (by
+`GetDefinitionEntities2`, which names the origin and model geometry where `GetEntities`
+gives the sketch's own external point) and from point ids known before it; a relation
+SOLIDWORKS ignored is looked up on the entities, and when the sketch holds it the step
+succeeds with the check `already held: …` and equal relation counts, its geometry checked
+as for an added one (a failing check now undoes nothing, as nothing changed);
+`sketch_info`'s relation names moved to the same class. The `sketch_add` and
+`sketch_relation_add` descriptions say so, shortened to stay within the tool list's byte
+budget. Not reproduced on 2023: a `coincident` to a body's edges (a rectangle on a block's
+outline, on the Front plane through it, got only its corner's `coincident` to the origin);
+one would be listed as "a model edge". The `symmetric` lesson is not part of this fix.
+Decided 2026-11-13 by the run, not the owner: (1) "already held" is a relation the sketch
+holds on those entities (the same type or an equivalent one, collinear for parallel,
+coradial for equal; a chain for equal, parallel, collinear, concentric and merge; a
+horizontal and a vertical line for perpendicular, two of one for parallel; a point that is
+the segment's own end or centre), not geometry that merely satisfies it, which stays
+`VERIFY_FAILED`, because geometry satisfied by chance is not held and the check must stay
+honest; (2) a reference to model geometry (an edge, a face) is never read as held, as its
+key cannot tell one edge from another, so it fails as before; (3) `sketch_add` lists every
+relation it made, a rectangle's horizontals and verticals included, up to 20 per entity,
+not only the unexpected ones, because which are expected would be a per-kind table the
+server would have to keep true; (4) "already held" is said in the checks, with no new
+result field, the smaller change. On the code before (the two result fields declared,
+nothing filling them), the live tests failed: `Sketch_add_lists_the_relations_and_merges_SOLIDWORKS_made`
+(`Assert.NotNull() Failure: Value is null` for the square rectangle's relations) and
+`Constrain_reads_a_relation_the_sketch_already_has_as_held_and_runs_the_next_steps`
+(`Step 1 of 2 (equal relation) failed: SOLIDWORKS ignored the relation 'equal' for sketch
+segment Line1, sketch segment Line2: no relation was added. No step before it was applied;
+steps 2-2 were not run.`). After: those two pass (2/2), with the live tests on the changed
+paths: the relation, merge, pierce, origin, `Constrain_…`, mirrored-shape, centre-rectangle,
+offset, `Info_…` and 3D-sketch tests of `SketchEditLiveTests`, `Box_extrude_matches_the_oracle`,
+`Top_plane_sketch_frame_is_x_0_minus_y`, the 3D-sketch weldment frame, the slot sweep and
+the ellipse model box (27/27 with the two); unit tests 278/278; contract tests 7/7;
 `--check-catalog` ok; `check_repo` ok. Local: on `sw2023`, in the commit that moves it here;
 not yet in a build. Upstream: not yet decided.
 

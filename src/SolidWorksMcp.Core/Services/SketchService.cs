@@ -46,6 +46,10 @@ public sealed class SketchEntityResult
     /// <summary>Centre rectangle: its two construction diagonals, whose midpoint is the centre.</summary>
     public IReadOnlyList<string>? Diagonals { get; init; }
     public string? ConstructionCircle { get; init; }
+    /// <summary>Relations SOLIDWORKS made on what this entity drew ("equal: Line1, Line2"), the call's own included.</summary>
+    public IReadOnlyList<string>? Relations { get; init; }
+    /// <summary>Ends SOLIDWORKS merged onto points already in the sketch ("Line5 start merged onto [50, 50] (Line2 end, Line3 start)").</summary>
+    public IReadOnlyList<string>? Merged { get; init; }
     public IReadOnlyList<string>? Checks { get; init; }
 }
 
@@ -160,19 +164,23 @@ public sealed class SketchService(SwSession session)
             sm.AddToDB = true; // no inference snapping or automatic relations while the server draws
             var created = new List<ISketchSegment>();
             var results = new List<SketchEntityResult>();
+            // S56: the points already in the sketch, to tell which ends SOLIDWORKS merged onto one of them.
+            var known = SketchRelations.PointKeys(sketch);
             try
             {
                 for (int i = 0; i < entities.Count; i++)
                 {
                     var e = entities[i];
                     var before = SegmentNames(sketch);
-                    int pointsBefore = sketch.Points().Count, textsBefore = Texts(sketch);
+                    int pointsBefore = sketch.Points().Count, textsBefore = Texts(sketch), relationsBefore = SketchRelations.Count(sketch);
                     var conv = new PointConverter(m2s, is3D, $"entities[{i}]", ctx);
                     var checks = new List<string>();
                     Draw(d, sm, e, conv, checks);
                     var segs = sketch.Segments().Where(s => !before.Contains(s.GetName())).ToList();
                     created.AddRange(segs);
-                    results.Add(Check(e, i, segs, sketch.Points().Count - pointsBefore, Texts(sketch) - textsBefore, checks, conv));
+                    int newPoints = sketch.Points().Count - pointsBefore;
+                    var made = SketchRelations.Made(sketch, segs, newPoints, relationsBefore, known);
+                    results.Add(Check(e, i, segs, newPoints, Texts(sketch) - textsBefore, checks, conv, made));
                 }
             }
             catch
@@ -541,7 +549,8 @@ public sealed class SketchService(SwSession session)
     }
 
     /// <summary>Tier-B check of one entity: expected segment signature and key geometry read back.</summary>
-    private static SketchEntityResult Check(SketchEntity e, int i, List<ISketchSegment> segs, int newPoints, int newTexts, List<string> checks, PointConverter c)
+    private static SketchEntityResult Check(SketchEntity e, int i, List<ISketchSegment> segs, int newPoints, int newTexts, List<string> checks, PointConverter c,
+        (List<string>? Relations, List<string>? Merged) made)
     {
         string kind = e.Kind.Trim().ToLowerInvariant();
         string a = $"entities[{i}] ({kind})";
@@ -628,6 +637,8 @@ public sealed class SketchService(SwSession session)
             Sides = sides,
             Diagonals = diagonals,
             ConstructionCircle = constructionCircle,
+            Relations = made.Relations,
+            Merged = made.Merged,
             Checks = checks.Count == 0 ? null : checks,
         };
     }

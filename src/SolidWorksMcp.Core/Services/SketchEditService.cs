@@ -284,7 +284,7 @@ public sealed class SketchEditService(SwSession session)
                 if (s.RelationManager is ISketchRelationManager rm)
                     foreach (var r in rm.SkRelations((int)swSketchRelationFilterType_e.swAll))
                     {
-                        string t = RelationTypeName(r.GetRelationType());
+                        string t = SketchRelations.TypeName(r.GetRelationType());
                         types[t] = types.GetValueOrDefault(t) + 1;
                     }
             }
@@ -774,9 +774,16 @@ public sealed class SketchEditService(SwSession session)
             }
         }
         if (after is null)
-            throw new SwException(ErrorCodes.VerifyFailed,
-                $"SOLIDWORKS ignored the relation '{rel}' for {labels}: no relation was added.",
-                "It may not apply to these entity types, already exist, or follow from other relations (sketch_info lists them).");
+        {
+            // S56: SOLIDWORKS adds nothing when the sketch already holds the relation (one it made while drawing, or one
+            // added before): that is a success, said as such, and checked on the geometry like an added one.
+            string? held = SketchRelations.Held(rel, refs, sketch);
+            if (held is null)
+                throw new SwException(ErrorCodes.VerifyFailed,
+                    $"SOLIDWORKS ignored the relation '{rel}' for {labels}: no relation was added, and the sketch holds none like it.",
+                    "It may not apply to these entity types, or follow from other relations (sketch_info lists them).");
+            return Held(ctx, d, sketch, rel, refs, m2s, before, held, labels);
+        }
         var checks = new List<string> { merged ? $"points merged ({before.Points} → {after.Points} sketch points)" : $"relations {before.Relations} → {after.Relations}" };
         if (rel == "merge" && !merged) checks.Add("coincident relation instead: SOLIDWORKS merges only segment end points");
         if (BecameOverDefined(sketch, before.Status))
@@ -818,6 +825,41 @@ public sealed class SketchEditService(SwSession session)
             Constrained = ConstrainedName(after.Status),
             Segments = related.Count == 0 ? null : related.Select(x => Info(x, after.Segs[x], is3D)).ToList(),
             Changed = NullIfEmpty(diff.Changed.Where(x => !related.Contains(x)).Take(ListMax).Select(x => Info(x, after.Segs[x], is3D, before.Segs[x].Length)).ToList()),
+            Checks = checks,
+            Resolved = refs.Select(r => r.Info("entities")).ToList(),
+        };
+    }
+
+    /// <summary>
+    /// A relation SOLIDWORKS ignored because the sketch already holds it: nothing changed, so nothing is undone; the
+    /// geometry is checked as for an added relation.
+    /// </summary>
+    private static SketchRelationResult Held(SwContext ctx, IModelDoc2 d, ISketch sketch, string rel, List<Resolved> refs, Xform m2s,
+        SkState before, string held, string labels)
+    {
+        bool is3D = sketch.Is3D();
+        var checks = new List<string> { $"already held: {held}" };
+        if (!is3D)
+        {
+            var items = refs.Select(r => ItemOf(r, sketch, m2s)).ToList();
+            if (items.Any(i => i.Kind is "external" or "other")) checks.Add("geometry not checked (model geometry, or a segment of a non-parallel sketch)");
+            string? problem = rel == "pierce" ? PierceGeometry(d, sketch, refs, checks) : RelationGeometry(rel == "merge" ? "coincident" : rel, items, checks);
+            if (problem is not null)
+                throw new SwException(ErrorCodes.VerifyFailed,
+                    $"SOLIDWORKS ignored the relation '{rel}' for {labels}: no relation was added. The sketch holds it ({held}), but the geometry doesn't satisfy it: {problem}.",
+                    "The sketch may not solve; check sketch_info.");
+        }
+        var related = refs.Where(r => r.Obj is ISketchSegment s && InSketch(s, sketch)).Select(r => ((ISketchSegment)r.Obj).GetName())
+            .Where(before.Segs.ContainsKey).Distinct().ToList();
+        return new SketchRelationResult
+        {
+            Doc = ctx.Title(d),
+            Sketch = ((IFeature)sketch).Name,
+            Relation = rel,
+            RelationsBefore = before.Relations,
+            RelationsAfter = before.Relations,
+            Constrained = ConstrainedName(before.Status),
+            Segments = related.Count == 0 ? null : related.Select(x => Info(x, before.Segs[x], is3D)).ToList(),
             Checks = checks,
             Resolved = refs.Select(r => r.Info("entities")).ToList(),
         };
@@ -2871,23 +2913,4 @@ public sealed class SketchEditService(SwSession session)
         (int)swConstrainedStatus_e.swAutosolveOff => "autosolve_off",
         _ => "unknown",
     };
-
-    private static string RelationTypeName(int t)
-    {
-        if (!Enum.IsDefined(typeof(swConstraintType_e), t)) return $"type_{t}";
-        string raw = ((swConstraintType_e)t).ToString().Replace("swConstraintType_", "").ToLowerInvariant();
-        return raw switch
-        {
-            "samelength" => "equal",
-            "atmiddle" => "midpoint",
-            "atintersect" => "intersection",
-            "colinear" => "collinear",
-            "fixed" => "fix",
-            "atpierce" => "pierce",
-            "mergepoints" => "merge",
-            "horizpoints" => "horizontal_points",
-            "vertpoints" => "vertical_points",
-            _ => raw,
-        };
-    }
 }

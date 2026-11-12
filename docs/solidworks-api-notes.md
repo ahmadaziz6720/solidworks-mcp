@@ -134,6 +134,16 @@ type libraries and writes `sldworks_api.txt`, `swconst_enums.txt`, `swcommands.t
     through their segments. It ignores a free point. `sgCOINCIDENT` on two end points merges them the same way; on a free
     point it adds a coincident relation (type 9) and moves the second point onto the first. VERIFIED.
   - Coincident point + line puts the point on the **infinite** line. VERIFIED.
+  - **Relations made while drawing, `AddToDB` on** (VERIFIED 2023 SP3): a corner rectangle drawn square gets an equal
+    relation besides its horizontals and verticals, a corner on the origin a coincident to it, a polygon a tangent and
+    patterned relations; a line or polyline end drawn on an existing segment end is merged onto that point (one point,
+    no relation). `SketchAddConstraints` then **ignores** a relation the sketch already has (equal on those two sides,
+    coincident of a line's own end and the line): nothing added, nothing moved.
+  - **What a relation relates:** `ISketchRelation.GetEntities` gives model geometry as the sketch's own external point
+    (`ISketchPoint.Type` 10) or segment; `GetDefinitionEntities2` gives what it is (for a corner on the origin: the
+    origin's point, whose `GetSketch()` is the origin feature, type `OriginProfileFeature`, and the corner point).
+    `ISketchSegment.GetRelations` / `ISketchPoint.GetRelations` list the relations on one entity; `GetID` (two ints)
+    tells points apart while the sketch is open. VERIFIED.
   - Verify by counting with `ISketch.RelationManager.GetRelationsCount(0)`. Relation types (`swConstraintType_e`) include
     1 distance, 2 angle, 4 horizontal, 5 vertical, 6 tangent, 9 coincident, 11 symmetric (mirror copies), 12 midpoint,
     13 intersection, 47 sketch offset and 57 patterned.

@@ -739,6 +739,67 @@ public class SketchEditLiveTests(LiveFixture fx) : LiveTest(fx)
         Assert.True(info.Dimensions is null || info.Dimensions.Count == 0);
     }
 
+    [Fact]
+    public async Task Sketch_add_lists_the_relations_and_merges_SOLIDWORKS_made()
+    {
+        // S56 (b): a rectangle drawn square came with an equal relation, a line drawn onto its corner was merged onto it,
+        // and sketch_add said neither; the next dimension was then refused as over-defining.
+        var (doc, _, added) = await SketchAsync("s56_add", "front",
+            new SketchEntity { Kind = "rectangle", Corners = [[0, 0], [40, 40]] },
+            Line([40, 40], [70, 60]),
+            new SketchEntity { Kind = "polygon", Center = [0, 100], Sides = 6, CircumradiusMm = 20 },
+            Line([-50, -50], [-20, -50]));
+        var rect = added.Entities[0];
+        Assert.NotNull(rect.Relations);
+        Assert.Contains(rect.Relations!, r => r.StartsWith("equal: "));
+        Assert.Equal(2, rect.Relations!.Count(r => r.StartsWith("horizontal: ")));
+        Assert.Equal(2, rect.Relations!.Count(r => r.StartsWith("vertical: ")));
+        Assert.Contains(rect.Relations!, r => r.StartsWith("coincident: ") && r.Contains("origin")); // its corner on the origin
+        Assert.Null(rect.Merged);
+
+        var line = added.Entities[1];
+        string merged = Assert.Single(line.Merged!);
+        Assert.StartsWith($"{line.Segments[0]} start merged onto [40, 40]", merged);
+        Assert.Null(line.Relations);
+        Assert.NotNull(added.Entities[2].Relations); // a polygon's own relations
+        Assert.Null(added.Entities[3].Relations);
+        Assert.Null(added.Entities[3].Merged);
+
+        // Every relation in the sketch is one sketch_add listed.
+        var info = await Ed.InfoAsync(doc, null);
+        Assert.Equal(info.Relations, added.Entities.Sum(e => e.Relations?.Count ?? 0));
+    }
+
+    [Fact]
+    public async Task Constrain_reads_a_relation_the_sketch_already_has_as_held_and_runs_the_next_steps()
+    {
+        // S56 (a): 'equal' on two sides of a rectangle drawn square, which SOLIDWORKS had related while drawing, failed
+        // VERIFY_FAILED "SOLIDWORKS ignored the relation" and stopped the steps after it, while the relation was there.
+        var (doc, _, added) = await SketchAsync("s56_eq", "front", new SketchEntity { Kind = "rectangle", Corners = [[0, 0], [40, 40]] });
+        string a = added.Entities[0].Segments[0], b = added.Entities[0].Segments[1];
+        int before = (await Ed.InfoAsync(doc, null)).Relations;
+        var r = await Ed.ConstrainAsync(doc, [Rel("equal", Seg(a), Seg(b)), Dim("linear", 30, Seg(a))]);
+        Assert.Equal(2, r.Steps.Count);
+        Assert.Contains(r.Steps[0].Checks!, c => c.StartsWith("already held: equal"));
+        Assert.Equal(before + 1, r.RelationsAfter); // the dimension only (it counts as a relation): no equal was added
+        Assert.Equal(30, (await SegmentAsync(doc, b)).LengthMm!.Value, L); // the equal holds: b follows a
+
+        // The corner on the origin, which SOLIDWORKS related while drawing, reads as held too.
+        var o = await Ed.RelationAddAsync(doc, "coincident", [At(0, 0), new EntityRef { Name = "origin" }]);
+        Assert.Equal(o.RelationsBefore, o.RelationsAfter);
+        Assert.Contains(o.Checks!, c => c.StartsWith("already held: coincident"));
+
+        // A line drawn with an end on another line's end: that point is already on the line.
+        var (doc2, _, added2) = await SketchAsync("s56_co", "front", Line([0, 10], [40, 10]), Line([40, 10], [60, 40]));
+        string first = Name(added2, 0), second = Name(added2, 1);
+        var c = await Ed.ConstrainAsync(doc2, [Rel("coincident", At(40, 10), Seg(first)), Rel("horizontal", Seg(first))]);
+        Assert.Equal(2, c.Steps.Count);
+        Assert.Contains(c.Steps[0].Checks!, x => x.StartsWith("already held: ") && x.Contains(first));
+        Assert.Equal(c.RelationsBefore + 1, c.RelationsAfter); // only the horizontal was added
+        Near((await SegmentAsync(doc2, first)).EndMm!, (await SegmentAsync(doc2, second)).StartMm, 1e-6);
+        Assert.DoesNotContain(c.Steps[1].Checks!, x => x.StartsWith("already held"));
+    }
+
     // ------------------------------------------------------------------ sketch_trim
 
     [Fact]

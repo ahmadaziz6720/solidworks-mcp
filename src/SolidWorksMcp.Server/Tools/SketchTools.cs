@@ -29,8 +29,8 @@ public sealed class SketchTools(SwSession session)
                  "line/centerline {from,to}; polyline {points,closed}; rectangle {corners:[p1,p2]} or {center,widthMm,heightMm}; " +
                  "circle {center,radiusMm|diameterMm}; arc {start,mid,end} or {center,radiusMm,startDeg,endDeg} (CCW); slot {from,to,widthMm}; " +
                  "polygon {center,sides,circumradiusMm|inradiusMm,rotationDeg}; ellipse {center,majorRadiusMm,minorRadiusMm,rotationDeg}; " +
-                 "spline {points}; point {at}. Any kind: construction, label. Returns segment names per entity (rectangle sides named, a " +
-                 "centre rectangle's construction diagonals too) and the contour status (closed loops are needed for extrudes).")]
+                 "spline {points}; point {at}. Any kind: construction, label. Returns per entity its segments (rectangle sides, a centre " +
+                 "rectangle's diagonals), relations and merges SOLIDWORKS made, and the contour status (extrudes need closed loops).")]
     public async Task<string> SketchAdd(
         [Description("Entities to draw, e.g. [{\"kind\":\"rectangle\",\"center\":[0,0],\"widthMm\":100,\"heightMm\":60}].")] SketchEntity[] entities,
         [Description("Document (handle, title or path); default: the target document.")] string? doc = null,

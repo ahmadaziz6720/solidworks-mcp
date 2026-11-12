@@ -29,6 +29,8 @@ internal static partial class SwExt
     // ---- relations and dimensions
     public static List<ISketchRelation> SkRelations(this ISketchRelationManager m, int filter) =>
         ComArgs.Objects<ISketchRelation>((object?)m.GetRelations(filter));
+    public static List<ISketchRelation> SkRelations(this ISketchSegment s) => ComArgs.Objects<ISketchRelation>((object?)s.GetRelations());
+    public static List<ISketchRelation> SkRelations(this ISketchPoint p) => ComArgs.Objects<ISketchRelation>((object?)p.GetRelations());
 
     public static IAnnotation? SkAnnotation(this IDisplayDimension d) => (object?)d.GetAnnotation() as IAnnotation;
 }

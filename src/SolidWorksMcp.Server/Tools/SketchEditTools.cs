@@ -55,7 +55,7 @@ public sealed class SketchEditTools(SwSession session)
                  "two segment end points merge), collinear/parallel (lines), perpendicular (2 lines), tangent, concentric, equal, symmetric " +
                  "(2 entities then the symmetry line), midpoint (point, line), intersection (point, 2 lines), fix, pierce (point + a model edge or " +
                  "a segment of another sketch crossing the plane), merge (2 points). Verified: the relation was added (or the points merged) and the " +
-                 "solved geometry satisfies it; an over-defining relation is undone; VERIFY_FAILED if SOLIDWORKS ignored it.")]
+                 "solved geometry satisfies it; an over-defining one is undone; one already held is said so.")]
     public async Task<string> SketchRelationAdd(
         [Description("horizontal | vertical | coincident | collinear | parallel | perpendicular | tangent | concentric | equal | symmetric | " +
                      "midpoint | intersection | fix | pierce | merge")] string relation,
