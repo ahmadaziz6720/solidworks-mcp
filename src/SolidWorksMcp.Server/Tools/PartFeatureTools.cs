@@ -35,7 +35,7 @@ public sealed class PartFeatureTools(SwSession session)
         [Description("Merge the result with existing bodies (boss).")] bool merge = true,
         [Description(NameDesc)] string? name = null,
         [Description(KeepDesc)] bool keepOnFailure = false,
-        [Description("true: newFaces in full, not only id and surface.")] bool faceDetail = false,
+        [Description("true: newFaces in full.")] bool faceDetail = false,
         [Description(DocDesc)] string? doc = null,
         CancellationToken cancellationToken = default) =>
         Output.Json(_svc.RevolveAsync(new RevolveRequest
@@ -45,27 +45,48 @@ public sealed class PartFeatureTools(SwSession session)
         }, cancellationToken), progress, "feature_revolve", faceDetail);
 
     [McpServerTool(Name = "feature_chamfer", Title = "Chamfer", ReadOnly = false, Destructive = false, Idempotent = false, OpenWorld = false)]
-    [Description("Chamfer / bevel edges: equal distance, two distances or distance + angle. Edges by id, point or query, e.g. " +
-                 "edges:[{at:[0,20,30]}]. Verified: a Chamfer feature with faces (an empty chamfer is rejected), the volume or face count " +
-                 "changed, and on straight edges the chamfer face's two legs measured; otherwise rolled back.")]
+    [Description("Chamfer / bevel edges: equal, two distances or distance + angle. Edges by id, point or query, e.g. " +
+                 "edges:[{at:[0,20,30]}]. Verified: faces made, volume changed, legs measured on straight and circular edges; checks " +
+                 "name per edge the face each distance took. Else rolled back. Warns of sides mixed across edges, faces left under " +
+                 "0.01 mm². edit:'Chamfer1' changes that chamfer (edges as before it).")]
     public Task<string> FeatureChamfer(
         IProgress<ProgressNotificationValue> progress,
-        [Description("Edges to chamfer.")] EntityRef[] edges,
-        [Description("Chamfer distance in mm (the first leg).")] double distanceMm,
-        [Description("equal | distance_distance | angle_distance")] string type = "equal",
+        [Description("Edges to chamfer.")] EntityRef[]? edges = null,
+        [Description("Chamfer distance in mm (the first leg).")] double? distanceMm = null,
+        [Description("equal (default) | distance_distance | angle_distance")] string? type = null,
         [Description("distance_distance: the second leg in mm.")] double? distance2Mm = null,
-        [Description("angle_distance: the angle in degrees (between 0 and 90).")] double angleDeg = 45,
+        [Description("angle_distance: degrees, 0 to 90 (default 45).")] double? angleDeg = null,
         [Description("Swap which face the first distance (or the angle) applies to.")] bool flip = false,
+        [Description("Indexes in edges to swap only (with edit: the others unswapped).")] int[]? flipEdges = null,
+        [Description("Name of a chamfer to change; omitted values stay.")] string? edit = null,
+        [Description("edit: per edge [first, second] mm; other than the chamfer's moves it to a new one.")] double[][]? distancesMm = null,
         [Description(NameDesc)] string? name = null,
         [Description(KeepDesc)] bool keepOnFailure = false,
-        [Description("true: newFaces in full, not only id and surface.")] bool faceDetail = false,
+        [Description("true: newFaces in full.")] bool faceDetail = false,
         [Description(DocDesc)] string? doc = null,
-        CancellationToken cancellationToken = default) =>
-        Output.Json(_svc.ChamferAsync(new ChamferRequest
+        CancellationToken cancellationToken = default)
+    {
+        if (edit is null)
         {
-            Doc = doc, Edges = edges, Type = type, DistanceMm = distanceMm, Distance2Mm = distance2Mm, AngleDeg = angleDeg, Flip = flip,
-            Name = name, KeepOnFailure = keepOnFailure,
+            if (distancesMm is not null)
+                throw SwException.InvalidArgument("distancesMm goes with edit (an existing chamfer); a new chamfer takes distanceMm.");
+            return Output.Json(_svc.ChamferAsync(new ChamferRequest
+            {
+                Doc = doc, Edges = edges, Type = type ?? "equal", DistanceMm = distanceMm ?? 0, Distance2Mm = distance2Mm, AngleDeg = angleDeg ?? 45,
+                Flip = flip, FlipEdges = flipEdges, Name = name, KeepOnFailure = keepOnFailure,
+            }, cancellationToken), progress, "feature_chamfer", faceDetail);
+        }
+        if (type is not null || flip || name is not null || keepOnFailure)
+            throw SwException.InvalidArgument("With edit, type is the chamfer's own and flip, name and keepOnFailure don't apply; use flipEdges for flips.");
+        if (distancesMm?.FirstOrDefault(p => p is null || p.Length is < 1 or > 2) is { } bad)
+            throw SwException.InvalidArgument("distancesMm holds [first] or [first, second] per edge, in mm.");
+        return Output.Json(_svc.ChamferEditAsync(new ChamferEditRequest
+        {
+            Doc = doc, Feature = edit, Edges = edges, DistanceMm = distanceMm, Distance2Mm = distance2Mm, AngleDeg = angleDeg, FlipEdges = flipEdges,
+            DistancesMm = distancesMm?.Select(p => p[0]).ToList(),
+            Distances2Mm = distancesMm is not null && distancesMm.Any(p => p.Length == 2) ? distancesMm.Select(p => p[^1]).ToList() : null,
         }, cancellationToken), progress, "feature_chamfer", faceDetail);
+    }
 
     [McpServerTool(Name = "feature_shell", Title = "Shell", ReadOnly = false, Destructive = false, Idempotent = false, OpenWorld = false)]
     [Description("Shell / hollow out a solid: removes the given faces (open sides) and leaves walls of constant thickness, inward or " +
@@ -78,7 +99,7 @@ public sealed class PartFeatureTools(SwSession session)
         [Description("Grow the walls outward instead of inward.")] bool outward = false,
         [Description(NameDesc)] string? name = null,
         [Description(KeepDesc)] bool keepOnFailure = false,
-        [Description("true: newFaces in full, not only id and surface.")] bool faceDetail = false,
+        [Description("true: newFaces in full.")] bool faceDetail = false,
         [Description(DocDesc)] string? doc = null,
         CancellationToken cancellationToken = default) =>
         Output.Json(_svc.ShellAsync(new ShellRequest
@@ -106,7 +127,7 @@ public sealed class PartFeatureTools(SwSession session)
         [Description("The planar face for all holes (default: the face under each point).")] EntityRef? face = null,
         [Description("Rename the new feature (several holes: name1, name2, ...).")] string? name = null,
         [Description(KeepDesc)] bool keepOnFailure = false,
-        [Description("true: newFaces in full, not only id and surface.")] bool faceDetail = false,
+        [Description("true: newFaces in full.")] bool faceDetail = false,
         [Description(DocDesc)] string? doc = null,
         CancellationToken cancellationToken = default) =>
         Output.Json(_svc.HoleAsync(new HoleRequest
@@ -131,7 +152,7 @@ public sealed class PartFeatureTools(SwSession session)
         [Description("Distance between instances in direction 2 in mm.")] double? spacing2Mm = null,
         [Description(NameDesc)] string? name = null,
         [Description(KeepDesc)] bool keepOnFailure = false,
-        [Description("true: newFaces in full, not only id and surface.")] bool faceDetail = false,
+        [Description("true: newFaces in full.")] bool faceDetail = false,
         [Description(DocDesc)] string? doc = null,
         CancellationToken cancellationToken = default) =>
         Output.Json(_svc.LinearPatternAsync(new LinearPatternRequest
@@ -153,7 +174,7 @@ public sealed class PartFeatureTools(SwSession session)
         [Description("Spread the instances evenly over totalAngleDeg.")] bool equalSpacing = true,
         [Description(NameDesc)] string? name = null,
         [Description(KeepDesc)] bool keepOnFailure = false,
-        [Description("true: newFaces in full, not only id and surface.")] bool faceDetail = false,
+        [Description("true: newFaces in full.")] bool faceDetail = false,
         [Description(DocDesc)] string? doc = null,
         CancellationToken cancellationToken = default) =>
         Output.Json(_svc.CircularPatternAsync(new CircularPatternRequest
@@ -176,7 +197,7 @@ public sealed class PartFeatureTools(SwSession session)
         [Description("tangent (turn with the curve) | seed (keep the seed's orientation).")] string align = "tangent",
         [Description(NameDesc)] string? name = null,
         [Description(KeepDesc)] bool keepOnFailure = false,
-        [Description("true: newFaces in full, not only id and surface.")] bool faceDetail = false,
+        [Description("true: newFaces in full.")] bool faceDetail = false,
         [Description(DocDesc)] string? doc = null,
         CancellationToken cancellationToken = default) =>
         Output.Json(_svc.CurvePatternAsync(new CurvePatternRequest
@@ -201,7 +222,7 @@ public sealed class PartFeatureTools(SwSession session)
         [Description("perforation: stagger angle, degrees (default 60).")] double? staggerDeg = null,
         [Description(NameDesc)] string? name = null,
         [Description(KeepDesc)] bool keepOnFailure = false,
-        [Description("true: newFaces in full, not only id and surface.")] bool faceDetail = false,
+        [Description("true: newFaces in full.")] bool faceDetail = false,
         [Description(DocDesc)] string? doc = null,
         CancellationToken cancellationToken = default) =>
         Output.Json(_svc.FillPatternAsync(new FillPatternRequest
@@ -219,7 +240,7 @@ public sealed class PartFeatureTools(SwSession session)
         [Description("Mirror plane: {name:'right'}, a plane's name, or a planar face {at:[x,y,z]}.")] EntityRef plane,
         [Description(NameDesc)] string? name = null,
         [Description(KeepDesc)] bool keepOnFailure = false,
-        [Description("true: newFaces in full, not only id and surface.")] bool faceDetail = false,
+        [Description("true: newFaces in full.")] bool faceDetail = false,
         [Description(DocDesc)] string? doc = null,
         CancellationToken cancellationToken = default) =>
         Output.Json(_svc.MirrorAsync(new MirrorRequest
@@ -247,7 +268,7 @@ public sealed class PartFeatureTools(SwSession session)
         [Description("indent: cut the tool's shape out.")] bool cut = false,
         [Description(NameDesc)] string? name = null,
         [Description(KeepDesc)] bool keepOnFailure = false,
-        [Description("true: newFaces in full, not only id and surface.")] bool faceDetail = false,
+        [Description("true: newFaces in full.")] bool faceDetail = false,
         [Description(DocDesc)] string? doc = null,
         CancellationToken cancellationToken = default) =>
         Output.Json(_svc.DeformAsync(new DeformRequest

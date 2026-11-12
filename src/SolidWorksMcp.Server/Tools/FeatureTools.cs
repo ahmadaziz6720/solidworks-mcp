@@ -29,7 +29,7 @@ public sealed class FeatureTools(SwSession session)
         [Description("Draft outward instead of inward.")] bool draftOutward = false,
         [Description("Rename the new feature.")] string? name = null,
         [Description("Keep the feature even if verification fails (for diagnosis).")] bool keepOnFailure = false,
-        [Description("true: newFaces in full, not only id and surface.")] bool faceDetail = false,
+        [Description("true: newFaces in full.")] bool faceDetail = false,
         [Description("Document (handle, title or path); default: the target document.")] string? doc = null,
         CancellationToken cancellationToken = default) =>
         Output.Json(_svc.ExtrudeAsync(new ExtrudeRequest
@@ -56,7 +56,7 @@ public sealed class FeatureTools(SwSession session)
         [Description("Also round tangent-connected edges.")] bool propagate = true,
         [Description("Rename the new feature.")] string? name = null,
         [Description("Keep the feature even if verification fails (for diagnosis).")] bool keepOnFailure = false,
-        [Description("true: newFaces in full, not only id and surface.")] bool faceDetail = false,
+        [Description("true: newFaces in full.")] bool faceDetail = false,
         [Description("Document (handle, title or path); default: the target document.")] string? doc = null,
         CancellationToken cancellationToken = default) =>
         Output.Json(_svc.FilletAsync(new FilletRequest
@@ -78,7 +78,7 @@ public sealed class FeatureTools(SwSession session)
         [Description("Left-handed thread.")] bool leftHanded = false,
         [Description("Rename the new feature.")] string? name = null,
         [Description("Keep the feature even if verification fails (for diagnosis).")] bool keepOnFailure = false,
-        [Description("true: newFaces in full, not only id and surface.")] bool faceDetail = false,
+        [Description("true: newFaces in full.")] bool faceDetail = false,
         [Description("Document (handle, title or path); default: the target document.")] string? doc = null,
         CancellationToken cancellationToken = default) =>
         Output.Json(_svc.ThreadAsync(new ThreadRequest
@@ -96,7 +96,7 @@ public sealed class FeatureTools(SwSession session)
         [Description("both (default) | normal | reverse: project both ways, or one way along/against the sketch normal.")] string direction = "both",
         [Description("Rename the new feature.")] string? name = null,
         [Description("Keep the feature even if verification fails (for diagnosis).")] bool keepOnFailure = false,
-        [Description("true: newFaces in full, not only id and surface.")] bool faceDetail = false,
+        [Description("true: newFaces in full.")] bool faceDetail = false,
         [Description("Document (handle, title or path); default: the target document.")] string? doc = null,
         CancellationToken cancellationToken = default) =>
         Output.Json(_svc.SplitLineAsync(new SplitLineRequest { Doc = doc, Faces = faces, Sketch = sketch, Direction = direction, Name = name, KeepOnFailure = keepOnFailure },

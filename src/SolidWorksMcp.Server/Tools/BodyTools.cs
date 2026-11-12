@@ -33,7 +33,7 @@ public sealed class BodyTools(SwSession session)
         [Description("{axis:[x,y,z], point:[x,y,z] mm (default origin), angleDeg} (right-hand rule).")] BodyRotation? rotate = null,
         [Description("0 = move; n = make n copies (the originals stay).")] int copies = 0,
         [Description(KeepDesc)] bool keepOnFailure = false,
-        [Description("true: newFaces in full, not only id and surface.")] bool faceDetail = false,
+        [Description("true: newFaces in full.")] bool faceDetail = false,
         [Description(DocDesc)] string? doc = null,
         CancellationToken cancellationToken = default) =>
         Output.Json(_bodies.MoveAsync(new BodyMoveRequest
@@ -49,7 +49,7 @@ public sealed class BodyTools(SwSession session)
         [Description("Bodies to delete (or to keep), e.g. [{id:'B2'}].")] EntityRef[] bodies,
         [Description("delete | keep_only")] string mode = "delete",
         [Description(KeepDesc)] bool keepOnFailure = false,
-        [Description("true: newFaces in full, not only id and surface.")] bool faceDetail = false,
+        [Description("true: newFaces in full.")] bool faceDetail = false,
         [Description(DocDesc)] string? doc = null,
         CancellationToken cancellationToken = default) =>
         Output.Json(_bodies.DeleteAsync(doc, bodies, mode, keepOnFailure, cancellationToken), progress, "body_delete", faceDetail);
@@ -64,7 +64,7 @@ public sealed class BodyTools(SwSession session)
         [Description("The other bodies, e.g. [{id:'B2'}].")] EntityRef[] tools,
         [Description("add | subtract | common")] string operation,
         [Description(KeepDesc)] bool keepOnFailure = false,
-        [Description("true: newFaces in full, not only id and surface.")] bool faceDetail = false,
+        [Description("true: newFaces in full.")] bool faceDetail = false,
         [Description(DocDesc)] string? doc = null,
         CancellationToken cancellationToken = default) =>
         Output.Json(_bodies.CombineAsync(doc, main, tools, operation, keepOnFailure, cancellationToken), progress, "body_combine", faceDetail);
@@ -77,7 +77,7 @@ public sealed class BodyTools(SwSession session)
         [Description("Trim tool: {name:'right'}, a planar face {at:[x,y,z]} or a sketch {name:'Sketch2'}.")] EntityRef tool,
         [Description("Only this solid body (default: all the tool crosses).")] EntityRef? body = null,
         [Description(KeepDesc)] bool keepOnFailure = false,
-        [Description("true: newFaces in full, not only id and surface.")] bool faceDetail = false,
+        [Description("true: newFaces in full.")] bool faceDetail = false,
         [Description(DocDesc)] string? doc = null,
         CancellationToken cancellationToken = default) =>
         Output.Json(_bodies.SplitAsync(doc, body, tool, keepOnFailure, cancellationToken), progress, "body_split", faceDetail);
@@ -94,7 +94,7 @@ public sealed class BodyTools(SwSession session)
         [Description("Mid-plane: half the depth on each side.")] bool bothSides = false,
         [Description(SketchDesc)] string? sketch = null,
         [Description(KeepDesc)] bool keepOnFailure = false,
-        [Description("true: newFaces in full, not only id and surface.")] bool faceDetail = false,
+        [Description("true: newFaces in full.")] bool faceDetail = false,
         [Description(DocDesc)] string? doc = null,
         CancellationToken cancellationToken = default) =>
         Output.Json(_surfaces.ExtrudeAsync(new SurfaceExtrudeRequest
@@ -111,7 +111,7 @@ public sealed class BodyTools(SwSession session)
         [Description("Axis in the sketch plane: a centerline {name:'Line2'}, a reference axis or a straight edge.")] EntityRef? axis = null,
         [Description(SketchDesc)] string? sketch = null,
         [Description(KeepDesc)] bool keepOnFailure = false,
-        [Description("true: newFaces in full, not only id and surface.")] bool faceDetail = false,
+        [Description("true: newFaces in full.")] bool faceDetail = false,
         [Description(DocDesc)] string? doc = null,
         CancellationToken cancellationToken = default) =>
         Output.Json(_surfaces.RevolveAsync(new SurfaceRevolveRequest
@@ -127,7 +127,7 @@ public sealed class BodyTools(SwSession session)
         [Description("Boundary edges instead of a sketch, e.g. [{where:{extreme:'+y'},expect:4}].")] EntityRef[]? edges = null,
         [Description(SketchDesc)] string? sketch = null,
         [Description(KeepDesc)] bool keepOnFailure = false,
-        [Description("true: newFaces in full, not only id and surface.")] bool faceDetail = false,
+        [Description("true: newFaces in full.")] bool faceDetail = false,
         [Description(DocDesc)] string? doc = null,
         CancellationToken cancellationToken = default) =>
         Output.Json(_surfaces.PlanarAsync(doc, sketch, edges, keepOnFailure, cancellationToken), progress, "surface_planar", faceDetail);
@@ -143,7 +143,7 @@ public sealed class BodyTools(SwSession session)
         [Description("Merge the patch with the adjacent surfaces.")] bool merge = false,
         [Description("Form a solid when the surfaces enclose a volume.")] bool solid = false,
         [Description(KeepDesc)] bool keepOnFailure = false,
-        [Description("true: newFaces in full, not only id and surface.")] bool faceDetail = false,
+        [Description("true: newFaces in full.")] bool faceDetail = false,
         [Description(DocDesc)] string? doc = null,
         CancellationToken cancellationToken = default) =>
         Output.Json(_surfaces.FillAsync(new SurfaceFillRequest
@@ -168,7 +168,7 @@ public sealed class BodyTools(SwSession session)
         [Description("extend: linearly instead of along the surface.")] bool linear = false,
         [Description("untrim a face: holes (default), outer or all.")] string? edge = null,
         [Description(KeepDesc)] bool keepOnFailure = false,
-        [Description("true: newFaces in full, not only id and surface.")] bool faceDetail = false,
+        [Description("true: newFaces in full.")] bool faceDetail = false,
         [Description(DocDesc)] string? doc = null,
         CancellationToken cancellationToken = default) =>
         Output.Json(_surfaces.TrimAsync(new SurfaceTrimRequest
@@ -186,7 +186,7 @@ public sealed class BodyTools(SwSession session)
         [Description("Offset distance in mm (0 or more).")] double distanceMm,
         [Description("Offset against the face normals (into a solid).")] bool flip = false,
         [Description(KeepDesc)] bool keepOnFailure = false,
-        [Description("true: newFaces in full, not only id and surface.")] bool faceDetail = false,
+        [Description("true: newFaces in full.")] bool faceDetail = false,
         [Description(DocDesc)] string? doc = null,
         CancellationToken cancellationToken = default) =>
         Output.Json(_surfaces.OffsetAsync(doc, faces, distanceMm, flip, keepOnFailure, cancellationToken), progress, "surface_offset", faceDetail);
@@ -199,7 +199,7 @@ public sealed class BodyTools(SwSession session)
         [Description("Surface bodies: {id:'B3'} (body_list) or {at:[x,y,z]} on one of their faces.")] EntityRef[] surfaces,
         [Description("Try to form a solid from a closed set.")] bool trySolid = false,
         [Description(KeepDesc)] bool keepOnFailure = false,
-        [Description("true: newFaces in full, not only id and surface.")] bool faceDetail = false,
+        [Description("true: newFaces in full.")] bool faceDetail = false,
         [Description(DocDesc)] string? doc = null,
         CancellationToken cancellationToken = default) =>
         Output.Json(_surfaces.KnitAsync(doc, surfaces, trySolid, keepOnFailure, cancellationToken), progress, "surface_knit", faceDetail);
@@ -213,7 +213,7 @@ public sealed class BodyTools(SwSession session)
         [Description("Thickness in mm.")] double thicknessMm,
         [Description("one | other | both (sides of the surface).")] string side = "one",
         [Description(KeepDesc)] bool keepOnFailure = false,
-        [Description("true: newFaces in full, not only id and surface.")] bool faceDetail = false,
+        [Description("true: newFaces in full.")] bool faceDetail = false,
         [Description(DocDesc)] string? doc = null,
         CancellationToken cancellationToken = default) =>
         Output.Json(_surfaces.ThickenAsync(doc, surface, thicknessMm, side, keepOnFailure, cancellationToken), progress, "surface_thicken", faceDetail);
@@ -233,7 +233,7 @@ public sealed class BodyTools(SwSession session)
         [Description("move: [dx,dy,dz] mm.")] double[]? translateMm = null,
         [Description("Name for the new feature.")] string? name = null,
         [Description(KeepDesc)] bool keepOnFailure = false,
-        [Description("true: newFaces in full, not only id and surface.")] bool faceDetail = false,
+        [Description("true: newFaces in full.")] bool faceDetail = false,
         [Description(DocDesc)] string? doc = null,
         CancellationToken cancellationToken = default) =>
         Output.Json(_faces.EditAsync(new FaceEditRequest

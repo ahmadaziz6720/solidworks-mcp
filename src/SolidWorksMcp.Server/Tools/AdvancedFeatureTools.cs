@@ -36,7 +36,7 @@ public sealed class AdvancedFeatureTools(SwSession session)
         [Description(MergeDesc)] bool merge = true,
         [Description(NameDesc)] string? name = null,
         [Description(KeepDesc)] bool keepOnFailure = false,
-        [Description("true: newFaces in full, not only id and surface.")] bool faceDetail = false,
+        [Description("true: newFaces in full.")] bool faceDetail = false,
         [Description(DocDesc)] string? doc = null,
         CancellationToken cancellationToken = default) =>
         Output.Json(_svc.SweepAsync(new SweepRequest
@@ -58,7 +58,7 @@ public sealed class AdvancedFeatureTools(SwSession session)
         [Description(MergeDesc)] bool merge = true,
         [Description(NameDesc)] string? name = null,
         [Description(KeepDesc)] bool keepOnFailure = false,
-        [Description("true: newFaces in full, not only id and surface.")] bool faceDetail = false,
+        [Description("true: newFaces in full.")] bool faceDetail = false,
         [Description(DocDesc)] string? doc = null,
         CancellationToken cancellationToken = default) =>
         Output.Json(_svc.LoftAsync(new LoftRequest
@@ -102,7 +102,7 @@ public sealed class AdvancedFeatureTools(SwSession session)
         [Description("Draft the other way (reverse the pull direction).")] bool flip = false,
         [Description(NameDesc)] string? name = null,
         [Description(KeepDesc)] bool keepOnFailure = false,
-        [Description("true: newFaces in full, not only id and surface.")] bool faceDetail = false,
+        [Description("true: newFaces in full.")] bool faceDetail = false,
         [Description(DocDesc)] string? doc = null,
         CancellationToken cancellationToken = default) =>
         Output.Json(_svc.DraftAsync(new DraftRequest
@@ -124,7 +124,7 @@ public sealed class AdvancedFeatureTools(SwSession session)
         [Description("Draft angle in degrees.")] double? draftDeg = null,
         [Description(NameDesc)] string? name = null,
         [Description(KeepDesc)] bool keepOnFailure = false,
-        [Description("true: newFaces in full, not only id and surface.")] bool faceDetail = false,
+        [Description("true: newFaces in full.")] bool faceDetail = false,
         [Description(DocDesc)] string? doc = null,
         CancellationToken cancellationToken = default) =>
         Output.Json(_svc.RibAsync(new RibRequest
@@ -146,7 +146,7 @@ public sealed class AdvancedFeatureTools(SwSession session)
         [Description("none (default: the diameter as given) | ansi_metric | iso | ansi_inch | din | jis; a standard needs size.")] string? standard = null,
         [Description(NameDesc)] string? name = null,
         [Description(KeepDesc)] bool keepOnFailure = false,
-        [Description("true: newFaces in full, not only id and surface.")] bool faceDetail = false,
+        [Description("true: newFaces in full.")] bool faceDetail = false,
         [Description(DocDesc)] string? doc = null,
         CancellationToken cancellationToken = default) =>
         Output.Json(_svc.CosmeticThreadAsync(new CosmeticThreadRequest

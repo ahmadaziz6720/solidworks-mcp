@@ -29,7 +29,7 @@ public sealed class SheetMetalTools(SwSession session)
         [Description("Thicken along the sketch normal.")] bool reverse = false,
         [Description("Closed profile sketch (default: the open sketch, else the last finished one).")] string? sketch = null,
         [Description(KeepDesc)] bool keepOnFailure = false,
-        [Description("true: newFaces in full, not only id and surface.")] bool faceDetail = false,
+        [Description("true: newFaces in full.")] bool faceDetail = false,
         [Description(DocDesc)] string? doc = null,
         CancellationToken cancellationToken = default) =>
         Output.Json(_svc.BaseFlangeAsync(new BaseFlangeRequest
@@ -50,7 +50,7 @@ public sealed class SheetMetalTools(SwSession session)
         [Description("material_inside | material_outside | bend_outside")] string position = "material_inside",
         [Description("Bend radius in mm (default: the sheet's).")] double? bendRadiusMm = null,
         [Description(KeepDesc)] bool keepOnFailure = false,
-        [Description("true: newFaces in full, not only id and surface.")] bool faceDetail = false,
+        [Description("true: newFaces in full.")] bool faceDetail = false,
         [Description(DocDesc)] string? doc = null,
         CancellationToken cancellationToken = default) =>
         Output.Json(_svc.EdgeFlangeAsync(new EdgeFlangeRequest
@@ -72,7 +72,7 @@ public sealed class SheetMetalTools(SwSession session)
         [Description("Bend radius in mm (default: the sheet's).")] double? bendRadiusMm = null,
         [Description("Rip gap at the mitered corners in mm.")] double gapMm = 0.1,
         [Description(KeepDesc)] bool keepOnFailure = false,
-        [Description("true: newFaces in full, not only id and surface.")] bool faceDetail = false,
+        [Description("true: newFaces in full.")] bool faceDetail = false,
         [Description(DocDesc)] string? doc = null,
         CancellationToken cancellationToken = default) =>
         Output.Json(_svc.MiterFlangeAsync(new MiterFlangeRequest
@@ -96,7 +96,7 @@ public sealed class SheetMetalTools(SwSession session)
         [Description("inside (default) | outside: the hem's material inside or outside the sheet's edge.")] string? position = null,
         [Description("Fold to the other side of the sheet.")] bool reverse = false,
         [Description(KeepDesc)] bool keepOnFailure = false,
-        [Description("true: newFaces in full, not only id and surface.")] bool faceDetail = false,
+        [Description("true: newFaces in full.")] bool faceDetail = false,
         [Description(DocDesc)] string? doc = null,
         CancellationToken cancellationToken = default) =>
         Output.Json(_svc.HemAsync(new HemRequest
@@ -119,7 +119,7 @@ public sealed class SheetMetalTools(SwSession session)
         [Description("centerline | material_inside (default) | material_outside | bend_outside")] string? position = null,
         [Description("Bend to the other side of the sheet.")] bool flip = false,
         [Description(KeepDesc)] bool keepOnFailure = false,
-        [Description("true: newFaces in full, not only id and surface.")] bool faceDetail = false,
+        [Description("true: newFaces in full.")] bool faceDetail = false,
         [Description(DocDesc)] string? doc = null,
         CancellationToken cancellationToken = default) =>
         Output.Json(_svc.BendAsync(new SketchedBendRequest

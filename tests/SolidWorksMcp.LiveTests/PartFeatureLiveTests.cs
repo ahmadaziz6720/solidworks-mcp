@@ -1,3 +1,4 @@
+using System.Text.RegularExpressions;
 using SolidWorksMcp.Core;
 using SolidWorksMcp.Core.Model;
 using SolidWorksMcp.Core.Services;
@@ -255,6 +256,116 @@ public class PartFeatureLiveTests(LiveFixture fx) : LiveTest(fx)
         // Leg 3 and the other leg 3·tan 30° (or 3·tan 60°, depending on which face the angle is measured from).
         Assert.Contains(Math.Round(-da.Verified.VolumeDeltaMm3, 1), new[] { 259.8, 779.4 });
         Assert.Contains(da.Verified.Checks!, c => c.Contains("legs measured"));
+    }
+
+    [Fact]
+    public async Task Chamfer_says_per_edge_which_face_took_each_distance()
+    {
+        // S51 (a): two top edges, 1 and 2 mm; which face takes the 1 is SOLIDWORKS' choice per edge, so the result names it.
+        string doc = await BlockAsync("chamfer_sides");
+        var r = await Pf.ChamferAsync(new ChamferRequest
+        {
+            Doc = doc, Edges = [new EntityRef { At = [0, 20, 30] }, new EntityRef { At = [0, 20, -30] }],
+            Type = "distance_distance", DistanceMm = 1, Distance2Mm = 2,
+        });
+        Assert.Equal(-200, r.Verified.VolumeDeltaMm3, V);
+        var lines = r.Verified.Checks!.Where(c => c.Contains(": 1 mm along F")).ToList();
+        Assert.Equal(2, lines.Count);
+        Assert.All(lines, l => Assert.Matches(@"2 mm along F\d+ \(plane \[[-0-9., ]+\]\); the chamfer face meets the first at 63[.,]43\d+° and the second at 26[.,]56\d+°", l));
+
+        // flipEdges swaps the faces on that edge only; the top face then took the 1 on one edge and the 2 on the other: warned.
+        string doc2 = await BlockAsync("chamfer_flip_one");
+        var back = new EntityRef { At = [0, 20, -30] };
+        var f = await Pf.ChamferAsync(new ChamferRequest
+        {
+            Doc = doc2, Edges = [new EntityRef { At = [0, 20, 30] }, back], FlipEdges = [1],
+            Type = "distance_distance", DistanceMm = 1, Distance2Mm = 2,
+        });
+        Assert.Equal(-200, f.Verified.VolumeDeltaMm3, V);
+        var top = f.Verified.Checks!.Where(c => Regex.IsMatch(c, @": 1 mm along F\d+ \(plane \[0, 1, 0\]\)")).ToList();
+        var side = f.Verified.Checks!.Where(c => Regex.IsMatch(c, @": 1 mm along F\d+ \(plane \[0, 0, -?1\]\)")).ToList();
+        Assert.Single(top);
+        Assert.Single(side);
+        Assert.Contains(f.Warnings!, w => w.Contains("first distance"));
+        var notOne = await Assert.ThrowsAsync<SwException>(() => Pf.ChamferAsync(new ChamferRequest
+        {
+            Doc = doc2, Edges = [new EntityRef { At = [0, 0, 30] }], FlipEdges = [1], DistanceMm = 1,
+        }));
+        Assert.Equal(ErrorCodes.InvalidArgument, notOne.Code);
+    }
+
+    [Fact]
+    public async Task Chamfer_edit_changes_edges_flips_and_distances_and_splits_edges_with_their_own()
+    {
+        // S51 (d): a chamfer with a hole after it; edges added and flipped, distances changed, one edge given its own.
+        string doc = await BlockAsync("chamfer_edit");
+        var front = new EntityRef { At = [0, 20, 30] };
+        var back = new EntityRef { At = [0, 20, -30] };
+        await Pf.ChamferAsync(new ChamferRequest { Doc = doc, Edges = [front], Type = "distance_distance", DistanceMm = 1, Distance2Mm = 2, Name = "C1" });
+        await HoleCutAsync(doc, 30, 0);
+
+        var a = await Pf.ChamferEditAsync(new ChamferEditRequest { Doc = doc, Feature = "C1", Edges = [front, back], FlipEdges = [1] });
+        Assert.Equal(-100, a.Verified.VolumeDeltaMm3, V);
+        Assert.Contains(a.Verified.Checks!, c => c.Contains("legs measured on 2 edge(s)"));
+        Assert.Single(a.Verified.Checks!, c => Regex.IsMatch(c, @": 1 mm along F\d+ \(plane \[0, 1, 0\]\)"));
+
+        var b = await Pf.ChamferEditAsync(new ChamferEditRequest { Doc = doc, Feature = "C1", DistanceMm = 1.5, Distance2Mm = 2.5 });
+        Assert.Equal(-2 * (1.875 - 1) * 100, b.Verified.VolumeDeltaMm3, V); // each edge ½·1.5·2.5 instead of ½·1·2
+
+        // A distance the faces can't take fails, and C1 is put back.
+        var bad = await Assert.ThrowsAsync<SwException>(() => Pf.ChamferEditAsync(new ChamferEditRequest { Doc = doc, Feature = "C1", DistanceMm = 30 }));
+        Assert.Contains("put back", bad.Message);
+        Assert.Equal(120000 - 2 * 187.5 - HoleMm3, (await Ins.ModelInfoAsync(doc)).VolumeMm3!.Value, Vq);
+
+        // The back edge at 3/3 leaves C1 for a new chamfer, placed right after C1, before the hole.
+        // Through the tool: feature_chamfer {edit, edges, distancesMm: [[first, second] per edge]}.
+        var tool = new SolidWorksMcp.Server.Tools.PartFeatureTools(S);
+        await Assert.ThrowsAsync<SwException>(() => tool.FeatureChamfer(null!, edges: [front], distanceMm: 1, distancesMm: [[1, 1]], doc: doc));
+        var json = System.Text.Json.JsonDocument.Parse(await tool.FeatureChamfer(null!, edges: [front, back], edit: "C1",
+            distancesMm: [[1.5, 2.5], [3, 3]], doc: doc)).RootElement;
+        Assert.Equal(-(450 - 187.5), json.GetProperty("verified").GetProperty("volumeDeltaMm3").GetDouble(), V);
+        var made = Assert.Single(json.GetProperty("alsoCreated").EnumerateArray().ToList());
+        Assert.Equal("Chamfer", made.GetProperty("type").GetString());
+        string madeName = made.GetProperty("name").GetString()!;
+        var names = (await Ins.FeatureListAsync(doc, false, 500, 0)).Features.Select(x => x.Name).ToList();
+        Assert.True(names.IndexOf("C1") < names.IndexOf(madeName) && names.IndexOf(madeName) < names.FindIndex(n => n.StartsWith("Cut-Extrude")),
+            string.Join(", ", names));
+        Assert.Equal(120000 - 187.5 - 450 - HoleMm3, (await Ins.ModelInfoAsync(doc)).VolumeMm3!.Value, Vq);
+    }
+
+    [Fact]
+    public async Task Chamfer_measures_the_legs_on_circular_edges()
+    {
+        // S51 (b): a rod's two end edges, 1 and 2 mm; the legs are read from the cone, as on straight edges from the plane.
+        string doc = await NewPartAsync("chamfer_rod");
+        await Sk.StartAsync(doc, new EntityRef { Name = "top" }, false);
+        await Sk.AddAsync(doc, [new SketchEntity { Kind = "circle", Center = [0, 0], RadiusMm = 10 }]);
+        await Fs.ExtrudeAsync(new ExtrudeRequest { Doc = doc, DepthMm = 30 });
+        var r = await Pf.ChamferAsync(new ChamferRequest
+        {
+            Doc = doc, Edges = [new EntityRef { At = [10, 0, 0] }, new EntityRef { At = [10, 30, 0] }],
+            Type = "distance_distance", DistanceMm = 1, Distance2Mm = 2,
+        });
+        Assert.Contains(r.Verified.Checks!, c => c.Contains("legs measured on 2 edge(s)"));
+        Assert.DoesNotContain(r.Verified.Checks!, c => c.Contains("not leg-checked"));
+        // Per end: radial leg a, axial leg b removes ½·a·b·2π·(10 − a/3).
+        double Ring(double a, double b) => 0.5 * a * b * 2 * Math.PI * (10 - a / 3);
+        var ends = r.Verified.Checks!.Where(c => c.Contains(": 1 mm along F")).ToList();
+        Assert.Equal(2, ends.Count);
+        double want = -ends.Sum(c => Regex.IsMatch(c, @": 1 mm along F\d+ \(plane") ? Ring(1, 2) : Ring(2, 1));
+        Assert.Equal(want, r.Verified.VolumeDeltaMm3, Vq);
+        // One end with the 1 on its end face and the other with it on the cylinder is the swap a session met: warned.
+        bool mixed = ends.Count(c => Regex.IsMatch(c, @": 1 mm along F\d+ \(plane")) == 1;
+        Assert.Equal(mixed, r.Warnings?.Any(w => w.Contains("first distance")) == true);
+    }
+
+    [Fact]
+    public async Task Chamfer_warns_of_a_sliver_left_by_a_distance_just_under_a_face_s_width()
+    {
+        // S51 (c): the front face is 20 high; 19.99995 leaves a strip 0.00005 × 100 = 0.005 mm².
+        string doc = await BlockAsync("chamfer_sliver");
+        var r = await Pf.ChamferAsync(new ChamferRequest { Doc = doc, Edges = [new EntityRef { At = [0, 20, 30] }], DistanceMm = 19.99995 });
+        Assert.Contains(r.Warnings!, w => w.Contains("sliver") && w.Contains("mm²"));
     }
 
     [Fact]

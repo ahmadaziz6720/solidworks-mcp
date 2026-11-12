@@ -40,8 +40,29 @@ public sealed record ChamferRequest
     public double? Distance2Mm { get; init; }
     public double AngleDeg { get; init; } = 45;
     public bool Flip { get; init; }
+    /// <summary>Indexes in <see cref="Edges"/> (0-based) whose distances go on the other faces; the others as SOLIDWORKS puts them.</summary>
+    public IReadOnlyList<int>? FlipEdges { get; init; }
     public string? Name { get; init; }
     public bool KeepOnFailure { get; init; }
+}
+
+/// <summary>feature_chamfer with <c>edit</c>: what is left out stays as it is.</summary>
+public sealed record ChamferEditRequest
+{
+    public string? Doc { get; init; }
+    /// <summary>The chamfer's name.</summary>
+    public string? Feature { get; init; }
+    /// <summary>The new edge set, referenced as before the chamfer (ids or points of the original edges).</summary>
+    public IReadOnlyList<EntityRef>? Edges { get; init; }
+    public double? DistanceMm { get; init; }
+    public double? Distance2Mm { get; init; }
+    public double? AngleDeg { get; init; }
+    /// <summary>Indexes in <see cref="Edges"/>: exactly these flipped, the others not (default: as they are).</summary>
+    public IReadOnlyList<int>? FlipEdges { get; init; }
+    /// <summary>Per edge of <see cref="Edges"/>, its first distance: one other than the chamfer's moves the edge to a new chamfer right after it.</summary>
+    public IReadOnlyList<double>? DistancesMm { get; init; }
+    /// <summary>Per edge of <see cref="Edges"/>, its second distance (distance_distance).</summary>
+    public IReadOnlyList<double>? Distances2Mm { get; init; }
 }
 
 /// <summary>feature_shell options.</summary>
@@ -330,20 +351,23 @@ public sealed partial class PartFeatureService(SwSession session)
             }
             if (q.Edges is null || q.Edges.Count == 0)
                 throw SwException.InvalidArgument("Pass 'edges' to chamfer.", "E.g. edges: [{at:[0,20,30]}] or [{where:{curve:'line', parallelTo:'x'}, expect:4}].");
+            if (q.Flip && q.FlipEdges is { Count: > 0 })
+                throw SwException.InvalidArgument("Pass flip (every edge) or flipEdges (those edges), not both.");
             NoOpenSketch(d);
 
             using var prefs = ctx.SystemPrefs();
             prefs.Toggle(SystemPrefIds.ShowErrorsEveryRebuild, false);
             int options = (int)swFeatureChamferOption_e.swFeatureChamferTangentPropagation |
                           (q.Flip ? (int)swFeatureChamferOption_e.swFeatureChamferFlipDirection : 0);
-            const string hint = "A distance larger than the adjacent faces fails; use smaller distances or fewer edges.";
 
             List<ResolvedInfo>? resolved = null;
             FeatureOutcome Attempt(int apiType, double w, double other)
             {
-                var edges = EntityResolver.ResolveAll(ctx, d, q.Edges, "edges", EntityKind.Edge);
+                var perRef = ResolvePerRef(ctx, d, q.Edges);
+                var edges = perRef.SelectMany(x => x).ToList();
                 resolved = edges.Select(e => e.Info("edges")).ToList();
-                var legs = edges.Select(LegInfo).ToList(); // captured before the edges disappear
+                var flip = IndexSet(q.FlipEdges, q.Edges.Count, "flipEdges");
+                var legs = perRef.SelectMany((rs, i) => rs.Select(e => ChamferEdgeOf((IEdge)e.Obj, e.Label, flip.Contains(i)))).ToList(); // before the edges go
                 var before = Snapshot.Take(d);
                 d.ClearSelection2(true);
                 foreach (var e in edges)
@@ -351,8 +375,14 @@ public sealed partial class PartFeatureService(SwSession session)
                         throw new SwException(ErrorCodes.FeatureFailed, $"Could not select {e.Label}.");
                 object? api = d.FeatureManager.InsertFeatureChamfer(options, apiType, w, ang, other, 0, 0, 0);
                 d.ClearSelection2(true);
-                return Verify(ctx, d, before, ChamferSpec, (main, _, checks) => ChamferIntent(main, legs, type, d1, d2, ang, checks),
-                    q.KeepOnFailure, api, hint);
+                // The API's flip is one switch for every edge; a flip per edge goes through the feature's definition.
+                if (flip.Count > 0 && NewChamfer(d, before, api) is { } made)
+                {
+                    try { ApplyChamfer(d, made, legs, null, null, null); }
+                    catch (SwException ex) { throw new SwException(ex.Code, ex.Message + " " + FeatureVerifier.Rollback(ctx, d, before), ex.Hint, ex); }
+                }
+                return Verify(ctx, d, before, ChamferSpec, (main, _, checks) => ChamferIntent(ctx, d, main, legs, type, d1, d2, ang, checks),
+                    q.KeepOnFailure, api, ChamferHint);
             }
 
             FeatureOutcome o;
@@ -387,25 +417,275 @@ public sealed partial class PartFeatureService(SwSession session)
             return FeatureVerifier.Result(ctx, d, o, resolved: resolved);
         }, RunOptions.Write(q.Doc), ct);
 
+    private const string ChamferHint = "A distance larger than the adjacent faces fails; use smaller distances or fewer edges.";
+
+    /// <summary>
+    /// feature_chamfer with <c>edit</c>: changes an existing chamfer's edges, distances or angle, and which edges are flipped, through its
+    /// definition; edges given their own distances leave it for a new chamfer right after it (one chamfer feature holds one
+    /// set of distances in the 2023 API). Verified as feature_chamfer is, and put back as it was on a failure.
+    /// </summary>
+    public Task<FeatureResult> ChamferEditAsync(ChamferEditRequest q, CancellationToken ct = default) =>
+        session.RunAsync("feature_chamfer", ctx =>
+        {
+            var d = (IModelDoc2)ctx.Part();
+            if (string.IsNullOrWhiteSpace(q.Feature)) throw SwException.InvalidArgument("'feature' is required: the chamfer's name.");
+            NoOpenSketch(d);
+            var f = EntityResolver.FeatureByName(d, q.Feature.Trim())
+                    ?? throw new SwException(ErrorCodes.EntityNotFound, $"No feature named '{q.Feature}'.", "feature_list shows the chamfers.");
+            if (f.GetTypeName2() != "Chamfer")
+                throw SwException.InvalidArgument($"'{f.Name}' is a {f.GetTypeName2()}, not a chamfer.");
+            var data = (object?)f.GetDefinition() as IChamferFeatureData2
+                       ?? throw new SwException(ErrorCodes.Internal, $"'{f.Name}' has no chamfer definition.");
+            int apiType = data.Type;
+            string type = apiType switch
+            {
+                (int)swChamferType_e.swChamferAngleDistance => "angle_distance",
+                (int)swChamferType_e.swChamferDistanceDistance => "distance_distance",
+                (int)swChamferType_e.swChamferEqualDistance => "equal",
+                _ => throw new SwException(ErrorCodes.NotSupported, $"'{f.Name}' is a vertex chamfer; only edge chamfers are edited here."),
+            };
+            double oldD1 = data.GetEdgeChamferDistance(0);
+            double oldD2 = type == "distance_distance" ? data.GetEdgeChamferDistance(1) : oldD1;
+            double oldAng = type == "angle_distance" ? data.EdgeChamferAngle : Units.Rad(45);
+            bool equalLegs = Math.Abs(oldD1 - oldD2) < 1e-12;
+
+            double d1 = q.DistanceMm is double a ? Units.PositiveM(a, "distanceMm") : oldD1;
+            if (type != "distance_distance" && q.Distance2Mm is not null)
+                throw SwException.InvalidArgument($"distance2Mm only applies to a distance_distance chamfer; '{f.Name}' is {type}.");
+            double d2 = type != "distance_distance" ? d1
+                : q.Distance2Mm is double b ? Units.PositiveM(b, "distance2Mm") : q.DistanceMm is not null && equalLegs ? d1 : oldD2;
+            if (type != "angle_distance" && q.AngleDeg is not null)
+                throw SwException.InvalidArgument($"angleDeg only applies to an angle_distance chamfer; '{f.Name}' is {type}.");
+            double ang = oldAng;
+            if (q.AngleDeg is double deg)
+            {
+                if (!double.IsFinite(deg) || deg <= 0 || deg >= 90) throw SwException.InvalidArgument($"angleDeg must be between 0 and 90 (got {deg}).");
+                ang = Units.Rad(deg);
+            }
+            if (q.Edges is { Count: 0 }) throw SwException.InvalidArgument("'edges' must name at least one edge (leave it out to keep the chamfer's edges).");
+            int n = q.Edges?.Count ?? 0;
+            foreach (var (arr, arg) in new[] { (q.DistancesMm, "distancesMm"), (q.Distances2Mm, "distances2Mm") })
+                if (arr is not null && arr.Count != n)
+                    throw SwException.InvalidArgument($"'{arg}' needs one value per entry of 'edges' ({n}), got {arr.Count}.");
+            if (q.FlipEdges is not null && q.Edges is null)
+                throw SwException.InvalidArgument("'flipEdges' indexes 'edges': pass the chamfer's edges in 'edges' as well.");
+            if (type != "distance_distance" && q.Distances2Mm is not null)
+                throw SwException.InvalidArgument($"distances2Mm only applies to a distance_distance chamfer; '{f.Name}' is {type}.");
+            if (type == "distance_distance" && q.DistancesMm is not null && q.Distances2Mm is null && !(equalLegs && q.Distance2Mm is null))
+                throw SwException.InvalidArgument($"'{f.Name}' has two distances: pass distances2Mm with distancesMm.");
+            var flipIdx = IndexSet(q.FlipEdges, n, "flipEdges");
+
+            // The chamfer's edges, and the request's, read in the model as it was before the chamfer (AccessSelections).
+            List<ChamferEdge> oldSet;
+            List<(ChamferEdge Edge, double D1, double D2)>? newEdges = null;
+            if (!data.AccessSelections((ModelDoc2)d, null))
+                throw new SwException(ErrorCodes.FeatureFailed, $"SOLIDWORKS refused to open '{f.Name}' for editing (AccessSelections).");
+            try
+            {
+                oldSet = ComArgs.Objects<IEdge>((object?)data.Edges)
+                    .Select(e => ChamferEdgeOf(e, $"edge at [{Pt(Topology.Describe(e).Mid)}]", data.GetIsFlipped(e))).ToList();
+                if (q.Edges is not null)
+                    newEdges = ResolvePerRef(ctx, d, q.Edges).SelectMany((rs, i) => rs.Select(r =>
+                    {
+                        double e1 = q.DistancesMm is { } ds ? Units.PositiveM(ds[i], $"distancesMm[{i}]") : d1;
+                        double e2 = type != "distance_distance" ? e1 : q.Distances2Mm is { } ds2 ? Units.PositiveM(ds2[i], $"distances2Mm[{i}]")
+                            : q.DistancesMm is not null ? e1 : d2;
+                        var e = ChamferEdgeOf((IEdge)r.Obj, r.Label, false);
+                        bool flip = q.FlipEdges is not null ? flipIdx.Contains(i) : oldSet.FirstOrDefault(o => SameEdge(o, e))?.Flip ?? false;
+                        return (e with { Flip = flip }, e1, e2);
+                    })).ToList();
+            }
+            finally
+            {
+                data.ReleaseSelectionAccess();
+            }
+
+            // The new edge set; an edge at distances other than the chamfer's leaves it for a chamfer of its own.
+            var all = newEdges ?? oldSet.Select(e => (e, d1, d2)).ToList();
+            bool Own((ChamferEdge Edge, double D1, double D2) x) => Math.Abs(x.D1 - d1) > 1e-12 || Math.Abs(x.D2 - d2) > 1e-12;
+            var groups = all.Where(Own).GroupBy(x => (Math.Round(x.D1, 12), Math.Round(x.D2, 12)))
+                .Select(g => (D1: g.Key.Item1, D2: g.Key.Item2, Edges: g.Select(x => x.Edge).ToList())).ToList();
+            var set = all.Where(x => !Own(x)).Select(x => x.Edge).ToList();
+            if (set.Count == 0)
+                throw SwException.InvalidArgument($"'{f.Name}' would keep no edges at its own distances.",
+                    "Keep one edge at the chamfer's distances (or change them with distanceMm), or delete it with feature_delete.");
+
+            using var prefs = ctx.SystemPrefs();
+            prefs.Toggle(SystemPrefIds.ShowErrorsEveryRebuild, false);
+            var before = Snapshot.Take(d);
+            double? D2Of(double v) => type == "distance_distance" || type == "equal" ? v : null;
+            double? AngOf(double v) => type == "angle_distance" ? v : null;
+            string Revert()
+            {
+                string rb = FeatureVerifier.Rollback(ctx, d, before);
+                try
+                {
+                    ApplyChamfer(d, f, oldSet, oldD1, D2Of(oldD2), AngOf(oldAng));
+                    return rb + $" '{f.Name}' was put back as it was.";
+                }
+                catch (SwException ex)
+                {
+                    return rb + $" '{f.Name}' could not be put back ({ex.Message}); doc_undo may.";
+                }
+            }
+
+            ApplyChamfer(d, f, set, d1, D2Of(d2), AngOf(ang));
+            int err = f.GetErrorCode2(out bool isWarning);
+            if (err != 0 && !isWarning)
+                throw new SwException(ErrorCodes.RebuildError, $"feature_chamfer (edit): '{f.Name}' has rebuild error {err} ({FeatureVerifier.ErrorName(err)}). {Revert()}", ChamferHint);
+            if (f.GetFaceCount() == 0)
+                throw new SwException(ErrorCodes.VerifyFailed, $"feature_chamfer (edit): '{f.Name}' has no faces after the change. {Revert()}", ChamferHint);
+            var checks = new List<string> { "rebuilt without errors" };
+            var problems = ChamferIntent(ctx, d, f, set, type, d1, d2, ang, checks).ToList();
+            if (problems.Count > 0)
+                throw new SwException(ErrorCodes.VerifyFailed,
+                    $"feature_chamfer (edit): '{f.Name}' doesn't match the request: {string.Join("; ", problems)}. {Revert()}", ChamferHint);
+
+            var created = new List<IFeature>();
+            if (groups.Count > 0)
+            {
+                // Right after the chamfer, before any later feature: the rollback bar goes there for the new chamfers.
+                d.FeatureManager.EditRollback((int)swMoveRollbackBarTo_e.swMoveRollbackBarToAfterFeature, f.Name);
+                try
+                {
+                    int makeType = apiType == (int)swChamferType_e.swChamferEqualDistance ? (int)swChamferType_e.swChamferDistanceDistance : apiType;
+                    foreach (var g in groups)
+                    {
+                        var gBefore = Snapshot.Take(d);
+                        d.ClearSelection2(true);
+                        foreach (var e in g.Edges)
+                            if (EdgeAt(d, e) is not IEntity live || !live.Select4(true, d.Sel().CreateSelectData()))
+                                throw new SwException(ErrorCodes.FeatureFailed, $"Could not select {e.Label} for its own chamfer.");
+                        object? api = d.FeatureManager.InsertFeatureChamfer((int)swFeatureChamferOption_e.swFeatureChamferTangentPropagation,
+                            makeType, g.D1, ang, makeType == (int)swChamferType_e.swChamferAngleDistance ? 0 : g.D2, 0, 0, 0);
+                        d.ClearSelection2(true);
+                        if (g.Edges.Any(e => e.Flip) && NewChamfer(d, gBefore, api) is { } made) ApplyChamfer(d, made, g.Edges, null, null, null);
+                        var o = Verify(ctx, d, gBefore, ChamferSpec, (main, _, c) => ChamferIntent(ctx, d, main, g.Edges, type, g.D1, g.D2, ang, c),
+                            false, api, ChamferHint);
+                        created.Add(o.Main);
+                        checks.Add($"{o.Main.Name}: {g.Edges.Count} edge(s) at {Units.Mm(g.D1)}" + (type == "distance_distance" ? $"/{Units.Mm(g.D2)}" : "") + " mm");
+                        checks.AddRange(o.Checks.Where(c => c != "volume"));
+                    }
+                }
+                catch (SwException ex)
+                {
+                    d.FeatureManager.EditRollback((int)swMoveRollbackBarTo_e.swMoveRollbackBarToEnd, "");
+                    throw new SwException(ex.Code, $"{ex.Message} {Revert()}", ex.Hint, ex);
+                }
+                d.FeatureManager.EditRollback((int)swMoveRollbackBarTo_e.swMoveRollbackBarToEnd, "");
+            }
+            var outcome = new FeatureOutcome(f, created, before, Snapshot.Take(d), checks);
+            return FeatureVerifier.Result(ctx, d, outcome);
+        }, RunOptions.Write(q.Doc), ct);
+
     /// <summary>SOLIDWORKS 2023 (revision 31), where the equal-distance chamfer type makes no geometry (S44); other versions untried.</summary>
     internal static bool EqualChamferBroken(string? revision) =>
         int.TryParse((revision ?? "").Split('.')[0], out int major) && major == 31;
 
-    /// <summary>A straight edge between two planar faces: its line and the wedge angle the chamfer cuts (or fills).</summary>
-    private sealed record EdgeLegs(Vec3 P, Vec3 U, double Wedge, string Label);
+    /// <summary>
+    /// An edge to chamfer as it was before the chamfer: a line (P a point on it, U its direction) or a circle (P its centre,
+    /// U its axis, R its radius); <see cref="Mid"/> finds it again, <see cref="Wedge"/> is the angle between its faces
+    /// (NaN when not read), <see cref="Flip"/> whether its distances go on the other faces.
+    /// </summary>
+    private sealed record ChamferEdge(string Label, string Curve, Vec3 P, Vec3 U, double R, Vec3 Mid, double Wedge, bool Flip);
 
-    private static EdgeLegs? LegInfo(Resolved r)
+    private static ChamferEdge ChamferEdgeOf(IEdge e, string label, bool flip)
     {
-        if (r.Obj is not IEdge e) return null;
         var g = Topology.Describe(e);
-        if (g.Curve != "line" || g.Direction is not Vec3 u) return null;
+        double wedge = WedgeAt(e, g.Mid);
+        return g switch
+        {
+            { Curve: "line", Direction: { } u } => new ChamferEdge(label, "line", g.Start, u, 0, g.Mid, wedge, flip),
+            { Curve: "circle", Center: { } c, Axis: { } ax, Radius: { } r } => new ChamferEdge(label, "circle", c, ax, r, g.Mid, wedge, flip),
+            _ => new ChamferEdge(label, g.Curve, g.Mid, Vec3.Zero, 0, g.Mid, double.NaN, flip),
+        };
+    }
+
+    /// <summary>The angle between an edge's two faces at a point on it (π minus the angle between their outward normals).</summary>
+    private static double WedgeAt(IEdge e, Vec3 p)
+    {
         var faces = e.AdjacentFaces();
-        if (faces.Count != 2) return null;
-        var g1 = Topology.Describe(faces[0]);
-        var g2 = Topology.Describe(faces[1]);
-        if (g1.Normal is not Vec3 n1 || g2.Normal is not Vec3 n2 || g1.Surface != "plane" || g2.Surface != "plane") return null;
-        double wedge = Math.PI - Math.Acos(Math.Clamp(n1.Dot(n2), -1, 1));
-        return new EdgeLegs(g.Start, u, wedge, r.Label);
+        if (faces.Count != 2) return double.NaN;
+        var n1 = Topology.OutwardNormal(faces[0], Topology.Describe(faces[0]), p);
+        var n2 = Topology.OutwardNormal(faces[1], Topology.Describe(faces[1]), p);
+        if (n1.Length < 0.5 || n2.Length < 0.5) return double.NaN;
+        return Math.PI - Math.Acos(Math.Clamp(n1.Dot(n2), -1, 1));
+    }
+
+    private static bool SameEdge(ChamferEdge a, ChamferEdge b) => a.Curve == b.Curve && a.Mid.DistanceTo(b.Mid) < 1e-7;
+
+    /// <summary>Each edge reference resolved on its own (a query may give several edges), so indexes into it stay meaningful.</summary>
+    private static List<List<Resolved>> ResolvePerRef(SwContext ctx, IModelDoc2 d, IReadOnlyList<EntityRef> refs)
+    {
+        var res = refs.Select((r, i) => EntityResolver.ResolveAll(ctx, d, [r], $"edges[{i}]", EntityKind.Edge)).ToList();
+        var seen = new HashSet<string>();
+        for (int i = 0; i < res.Count; i++)
+            res[i] = res[i].Where(x => seen.Add(x.Id ?? x.Label)).ToList(); // the same edge from two references counts once
+        return res;
+    }
+
+    /// <summary>A set of 0-based indexes into a list of <paramref name="count"/> entries.</summary>
+    private static HashSet<int> IndexSet(IReadOnlyList<int>? idx, int count, string arg)
+    {
+        var set = new HashSet<int>();
+        foreach (int i in idx ?? [])
+        {
+            if (i < 0 || i >= count) throw SwException.InvalidArgument($"'{arg}' holds {i}, but 'edges' has entries 0 to {count - 1}.");
+            set.Add(i);
+        }
+        return set;
+    }
+
+    /// <summary>The chamfer the last insert made: the API's return, else the new Chamfer feature in the tree.</summary>
+    private static IFeature? NewChamfer(IModelDoc2 d, Snapshot before, object? api) =>
+        api as IFeature ?? Snapshot.Take(d).Features.Where(kv => !before.Features.ContainsKey(kv.Key)).Select(kv => kv.Value)
+            .FirstOrDefault(f => f.GetTypeName2() == "Chamfer");
+
+    /// <summary>The edge of the part at <paramref name="e"/>'s mid-point with its curve type, in the model as it stands now.</summary>
+    private static IEdge? EdgeAt(IModelDoc2 d, ChamferEdge e)
+    {
+        IEdge? best = null;
+        double bestD = 1e-6;
+        foreach (var b in ((IPartDoc)d).AllBodies())
+            foreach (var x in b.Edges())
+            {
+                if (Topology.CurveKind(x.Curve()) != e.Curve) continue;
+                double dist = Topology.DistanceToEdge(x, e.Mid);
+                if (dist < bestD) { bestD = dist; best = x; }
+            }
+        return best;
+    }
+
+    /// <summary>
+    /// Sets a chamfer's edges (found again by their mid-points in the model before it), each edge's flip, and the
+    /// distances or angle given, through its definition. Throws FEATURE_FAILED when SOLIDWORKS refuses.
+    /// </summary>
+    private static void ApplyChamfer(IModelDoc2 d, IFeature f, IReadOnlyList<ChamferEdge> edges, double? d1, double? d2, double? ang)
+    {
+        var data = (object?)f.GetDefinition() as IChamferFeatureData2
+                   ?? throw new SwException(ErrorCodes.Internal, $"'{f.Name}' has no chamfer definition.");
+        if (!data.AccessSelections((ModelDoc2)d, null))
+            throw new SwException(ErrorCodes.FeatureFailed, $"SOLIDWORKS refused to open '{f.Name}' for editing (AccessSelections).");
+        bool done = false;
+        try
+        {
+            var live = edges.Select(e => EdgeAt(d, e) ?? throw new SwException(ErrorCodes.EntityNotFound,
+                $"{e.Label} was not found in the model before '{f.Name}'.", "List the edges again (edge_list) and pass current ones.")).ToList();
+            var current = ComArgs.Objects<IEdge>((object?)data.Edges);
+            bool sameSet = current.Count == live.Count &&
+                           edges.All(e => current.Any(c => Topology.CurveKind(c.Curve()) == e.Curve && Topology.DistanceToEdge(c, e.Mid) < 1e-7));
+            if (!sameSet) data.Edges = ComArgs.DispatchArray(live);
+            for (int i = 0; i < live.Count; i++) data.SetIsFlipped(live[i], edges[i].Flip);
+            if (d1 is double a) data.SetEdgeChamferDistance(0, a);
+            if (d2 is double b) data.SetEdgeChamferDistance(1, b);
+            if (ang is double t) data.EdgeChamferAngle = t;
+            done = f.ModifyDefinition(data, d, null);
+        }
+        finally
+        {
+            if (!done) data.ReleaseSelectionAccess();
+        }
+        if (!done) throw new SwException(ErrorCodes.FeatureFailed, $"SOLIDWORKS refused the change to '{f.Name}' (ModifyDefinition).", ChamferHint);
     }
 
     /// <summary>The chamfer's legs (distances from the original edge along its two faces), sorted, for each accepted reading.</summary>
@@ -434,43 +714,128 @@ public sealed partial class PartFeatureService(SwSession session)
         return list;
     }
 
-    /// <summary>Tier B: for each requested straight edge, a planar chamfer face whose two boundary lines lie at the requested legs.</summary>
-    private static IEnumerable<string> ChamferIntent(IFeature main, List<EdgeLegs?> edges, string type, double d1, double d2, double ang,
-        List<string> checks)
+    /// <summary>
+    /// Where a chamfer face's two boundary curves along <paramref name="e"/> lie, as offsets from the original edge: for a
+    /// line, the vector at right angles to it (3D); for a circle, the change in radius and the shift along the axis (2D,
+    /// z = 0), the cross-section the cone is swept from. Each with the boundary edge it was read from.
+    /// </summary>
+    private static List<(Vec3 V, IEdge Edge)> LegOffsets(IFace2 face, ChamferEdge e)
     {
-        var planar = FeatureFaces(main).Where(f => Topology.SurfaceKind(f.Surface()) == "plane")
-            .Select(f => f.Edges().Select(Topology.Describe).Where(g => g.Curve == "line" && g.Direction is not null).ToList())
-            .ToList();
+        var res = new List<(Vec3 V, IEdge Edge)>();
+        foreach (var be in face.Edges())
+        {
+            var g = Topology.Describe(be);
+            Vec3 v;
+            if (e.Curve == "line")
+            {
+                if (g.Curve != "line" || g.Direction is not Vec3 dir || !dir.IsParallelTo(e.U, 1e-6)) continue;
+                v = Radial(g.Start - e.P, e.U);
+            }
+            else
+            {
+                if (g.Curve != "circle" || g.Axis is not Vec3 ax || g.Center is not Vec3 c || g.Radius is not double r ||
+                    !ax.IsParallelTo(e.U, 1e-6) || Radial(c - e.P, e.U).Length > PosTol) continue;
+                v = new Vec3(r - e.R, (c - e.P).Dot(e.U), 0);
+            }
+            if (!res.Any(x => x.V.DistanceTo(v) < 1e-7)) res.Add((v, be));
+        }
+        return res;
+    }
+
+    /// <summary>"F12 (plane [0, 1, 0])" / "F13 (cylinder r 10)": a face beside a chamfer, with a current id.</summary>
+    private static string FaceLabel(SwContext ctx, IModelDoc2 d, IFace2 f)
+    {
+        var g = Topology.Describe(f);
+        string id = ctx.Entities.IdFor(d, f, 'F', "face", g.Surface, Topology.InteriorPoint(f));
+        string what = g switch
+        {
+            { Surface: "plane", Normal: { } n } => $"plane [{Dir(n)}]",
+            { Radius: { } r } => $"{g.Surface} r {Units.Mm(r)}",
+            _ => g.Surface,
+        };
+        return $"{id} ({what})";
+    }
+
+    /// <summary>The direction of a face, to tell whether two edges took a distance on the same side: a plane's normal, a curved face's type, radius and axis.</summary>
+    private static string SideKey(IFace2 f)
+    {
+        var g = Topology.Describe(f);
+        if (g is { Surface: "plane", Normal: { } n }) return $"plane [{Dir(n)}]";
+        var ax = g.Axis is Vec3 a ? (a.X + a.Y + a.Z < 0 ? -a : a) : Vec3.Zero;
+        return $"{g.Surface} r {Units.Mm(g.Radius ?? 0)} [{Dir(ax)}]";
+    }
+
+    /// <summary>
+    /// Tier B, per requested edge (a line or a circle): a chamfer face whose two boundary curves along it lie at the requested
+    /// legs; then, in the checks, which face beside it took each leg and the angle the chamfer face makes with each (the
+    /// cross-section triangle's angles at the legs' ends). Warns when one side took the first distance on one edge and the
+    /// second on another, and when a face beside the chamfer is left a sliver.
+    /// </summary>
+    private static IEnumerable<string> ChamferIntent(SwContext ctx, IModelDoc2 d, IFeature main, IReadOnlyList<ChamferEdge> edges, string type,
+        double d1, double d2, double ang, List<string> checks)
+    {
+        var faces = FeatureFaces(main);
         int notChecked = 0, ok = 0;
+        var sides = new List<(string Edge, string First, string Second, string FirstFace)>();
+        var perEdge = new List<string>();
         foreach (var e in edges)
         {
-            List<double[]> expect = e is null ? [] : ExpectedLegs(type, d1, d2, ang, e.Wedge);
-            if (e is null || expect.Count == 0) { notChecked++; continue; }
+            List<double[]> expect = e.Curve is "line" or "circle" && double.IsFinite(e.Wedge) ? ExpectedLegs(type, d1, d2, ang, e.Wedge) : [];
+            if (expect.Count == 0) { notChecked++; continue; }
             var seen = new List<string>();
-            bool found = false;
-            foreach (var lines in planar)
+            (IFace2 Face, List<(Vec3 V, IEdge Edge)> Legs)? hit = null;
+            foreach (var face in faces)
             {
-                // The chamfer face of this edge is bounded by two lines parallel to it, one on each original face. They
-                // are told apart by their offset vectors from the original edge line (an equal chamfer has equal lengths).
-                var offsets = new List<Vec3>();
-                foreach (var g in lines)
-                {
-                    if (!g.Direction!.Value.IsParallelTo(e.U, 1e-6)) continue;
-                    var v = Radial(g.Start - e.P, e.U);
-                    if (!offsets.Any(x => x.DistanceTo(v) < 1e-7)) offsets.Add(v);
-                }
+                var offsets = LegOffsets(face, e);
                 if (offsets.Count != 2) continue;
-                var dist = offsets.Select(x => x.Length).OrderBy(x => x).ToList();
+                var dist = offsets.Select(x => x.V.Length).OrderBy(x => x).ToList();
                 if (dist[1] > 10 * Math.Max(d1, d2) + 1e-3) continue; // the chamfer face of another edge
                 seen.Add($"{Units.Mm(dist[0])}/{Units.Mm(dist[1])}");
-                if (expect.Any(x => Math.Abs(x[0] - dist[0]) < RadiusTol && Math.Abs(x[1] - dist[1]) < RadiusTol)) { found = true; break; }
+                if (expect.Any(x => Math.Abs(x[0] - dist[0]) < RadiusTol && Math.Abs(x[1] - dist[1]) < RadiusTol)) { hit = (face, offsets); break; }
             }
-            if (found) { ok++; continue; }
-            yield return $"no chamfer face with legs {string.Join(" or ", expect.Select(x => $"{Units.Mm(x[0])}/{Units.Mm(x[1])}"))} mm along {e.Label}" +
-                         (seen.Count == 0 ? "" : $" (found legs {string.Join(", ", seen.Take(4))} mm)");
+            if (hit is not { } h)
+            {
+                yield return $"no chamfer face with legs {string.Join(" or ", expect.Select(x => $"{Units.Mm(x[0])}/{Units.Mm(x[1])}"))} mm along {e.Label}" +
+                             (seen.Count == 0 ? "" : $" (found legs {string.Join(", ", seen.Take(4))} mm)");
+                continue;
+            }
+            ok++;
+            var v = h.Legs.Select(x => x.V).ToArray();
+            var beside = h.Legs.Select(x => x.Edge.AdjacentFaces().FirstOrDefault(nb => !SameFace(nb, h.Face))).ToArray();
+            int first = Math.Abs(v[0].Length - d1) <= Math.Abs(v[1].Length - d1) ? 0 : 1, second = 1 - first;
+            string Name(int i) => beside[i] is { } nb ? FaceLabel(ctx, d, nb) : "a face not read";
+            double At(int i) // the cross-section triangle's angle at the end of leg i
+            {
+                var toEdge = -v[i];
+                var along = v[1 - i] - v[i];
+                return Math.Acos(Math.Clamp(toEdge.Dot(along) / (toEdge.Length * along.Length), -1, 1));
+            }
+            string n1 = Name(first), n2 = Name(second);
+            perEdge.Add($"{e.Label}: {Units.Mm(v[first].Length)} mm along {n1}, {Units.Mm(v[second].Length)} mm along {n2}; " +
+                        $"the chamfer face meets the first at {Units.Deg(At(first))}° and the second at {Units.Deg(At(second))}°");
+            if (Math.Abs(v[0].Length - v[1].Length) > RadiusTol && beside[first] is { } bf && beside[second] is { } bs)
+                sides.Add((e.Label, SideKey(bf), SideKey(bs), n1));
         }
         if (ok > 0) checks.Add($"legs measured on {ok} edge(s)");
-        if (notChecked > 0) checks.Add($"{notChecked} edge(s) not leg-checked (curved edge or non-planar faces)");
+        checks.AddRange(perEdge);
+        if (notChecked > 0) checks.Add($"{notChecked} edge(s) not leg-checked (not a line or a circle, or its faces not read)");
+
+        // One side took the first distance on one edge and the second on another: the swap a mirrored or patterned edge gets.
+        var mixed = sides.SelectMany(a => sides.Where(b => b.Edge != a.Edge && b.Second == a.First).Select(b => (a, b))).FirstOrDefault();
+        if (mixed.a.Edge is not null)
+            ctx.Warn($"The first distance went on {mixed.a.First} for {mixed.a.Edge} but on the other face for {mixed.b.Edge}, which took the " +
+                     "second there. If the edges should match, flip one with flipEdges (feature_chamfer, or its edit of an existing chamfer).");
+
+        // A face beside the chamfer left under 0.01 mm²: a distance typed just under that face's width.
+        var slivers = new List<IFace2>();
+        foreach (var cf in faces)
+            foreach (var be in cf.Edges())
+                foreach (var nb in be.AdjacentFaces())
+                    if (!faces.Any(x => SameFace(x, nb)) && !slivers.Any(x => SameFace(x, nb)) && nb.GetArea() < 1e-8)
+                        slivers.Add(nb);
+        foreach (var s in slivers)
+            ctx.Warn($"{FaceLabel(ctx, d, s)} beside the chamfer is left a sliver of {Units.Mm2(s.GetArea())} mm²: a distance just under " +
+                     "that face's width. Use the width itself to take the face away, or a clearly smaller distance.");
     }
 
     // ================================================================== shell
