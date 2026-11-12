@@ -173,8 +173,8 @@ public sealed class DrawingTools(SwSession session)
         Output.Json(_svc.DetailAsync(parent, centerMm, radiusMm, scale, label, atMm, doc, cancellationToken), progress, "drw_view_detail");
 
     [McpServerTool(Name = "drw_dimensions_auto", Title = "Insert model dimensions", ReadOnly = false, Destructive = false, Idempotent = false, OpenWorld = false)]
-    [Description("Model items / auto dimensions: inserts the model's sketch and feature dimensions (marked for drawing) into the views. " +
-                 "Returns the dimensions added per view, counted before and after; none comes with a hint why.")]
+    [Description("Model items: the model's dimensions marked for drawing, into the views; counts per view, a hint when none. " +
+                 "Needs cleaning (duplicates, construction ones, overlapping texts): drw_dimension_add checks each.")]
     public Task<string> DrwDimensionsAuto(
         IProgress<ProgressNotificationValue> progress,
         [Description("View names; default: every view.")] string[]? views = null,
