@@ -11,35 +11,64 @@ merged, a fix not yet run in a session); **Closed**, merged upstream, run and he
 decided against, with the record.
 
 **Open: S4, S5, S7, S10 to S12, S33, S34, S47 to S66.** S47 to S49 are from the scenario
-test of build `20261112-091908`; S47 is a result reported `ok` that was wrong. Next: S47,
-decided 2026-11-12 by the owner; S48 and S49 not yet decided. S50 to S66 are from twenty
-working sessions on that build (findings 2026-11-12 and 13), not yet decided; reported
-`ok` while wrong or misleading: S50, S51 (b, c), S52, S53, S58 (a), S60 (a), S63 (b),
-S66, and a failure reported on a success, S56 (a).
-Decided 2026-11-11 by the owner, each in its item below. Every open item can be worked on
-but these: S4, S5, S7 and S12 wait on upstream; S10, S11, S33 and S34 are parked until a
-job needs them. S43 and S44 were found on build `…-064352`; their code is unchanged in
-`20261111-140208`. Each fix starts with its live test on the current build: an item whose
-test does not fail there is closed instead.
+test of build `20261112-091908`, S50 to S66 from twenty working sessions on that build
+(findings 2026-11-12 and 13). Reported `ok` while wrong or misleading: S47, S50, S51 (b,
+c), S52, S53, S58 (a), S60 (a), S63 (b), S66; a failure reported on a success: S56 (a).
+Next: the run planned below, every point of it decided 2026-11-13 by the owner. Not in
+it: S4, S5, S7 and S12 wait on upstream; S10, S11, S33 and S34 are parked until a job
+needs them; S61 (a), S62 (b), S64 (c) and S65 (b to d) were offered for this run and not
+chosen (2026-11-13), and stay open. The round before (S37 to S46, S6's wording, S13, S14,
+S24, S32) went out in build `20261112-091908` (`276d378`) and its scenario test of
+2026-11-12; the record is in each item.
 
-**Order of work** (the owner, 2026-11-11): modelling first, the largest code first, then
-the small ones; drawings after; the release last.
+**The run of 2026-11-13** (planned with the owner; one session, subagents doing the
+work). Every item below is decided; nothing in it waits on the owner until the release's
+tag and registration question.
 
-1. Modelling, large: S37, S42, S41, S45, S40 and S38 are done (Waiting, in build
-   `20261112-091908`).
-2. Modelling, smaller: S43, S18, S31, S44, S39, S27, S35 and S30 are done (Waiting, in
-   that build). S6's wording is pushed to PR #6 (2026-11-12).
-3. Drawings: S14, S24, S32 and S13 are done (Waiting, in that build).
-4. Release: done 2026-11-12, build `20261112-091908` (`276d378`), registered in both
-   projects (S46, closed). Before it: `docs/tools.md` regenerated (`b7c4811`), the live
-   tests of Properties, Configuration, SketchEdit, PartFeature, Modelling, Assembly and
-   Drawing in full, 229 of 229, unit tests 276 of 276.
-5. Scenario test: run 2026-11-12 in two sessions (findings 2026-11-12). Held: S37, S42,
-   S41, S45, S40, S38, S43, S18, S31, S44, S39, S27, S35, S30, S6's wording, S24, S32,
-   S13, and S14 but for its frame. Failed: S14's frame at a sheet scale other than 1:1,
-   now S47. New: S47 to S49. The items that held closed the same day on the owner's word,
-   but S6 and S14, which stay for their PRs. Next: S47 (decided), then the owner's
-   decisions on S48 and S49.
+How it runs:
+
+- **One SOLIDWORKS, so one batch at a time.** Live tests drive the one SOLIDWORKS on this
+  machine, and most batches touch the same services (`FeatureService`, `SketchService`,
+  `AssemblyService`, `SwContext`), so the batches go one after another on `sw2023` in the
+  main tree, not in parallel worktrees. The main session stays thin: it hands one batch
+  to one subagent, reads its short report and the diff, and commits.
+- **Per item**, as `CONTRIBUTING.md` and the owner's rules give it: first the live test
+  that shows the fault, run on the current code (an item whose test does not fail is
+  closed instead, with the test kept if it is worth keeping); then the fix; then that
+  test and the live tests that call the changed code (`--filter-method`, ≈18 s each, never
+  the whole area); unit tests offline; `python tools/check_repo.py`. A probe item (marked
+  so below) is a live probe first, its result written into the item; its fix follows in
+  the same batch when the decision below covers it.
+- **Commits**: one per item, its fix and its note moving the item to Waiting with the
+  commit, as `git-workflow:pr` gives a commit on `sw2023` (no trailer). No push until the
+  release; no branch, no PR upstream (each item's upstream line stays "not yet decided").
+- **A subagent's brief**: the batch's items as written here and in each item, the files
+  likely touched, the test rule above, "do not commit, do not push, report in ten lines:
+  per item the failing test's output before, after, and the tests run". Findings that
+  name where they came from stay out (`findings.md`'s top).
+- **Descriptions changed** → `docs/tools.md` regenerated once, in the release batch.
+
+Batches, in order (the owner's order of 2026-11-11 kept: S47, decided, first; then
+modelling, the largest first; the release last):
+
+1. **S47**, the sheet's frame at a sheet scale other than 1:1 (decided 2026-11-12).
+2. **Results that are wrong, modelling**: S66 (a stale edge id resolving to another edge:
+   `EntityRegistry`'s signature check), S51 (all four points, `flip` per edge and the edit
+   of a chamfer's edges included), S53 (extrude along the vector), S52 (tight boxes), S50
+   (a distance mate's side).
+3. **Equations**: S54, S58, S48 (d), S63.
+4. **Sketches**: S56, S55 (probe the cost of a `symmetric` step first), S64 (e, f).
+5. **Features, smaller**: S64 (a, b as a probe, d, g), S65 (a), S59 (all four).
+6. **Session, documents, assemblies**: S57, S60 (a as a probe; b, c, d), S61 (b, c), S62
+   (a, c as a probe, d, e), S49, S48 (a to c).
+7. **Release**, as `CLAUDE.md` gives it: `docs/tools.md` regenerated, the live tests of
+   every area this run touched in full, unit tests, publish, `--check-catalog`, then the
+   one question to the owner on the tag and the registration. The scenario test is not
+   part of this run: once the build is registered, the session ends by giving the owner
+   the opening sentence for it, naming the build and the items to check.
+
+If the session ends before the last batch, this list and the items' Waiting lines say
+where the next one picks up.
 
 ---
 
@@ -138,7 +167,10 @@ warning naming the sketches, then the way out once. Wasteful, not wrong. (d) Fro
 dimension links and 3.1k for ten globals changed, a quarter of the part's characters;
 each row gives the equation, the previous one (or the driven dimension) and two checks.
 Proposed by the session: a short row form (lhs, value, previous value), the full one by a
-flag as `faceDetail` does for faces. Not wrong. Local, small. Not yet decided.
+flag as `faceDetail` does for faces. Not wrong. Local, small. Taken into the run of
+2026-11-13: (a) to (c) as proposed, no choice in them. (d) Decided 2026-11-13 by the
+owner: a short row (lhs, value, previous value) by default, the full row by a flag, as
+`faceDetail` does.
 
 **S49. `dimension_set` through an assembly does not say which component, nor the
 document it changed.** In the scenario test of build `20261112-091908` (findings
@@ -153,7 +185,7 @@ closed"), the part's file not touched. Whether a referenced part counts as the a
 for the server's rule on foreign documents is not said anywhere, and the result does not
 name the other document. Reported success, rightly. Bears on S27. Local: the component in
 the row, the assembly's volume change, and a line naming the part changed and not saved.
-Not yet decided.
+Taken into the run of 2026-11-13 as proposed, no choice in it.
 
 **S50. `asm_mate_add` `distance` puts the component on the other side, reported `ok`.**
 Met five times in four sessions on build `20261112-091908` (findings 2026-11-12, second
@@ -168,7 +200,10 @@ reads the success as the place it meant. The pattern held in one session: with n
 then the side read from the result's `originMm`. Local, proposed by the sessions: the
 signed offset of the component's plane along `b`'s normal in the `verified` line, a warning
 when the component crossed to the other side of `b` from where it was inserted, or a point
-the component should end toward. Not yet decided.
+the component should end toward. Taken into the run of 2026-11-13, no choice in it: the
+signed offset of the component's plane along `b`'s normal in the `verified` line, and a
+warning when the component crossed `b` from the side it was inserted on; the mate itself
+is not changed.
 
 **S51. `feature_chamfer` takes the distance on whichever face, one `flip` for all edges,
 and a curved edge's legs are not checked, reported `ok`.** On build `20261112-091908`
@@ -188,7 +223,9 @@ calls with a rollback); `feature_mirror` of a chamfer failed `FEATURE_FAILED`. U
 until then: one chamfer per edge, each with its own `flip`; give the steepness as an angle
 from a face a distance should consume. Local: per edge, the face that took the distance and
 the chamfer face's angle to each neighbour, `flip` per edge, the legs of a curved edge from
-the cone, a warning for a selected edge's face left under ~0.01 mm². Not yet decided.
+the cone, a warning for a selected edge's face left under ~0.01 mm². Decided 2026-11-13 by
+the owner: all four, `flip` per edge and an edit of an existing chamfer's edges and
+per-edge distances included.
 
 **S52. The boxes in results are loose, and say nothing of it.** On build
 `20261112-091908`. (a) `model.box` in feature, `equation_set` and component results is a
@@ -201,8 +238,10 @@ re-boxed: 5 mm low at 7.5° about X, 33 mm high in another (findings 2026-11-12,
 body raised", point 5; "a part placed in an assembly by hand", point 1). A clearance read
 from it is wrong. Workaround: `face_list {extreme}` or `{component, normal}`, or the volume.
 Local: a tight box (`GetPartBox` tight, or the bodies' `GetExtremePoint` in the
-assembly's frame), or the word "approximate" in the result and the descriptions. Not yet
-decided.
+assembly's frame), or the word "approximate" in the result and the descriptions.
+Taken into the run of 2026-11-13, no choice in it: a tight box (the bodies' extreme
+points, in the assembly's frame for a component); where it cannot be read, the box is
+marked approximate.
 
 **S53. `feature_extrude` with a `direction` vector off the sketch normal extrudes along the
 normal, reported `ok`.** On build `20261112-091908` (findings 2026-11-12, "a printed part's
@@ -211,8 +250,9 @@ along the normal (`directionModel:[0,0,1]`), checks passed, no warning. `Resolve
 takes a vector only for its sign against the normal; the description ("a model axis like +y
 | x,y,z") reads as an extrude along it. Workaround: a plane square to the wanted direction
 and the profile converted onto it, 6 calls more. Local: refuse a vector not parallel to the
-normal, or extrude along it (a direction reference), and say which in the description. Not
-yet decided.
+normal, or extrude along it (a direction reference), and say which in the description.
+Decided 2026-11-13 by the owner: extrude along the vector (a direction reference), and the
+description says so.
 
 **S54. Equations outlive the features whose dimensions they drive, and bind by name.** On
 build `20261112-091908`, met in five sessions (findings 2026-11-12, "a feature with
@@ -228,7 +268,11 @@ chamfer of the same name read `D1 … 9.5, driven:true` while the equation still
 Keeping an equation was once what the job wanted, so removal should be a choice. Local:
 the dry run and the delete list the equations on the dimensions to go, an option removes
 them, `equation_delete` takes a list as `equation_set` does since S37, and a rename or a
-new name that picks up existing equations warns and names them. Not yet decided.
+new name that picks up existing equations warns and names them. Decided 2026-11-13 by the
+owner: the dry run and the delete list the equations on the dimensions that go, with a
+warning; `deleteEquations:true` removes them, the default keeps them; `equation_delete`
+takes a list; a rename or a new name that picks up existing equations warns and names
+them.
 
 **S55. `sketch_constrain` passes the 50 s limit, with `symmetric` steps the suspect.** On
 build `20261112-091908`, five times (findings 2026-11-12, "six printed and stand-in parts",
@@ -239,7 +283,9 @@ returned `TIMEOUT` and completed at 54.6 to 95 s, all steps applied; meanwhile
 steps with no `symmetric` came back in seconds; those with two or three `symmetric` steps
 took 55 to 95 s. A caller cannot tell beforehand. Bears on S8 (Closed). Local: probe the
 cost of a `symmetric` step; then a limit that scales with the steps, or the cost in the
-description, or the result's time. Not yet decided.
+description, or the result's time. Decided 2026-11-13 by the owner: a probe of the cost of
+each kind of step first; then a time limit that grows with the steps and their kinds, the
+time in the result, the cost per step in the description.
 
 **S56. Relations SOLIDWORKS adds while drawing go unreported, and a relation it already
 has reads as refused.** On build `20261112-091908` (findings 2026-11-12, "six printed and
@@ -255,7 +301,8 @@ refused as over-defining, or a `coincident` "ignored". Lessons the sessions left
 polyline was drawn onto are merged already, `symmetric` lines do not hold their ends along
 the centreline. Local: `sketch_add` lists the relations and merges SOLIDWORKS made on what
 it drew; the "ignored" check reads whether the relation or its equivalent now holds, and
-says so. Not yet decided.
+says so. Taken into the run of 2026-11-13 as proposed, no choice in it; SOLIDWORKS'
+inference itself is not changed.
 
 **S57. "modified outside this server … (by the user?)" after the server's own calls.** On
 build `20261112-091908`, six sessions, the owner out of SOLIDWORKS each time (findings
@@ -265,7 +312,8 @@ build `20261112-091908`, six sessions, the owner out of SOLIDWORKS each time (fi
 `keepOnFailure`, a `FEATURE_FAILED` with no feature, a `feature_rollback`, and on an
 assembly changed only through documents it loads. A false alarm that reads as the owner
 editing. Local: a rollback, a kept or failed feature and a change through a loaded
-document count as the server's own. Not yet decided.
+document count as the server's own. Taken into the run of 2026-11-13 as proposed, no
+choice in it.
 
 **S58. `equation_set` results that mislead.** On build `20261112-091908`. (a) Three globals
 changed, three features failed (`swSketchErrorExtRefFail` on a boss, the cut on it, a
@@ -280,7 +328,8 @@ went; one on the wrong side of its base passed every check (findings 2026-11-12,
 changed mid-tree", point 5). Local: (a) the warning names each failing feature and its
 error; (b) when SOLIDWORKS refuses a plain `"Name" = <number><unit>`, say the syntax is
 valid and suggest a restart, or tell the two apart on a scratch equation; (c) a driven
-plane's or axis's frame in the result. Not yet decided.
+plane's or axis's frame in the result. Taken into the run of 2026-11-13 as proposed, no
+choice in it; (b) by its message, a probe equation only if it is cheap.
 
 **S59. Reference geometry that cannot be made.** On build `20261112-091908`. (a) No plane
 on a planar face: `ref_plane` `offset` 0 and `angle` 0 are refused (findings 2026-11-12,
@@ -290,7 +339,7 @@ on a planar face: `ref_plane` `offset` 0 and `angle` 0 are refused (findings 202
 2; "a printed part's tree deleted", point 4); way round: `ref_axis` `two_planes` or
 `two_points` first (findings 2026-11-12, "two parts changed mid-tree", point 8). (d) No
 change of an existing plane's `flip`; a plane made on the wrong side is made again with its
-sketch (same entry, point 6). Missing options. Not yet decided.
+sketch (same entry, point 6). Missing options. Decided 2026-11-13 by the owner: all four.
 
 **S60. What a session cannot tell about the process it runs on.** On build
 `20261112-091908`. (a) `sw_status` and `doc_activate` gave `dirty:false` for a part
@@ -305,7 +354,10 @@ build made and tested on 2023 (findings 2026-11-12, "a two-part assembly", point
 same check as M0's live test that expects `33.` (S2, S17). Local: (a) probe how `dirty`
 is read and whether another process's changes hide it; (b) the hint names the other server
 process; (c) "same process as before" or "a new one"; (d) the fork's tested revision is
-31.x. Not yet decided.
+31.x. Taken into the run of 2026-11-13: (a) a probe first, fixed in the run when it shows
+the cause; (b) and (c) as proposed, no choice in them. (d) Decided 2026-11-13 by the
+owner: on `sw2023` only, the tested revision 31.x, M0's live test with it; not for
+upstream.
 
 **S61. A STEP into an assembly.** On build `20261112-091908` (findings 2026-11-12, "STEP
 parts brought toward an existing assembly"). (a) `asm_insert` refuses a STEP; SOLIDWORKS
@@ -314,7 +366,9 @@ came in as an assembly of one virtual component, reported `solidBodies: 0, surfa
 0`, while `model_mass` read a solid: the body counts are wrong for an assembly import, and
 S5's usage line ("check `solidBodies`") reads 0 on a good solid. (c) The import left an
 empty `Part2` open, unnamed in the result, later closed with another assembly. Bears on
-S5. Not needed by that job. Not yet decided.
+S5. Not needed by that job. Taken into the run of 2026-11-13: (b) and (c), no choice in
+them: the body counts read through the components for an assembly import, the stray
+document named in the result. (a) offered 2026-11-13 and not chosen; stays open.
 
 **S62. Assembly reading and options.** On build `20261112-091908`. (a) `asm_mate_list`
 gives each entity `{component, kind: "plane"}` with no name, face id or point, so which
@@ -330,7 +384,10 @@ it (findings 2026-11-12, "a part edited while an assembly the server opened held
 bears on S27 and S49 b). (e) `asm_interference` with `includeCoincident:true`: 9 or 10
 pairs of 0 mm³ with "SOLIDWORKS counted 2 interference(s) but listed 25" (or 26); the
 three numbers do not explain each other (findings 2026-11-13, "four small printed parts",
-point 3; "a revolved part remade", point 4). Not yet decided.
+point 3; "a revolved part remade", point 4). Taken into the run of 2026-11-13: (a) and
+(e), no choice in them; (c) a probe first, against SOLIDWORKS' own tree. (d) Decided
+2026-11-13 by the owner: a part loaded by an assembly the server owns, from a path the
+server owned, counts as owned. (b) offered 2026-11-13 and not chosen; stays open.
 
 **S63. `feature_helix`: where its start is, and its turns in mm.** On build
 `20261112-091908` (findings 2026-11-12, "a helical screw part", points 1, 2). (a)
@@ -340,7 +397,7 @@ nothing reads the start back (`feature_info` gives dimensions only; `model_measu
 no point by `at`). (b) The revolutions dimension reads `"value": 5527.777778, "unit":
 "mm"` for 5.527778 turns, in `feature_helix` and `feature_info`: a count reported in mm
 and ×1000, `ok`. Local: the zero in the description, `startMm` in `feature_info`, the count
-without a length unit. Not yet decided.
+without a length unit. Taken into the run of 2026-11-13 as proposed, no choice in it.
 
 **S64. Feature calls refused, failed or counted wrong, with hints that miss.** On build
 `20261112-091908`. (a) A blind cut from a plane inside the body whose end lies outside it
@@ -361,7 +418,10 @@ printed part's tree deleted", point 2). (f) `sketch_add` of one hexagon on a pla
 reported `regions: 2`, on a plane 1 ("a second helical part", point 3). (g)
 `feature_sweep` merged into a body warned that the start face (109.52 mm²) is smaller than
 the profile (155.295), the difference inside the existing body: a false alarm on a merged
-sweep ("a helical screw part", point 3). Not yet decided.
+sweep ("a helical screw part", point 3). Taken into the run of 2026-11-13: (a), (d), (e),
+(f), (g), no choice in them: (a) by S40's rule, the cut passing on its volume; (d) the
+delete's arguments checked before the first removal, so a refusal changes nothing. (b) a
+probe first. (c) offered 2026-11-13 and not chosen; stays open.
 
 **S65. Missing options met while modelling.** On build `20261112-091908`. (a) No body
 mirror: `feature_mirror` of two extrudes made `merge:false` failed "the mirrored copy must
@@ -370,14 +430,17 @@ changed mid-tree", point 1). (b) A sketch text's position is not in `sketch_info
 tool moves it ("a part's body raised", point 4). (c) An arc's centre cannot be named as a
 reference where another point sits on it ("a part of extrudes", point 2). (d)
 `view_screenshot` fits to reference axes too: a part 8% of the image ("a printed part's
-tree deleted", point 6); proposed `hideAxes` as `hidePlanes`. Not yet decided.
+tree deleted", point 6); proposed `hideAxes` as `hidePlanes`. (a) Decided 2026-11-13 by
+the owner: a body mirror. (b) to (d) offered 2026-11-13 and not chosen; stay open.
 
 **S66. A stale edge id resolves to another edge, reported `ok`.** On build
 `20261112-091908` (findings 2026-11-13, "a plate's two ends", point 3): after a fillet
 changed the edges, `feature_fillet {edges:[{id:"E25"}]}` with an id from the listing
 before it filleted another, short edge, `ok`, -0.666; `edge_list` after named the meant
 edges E28 to E31. Local: an id read before a topology change is refused, or the result
-says the ids were renumbered. Not yet decided.
+says the ids were renumbered. Taken into the run of 2026-11-13, no choice in it: an id
+whose entity no longer matches its signature is refused `ENTITY_STALE`, with the hint to
+list again.
 
 ## Waiting
 
