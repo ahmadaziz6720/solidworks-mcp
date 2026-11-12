@@ -53,9 +53,13 @@ clash with upstream's own `0.x` (`ROADMAP.md`, *Release plan*). `<v>` below is
    `sw_status` then reports `serverVersion` `<v>-sw2023-<stamp>` (S16), and the dll's
    product version adds `+<commit>`.
 3. `solidworks-mcp.exe --check-catalog` prints `CATALOG: ok`.
-4. **The tag and the registration, in one question to the owner.** On the yes: register
-   `solidworks-mcp` (scope local, in the owner's project) again on the new exe, then tag
-   the built commit and push the tag alone:
+4. **The tag and the registration, in one question to the owner.** The question names
+   every project `~/.claude.json` lists with `mcpServers.solidworks-mcp`, each with the
+   build its `command` runs (S46: a project left on an older build ran a part without
+   the tools of the builds after it). On the yes: register `solidworks-mcp` (scope
+   local) again on the new exe in each of them, until the owner's session-start hook
+   that does it has held at a session start, then tag the built commit and push the
+   tag alone:
    ```
    git tag -a build-<stamp> -m "build <stamp>" <commit>
    git push origin refs/tags/build-<stamp>
