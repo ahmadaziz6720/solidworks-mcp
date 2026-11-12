@@ -18,7 +18,7 @@ public sealed class FeatureManagementTools(SwSession session)
     [McpServerTool(Name = "feature_info", Title = "Feature details", ReadOnly = true, Destructive = false, Idempotent = true, OpenWorld = false)]
     [Description("Feature details: type, rebuild error, suppressed/rolled back, parents, children, absorbed sketches, dimensions, and the " +
                  "definition of extrudes (end condition, depth, draft), revolves, fillets (radius, edges), chamfers, shells, Hole Wizard " +
-                 "holes (standard, size, diameter, depth) and linear/circular patterns (counts, spacing). mm and degrees.")]
+                 "holes (standard, size, diameter, depth), linear/circular patterns (counts, spacing), helices (startMm).")]
     public async Task<string> FeatureInfo(
         [Description("Feature name, e.g. Boss-Extrude1 (feature_list shows them).")] string feature,
         [Description(DocArg)] string? doc = null,

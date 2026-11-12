@@ -588,7 +588,7 @@ public sealed class AdvancedFeatureService(SwSession session)
         var problems = new List<string>();
         var first = rc.AdvFirstSegment() ?? edges[0];
         var geoms = edges.Select(Topology.Describe).ToList();
-        var start = first.StartVertex()?.Point() is { Length: >= 3 } sp ? Vec3.From(sp) : Topology.Describe(first).Start;
+        var start = StartOf(first);
         var set = AdvancedFeatureLogic.Chains(geoms.Select(g => AdvancedFeatureLogic.Seg.Chord(g.Start, g.End, g.Length)).ToList());
         var chain = set.Chains.Count == 1 ? set.Chains[0] : null;
         var end = chain is null ? geoms[^1].End : start.DistanceTo(chain.Start) < start.DistanceTo(chain.End) ? chain.End : chain.Start;
@@ -658,6 +658,21 @@ public sealed class AdvancedFeatureService(SwSession session)
         };
         return (problems, info);
     }
+
+    /// <summary>Where a helix's curve starts: its first segment's start (verified), null for a feature without a curve.</summary>
+    internal static Vec3? HelixStart(IFeature f)
+    {
+        try
+        {
+            if (f.Specific() is not IReferenceCurve rc) return null;
+            var first = rc.AdvFirstSegment() ?? rc.AdvCurveEdges().FirstOrDefault();
+            return first is null ? null : StartOf(first);
+        }
+        catch (Exception ex) when (!ComArgs.IsDisconnect(ex)) { return null; }
+    }
+
+    private static Vec3 StartOf(IEdge first) =>
+        first.StartVertex()?.Point() is { Length: >= 3 } sp ? Vec3.From(sp) : Topology.Describe(first).Start;
 
     /// <summary>The turning sense about <paramref name="axis"/> just after the start (null when it can't be evaluated).</summary>
     private static bool? TurnsCounterClockwise(IEdge first, Vec3 start, Vec3 c, Vec3 axis)

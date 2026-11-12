@@ -16,9 +16,9 @@ namespace SolidWorksMcp.Core.Services;
 /// <summary>The type-specific definition of a feature (IFeature.GetDefinition), in mm / degrees. Unset fields are omitted.</summary>
 public sealed class FeatureDefinition
 {
-    /// <summary>extrude | revolve | fillet | chamfer | shell | hole | linear_pattern | circular_pattern.</summary>
+    /// <summary>extrude | revolve | fillet | chamfer | shell | hole | linear_pattern | circular_pattern | helix.</summary>
     public required string Kind { get; init; }
-    /// <summary>Revolve: one_direction | mid_plane | two_direction …; fillet: constant_radius …; chamfer: angle_distance …; hole: e.g. hole_blind.</summary>
+    /// <summary>Revolve: one_direction | mid_plane | two_direction …; fillet: constant_radius …; chamfer: angle_distance …; hole: e.g. hole_blind; helix: its definedBy.</summary>
     public string? Type { get; init; }
     public bool? Cut { get; init; }
     public bool? Thin { get; init; }
@@ -56,6 +56,18 @@ public sealed class FeatureDefinition
     public int? Count2 { get; init; }
     public double? Spacing2Mm { get; init; }
     public bool? Reverse2 { get; init; }
+    /// <summary>Helix: pitch per turn (spiral: the gap between turns).</summary>
+    public double? PitchMm { get; init; }
+    /// <summary>Helix: turns (a number, not a length).</summary>
+    public double? Revolutions { get; init; }
+    public double? HeightMm { get; init; }
+    /// <summary>Helix: counter-clockwise about the sketch normal from SOLIDWORKS' zero (top plane +Z, front +X, right −Z).</summary>
+    public double? StartAngleDeg { get; init; }
+    public bool? Clockwise { get; init; }
+    /// <summary>Helix taper: > 0 widens, &lt; 0 narrows.</summary>
+    public double? TaperDeg { get; init; }
+    /// <summary>Helix: where the curve starts, read from the curve (a sweep profile lies there).</summary>
+    public double[]? StartMm { get; init; }
 }
 
 public sealed class FeatureInfoResult : ToolResult
@@ -162,7 +174,7 @@ public sealed class DimensionValue
 public sealed class DimensionChange
 {
     public required string Name { get; init; }
-    /// <summary>mm | deg | count.</summary>
+    /// <summary>mm | deg | count | scalar (no unit).</summary>
     public required string Unit { get; init; }
     public double Previous { get; init; }
     /// <summary>The value read back after the rebuild.</summary>
@@ -289,6 +301,7 @@ public sealed partial class FeatureManagementService(SwSession session)
             IWizardHoleFeatureData2 h => Hole(h),
             ILinearPatternFeatureData lp => LinearPattern(lp),
             ICircularPatternFeatureData cp => CircularPattern(cp),
+            IHelixFeatureData hx => Helix(f, hx),
             _ => null,
         };
     }
@@ -410,6 +423,27 @@ public sealed partial class FeatureManagementService(SwSession session)
             Reverse = Try(() => p.ReverseDirection) == true ? true : null,
             Count2 = two ? Try(() => p.TotalInstances2) : null,
             Angle2Deg = two ? Deg(Try(() => p.Spacing2)) : null,
+        };
+    }
+
+    /// <summary>A helix or spiral, with its start point read from the curve (where a dimension_set of the start angle put it).</summary>
+    private static FeatureDefinition Helix(IFeature f, IHelixFeatureData h)
+    {
+        int by = Try(() => h.DefinedBy) ?? -1;
+        bool tapered = Try(() => h.Taper) == true;
+        double? taper = tapered ? Deg(Try(() => h.TaperAngle)) : null;
+        return new FeatureDefinition
+        {
+            Kind = "helix",
+            Type = by switch { 0 => "pitch_revolutions", 1 => "height_revolutions", 2 => "height_pitch", 3 => "spiral", _ => null },
+            PitchMm = Mm(Try(() => h.Pitch)),
+            Revolutions = Try(() => h.Revolution) is double n && double.IsFinite(n) ? Math.Round(n, 6) + 0.0 : null,
+            HeightMm = by == 3 ? null : Mm(Try(() => h.Height)),
+            StartAngleDeg = Deg(Try(() => h.StartingAngle)),
+            Clockwise = Try(() => h.Clockwise) == true ? true : null,
+            Reverse = Try(() => h.ReverseDirection) == true ? true : null,
+            TaperDeg = taper is double t && Try(() => h.TaperOutward) == false ? -t : taper,
+            StartMm = AdvancedFeatureService.HelixStart(f) is Vec3 s ? Units.Mm(s) : null,
         };
     }
 
@@ -1482,15 +1516,19 @@ internal static class FeatureManagementLogic
         return sb.ToString();
     }
 
-    /// <summary>mm | deg | count, by swDimensionParamType_e.</summary>
+    /// <summary>
+    /// mm | deg | count | scalar, by swDimensionParamType_e. scalar: a number without a unit, such as a helix's revolutions
+    /// (swDimensionParamTypeUnknown, shown as swScalarDimension; verified on 2023).
+    /// </summary>
     public static string UnitOf(int dimType) => dimType switch
     {
         (int)swDimensionParamType_e.swDimensionParamTypeDoubleAngular => "deg",
         (int)swDimensionParamType_e.swDimensionParamTypeInteger => "count",
+        (int)swDimensionParamType_e.swDimensionParamTypeUnknown => "scalar",
         _ => "mm",
     };
 
-    /// <summary>A tool value (mm / deg / count) → the API value (m / rad / count), validated for the dimension's type.</summary>
+    /// <summary>A tool value (mm / deg / count / scalar) → the API value (m / rad / count / scalar), validated for the dimension's type.</summary>
     public static double ToApi(int dimType, double value, string name)
     {
         if (!double.IsFinite(value)) throw SwException.InvalidArgument($"The value for '{name}' must be a finite number.");
@@ -1504,6 +1542,8 @@ internal static class FeatureManagementLogic
                 if (value < 1 || Math.Abs(value - Math.Round(value)) > 1e-9)
                     throw SwException.InvalidArgument($"'{name}' is a count: the value must be a whole number ≥ 1 (got {Fmt(value)}).");
                 return Math.Round(value);
+            case (int)swDimensionParamType_e.swDimensionParamTypeUnknown:
+                return value; // no unit: SOLIDWORKS' own status and the read-back judge the range
             default:
                 if (value <= 0)
                     throw SwException.InvalidArgument($"'{name}' is a length: the value must be > 0 mm (got {Fmt(value)}).",
@@ -1512,11 +1552,12 @@ internal static class FeatureManagementLogic
         }
     }
 
-    /// <summary>An API value → the tool value (mm / deg / count), rounded like every result.</summary>
+    /// <summary>An API value → the tool value (mm / deg / count / scalar), rounded like every result.</summary>
     public static double FromApi(int dimType, double api) => !double.IsFinite(api) ? double.NaN : dimType switch
     {
         (int)swDimensionParamType_e.swDimensionParamTypeDoubleAngular => Units.Deg(api),
         (int)swDimensionParamType_e.swDimensionParamTypeInteger => Math.Round(api),
+        (int)swDimensionParamType_e.swDimensionParamTypeUnknown => Math.Round(api, 6) + 0.0,
         _ => Units.Mm(api),
     };
 

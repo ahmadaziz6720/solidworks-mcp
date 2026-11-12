@@ -10,11 +10,11 @@ Three sections: **Open**, not yet fixed; **Waiting**, fixed and not yet settled 
 merged, a fix not yet run in a session); **Closed**, merged upstream, run and held, or
 decided against, with the record.
 
-**Open: S4, S5, S7, S10 to S12, S33, S34, S48, S49, S55 to S57, S59 to S65.** S48 and
+**Open: S4, S5, S7, S10 to S12, S33, S34, S48, S49, S55 to S57, S59 to S62, S64, S65.** S48 and
 S49 are from the scenario test of build `20261112-091908`, S50 to S66 from twenty
 working sessions on that build (findings 2026-11-12 and 13); S47, from that scenario
-test too, S50 to S54, S58 and S66 are fixed and Waiting. Reported `ok` while wrong or
-misleading: S60 (a), S63 (b); a failure reported on a success: S56 (a).
+test too, S50 to S54, S58, S63 and S66 are fixed and Waiting. Reported `ok` while wrong or
+misleading: S60 (a); a failure reported on a success: S56 (a).
 Next: the run planned below, every point of it decided 2026-11-13 by the owner. Not in
 it: S4, S5, S7 and S12 wait on upstream; S10, S11, S33 and S34 are parked until a job
 needs them; S61 (a), S62 (b), S64 (c) and S65 (b to d) were offered for this run and not
@@ -346,16 +346,6 @@ point 3; "a revolved part remade", point 4). Taken into the run of 2026-11-13: (
 (e), no choice in them; (c) a probe first, against SOLIDWORKS' own tree. (d) Decided
 2026-11-13 by the owner: a part loaded by an assembly the server owns, from a path the
 server owned, counts as owned. (b) offered 2026-11-13 and not chosen; stays open.
-
-**S63. `feature_helix`: where its start is, and its turns in mm.** On build
-`20261112-091908` (findings 2026-11-12, "a helical screw part", points 1, 2). (a)
-`startAngleDeg` 0 on a top-plane circle started at model +Z, not the sketch's +x; the
-description does not say where the angle's zero is, and after a `dimension_set` of it
-nothing reads the start back (`feature_info` gives dimensions only; `model_measure` takes
-no point by `at`). (b) The revolutions dimension reads `"value": 5527.777778, "unit":
-"mm"` for 5.527778 turns, in `feature_helix` and `feature_info`: a count reported in mm
-and ×1000, `ok`. Local: the zero in the description, `startMm` in `feature_info`, the count
-without a length unit. Taken into the run of 2026-11-13 as proposed, no choice in it.
 
 **S64. Feature calls refused, failed or counted wrong, with hints that miss.** On build
 `20261112-091908`. (a) A blind cut from a plane inside the body whose end lies outside it
@@ -1043,6 +1033,59 @@ four pass; the live tests on the changed paths, `A_global_variable_drives_…`,
 `Dimension_set_restores_the_value_when_a_feature_breaks` and
 `Feature_delete_lists_the_equations_…`, pass (14/14 with the four); contract tests 7/7;
 unit tests 277/277; `check_repo` ok. Local: on `sw2023`, in the commit that moves it here;
+not yet in a build. Upstream: not yet decided.
+
+**S63. `feature_helix`: where its start is, and its turns in mm.** On build
+`20261112-091908` (findings 2026-11-12, "a helical screw part", points 1, 2). (a)
+`startAngleDeg` 0 on a top-plane circle started at model +Z, not the sketch's +x; the
+description does not say where the angle's zero is, and after a `dimension_set` of it
+nothing reads the start back (`feature_info` gives dimensions only; `model_measure` takes
+no point by `at`). (b) The revolutions dimension reads `"value": 5527.777778, "unit":
+"mm"` for 5.527778 turns, in `feature_helix` and `feature_info`: a count reported in mm
+and ×1000, `ok`. Local: the zero in the description, `startMm` in `feature_info`, the count
+without a length unit. Taken into the run of 2026-11-13 as proposed, no choice in it. Fixed in the run of 2026-11-13. Probe first (SOLIDWORKS 2023
+SP3): the revolutions dimension has `IDimension.GetType()` -1 (`swDimensionParamTypeUnknown`,
+shown as `swScalarDimension`) and `SystemValue` the plain number of turns; the start angle turns
+the start counter-clockwise about the sketch normal, whatever `clockwise` and `reverse` say,
+from model +Z on a top-plane sketch (a plane parallel to it too), +X on the front, -Z on the
+right; on the top plane that is the sketch's -y, on the other two its +x, and not the circle's
+own start point, so no rule in sketch terms holds. Cause: (a) the description said "Start angle
+in degrees" and nothing more, and `feature_info` had no reader for a helix's definition; (b)
+every dimension that is not angular or integer was converted as a length (m to mm), the
+revolutions too, in `FeatureVerifier.Dimension` (feature results, `feature_info`,
+`dimension_list`) and in `FeatureManagementLogic` (`dimension_set`, the configuration table).
+Fix: (a) `startAngleDeg` says "Start, deg CCW about the sketch normal; 0 at Z (top), X (front),
+-Z (right)."; `feature_info` gives a helix's definition (`kind: helix`, its `definedBy` as
+`type`, `pitchMm`, `revolutions`, `heightMm`, `startAngleDeg`, `clockwise`, `reverse`,
+`taperDeg`) and `startMm`, read from the curve as `feature_helix` reads it
+(`AdvancedFeatureService.HelixStart`), so a `dimension_set` of the start angle reads back;
+`feature_info`'s description names helices. (b) A dimension of unknown type is unit `scalar`,
+its value as SOLIDWORKS holds it (rounded to 6 places), in `FeatureManagementLogic.UnitOf` /
+`FromApi` / `ToApi`, which `FeatureVerifier.Dimension` now uses too, so every list and
+`dimension_set` agree; it takes no tolerance (refused like a count); an equation's check on it
+compares the plain number. The helix and `feature_info` descriptions were shortened elsewhere
+to stay within the tool list's byte budget. Decided 2026-11-13 by the run, not the owner: (1)
+the unit is `scalar`, for every dimension of unknown type, not `count` (whole numbers only,
+which `dimension_set` enforces) and not a helix-only `turns`, because the cause is the
+dimension's type, the same in every list, and SOLIDWORKS names it a scalar dimension; (2)
+`dimension_set` takes a scalar as given, checked finite only, SOLIDWORKS' status and the
+read-back judging its range, because the server cannot know the range of a dimension whose
+type SOLIDWORKS does not give; (3) the zero is stated for the three standard planes in model
+terms, `startMm` giving it on any other, because the probe found no rule in sketch terms. On
+the code before (the new result fields declared, nothing filling them), the live tests failed:
+`Helix_revolutions_read_as_a_number_without_a_unit_wherever_its_dimension_is_listed`
+(`Assert.Equal() Failure: Strings differ, Expected: "scalar", Actual: "mm"`: 4.25 turns read
+4250 mm) and
+`Helix_start_angle_turns_counter_clockwise_about_the_sketch_normal_and_feature_info_reads_the_start`
+(the start points held; `Assert.NotNull() Failure: Value is null` for `feature_info`'s
+definition). After: those two pass (2/2); the live tests on the changed paths, the five
+`Helix_…`/`Tapered_helix_…`/`Spiral_is_flat_…`, `Sweep_spring_along_a_helix_matches_pappus`,
+`Sweep_with_the_profile_away_from_the_helix_start_is_rolled_back`, the two `Feature_info_…`,
+`Dimension_list_returns_the_depth_…`, the three `Dimension_set_…`, the two `Tolerances_…`,
+`A_global_variable_drives_the_extrude_depth`, `Several_equations_go_in_one_call_…` and
+`A_table_makes_three_sizes_…`, pass (18/18); the offline `FeatureManagementLogicTests` 24/24
+(`Values_convert_by_dimension_type` with the scalar); contract tests 7/7; unit tests 278/278;
+`--check-catalog` ok; `check_repo` ok. Local: on `sw2023`, in the commit that moves it here;
 not yet in a build. Upstream: not yet decided.
 
 ## Closed

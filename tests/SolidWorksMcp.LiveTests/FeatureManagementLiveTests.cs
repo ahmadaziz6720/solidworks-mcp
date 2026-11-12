@@ -562,7 +562,7 @@ public class FeatureManagementLiveTests(LiveFixture fx) : LiveTest(fx)
 /// <summary>The COM-free rules of the feature-management tools (FeatureManagementLogic). These run without SOLIDWORKS.</summary>
 public class FeatureManagementLogicTests
 {
-    private const int Linear = 0, Angular = 1, Count = 2; // swDimensionParamType_e
+    private const int Linear = 0, Angular = 1, Count = 2, Scalar = -1; // swDimensionParamType_e (Scalar: Unknown, no unit)
 
     private static string Code(Action a) => Assert.Throws<SwException>(a).Code;
 
@@ -589,7 +589,9 @@ public class FeatureManagementLogicTests
         Assert.Equal("mm", FeatureManagementLogic.UnitOf(Linear));
         Assert.Equal("deg", FeatureManagementLogic.UnitOf(Angular));
         Assert.Equal("count", FeatureManagementLogic.UnitOf(Count));
-        Assert.Equal("mm", FeatureManagementLogic.UnitOf(-1));
+        Assert.Equal("scalar", FeatureManagementLogic.UnitOf(Scalar)); // a helix's revolutions: not mm, not ×1000 (S63)
+        Assert.Equal(5.527778, FeatureManagementLogic.FromApi(Scalar, 5.5277777777));
+        Assert.Equal(6.5, FeatureManagementLogic.ToApi(Scalar, 6.5, "D5"));
     }
 
     [Theory]

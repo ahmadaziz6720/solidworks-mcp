@@ -67,8 +67,8 @@ public sealed class AdvancedFeatureTools(SwSession session)
         }, cancellationToken), progress, "feature_loft", faceDetail);
 
     [McpServerTool(Name = "feature_helix", Title = "Helix / spiral", ReadOnly = false, Destructive = false, Idempotent = false, OpenWorld = false)]
-    [Description("Helix / spiral curve (springs, threads, coils) from a sketch with one circle (center, radius); it climbs along the sketch " +
-                 "normal. Verified: a Helix starting on the circle with the requested height, pitch and length. Returns startMm and " +
+    [Description("Helix / spiral curve (springs, threads) from a sketch with one circle; it climbs along the sketch " +
+                 "normal. Verified: starts on the circle; height, pitch and length. Returns startMm and " +
                  "profilePlaneNormal: put a sweep profile on that plane through startMm.")]
     public Task<string> FeatureHelix(
         IProgress<ProgressNotificationValue> progress,
@@ -77,7 +77,7 @@ public sealed class AdvancedFeatureTools(SwSession session)
         [Description("Number of turns.")] double? revolutions = null,
         [Description("Total height in mm.")] double? heightMm = null,
         [Description("Sketch with the circle (default: the open sketch, else the last finished one).")] string? sketch = null,
-        [Description("Start angle in degrees.")] double startAngleDeg = 0,
+        [Description("Start, deg CCW about the sketch normal; 0 at Z (top), X (front), -Z (right).")] double startAngleDeg = 0,
         [Description("Turn clockwise.")] bool clockwise = false,
         [Description("Climb against the sketch normal.")] bool reverse = false,
         [Description("Taper in degrees: > 0 widens, < 0 narrows.")] double? taperDeg = null,

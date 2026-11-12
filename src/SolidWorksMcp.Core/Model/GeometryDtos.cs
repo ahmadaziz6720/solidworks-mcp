@@ -100,7 +100,7 @@ public sealed class DimensionInfo
 {
     public required string Name { get; init; }
     public double Value { get; init; }
-    /// <summary>mm | deg | count.</summary>
+    /// <summary>mm | deg | count | scalar (a number without a unit, e.g. a helix's revolutions).</summary>
     public required string Unit { get; init; }
     public bool? Driven { get; init; }
     /// <summary>The tolerance, when it has one (type other than none).</summary>

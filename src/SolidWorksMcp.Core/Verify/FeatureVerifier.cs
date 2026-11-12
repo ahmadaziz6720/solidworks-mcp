@@ -209,7 +209,7 @@ internal static class FeatureVerifier
         return false;
     }
 
-    /// <summary>The feature's dimensions (D1@Boss-Extrude1 …) with values in mm / deg / count.</summary>
+    /// <summary>The feature's dimensions (D1@Boss-Extrude1 …) with values in mm / deg / count / scalar.</summary>
     public static List<DimensionInfo> Dimensions(IFeature f)
     {
         var list = new List<DimensionInfo>();
@@ -227,19 +227,12 @@ internal static class FeatureVerifier
     public static DimensionInfo Dimension(IDimension dim)
     {
         int type = dim.GetType();
-        double v = dim.SystemValue;
-        (double value, string unit) = type switch
-        {
-            (int)swDimensionParamType_e.swDimensionParamTypeDoubleAngular => (Units.Deg(v), "deg"),
-            (int)swDimensionParamType_e.swDimensionParamTypeInteger => (Math.Round(v), "count"),
-            _ => (Units.Mm(v), "mm"),
-        };
         var tol = Services.FeatureManagementService.ReadTolerance(dim, type);
         return new DimensionInfo
         {
             Name = ShortName(dim.FullName),
-            Value = value,
-            Unit = unit,
+            Value = Services.FeatureManagementLogic.FromApi(type, dim.SystemValue),
+            Unit = Services.FeatureManagementLogic.UnitOf(type),
             Driven = dim.DrivenState == (int)swDimensionDrivenState_e.swDimensionDriven ? true : null,
             Tolerance = tol is { Type: not "none" } ? tol : null,
         };

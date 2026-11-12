@@ -54,6 +54,8 @@ public sealed partial class FeatureManagementService
                 int type = dim.GetType();
                 if (type == (int)swDimensionParamType_e.swDimensionParamTypeInteger)
                     throw SwException.InvalidArgument($"'{p.Name}' is a count (e.g. a pattern's instances); counts take no tolerance.");
+                if (type == (int)swDimensionParamType_e.swDimensionParamTypeUnknown)
+                    throw SwException.InvalidArgument($"'{p.Name}' is a number without a unit (e.g. a helix's revolutions); it takes no tolerance.");
                 targets.Add(new ToleranceTarget(p, dim, type, FeatureVerifier.ShortName(dim.FullName)));
             }
 
@@ -181,12 +183,12 @@ public sealed partial class FeatureManagementService
         dimType == (int)swDimensionParamType_e.swDimensionParamTypeDoubleAngular ? Units.Rad(v) : Units.M(v);
 
     /// <summary>
-    /// A dimension's tolerance in the tool's units, or null for a count or when it can't be read. Deviations come only
+    /// A dimension's tolerance in the tool's units, or null for a count, a number without a unit or when it can't be read. Deviations come only
     /// where SOLIDWORKS says they are valid for the type (swDimensionTolerance_ValidForType).
     /// </summary>
     internal static ToleranceInfo? ReadTolerance(IDimension dim, int dimType)
     {
-        if (dimType == (int)swDimensionParamType_e.swDimensionParamTypeInteger) return null;
+        if (dimType is (int)swDimensionParamType_e.swDimensionParamTypeInteger or (int)swDimensionParamType_e.swDimensionParamTypeUnknown) return null;
         try
         {
             var t = dim.Tolerance;

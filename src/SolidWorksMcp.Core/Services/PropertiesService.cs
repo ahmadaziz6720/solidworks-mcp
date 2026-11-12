@@ -906,7 +906,7 @@ public sealed partial class PropertiesService(SwSession session)
         if (p.IsDim && Dim(d, p.Key) is { } dim)
         {
             dimInfo = FeatureVerifier.Dimension(dim);
-            double factor = dimInfo.Unit switch { "deg" => ang, "count" => 1, _ => lin };
+            double factor = dimInfo.Unit switch { "deg" => ang, "count" or "scalar" => 1, _ => lin };
             if (Agrees(value, dim.SystemValue, factor)) checks.Add($"{p.Key} = {F(dimInfo.Value)} {dimInfo.Unit}");
             else problems.Add($"{p.Key} is {F(dimInfo.Value)} {dimInfo.Unit} after the rebuild, but the equation evaluates to {F(value)}");
         }

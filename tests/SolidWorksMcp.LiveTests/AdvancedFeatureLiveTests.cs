@@ -23,6 +23,7 @@ public class AdvancedFeatureLiveTests(LiveFixture fx) : LiveTest(fx)
     private FeatureService Fs => new(S);
     private InspectService Ins => new(S);
     private ReferenceService Ref => new(S);
+    private FeatureManagementService Fm => new(S);
 
     // ------------------------------------------------------------------ fixtures
 
@@ -356,6 +357,63 @@ public class AdvancedFeatureLiveTests(LiveFixture fx) : LiveTest(fx)
         var h = await Af.HelixAsync(new HelixRequest { Doc = doc, Sketch = circle, DefinedBy = "spiral", PitchMm = 2, Revolutions = 3 });
         Assert.Equal(0, h.Helix.EndMm![1], L);
         Assert.Contains(Math.Round(FromYAxis(h.Helix.EndMm), 2), new[] { 14.0, 2.0 });
+    }
+
+    [Fact]
+    public async Task Helix_start_angle_turns_counter_clockwise_about_the_sketch_normal_and_feature_info_reads_the_start()
+    {
+        // Verified (S63): 0 lies at +Z on the top plane, +X on the front, -Z on the right, and the angle turns
+        // counter-clockwise about the sketch normal, whatever clockwise says.
+        string doc = await NewPartAsync("helix_start");
+        async Task<HelixResult> On(string plane, double cx, double angle, bool clockwise = false) =>
+            await Af.HelixAsync(new HelixRequest
+            {
+                Doc = doc, Sketch = await SketchAsync(doc, Named(plane), Circle([cx, 0], 8)), PitchMm = 5, Revolutions = 4.25,
+                StartAngleDeg = angle, Clockwise = clockwise,
+            });
+        var top = await On("top", 0, 90);
+        Near([8, 0, 0], top.Helix.StartMm);                                 // +Z turned 90° about +Y
+        Near([48, 0, 0], (await On("top", 40, 90, clockwise: true)).Helix.StartMm);
+        Near([88, 0, 0], (await On("front", 80, 0)).Helix.StartMm);         // front: +X
+        Near([0, 0, -8], (await On("right", 0, 0)).Helix.StartMm);          // right: -Z
+
+        var info = await Fm.InfoAsync(doc, top.Feature.Name);
+        Assert.NotNull(info.Definition);
+        Assert.Equal("helix", info.Definition.Kind);
+        Near([8, 0, 0], info.Definition.StartMm!);
+        Assert.Equal(90, info.Definition.StartAngleDeg!.Value, 1e-6);
+
+        string angle = info.Dimensions!.Single(x => x.Unit == "deg").Name;
+        await Fm.DimensionSetAsync(doc, [new DimensionValue { Name = angle, Value = 180 }]);
+        Near([0, 0, -8], (await Fm.InfoAsync(doc, top.Feature.Name)).Definition!.StartMm!); // +Z turned 180°
+    }
+
+    [Fact]
+    public async Task Helix_revolutions_read_as_a_number_without_a_unit_wherever_its_dimension_is_listed()
+    {
+        // S63 (b): the revolutions dimension has no unit (swDimensionParamTypeUnknown); it read 4250 mm for 4.25 turns.
+        string doc = await NewPartAsync("helix_turns");
+        string circle = await SketchAsync(doc, Named("top"), Circle([0, 0], 8));
+        var h = await Af.HelixAsync(new HelixRequest { Doc = doc, Sketch = circle, PitchMm = 5, Revolutions = 4.25 });
+        static DimensionInfo Turns(IReadOnlyList<DimensionInfo> dims) =>
+            dims.Single(x => x.Unit != "deg" && Math.Abs(x.Value - 5) > 1e-6 && Math.Abs(x.Value - 21.25) > 1e-6); // not the pitch or height
+        var turns = Turns(h.Dimensions!);
+        Assert.Equal("scalar", turns.Unit);
+        Assert.Equal(4.25, turns.Value, 1e-9);
+
+        var info = await Fm.InfoAsync(doc, h.Feature.Name);
+        Assert.Equal(4.25, Turns(info.Dimensions!).Value, 1e-9);
+        Assert.Equal("scalar", Turns(info.Dimensions!).Unit);
+        Assert.Equal(4.25, info.Definition!.Revolutions!.Value, 1e-9);
+        Assert.Equal(5, info.Definition.PitchMm!.Value, 1e-9);
+        var listed = Turns((await Fm.DimensionListAsync(doc, h.Feature.Name)).Dimensions);
+        Assert.Equal(("scalar", 4.25), (listed.Unit, listed.Value));
+
+        var set = await Fm.DimensionSetAsync(doc, [new DimensionValue { Name = turns.Name, Value = 6 }]);
+        Assert.Equal(("scalar", 4.25, 6.0), (set.Changes[0].Unit, set.Changes[0].Previous, set.Changes[0].Value));
+        var after = (await Fm.InfoAsync(doc, h.Feature.Name)).Definition!;
+        Assert.Equal(6, after.Revolutions!.Value, 1e-9);
+        Assert.Equal(30, after.HeightMm!.Value, 1e-6); // 6 turns of 5 mm
     }
 
     [Fact]
