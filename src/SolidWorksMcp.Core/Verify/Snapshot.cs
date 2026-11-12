@@ -20,7 +20,13 @@ internal sealed class Snapshot
     public required double Area { get; init; }   // m²
     public required int Faces { get; init; }
     public required int Edges { get; init; }
-    public double[]? Box { get; init; }          // m, over all bodies
+    public double[]? Box { get; init; }          // m, over all bodies: their GetBodyBox, a loose bound (S52)
+    /// <summary>The bodies, for <see cref="Tight"/>; read in the same operation as the snapshot.</summary>
+    public IReadOnlyList<IBody2> BodyList { get; init; } = [];
+    private (double[]? Box, bool Approximate)? _tight;
+
+    /// <summary>The box the results report: the bodies' extreme points (approximate where they couldn't be read).</summary>
+    public (double[]? Box, bool Approximate) Tight => _tight ??= TightBox.Of(BodyList);
 
     public static Snapshot Take(IModelDoc2 doc)
     {
@@ -32,10 +38,12 @@ internal sealed class Snapshot
         int bodies = 0, solids = 0, faces = 0, edges = 0;
         double vol = 0, area = 0;
         double[]? box = null;
+        var list = new List<IBody2>();
         if (doc.GetType() == (int)swDocumentTypes_e.swDocPART)
         {
             foreach (var b in ((IPartDoc)doc).AllBodies(visibleOnly: false))
             {
+                list.Add(b);
                 bodies++;
                 bool solid = b.GetType() == (int)swBodyType_e.swSolidBody;
                 if (solid) solids++;
@@ -54,8 +62,10 @@ internal sealed class Snapshot
                         Math.Max(box[3], bb[3]), Math.Max(box[4], bb[4]), Math.Max(box[5], bb[5])];
             }
         }
-        return new Snapshot { Features = feats, Bodies = bodies, SolidBodies = solids, Volume = vol, Area = area, Faces = faces, Edges = edges, Box = box };
+        return new Snapshot { Features = feats, Bodies = bodies, SolidBodies = solids, Volume = vol, Area = area, Faces = faces, Edges = edges, Box = box, BodyList = list };
     }
 
-    public ModelState ToState() => new() { VolumeMm3 = Units.Mm3(Volume), Bodies = Bodies, Box = BoxMm.FromMeters(Box) };
+    public ModelState ToState() => new() { VolumeMm3 = Units.Mm3(Volume), Bodies = Bodies, Box = TightMm() };
+
+    public BoxMm? TightMm() => BoxMm.FromMeters(Tight.Box, Tight.Approximate);
 }

@@ -1381,13 +1381,25 @@ public sealed partial class AssemblyService(SwSession session)
         return back;
     }
 
+    /// <summary>
+    /// A component's box in the assembly: its bodies' extreme points mapped through its transform (S52); without bodies
+    /// (lightweight, an empty sub-assembly) SOLIDWORKS' own box, which is the part's box turned and re-boxed: approximate.
+    /// </summary>
+    private static (double[]? Box, bool Approximate) CompBox(IComponent2 c)
+    {
+        var bodies = c.Bodies(swBodyType_e.swSolidBody).Concat(c.Bodies(swBodyType_e.swSheetBody)).ToList();
+        if (bodies.Count > 0 && c.Transform2 is IMathTransform t)
+            return TightBox.Of(bodies, new Xform(ComArgs.Doubles((object?)t.ArrayData)));
+        var loose = c.AsmCompBox();
+        return loose.Length == 6 ? (loose, true) : (null, false);
+    }
+
     private static AsmComponentInfo Info(SwContext ctx, IComponent2 c, IReadOnlyDictionary<string, int>? mates)
     {
         string name = c.Name2;
         int supp = Safe(() => c.GetSuppression2(), -1);
         Frame? f = Safe<Frame?>(() => FrameOf(ctx, c), null);
-        double[] box = supp == (int)swComponentSuppressionState_e.swComponentSuppressed
-            ? Array.Empty<double>() : Safe(() => c.AsmCompBox(), Array.Empty<double>());
+        var (box, approx) = supp == (int)swComponentSuppressionState_e.swComponentSuppressed ? (null, false) : Safe(() => CompBox(c), (null, false));
         int kids = Safe(() => c.AsmChildren().Count, 0);
         string? parent = ParentOf(c)?.Name2;
         string path = CompPath(c);
@@ -1403,7 +1415,7 @@ public sealed partial class AssemblyService(SwSession session)
             Visible = IsVisible(c),
             OriginMm = f is null ? null : Units.Mm(f.Origin),
             Rotation = f is null ? null : AsmMath.Rows(f.R),
-            Box = BoxMm.FromMeters(box.Length == 6 ? box : null),
+            Box = BoxMm.FromMeters(box, approx),
             Constrained = cs is int s ? AsmParse.ConstrainedName(s) : null,
             Mates = mates is null ? null : mates.TryGetValue(name, out int n) ? n : 0,
             Children = kids > 0 ? kids : null,

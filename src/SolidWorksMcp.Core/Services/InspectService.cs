@@ -110,7 +110,7 @@ public sealed class InspectService(SwSession session)
                         Faces = b.GetFaceCount(),
                     });
                 }
-                box = BoxMm.FromMeters(snap.Box);
+                box = snap.TightMm();
                 vol = Units.Mm3(snap.Volume);
                 area = Units.Mm2(snap.Area);
                 if (sketch is null)

@@ -50,12 +50,15 @@ public sealed class BoxMm
     public required double[] Min { get; init; }
     public required double[] Max { get; init; }
     public required double[] Size { get; init; }
+    /// <summary>True when the box is a loose bound (some body's extremes could not be read), not the bodies' extremes.</summary>
+    public bool? Approximate { get; init; }
 
-    public static BoxMm? FromMeters(double[]? b)
+    public static BoxMm? FromMeters(double[]? b, bool approximate = false)
     {
         if (b is null || b.Length < 6 || b.Any(v => !double.IsFinite(v))) return null;
         return new BoxMm
         {
+            Approximate = approximate ? true : null,
             Min = [Geometry.Units.Mm(b[0]), Geometry.Units.Mm(b[1]), Geometry.Units.Mm(b[2])],
             Max = [Geometry.Units.Mm(b[3]), Geometry.Units.Mm(b[4]), Geometry.Units.Mm(b[5])],
             Size = [Geometry.Units.Mm(b[3] - b[0]), Geometry.Units.Mm(b[4] - b[1]), Geometry.Units.Mm(b[5] - b[2])],

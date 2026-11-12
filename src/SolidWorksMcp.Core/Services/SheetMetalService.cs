@@ -682,7 +682,7 @@ public sealed partial class SheetMetalService(SwSession session)
                 FlatPatterns = flats.Select(f => f.Name).ToList(),
                 FlatSizeMm = size,
                 ThicknessMm = thick,
-                Box = BoxMm.FromMeters(after.Box),
+                Box = after.TightMm(),
                 VolumeMm3 = Units.Mm3(after.Volume),
                 Sheet = sheet,
                 Checks = checks,

@@ -265,6 +265,30 @@ public class AssemblyLiveTests(LiveFixture fx) : LiveTest(fx)
     }
 
     [Fact]
+    public async Task A_tilted_component_s_box_is_its_body_s_extremes()
+    {
+        // S52 (b): a shaft r 5 along +y (y 0..30) turned 45° about [1, 1, 0]. Its box was the part's box turned and
+        // re-boxed; the cylinder's extremes are its ends ± r·sin(angle of the axis to each direction).
+        var shaft = await ShaftAsync("tilted");
+        string asm = await NewAssemblyAsync("asm_tilt");
+        var r = await InsertAsync(asm, shaft.Path, [0, 0, 0], Rot([1, 1, 0], 45));
+        double t = Math.PI / 4, c = Math.Cos(t), s = Math.Sin(t), k = Math.Sqrt(0.5);
+        // Rodrigues: a = v cos t + (k × v) sin t + k (k · v)(1 − cos t), v = +y, k = [1, 1, 0]/√2.
+        double[] a = [k * k * (1 - c), c + k * k * (1 - c), k * s];
+        var min = new double[3];
+        var max = new double[3];
+        for (int i = 0; i < 3; i++)
+        {
+            double rim = 5 * Math.Sqrt(1 - a[i] * a[i]);
+            min[i] = Math.Min(0, 30 * a[i]) - rim;
+            max[i] = Math.Max(0, 30 * a[i]) + rim;
+        }
+        AssertBox(r.Component.Box, min, max, 1e-3);
+        AssertBox((await ComponentAsync(asm, r.Component.Name)).Box, min, max, 1e-3);
+        Assert.Null(r.Component.Box!.Approximate);
+    }
+
+    [Fact]
     public async Task Insert_refuses_unsaved_missing_and_foreign_files_and_needs_an_assembly()
     {
         string unsaved = await NewPartAsync("unsaved");

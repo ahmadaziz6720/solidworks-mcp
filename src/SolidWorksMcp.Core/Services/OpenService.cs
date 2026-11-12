@@ -368,7 +368,7 @@ public sealed class OpenService(SwSession session)
                 SurfaceBodies = snap.Bodies - snap.SolidBodies,
                 MeshBodies = mesh > 0 ? mesh : null,
                 VolumeMm3 = snap.SolidBodies > 0 ? Units.Mm3(snap.Volume) : null,
-                Box = BoxMm.FromMeters(snap.Box),
+                Box = snap.TightMm(),
                 Features = features.Count > 0 ? features : null,
             };
         }

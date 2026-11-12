@@ -211,6 +211,49 @@ public class PartFeatureLiveTests(LiveFixture fx) : LiveTest(fx)
         Assert.Equal(0, (await Ins.ModelInfoAsync(doc)).VolumeMm3 ?? 0, V);
     }
 
+    // ------------------------------------------------------------------ boxes
+
+    [Fact]
+    public async Task The_model_box_after_round_faces_is_the_body_s_extremes()
+    {
+        // S52 (a): the box in a result read the bodies' loose bounds over tori and spheres.
+        string disc = await DiscAsync("box_torus");
+        var r = await Fs.FilletAsync(disc, [new EntityRef { At = [40, 10, 0] }], null, 3, true, null, false);
+        AssertBox(r.Model.Box!, [-40, 0, -40], [40, 10, 40]);
+        Assert.Null(r.Model.Box!.Approximate);
+
+        // A plate whose ends run in a quarter round R7 into a face 30° off its tangent, its top chain rounded R0.5: tori.
+        string plate = await NewPartAsync("box_plate");
+        await Sk.StartAsync(plate, new EntityRef { Name = "front" }, false);
+        double t = 56.5 - 3 * Math.Tan(Math.PI / 6);
+        await Sk.AddAsync(plate, [
+            new SketchEntity { Kind = "line", From = [-t, -5], To = [t, -5] },
+            new SketchEntity { Kind = "line", From = [t, -5], To = [56.5, -2] },
+            new SketchEntity { Kind = "arc", Center = [49.5, -2], RadiusMm = 7, StartDeg = 0, EndDeg = 90 },
+            new SketchEntity { Kind = "line", From = [49.5, 5], To = [-49.5, 5] },
+            new SketchEntity { Kind = "arc", Center = [-49.5, -2], RadiusMm = 7, StartDeg = 90, EndDeg = 180 },
+            new SketchEntity { Kind = "line", From = [-56.5, -2], To = [-t, -5] },
+        ]);
+        await Fs.ExtrudeAsync(new ExtrudeRequest { Doc = plate, End = "mid_plane", DepthMm = 10 });
+        var round = await Fs.FilletAsync(plate, [new EntityRef { At = [0, 5, 5] }], null, 0.5, true, null, false);
+        AssertBox(round.Model.Box!, [-56.5, -5, -5], [56.5, 5, 5]);
+
+        // An elliptic cylinder, 30 × 10 radii, 10 high: a spline-like face.
+        string ell = await NewPartAsync("box_ellipse");
+        await Sk.StartAsync(ell, new EntityRef { Name = "top" }, false);
+        await Sk.AddAsync(ell, [new SketchEntity { Kind = "ellipse", Center = [0, 0], MajorRadiusMm = 30, MinorRadiusMm = 10 }]);
+        var e = await Fs.ExtrudeAsync(new ExtrudeRequest { Doc = ell, DepthMm = 10 });
+        AssertBox(e.Model.Box!, [-30, 0, -10], [30, 10, 10]);
+        AssertBox((await Ins.ModelInfoAsync(ell)).Box!, [-30, 0, -10], [30, 10, 10]);
+    }
+
+    private static void AssertBox(BoxMm box, double[] min, double[] max)
+    {
+        for (int i = 0; i < 3; i++)
+            Assert.True(Math.Abs(min[i] - box.Min[i]) <= 1e-4 && Math.Abs(max[i] - box.Max[i]) <= 1e-4,
+                $"box [{string.Join(", ", box.Min)}] .. [{string.Join(", ", box.Max)}], expected [{string.Join(", ", min)}] .. [{string.Join(", ", max)}]");
+    }
+
     // ------------------------------------------------------------------ chamfer
 
     [Fact]

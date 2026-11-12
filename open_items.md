@@ -10,11 +10,11 @@ Three sections: **Open**, not yet fixed; **Waiting**, fixed and not yet settled 
 merged, a fix not yet run in a session); **Closed**, merged upstream, run and held, or
 decided against, with the record.
 
-**Open: S4, S5, S7, S10 to S12, S33, S34, S48 to S50, S52, S54 to S65.** S48 and S49 are from the scenario
+**Open: S4, S5, S7, S10 to S12, S33, S34, S48 to S50, S54 to S65.** S48 and S49 are from the scenario
 test of build `20261112-091908`, S50 to S66 from twenty working sessions on that build
-(findings 2026-11-12 and 13); S47, from that scenario test too, S51, S53 and S66 are
+(findings 2026-11-12 and 13); S47, from that scenario test too, S51 to S53 and S66 are
 fixed and Waiting.
-Reported `ok` while wrong or misleading: S50, S52, S58 (a), S60 (a), S63 (b); a
+Reported `ok` while wrong or misleading: S50, S58 (a), S60 (a), S63 (b); a
 failure reported on a success: S56 (a).
 Next: the run planned below, every point of it decided 2026-11-13 by the owner. Not in
 it: S4, S5, S7 and S12 wait on upstream; S10, S11, S33 and S34 are parked until a job
@@ -214,22 +214,6 @@ the component should end toward. Taken into the run of 2026-11-13, no choice in 
 signed offset of the component's plane along `b`'s normal in the `verified` line, and a
 warning when the component crossed `b` from the side it was inserted on; the mate itself
 is not changed.
-
-**S52. The boxes in results are loose, and say nothing of it.** On build
-`20261112-091908`. (a) `model.box` in feature, `equation_set` and component results is a
-loose bound over B-spline and torus faces: ±30.63 for a body trimmed to Ø60; Y -16.3 to
-216.3 where the faces were at -4 and 215; 0.09 outside a filleted plate (findings
-2026-11-12, "a helical screw part", point 4; 2026-11-13, "a plate's two ends", point 2).
-After a change of variables the box looked like a failed trim. (b) `asm_component_list`'s
-and `asm_component_move`'s `box` for a rotated component is the part's box rotated and
-re-boxed: 5 mm low at 7.5° about X, 33 mm high in another (findings 2026-11-12, "a part's
-body raised", point 5; "a part placed in an assembly by hand", point 1). A clearance read
-from it is wrong. Workaround: `face_list {extreme}` or `{component, normal}`, or the volume.
-Local: a tight box (`GetPartBox` tight, or the bodies' `GetExtremePoint` in the
-assembly's frame), or the word "approximate" in the result and the descriptions.
-Taken into the run of 2026-11-13, no choice in it: a tight box (the bodies' extreme
-points, in the assembly's frame for a component); where it cannot be read, the box is
-marked approximate.
 
 **S54. Equations outlive the features whose dimensions they drive, and bind by name.** On
 build `20261112-091908`, met in five sessions (findings 2026-11-12, "a feature with
@@ -863,6 +847,48 @@ slanted side); the test allows 0.05 mm³. Decided 2026-11-13 by the run, not the
 direction reference is a 3D sketch line kept in the tree, not a reference axis, because an
 axis needs two reference points or planes made first (three features, not one). Local: on
 `sw2023`, in the commit that moves it here; not yet in a build. Upstream: not yet decided.
+
+**S52. The boxes in results are loose, and say nothing of it.** On build
+`20261112-091908`. (a) `model.box` in feature, `equation_set` and component results is a
+loose bound over B-spline and torus faces: ±30.63 for a body trimmed to Ø60; Y -16.3 to
+216.3 where the faces were at -4 and 215; 0.09 outside a filleted plate (findings
+2026-11-12, "a helical screw part", point 4; 2026-11-13, "a plate's two ends", point 2).
+After a change of variables the box looked like a failed trim. (b) `asm_component_list`'s
+and `asm_component_move`'s `box` for a rotated component is the part's box rotated and
+re-boxed: 5 mm low at 7.5° about X, 33 mm high in another (findings 2026-11-12, "a part's
+body raised", point 5; "a part placed in an assembly by hand", point 1). A clearance read
+from it is wrong. Workaround: `face_list {extreme}` or `{component, normal}`, or the volume.
+Local: a tight box (`GetPartBox` tight, or the bodies' `GetExtremePoint` in the
+assembly's frame), or the word "approximate" in the result and the descriptions.
+Taken into the run of 2026-11-13, no choice in it: a tight box (the bodies' extreme
+points, in the assembly's frame for a component); where it cannot be read, the box is
+marked approximate. Fixed in the run of 2026-11-13. Cause: `model.box` was the union of the
+bodies' `GetBodyBox`, a loose bound over torus and spline faces, and a component's `box`
+was `IComponent2.GetBox`, the part's box turned and re-boxed. Fix: a new `TightBox` reads
+each body's `GetExtremePoint` along ±x, ±y, ±z of the target frame (for a component, the
+directions taken into its part space and the points mapped back through its transform).
+`model.box` in every result built from a snapshot (feature results, `equation_set`,
+`dimension_set` and the other feature-management results, `model_info`, an import's
+summary, sheet metal) and the `box` of `asm_component_list`, `asm_insert`,
+`asm_component_move` and the pattern results use it. A body whose extremes can't be read
+adds its own box, and a component without bodies (lightweight, or a sub-assembly that
+gives none) keeps SOLIDWORKS' box; either way the box carries `approximate: true`. Not
+covered by a live test: that fallback (no case on hand where `GetExtremePoint` fails).
+New live tests: `The_model_box_after_round_faces_is_the_body_s_extremes` (a disc with its
+top edge rounded; the plate of the finding, quarter-round ends into a 30° face with the
+top chain rounded R0.5; an elliptic cylinder; `model_info`'s box too) and
+`A_tilted_component_s_box_is_its_body_s_extremes` (a shaft r 5 × 30 turned 45° about
+[1, 1, 0], the box from the cylinder's ends and rims). On the code before both failed:
+"box [-56.582209, -5, -5] .. [56.589919, 5, 5.089919], expected [-56.5, -5, -5] .. [56.5,
+5, 5]" (the finding's 0.09) and "box [-6.767767, -3.232233, -6.035534] .. [11.161165,
+28.838835, 21.035534], expected [-4.946093, -2.605027, -4.330127] .. [9.339491,
+28.211629, 19.330127]". After: both pass, with the box assertions of `Insert_puts_the_origin_…`,
+`Insert_with_a_rotation_…`, `Move_translates_and_rotates_…`, `Subassemblies_are_inserted_…`,
+`Circular_pattern_turns_the_seed_…`, `Box_extrude_…`, `Mid_plane_extrude_…` and
+`Cut_from_an_open_sketch_…` (10/10); unit tests 276/276; `--check-catalog` ok (no
+description changed: the `approximate` field speaks for itself); `check_repo` ok. Local:
+on `sw2023`, in the commit that moves it here; not yet in a build. Upstream: not yet
+decided.
 
 ## Closed
 
