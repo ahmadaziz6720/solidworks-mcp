@@ -10,11 +10,12 @@ Three sections: **Open**, not yet fixed; **Waiting**, fixed and not yet settled 
 merged, a fix not yet run in a session); **Closed**, merged upstream, run and held, or
 decided against, with the record.
 
-**Open: S4, S5, S7, S10 to S12, S33, S34, S48 to S66.** S48 and S49 are from the scenario
+**Open: S4, S5, S7, S10 to S12, S33, S34, S48 to S65.** S48 and S49 are from the scenario
 test of build `20261112-091908`, S50 to S66 from twenty working sessions on that build
-(findings 2026-11-12 and 13); S47, from that scenario test too, is fixed and Waiting.
+(findings 2026-11-12 and 13); S47, from that scenario test too, and S66 are fixed and
+Waiting.
 Reported `ok` while wrong or misleading: S50, S51 (b,
-c), S52, S53, S58 (a), S60 (a), S63 (b), S66; a failure reported on a success: S56 (a).
+c), S52, S53, S58 (a), S60 (a), S63 (b); a failure reported on a success: S56 (a).
 Next: the run planned below, every point of it decided 2026-11-13 by the owner. Not in
 it: S4, S5, S7 and S12 wait on upstream; S10, S11, S33 and S34 are parked until a job
 needs them; S61 (a), S62 (b), S64 (c) and S65 (b to d) were offered for this run and not
@@ -442,15 +443,6 @@ reference where another point sits on it ("a part of extrudes", point 2). (d)
 tree deleted", point 6); proposed `hideAxes` as `hidePlanes`. (a) Decided 2026-11-13 by
 the owner: a body mirror. (b) to (d) offered 2026-11-13 and not chosen; stay open.
 
-**S66. A stale edge id resolves to another edge, reported `ok`.** On build
-`20261112-091908` (findings 2026-11-13, "a plate's two ends", point 3): after a fillet
-changed the edges, `feature_fillet {edges:[{id:"E25"}]}` with an id from the listing
-before it filleted another, short edge, `ok`, -0.666; `edge_list` after named the meant
-edges E28 to E31. Local: an id read before a topology change is refused, or the result
-says the ids were renumbered. Taken into the run of 2026-11-13, no choice in it: an id
-whose entity no longer matches its signature is refused `ENTITY_STALE`, with the hint to
-list again.
-
 ## Waiting
 
 **S1. `drw_view_section` / `drw_view_detail` drew in view-sketch coordinates.** Local:
@@ -778,6 +770,36 @@ live test `The_frame_is_in_sheet_mm_at_a_sheet_scale_other_than_1_1` (an ISO A3 
 `Standard_views_…` (both) and `Sheets_are_added_…`, 9/9 on 2023 SP3; unit tests 276/276;
 `check_repo` ok. Local: on `sw2023`, in the commit that moves it here; not yet in a build.
 Upstream: not yet decided.
+
+**S66. A stale edge id resolves to another edge, reported `ok`.** On build
+`20261112-091908` (findings 2026-11-13, "a plate's two ends", point 3): after a fillet
+changed the edges, `feature_fillet {edges:[{id:"E25"}]}` with an id from the listing
+before it filleted another, short edge, `ok`, -0.666; `edge_list` after named the meant
+edges E28 to E31. Local: an id read before a topology change is refused, or the result
+says the ids were renumbered. Taken into the run of 2026-11-13, no choice in it: an id
+whose entity no longer matches its signature is refused `ENTITY_STALE`, with the hint to
+list again. Fixed in the run of 2026-11-13. Cause, probed live: a later
+feature that trims or splits an edge gives it a new persistent reference, while the old
+one still resolves (status ok) to the trimmed edge or to the fragment that holds the
+listed point, so the signature check (kind, curve type, the listed mid-point still on the
+edge) passed; the listing after gave the same edge a new id. A notch cut across a 100 mm
+edge left its id resolving to the 80 mm fragment, and a fillet on it reported `ok`. Fix:
+`EntityRegistry.Resolve` compares an edge's current persistent reference with the one
+stored at listing, and a mismatch is `ENTITY_STALE` ("was changed by a later feature
+(trimmed, split or rebuilt)", hint: re-run `edge_list`, or reference it by point). An edge
+no feature touched keeps its reference and its id. Decided 2026-11-13 by the run, not the
+owner: the reference check is for edges only; faces keep the point check, because a face
+a later cut or fillet trimmed is still the face a sketch or a mate on it means, and
+refusing it would make every sketch after a cut list again; bodies are unchanged. New live
+test `An_edge_id_listed_before_a_cut_split_it_is_refused_stale` (the notch, then a fillet
+by the old id is refused; then, by ids from that one listing, a fillet on an edge the cut
+did not touch, a boss elsewhere, and a fillet on a third edge after both, each removing the
+analytic volume: an untouched edge's reference stays byte-equal across unrelated features); it failed on the code before ("Assert.Throws() Failure: No exception was
+thrown"). After: it passes, with `Point_on_a_corner_…`, `Queries_with_expect_…` and
+`Convex_fillet_…` (4/4), and the two fastener tests that mate by edge ids listed before
+components went in (`Screws_with_washers_…`, `A_screw_in_a_blind_hole_…`, 2/2); unit tests 276/276; `check_repo` ok. Local:
+on `sw2023`, in the commit that moves it here; not yet in a build. Upstream: not yet
+decided.
 
 ## Closed
 

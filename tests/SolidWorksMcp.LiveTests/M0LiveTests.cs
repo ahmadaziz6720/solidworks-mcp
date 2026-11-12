@@ -162,6 +162,39 @@ public class M0LiveTests(LiveFixture fx) : LiveTest(fx)
     }
 
     [Fact]
+    public async Task An_edge_id_listed_before_a_cut_split_it_is_refused_stale()
+    {
+        // S66: a notch cut across the top front edge (x from 30 to 40) splits it in two; the id listed before resolved to
+        // the fragment that holds the listed mid-point (x -50..30) and a fillet on it reported ok on part of the edge.
+        string doc = await BlockAsync("stale_edge");
+        var inspect = new InspectService(S);
+        string Edge(EdgeListResult l) => Assert.Single(l.Edges).Id;
+        string top = Edge(await inspect.EdgeListAsync(doc, new EntityFilter { Near = [0, 20, 30], WithinMm = 0.001 }, 10, 0, false));
+        string bottom = Edge(await inspect.EdgeListAsync(doc, new EntityFilter { Near = [0, 0, 30], WithinMm = 0.001 }, 10, 0, false));
+        string back = Edge(await inspect.EdgeListAsync(doc, new EntityFilter { Near = [0, 0, -30], WithinMm = 0.001 }, 10, 0, false));
+
+        var sk = new SketchService(S);
+        await sk.StartAsync(doc, new EntityRef { At = [0, 10, 30] }, false);
+        await sk.AddAsync(doc, [new SketchEntity { Kind = "rectangle", Corners = [[30, 15, 30], [40, 25, 30]] }]);
+        await new FeatureService(S).ExtrudeAsync(new ExtrudeRequest { Doc = doc, Cut = true, End = "through_all" });
+
+        var ex = await Assert.ThrowsAsync<SwException>(() =>
+            new FeatureService(S).FilletAsync(doc, [new EntityRef { Id = top }], null, 1, false, null, false));
+        Assert.Equal(ErrorCodes.EntityStale, ex.Code);
+        Assert.Contains("edge_list", ex.Hint);
+
+        // Edges no feature touched keep their ids from that one listing: after the cut, a fillet on another edge and a
+        // boss elsewhere, each still takes a feature.
+        var r = await new FeatureService(S).FilletAsync(doc, [new EntityRef { Id = bottom }], null, 1, false, null, false);
+        Assert.Equal(-(1 - Math.PI / 4) * 100, r.Verified.VolumeDeltaMm3, 1e-2);
+        await sk.StartAsync(doc, new EntityRef { At = [-20, 20, 0] }, false);
+        await sk.AddAsync(doc, [new SketchEntity { Kind = "circle", Center = [-20, 20, 0], RadiusMm = 5 }]);
+        await new FeatureService(S).ExtrudeAsync(new ExtrudeRequest { Doc = doc, DepthMm = 5 });
+        r = await new FeatureService(S).FilletAsync(doc, [new EntityRef { Id = back }], null, 1, false, null, false);
+        Assert.Equal(-(1 - Math.PI / 4) * 100, r.Verified.VolumeDeltaMm3, 1e-2);
+    }
+
+    [Fact]
     public async Task Queries_with_expect_guard_the_count()
     {
         string doc = await BlockAsync("query");

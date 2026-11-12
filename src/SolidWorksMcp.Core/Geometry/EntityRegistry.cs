@@ -8,8 +8,9 @@ namespace SolidWorksMcp.Core.Geometry;
 /// Short handles ("F3", "E12", "V5", "B2") for topological entities, backed by SolidWorks persistent references
 /// (<c>IModelDocExtension.GetPersistReference3</c>). Ids are unique for the server session and never reused; each is
 /// bound to its document. On resolution the persistent-reference status is mapped (deleted/invalid → ENTITY_STALE,
-/// suppressed → its own hint) and a stored signature (kind, surface/curve type, pick point) is re-checked, because a
-/// persistent id can silently resolve to a surviving fragment of a split face. STA thread only.
+/// suppressed → its own hint) and a stored signature (kind, surface/curve type, pick point; for an edge also the persistent
+/// reference itself) is re-checked, because a persistent id can silently resolve to a surviving fragment of a split face
+/// or edge. STA thread only.
 /// </summary>
 internal sealed class EntityRegistry
 {
@@ -70,6 +71,14 @@ internal sealed class EntityRegistry
         if (obj is null)
             throw new SwException(ErrorCodes.EntityStale, $"Entity '{id}' ({rec.Kind}) no longer resolves.", $"Re-run {relist} for current ids.");
         Validate(rec, obj, relist);
+        // An edge's reference is part of its signature (S66): a later feature that trims or splits an edge gives it a new
+        // one, while the old one still resolves to it (or to the fragment holding the listed point), which then passes the
+        // point check. Such an edge is not the one listed, and a listing now gives it a new id.
+        if (rec.Kind == "edge" &&
+            (ComArgs.Bytes((object?)doc.Extension.GetPersistReference3(obj)) is not { } now || !now.AsSpan().SequenceEqual(rec.Persist)))
+            throw new SwException(ErrorCodes.EntityStale,
+                $"Entity '{id}' (edge) was changed by a later feature (trimmed, split or rebuilt), so it is no longer the edge that was listed.",
+                $"Re-run {relist} for current ids, or reference it by point.");
         return obj;
     }
 
