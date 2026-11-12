@@ -1155,6 +1155,9 @@ characters, 2 errors, both refusals the test asked for.
    previous value), the full one by a flag as `faceDetail` does for faces, would cut it.
    Not wrong.
 
+Sorted into S48 new (2 to 5). Held: S37, S42, S41, S45, S40, S38, S43, S18, S31, S44, S39,
+S27, S35, S30 and S6's wording (1).
+
 **2026-11-12: scenario test of the drawing and assembly items (a hand-mated two-part assembly, a drawing of a shelled tray at 1:2, a STEP round trip, a two-part assembly's interference)**
 
 Build `bin\0.1.0-20261112-091908` (`serverVersion` `0.1.0-sw2023-20261112-091908+276d378`).
@@ -1200,3 +1203,6 @@ Build `bin\0.1.0-20261112-091908` (`serverVersion` `0.1.0-sw2023-20261112-091908
    such; worth a word in the result ("also changes <part>, not saved").
 5. STEP AP214 export of a shelled solid and `doc_open` of it: 16 surface bodies, as before
    (S5). Interference of a two-part assembly at its saved position: 0, as before.
+
+Sorted into S47 new (1); S49 new (3, 4). Held: S14 but for its frame, S24, S32, S13 and
+S36's assembly item (2). S5 met again (5).
