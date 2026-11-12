@@ -1206,3 +1206,367 @@ Build `bin\0.1.0-20261112-091908` (`serverVersion` `0.1.0-sw2023-20261112-091908
 
 Sorted into S47 new (1); S49 new (3, 4). Held: S14 but for its frame, S24, S32, S13 and
 S36's assembly item (2). S5 met again (5).
+
+**2026-11-12: reading a two-part assembly made by an earlier session, and moving it to a new folder**
+
+Build `0.1.0-sw2023-20261112-091908+276d378`, SOLIDWORKS 2023 (revision 31.3.0).
+
+1. `asm_mate_list` gave three coincident mates, each entity `{"component": ..., "kind":
+   "plane"}` with no name, face id or point. Two of the three had been made on planar
+   faces picked by `at`, one on two Right Planes: all six read the same, so which plane
+   or face a mate takes cannot be told. `feature_info` on a mate gives its type and
+   parents only. Workaround: none in the server; the earlier session's own `asm_mate_add`
+   inputs were read instead. Reported success. Bears on S36 (`asm_mate_list` on an
+   assembly built by hand). Proposed: per entity, a reference plane's name, or for a face
+   its id and a point on it, as `face_list` gives.
+2. `sw_connect {launch:true}` warned "SOLIDWORKS revision 31.3.0 is untested (tested: 33.x
+   = 2025). Please report problems." This build is made and tested on 2023 (31.x); the
+   warning has the tested revision the wrong way round. Same root as M0's revision check
+   expecting `33.` (S2, S17).
+3. S21 held: an assembly opened `readOnly:true` was dirty right after opening (its parts
+   resolved from a new folder), and `doc_close` closed it without `discard`,
+   `discardedChanges: true`, "SOLIDWORKS also closed" naming both parts.
+4. Learned: an assembly and its parts moved together into a new folder while SOLIDWORKS
+   was closed open with no load warning, the parts found beside the assembly; one
+   `doc_open` for edit and `doc_save` in place stores the new paths.
+5. Later in the same session, ~35 min after the last call: `doc_list`, `sw_status` and
+   `sw_connect` all `NOT_CONNECTED: SOLIDWORKS is running (pid 19144) but can't be
+   reached over COM`, the SOLIDWORKS this server had launched itself, not as
+   administrator. `sw_status` listed `otherServerPids: [17116]`: a second server
+   process, from another session started meanwhile on the same machine. Whether the
+   second server took the COM attachment, or SOLIDWORKS stopped answering (its process
+   at ~29 MB), the hint does not tell; it names privileges only. Proposed: when another
+   server process is listed, the hint says it may hold SOLIDWORKS.
+
+**2026-11-12: six printed and stand-in parts from sketches, a three-part subassembly redone in its own frame, and a ten-component assembly with a driven angle mate**
+
+Build `0.1.0-sw2023-20261112-091908+276d378`, SOLIDWORKS 2023 (revision 31.3.0). Written
+by the next session from the first one's transcript: the first ran out of its limit
+before writing.
+
+1. `asm_mate_add` `distance` between a component's plane and the assembly's parallel
+   plane put the component on the opposite side, twice: a profile inserted at X +75 with
+   `distanceMm: 75` landed at X -75, a side plate inserted at Z +85.2 landed at Z -85.2.
+   Each reported success, `"planes 75 mm apart"`. Workaround: `feature_delete` of the
+   mate, `asm_component_move` back, the mate again with `flip: true`; then every
+   distance mate's side read from the result's `originMm`. Reported success. No item
+   covers it. Proposed: a check that the component stayed on the side it was inserted
+   (or a signed distance), or at least the side in the `verified` line.
+2. `ref_plane` has no plane on a face: `kind: offset` with `offsetMm: 0` is refused
+   ("needs offsetMm (non-zero ...)"), `kind: angle` with `angleDeg: 0` is refused
+   ("between 0 and 180 (exclusive)"), and a sketch line as the axis of an angled plane is
+   refused ("'axis' resolved to sketch segment Line7, but this parameter needs edge or
+   axis"). So a named plane on a planar face, for mates to take in place of the face, could
+   not be made; the mates stayed on faces. Missing tool or option. No item covers it.
+3. `ref_plane` (and so `ref_axis`) in an assembly: `WRONG_DOC_TYPE: This tool needs a
+   part, but '...' is a assembly`. An assembly-level axis for a pivot could not be made;
+   the pivot was mated to a component's hole instead. Missing. Bears on S36.
+4. `sketch_constrain` with 24 steps (horizontals, verticals, linear dimensions on a
+   16-segment closed profile) passed the 50 s limit: `TIMEOUT: ... SOLIDWORKS is still
+   executing it`. It completed at ~66 s, all steps applied. Workaround: waited, did not
+   retry. Bears on S8 (one call for many steps): a batch this size needs the limit
+   raised, or the result's time.
+5. `sketch_constrain` `equal` on two lines of a rectangle: `VERIFY_FAILED: ... SOLIDWORKS
+   ignored the relation 'equal' ... no relation was added`, steps after it not run. The
+   relation was in fact added: the next call's second side dimension was refused as
+   over-defining ("SOLIDWORKS made it a driven reference dimension"), and the sketch
+   finished fully defined with one 56 dimension. Reported failure while it succeeded. No
+   item covers it.
+6. Learned: `sketch_add` merges segment ends given at the same point exactly, but a
+   line end typed to 4 decimals at an arc's computed end (3 µm off) stays open; a
+   `coincident` between `at` picks on each merged them ("points merged (9 → 8 sketch
+   points)"). A `coincident` of two `at` picks at the same already-merged point is refused
+   ("needs 2 different entities"), which is right but reads like a fault.
+7. Held: `equation_set` with an `int()` expression driving a circular pattern's count
+   (`int((Hi - Lo) / 10) + 1`) gave count 3 and read back. `equation_set` on an
+   assembly's angle mate dimension (`D1@Angle1`) drove the mate; three values of the
+   global variable each solved, with `asm_interference` 0 at each. `material_set` found
+   PETG in `Custom Materials`. `equation_delete` removed an unused global.
+
+**2026-11-12: STEP parts brought toward an existing assembly, then stopped**
+
+Build `0.1.0-sw2023-20261112-091908`, SOLIDWORKS revision 31.3.0 (`sw_connect`
+warned "untested (tested: 33.x = 2025)").
+
+1. `asm_insert` refuses a STEP: "'path' must be a .sldprt or .sldasm file, not
+   '.step'". SOLIDWORKS inserts one by 3D Interconnect, a component linked to the STEP
+   that follows it when the file changes, and an assembly made by hand held five such.
+   Missing option; no item covers it. Not needed by the job in the end.
+2. `doc_open` of a single-solid STEP written by build123d imported it as an
+   **assembly** with one virtual component (`SOLID-1`, a path to a `SOLID.sldprt` never
+   written), and reported `"solidBodies":0,"surfaceBodies":0`. `model_mass` on that
+   assembly read 234 829 mm3, a solid, so S5 (surfaces only) did not show here, but the
+   body counts in the import result read zero for an assembly import: reported as
+   success with a count that is wrong. Bears on S5's "check `solidBodies` after
+   `doc_open`" usage line: for an assembly import that check reads 0 on a good solid.
+3. The same import left an empty part `Part2` open (`model_info`: 4 features, no
+   bodies, `access: owned`), not named in `doc_open`'s result. `doc_close` of another,
+   read-only assembly then closed it with that assembly's references ("SOLIDWORKS also
+   closed: Part2, ..."), and a later `doc_close {doc:"D1"}` gave `DOC_CLOSED`. Stray
+   document from the import; S27-like, no item covers the import case.
+
+**2026-11-12: a helical screw part rebuilt from a script, mated into an assembly**
+
+Build `0.1.0-sw2023-20261112-091908`, SOLIDWORKS revision 31.3.0.
+
+1. `feature_helix` on a circle sketched on the top plane (sketch x = model +X),
+   `startAngleDeg` 0: the helix started at `[0,0,15]`, model +Z, not on the sketch's
+   +x. The result's `startMm` showed it, so this was caught; the description does not
+   say where the angle is measured from. `dimension_set` of the start angle to 90 then
+   moved it (a sweep with its profile on the plane through +X ran), but nothing reads
+   the start point back after such a change: `feature_info` on the helix gives only its
+   dimensions, and `model_measure` refuses a point by `at` ("'at' works for face, edge,
+   vertex and sketch_point"). The hand was confirmed only after the sweep, by two
+   `face_list {near}` probes on the swept face. Proposed: the description says the
+   angle's zero, and `feature_info` on a helix returns `startMm` as the create does.
+2. `feature_helix` and `feature_info` list the revolutions dimension as
+   `"D5@...","value":5527.777778,"unit":"mm"` for 5.527778 turns: a count reported in
+   mm and scaled by 1000. Reported as success. S-items on units do not name it.
+3. `feature_sweep` (merged into an existing body, the profile partly buried in it)
+   warned "The sweep's start face is 109.52 mm², but the profile sketch encloses
+   155.295 mm² (SOLIDWORKS may have used only some of its contours)". The sweep was
+   right: the 45.8 mm² missing was the part of the start face inside the existing body.
+   A false alarm on a merged sweep; worth comparing only for an unmerged one.
+4. `model.box` in every feature, `equation_set` and component result is a loose bound
+   over B-spline faces: ±30.63 for a body trimmed to Ø60, and Y -16.3 to 216.3 where
+   the real lowest and highest faces were -4 and 215 (`face_list {extreme}`). After a
+   change of global variables the box looked like a failed trim; the volume, matching
+   the reference to 0.003%, was the check that held. Proposed: the box tight
+   (`GetPartBox` with the tight option, or bodies' `GetExtremePoint`), or flagged
+   approximate.
+5. `sketch_constrain` coincident of a polygon's centre with the origin, on a face
+   sketch at 179 mm off the origin: "SOLIDWORKS ignored the relation ... no relation
+   was added". `sketch_add`'s polygon had already brought a coincident relation with it
+   (`sketch_info`: coincident 1). The error's hint names the case; one call more.
+6. What held: `sketch_constrain` (ten calls, each sketch fully defined in one),
+   `equation_set` with 15 dimension equations in one call, its `volumeMm3` and `bodies`
+   reading a three-variable change and its undo (S7's usage line met with no extra
+   `model_mass`), `feature_chamfer` with a query `{curve:'line', extreme:'+y'}`
+   `expect` 6, `ref_axis` two planes, `asm_mate_add` axis-to-axis and plane-to-plane,
+   `asm_interference` with an overlap of 17.904 mm³ that matched a hand figure exactly.
+
+**2026-11-12: a second helical part rebuilt from a script, mated on the first**
+
+Build `0.1.0-sw2023-20261112-091908`, SOLIDWORKS revision 31.3.0.
+
+1. **`equation_set` refused every equation in one SOLIDWORKS session**, reported as a
+   syntax fault: `FEATURE_FAILED: SOLIDWORKS rejected the equation "ScrewD" = 60mm. Hint:
+   Check the syntax ...`, from `EquationMgr.Add2 < 0`. It failed alike for a global
+   variable, for a bare `60`, for a dimension equation (`D1@<extrude> = 199.5mm`), on a
+   part with a body, after `doc_save` to a file, after `doc_close` and `doc_open`, and on
+   a new empty part made by `doc_new` for the test. Nine calls in all. The same build had
+   set 4 calls of equations earlier the same day in the same session (PID unchanged);
+   before the failure the session had opened one part read-only and closed it, and run
+   some hours. No dialog (`sw_status`: `uiBlocked:false`). After SOLIDWORKS was exited
+   and started again (new PID), the same 21 equations went in one call, and a five-variable
+   change and its undo ran. Workaround: the geometry built with plain values, the
+   equations set after the restart; cost the restart and ~12 calls. The hint sends the
+   caller to the syntax, where a plain `"X" = 60mm` is not the cause. Proposed: when
+   `Add2` refuses an equation of the form `"Name" = <number><unit>`, the error says the
+   syntax is valid and SOLIDWORKS refused it, and suggests a restart; or a probe on a
+   scratch equation tells the two apart. No item covers it.
+2. **`sw_connect` after a restart the owner thought was done** returned
+   `processId 22664`, the PID before, with no word that it was the same process; only
+   comparing it with `sw_status` showed SOLIDWORKS had not been exited. Proposed:
+   `sw_connect` says whether it attached to the process it last saw or a new one. Bears on
+   S16 (telling what a session runs).
+3. `sketch_add` of one hexagon (`polygon`, 6 sides) on a planar face reported
+   `"regions":2` for a single closed contour (`segments 6`); on a reference plane the
+   same call reported `regions 1`. The cut that followed took the hexagon only (volume
+   change exactly the hexagon's area times the depth). Count looks like it includes the
+   face's own boundary; reported as success, harmless here, misleading when a caller
+   checks regions before a feature.
+4. What held: `feature_helix` `height_pitch`, start 90°, `startMm [15,0,0]` on +X and the
+   end point read back at the expected 120° past it, right-hand; `feature_sweep` of a
+   ten-turn flight merged into one body with the profile 1 mm off the helix's start;
+   `face_list {near, withinMm}` probes confirming the swept face's phase at a cut plane;
+   `equation_set` with 21 rows in one call; `asm_mate_add` axis-to-axis and two
+   plane-to-plane between two floating parts; `asm_interference` reading only a known
+   overlap.
+
+**2026-11-12: a part of extrudes, chamfers and reference planes, one sketch of two splines with driven points**
+
+Build `0.1.0-sw2023-20261112-091908`.
+
+1. `sketch_constrain` with 31 steps (15 relations, symmetric pairs among them, and 16
+   dimensions from the origin to spline through-points) ran 83 s and returned `TIMEOUT`
+   at 50 s; `sw_status` then showed it `completed (after the caller gave up)`,
+   `succeeded: true`. The earlier calls of 9 to 14 steps took ~15 s, so ~1.5 to 2.7 s a
+   step, rising with the sketch's size. No item covers a batch tool's time limit. A caller
+   cannot tell beforehand that a batch will pass the limit: proposed, either a limit that
+   scales with the step count, or the description saying the rough cost per step.
+2. `sketch_constrain` `coincident` of `{name:"origin"}` with `{at:[0,0]}`, where an arc's
+   centre and a centerline's start sit at the same point: it took one of them ("point on
+   the entity"), and a step naming `{at:[0,-44.2], type:"sketch_point"}` for the arc failed
+   `ENTITY_NOT_FOUND`, since an arc's mid is not a sketch point. The sketch came out fully
+   defined (the two points had merged when drawn), so no harm; a caller cannot name an
+   arc's centre otherwise.
+3. What held: `equation_set` with `sin ( 60deg )` in an expression; `feature_chamfer`
+   equal distance on three concave edges (arc and two lines) adding material;
+   `ref_plane` offset with a negative offset; `sketch_add` of a polyline and two splines
+   meeting end to end as one closed contour.
+4. `feature_extrude` blind cut (`cut:true`, `depthMm:13`, `direction:"normal"`) from a
+   plane inside the body whose end lies outside the body (the cut runs out of a sloped
+   face before its depth): `VERIFY_FAILED` "no floor face at 13 mm along [0, 1, 0]
+   (planar faces at 0, 0 mm)", rolled back. The cut was right; with `keepOnFailure:true`
+   it stayed, its volume as figured. The floor check assumes a blind cut ends inside
+   material; proposed, accept a cut whose end cap lies wholly outside the body when the
+   volume fell. Then `feature_extrude` with `sketch` naming the consumed sketch made a
+   second feature from it (a shared sketch, a 45° draft cut), verified, which the
+   description does not say is allowed.
+
+**2026-11-12: two parts mated into a subassembly; a limit angle mate in a second configuration of the top assembly**
+Build `0.1.0-sw2023-20261112-091908+276d378`.
+
+1. `asm_component_set` has no "solve as flexible" for a subassembly component: a
+   subassembly's own free motion (a part turning about an axis inside it) cannot be
+   opened up in the assembly above from the server. Not done; left to the owner by hand.
+   Missing option, no open item seen covering it.
+2. After `feature_suppress_set` of an angle mate in the active configuration and
+   `asm_mate_add` of a limit angle mate (min 30, max 50) on the same two planes,
+   `asm_component_list` still gives the subassembly component `constrained: "fully"`
+   (`mates: 0`, its mates being on its child), and `model_review` reports no floating
+   component. A limit mate leaves one degree of freedom, so "fully" may be wrong, or may
+   be what SOLIDWORKS itself says of a limit mate; not settled in the session (the
+   owner was to drag it). Worth a live test: a component held by a limit mate only on
+   its last degree of freedom, its constrained status read against the tree's (-).
+3. What held: `asm_mate_add` of a limit angle mate, verified "angle 40°, within the
+   limits 30..50°" and the limits read back; `feature_rename` of it reported its one
+   dimension with the limits as a tolerance (40 ± 10), which tells a caller the limits
+   cannot be driven by `equation_set`. `config_add` then `feature_suppress_set
+   {configs:"this"}`: a mate added in a new configuration came already suppressed in the
+   other one (`previous: true`), as SOLIDWORKS does by default. `doc_close` of an
+   assembly closed its parts with it and said so in a warning.
+
+**2026-11-12: a feature with children replaced in a part driven by equations**
+
+Build `0.1.0-sw2023-20261112-091908+276d378`.
+
+1. `feature_delete {deleteChildren:true, deleteAbsorbed:true}` removed an extrude, its
+   sketch, a child cut on its face and a mirror of that cut, and reported `ok` with the
+   warning "'Equations' now has rebuild error 51 (swSketchErrorExtRefFail)". The seven
+   equations that drove the deleted sketches' dimensions stayed behind, dangling. The
+   dry run did not list them. Workaround: seven `equation_delete` calls, one per lhs,
+   since it takes no list. Proposal: `feature_delete` lists the equations whose lhs
+   dimension it removes (dry run too) and deletes them with an option; `equation_delete`
+   takes several lhs in one call, as `equation_set` does since S37.
+2. Lesson, held: `equation_set` with `sqr()` and `^` on mm globals
+   (`a - (b - c/2) * sqr((c/2)^2 + (d - a)^2) / (c/2)`) evaluated as plain numbers and
+   verified the driven values to 1e-6. `feature_rollback` to insert a feature mid-tree, then
+   to `end`, worked as described: the later cuts took the new boss.
+
+**2026-11-12: a part edited while an assembly the server opened held it**
+
+Build `0.1.0-sw2023-20261112-091908+276d378`.
+
+1. `doc_open` of a part the server had itself opened, saved and closed earlier in the
+   session, now loaded by an assembly the server opened (`access: owned`), returned the
+   part as `foreign` ("was already open ... the user's document ... this server won't
+   change it", `loadedBy: D61`). The next `equation_set` failed `NOT_OWNED`. Workaround:
+   `doc_activate {allowEdit:true}` (a backup made), one call. Expected: a part loaded by an
+   owned assembly, opened from the same path the server had owned, counts as owned, or
+   the message says the assembly loaded it rather than "the user's document".
+
+**2026-11-12: a part's body raised by its variables, two small parts made, two assemblies re-mated**
+
+Build `0.1.0-sw2023-20261112-091908+276d378`.
+
+1. `sketch_constrain`, 18 steps on a closed 9-line polyline and a centreline (8 horizontal/vertical/collinear, 2 coincident, 2 `symmetric` of two lines about the centreline, 6 dimensions): `TIMEOUT` at 50 s; `sw_status` showed it completed at 54.6 s, succeeded. The same tool ran 83 s earlier the same day. Calls of 14 steps without `symmetric` took a few seconds, so the two `symmetric` steps are the suspect. Two `sw_status` calls to recover. No open item covers it.
+2. Same sketch: the two `symmetric` (line, line, centreline) steps left the far ends of the second pair free: `constrained: under` until one more vertical dimension. A test dimension that would duplicate an X was refused as over-defining, so the lines' X was held and their Y was not. Lesson, or a hint: symmetric lines do not fix their endpoints along the centreline.
+3. `feature_extrude` boss, sketch on an offset plane parallel to Right (normal +X), `direction:"normal"` and then `"+x"`: `FEATURE_FAILED: SOLIDWORKS created no feature (the API returned nothing)`. `direction:"reverse"` built it at once. The +X side had the body touching the profile's edges, no overlap. Workaround: the plane moved 2 out and the boss reversed. The hint (closed profile, positive depth) did not apply. No open item covers it.
+4. `sketch_info` on a sketch of text lists each text's characters but not its position, and no tool moves a sketch text: text placed with no relation cannot be read or moved after the part's sizes change. Workaround: `feature_delete` with `deleteAbsorbed`, a new sketch, the text again (5 calls). Missing: the text's insertion point in `sketch_info`, and a move.
+5. `asm_component_list {allLevels:true}`: a rotated component's `box` is its part box transformed, not tight: min Y 285.83 where the lowest vertex, by `model_measure`, is at 290.85. Reported without a word that it is loose; a session checking a clearance from it would be 5 mm wrong. A word in the description, or a tight box.
+6. `asm_mate_add` distance, no `flip`: the component landed on the side opposite the one meant (Y -55 for +55), `ok`, "planes 55 mm apart": met again, as in the entry of 2026-11-12 on the side of a distance mate.
+7. `asm_insert` into an assembly and `doc_rebuild` of another warned "was modified outside this server since its last change (by the user?)" while the owner was not in SOLIDWORKS; both had only been changed by this server's calls on documents they load. A false alarm that reads as the owner editing.
+
+**2026-11-12: a part placed in an assembly by hand, turned and tilted, no mates**
+
+Build `0.1.0-sw2023-20261112-091908+276d378`.
+
+1. `asm_component_move` / `asm_component_list`: after a rotation off the 90° grid (7.5° about X), the component's `box` is the part's own box rotated and re-boxed, not the box of its geometry: it read max Y 295.78 while the highest face, read with `face_list {component, normal:+y}`, lay at 262.9 (a corner of the part's box that no geometry reaches). Reported `ok`, nothing says the box is loose. Workaround: place by a face from `face_list`, 1 call. Proposal: a tight box (`IBody2.GetExtremePoint` along each axis, or the body's box computed in the assembly frame), or the word "loose after rotation" in the result. No open item covers it.
+2. Worked as described, worth knowing: `asm_replace` of a fixed, unmated part by another file kept the old transform; float, `asm_component_move {absolute, rotation}`, fix took 3 calls, each read back.
+
+**2026-11-12: a printed part's walls redrawn to hang plumb in the world, through a tilted plane**
+
+Build `0.1.0-sw2023-20261112-091908+276d378`.
+
+1. `feature_extrude` boss, `direction:"0,-0.642788,0.766044"` (a vector 40° off the sketch normal), blind 55: built along the sketch normal, `directionModel:[0,0,1]`, checks `volume`, `cap at 55 mm`, no warning. The code (`ResolveDirection`) uses a vector only to pick the side by its sign against the normal; the tool's description ("a model axis like +y | x,y,z") reads as an extrude along that vector. Workaround: an angle reference plane square to the wanted direction, the profile converted onto it (`sketch_convert` of the sketch's segments, linked, fully defined), `through_all_both`, then a trim cut; 6 calls more. Proposal: refuse a direction not parallel to the normal, or extrude along it (`FeatureExtrusion3` with a direction reference), and say which in the description. No open item covers it.
+2. `sketch_constrain`, 20 steps on a closed 10-line polyline and a centreline, 3 `symmetric` (point, point, centreline) among them: `TIMEOUT` at 50 s, completed at 89.5 s, succeeded. Met again, as point 1 of the entry before (symmetric steps the suspect); 10 `sw_status` calls while waiting. An 18-step call on the next sketch with no `symmetric` (horizontals, verticals, two `collinear`, 8 dimensions) came back in a few seconds.
+3. `feature_delete ["Side wall","Wall plane","Mirror"]` with `deleteAbsorbed`: `VERIFY_FAILED: 'Side wall' still exist after the delete (removed: 'Wall plane', 'Mirror')`. The call failed but changed the model: two of the three were gone. A second call for the one left held. The `dryRun` before it, on the first two, listed `dependents: ["Mirror"]` and no word that the real call would refuse them without `deleteChildren` (it did: `INVALID_ARGUMENT`). Lesson: a failed delete may have deleted part of its list; read `removed` in the error.
+4. Worth knowing, held: `feature_mirror` warned "the copy's faces have 1.271 x the seed's area: it meets the body differently from the seed". It was right: a later boss had filled the seed counterbore on one side, so the mirror was not symmetric. The check caught a design clash nothing else reported.
+
+**2026-11-12: a printed part's tree deleted to its sketches and rebuilt as bodies combined, across two sessions**
+
+Build `0.1.0-sw2023-20261112-091908+276d378`.
+
+1. `sw_status` and `doc_activate` reported `dirty:false` for a part that carried ~2 hours of unsaved feature work from the session before (no `doc_save` in that session; a second server process listed in `otherServerPids`). The work was intact in the open document and saved by this session. A session that trusts `dirty` to decide whether to save would have closed or left it. No open item covers it.
+2. `sketch_constrain` `collinear` between a segment of the open sketch and one of another, closed sketch: `INVALID_ARGUMENT: 'collinear' needs 2 different entities; some references name the same one`, both with `{name:"Line1", sketch:"<other>", type:"sketch_segment"}` (the open sketch also had a `Line1`) and with `{at:[...], sketch:"<other>"}`. The reference with `sketch` set resolved to the open sketch's segment. Workaround: `sketch_convert` the other sketch's segment, then constrain to the converted one (3 calls more). No open item covers it.
+3. `sketch_constrain` with 3 `symmetric` steps among ~20: `TIMEOUT` at 50 s, finished at ~95 s; `sketch_info` meanwhile `BUSY`. Met again, as point 2 of the entry before.
+4. `ref_plane {kind:"angle", axis:{name:"Line2", sketch:..., type:"sketch_segment"}}`: `INVALID_ARGUMENT: 'axis' resolved to sketch segment Line2, but this parameter needs edge or axis`. SOLIDWORKS takes a sketch line as a plane's rotation axis; workaround `ref_axis {kind:"two_planes"}` first, one call more. No open item covers it.
+5. `sketch_constrain` `merge` of two coincident endpoints given by the same `at` point: refused, "needs 2 different entities"; a `coincident` of the endpoint to the other segment then `VERIFY_FAILED ... no relation was added` (the points were already merged by `sketch_add`). The sketch was fully defined by one more dimension. Lesson: endpoints a polyline was drawn onto are merged already; `sketch_info`'s relation count says so.
+6. `view_screenshot` zoom-to-fit includes reference axes: a construction axis ~150 mm from a ~100 mm part left the part ~8% of a 1870 px image. Proposal: `hideAxes` (default true, as `hidePlanes`) or fit to bodies only. No open item covers it.
+7. Held, worth knowing: `body_combine` add and subtract read back each body's volume and the overlap (`union 535043.921 = 25588.063 + 527223.352 − overlap 17767.494`); `feature_mirror` of two cuts checked 6/6 faces at their reflected positions; `asm_interference` filtered to one component came back in one call.
+
+**2026-11-12: two parts changed mid-tree: tool bodies cut from two bodies before a combine, and a through-all cut replaced by a loft**
+
+Build `0.1.0-sw2023-20261112-091908+276d378`.
+
+1. `feature_mirror {features:[two extrudes made with merge:false]}` about the Right Plane: `FEATURE_FAILED: feature_mirror: SOLIDWORKS created no feature (the API returned nothing). Hint: The mirrored copy must touch the body`. The copies were separate tool bodies, not meant to touch. There is no body mirror tool (Insert > Features > Mirror with bodies to mirror). Workaround: the other side built feature by feature, axis, two planes, two sketches, two extrudes, ~12 calls more. No open item covers it.
+2. `sketch_add` of a rectangle on a plane that cuts through an existing tool body: the rectangle came back with 1 or 2 `coincident` relations to that body's edges, though inference is said to be off while the server draws. Two later `sketch_constrain` dimensions were then refused as over-defining ("SOLIDWORKS made it a driven reference dimension; it was removed"). The sketch ended fully defined through those relations. The result of `sketch_add` does not say a relation was added; `sketch_info` showed it (`relationTypes: coincident`). No open item covers it.
+3. Renaming a new sketch to the name of a deleted one (`feature_rename`): SOLIDWORKS bound the deleted sketch's equations to the new sketch's `D1`-`D4` by name, though they meant other sizes. The result showed it only as `driven:true` on those dimensions. Proposal: `feature_rename` warns when the new name makes existing equations drive the renamed feature's dimensions, and lists them.
+4. `feature_delete {deleteChildren:true}` of a plane whose offset an equation drove: `warnings: ["'Equations' now has rebuild error 51 (swSketchErrorExtRefFail)."]`; the equation stayed, its left side renamed with the feature (`D1@<renamed plane>`), until `equation_delete`. Proposal: the dry run lists the equations that drive the features to be deleted, and the delete removes them with them, or offers to.
+5. `equation_set` on a reference plane's offset gives the volume change but not where the plane went; an offset that put the plane on the wrong side of its base passed every check, found only by a later feature's volume against a hand figure. Proposal: when an equation drives a reference plane or axis, the result gives its frame (origin, normal), as `ref_plane` does.
+6. `equation_set` with a negative offset for a plane: refused, "a value the dimension can't have, such as 0?". Right, but no tool changes an existing plane's flip; it had to be made again with its sketch. Proposal: `ref_plane` edit of `flip` on an existing plane, or the hint naming the flip.
+7. Warning `'<part>' was modified outside this server since its last change (by the user?)` came after the server's own calls and nothing by the user: after `feature_rollback` re-activated the part, after a failed `feature_mirror` that was rolled back, and after `feature_delete`. A false alarm in this session. No open item covers it.
+8. Held, worth knowing: `ref_axis {kind:"two_points", entities:[{type:"sketch_point", sketch:<closed sketch>, at:[...]} x2]}` made an axis through two points of a closed sketch, a way round point 4 of the earlier entry of the same day (a sketch segment refused as a plane's axis). `body_combine` subtract with two tools at once gave each body's overlap; `feature_loft` cut between two closed five-line sketches mapped vertex to vertex, all faces planar.
+
+**2026-11-13: an existing part edited: a section changed by a variable, a loft cut, a boss added and removed, grooves patterned**
+
+Build `bin\0.1.0-sw2023-20261112-091908`.
+
+1. `equation_set` (three globals changed) returned `volumeDeltaMm3: 32995.863`, `bodies: 1` and only `warnings: ["The rebuild reported problems; feature_list shows features with errors."]`, while three features had failed (`ICE: swSketchErrorExtRefFail` on a boss, the cut on it and a mirror), so the volume and box read as a success with the boss missing. A `model_review` call was needed to name them. Proposal: the warning names the failing features and their error, as `feature_delete`'s warning names `'Equations' ... error 51`. Reported as success, with a warning. No open item covers it.
+2. `feature_delete` of three features with `deleteAbsorbed` left the equations of their dimensions: `'Equations' now has rebuild error 51 (swSketchErrorExtRefFail)`. Cleared by six `equation_delete` calls, one each: no batch form. Proposals: `feature_delete` lists the equations that drive the deleted dimensions (and an option removes them), and `equation_delete` takes several left-hand sides in one call, as `equation_set` does.
+3. Held, worth knowing: `feature_loft` cut between two fully defined five-line sketches on parallel planes, one with a 0.05 edge standing for nothing (a loft cannot start from a point), gave the expected volume (-898 against ~-880); `sketch_mirror` of a closed four-line profile about a centreline left the sketch fully defined; `feature_pattern_linear` of a cut whose instance meets the body differently reported `volume change per instance` with a clear warning that the area differs, correct here. `equation_set` with an expression that reads another sketch's dimension (`"D4@<sketch>"`) set and verified fine.
+4. `sketch_add` of a construction line drawn from one converted corner to the opposite one (after `sketch_convert` of a face) merged its ends onto the corners without saying so; the following `sketch_constrain` `coincident` of that end with the converted line then failed `VERIFY_FAILED: SOLIDWORKS ignored the relation 'coincident' ... no relation was added`, and steps 2 to 6 were not run. The sketch was in fact fully defined after a `midpoint`. Proposal: `sketch_add` reports end points it merged onto existing points (as `sketch_constrain` reports relation counts), and the ignored-relation hint names an existing coincidence when that is the reason. Reported as a failure; no harm, one extra call.
+
+**2026-11-13: four small printed parts (a plate on a tilted seat, a sleeve, a tube, a bearing stand-in) and six components mated into an existing assembly**
+
+Build `0.1.0-sw2023-20261112-091908+276d378`.
+
+1. `asm_mate_add` `distance` between parallel planes, no `flip`: the component landed on the side opposite the one meant, twice in one assembly (Y 29.28 for 268.76, Y 142.42 for 195.62), each reported `ok`, "planes … mm apart". Met again, as in the entries of 2026-11-12 on the side of a distance mate; no item yet. The pattern held all session: unflipped puts `a` on the minus side of `b`'s normal, `flip:true` on the plus side. Workaround: `feature_delete` of the mate and the same call with `flip:true`, two extra calls each; after that, each distance mate was given its flip from the side it should land on and read back from `originMm`, all four right first time. The proposal stands: a signed distance, or the side in the `verified` line.
+2. `sketch_add` `rectangle` by corners that happened to be square (7 x 7) got an `equal` relation from SOLIDWORKS that the result did not report. The next `sketch_constrain` then failed at its last step: `VERIFY_FAILED: … would over-define the sketch (SOLIDWORKS made it a driven reference dimension)`, because the height was already tied to the width. `sketch_info` showed `relationTypes: {equal: 1}`. Workaround: `sketch_finish`, `feature_delete` of the sketch, and a `polyline` drawn not square, four extra calls. Proposal: `sketch_add` lists the relations SOLIDWORKS added to the entities it drew (a square rectangle's `equal`), or suppresses that inference as it does snapping. The error itself was clear and no harm was done.
+3. `asm_interference` with `includeCoincident:true` returned 9 touching pairs, each with volume 0, plus the warning `SOLIDWORKS counted 2 interference(s) but listed 25.` The three numbers (9, 2, 25) do not explain each other. Without `includeCoincident` it read 0, which was right. Proposal: drop the warning when every listed pair has zero volume, or say what each count is.
+4. Held, worth knowing: `feature_revolve` `cut:true` with `axis` naming a solid line of the closed profile, not a centerline, worked. It was a stepped profile on a standard plane, its axis tilted 30° (a Ø3 hole and a Ø6 counterbore along one axis): "3 face(s) coaxial with the axis [0.866, 0, 0.5]", -800.0 against ~800 by hand, and `feature_mirror` of it reflected right. A fully defined sketch on the Top Plane took 15 steps in one `sketch_constrain`, with the angle measured against a construction line from the origin.
+
+**2026-11-13 (later): a groove's overhanging side chamfered away in a part with a pattern, a hole swapped from through to blind**
+
+Build `0.1.0-sw2023-20261112-091908+276d378`.
+
+1. `feature_chamfer` `angle_distance` and `distance_distance` do not say which face takes the distance (or the angle), and `flip` is one switch for every edge in the call. Two edges in one call, the same groove's side mirrored and then patterned, took the distance on opposite faces: in the result one chamfer face stood 60° from the face meant, the other 30°. The leg check caught it: `VERIFY_FAILED … no chamfer face with legs 1/1.732051 or 0.57735/1 mm along edge E6 (found legs 1/1.085649 mm)`. Only one edge was named, though both were in the call. Workaround: one feature per edge, each with its own `flip`, found by trying. Five attempts and four deletions before a pair was right. Proposal: the result names, per edge, the face that took the distance and the angle the chamfer face makes with each adjacent face; `flip` per edge.
+2. `feature_chamfer` `distance_distance` 1.4835 / 2.2 on an edge whose one face is 1.4835 wide: `VERIFY_FAILED … (found legs 1.4835/1.550921 mm)` with and without `flip`, the face then 32° off the roof, not what either order asks. The intent (consume the 1.48 face, steep along the other) needed `angle_distance` with the distance on the narrow face. A short note in the description would save the tries: a distance equal to a face's width consumes it; give the steepness as an angle from that face.
+3. A chamfer meant to consume a face whole, its distance typed to 4 decimals (1.4835 for 1.483537), passed with `ok` and left a sliver of that face, 0.0003 mm², seen only in a later `face_list`. A typed 1 for an exact 1 consumed the face with `faceCountDelta: 0`. Driving the distance by an equation to the exact value removed the sliver. Proposal: the chamfer's check flags a face of the selected edges left with an area under, say, 0.01 mm².
+4. `feature_delete` of a feature that an earlier call had kept with `keepOnFailure` warned `'… .SLDPRT' was modified outside this server since its last change (by the user?)`, three times in a row. Nobody else touched the part; the owner was not in SolidWorks. Likely a false alarm from the kept feature. Proposal: a feature this server kept on failure counts as its own change.
+5. Held: `equation_delete` of a sketch's two driven dimensions before `feature_delete` with `deleteAbsorbed` left no equation error (the lesson of the 2026-11-12 entry, done in that order). `dimension_set` on a plain hole diameter in a part full of equations: -10.933 against -10.9 by hand.
+
+**2026-11-13: a revolved part remade as one extrude, a groove set patterned again and chamfered, parts swapped and mated in an assembly**
+
+Build `0.1.0-sw2023-20261112-091908`.
+
+1. `asm_mate_add` `distance` between two parallel planes, twice: with the alignment the earlier mates of the same kind used (`aligned` or `anti_aligned`, no `flip`), the component was solved onto the far side of the other plane, 73 mm and 5.5 mm the wrong way. Reported `ok`, correctly for the parameters given. Workaround: `feature_delete` of the mate and the same call with `flip:true`, 2 calls each time. Proposal: the result gives the signed offset of the component's plane along `b`'s normal, or the call takes a point the component should end up toward, so the side is chosen and not found by trying.
+2. `feature_chamfer` `angle_distance` on the edges of a second pattern instance, one side each: one side needed `flip:true`, the other none. The first try failed `VERIFY_FAILED: … no chamfer face with legs 1/1.732051 or 0.57735/1 mm along edge E12 (found legs 1/1.085649 mm)` and was rolled back. The check held. This was met before in the 2026-11-13 entry; it is the same here.
+3. The `feature_chamfer` that followed that rollback warned `'… .SLDPRT' was modified outside this server since its last change (by the user?)`. Nobody else was in SolidWorks; this server had only run `equation_set`, `feature_pattern_linear` and the failed chamfer. Point 4 of the previous entry meets it after a `keepOnFailure`; this case had none. Likely cause: the rolled-back feature. Proposal as there: a rollback counts as this server's own change.
+4. `asm_interference` with `includeCoincident:true` returned 10 pairs, all 0 mm³, with the warning `SOLIDWORKS counted 2 interference(s) but listed 26.` Neither 2 nor 26 matches the 10 returned. Without `includeCoincident`, count 0. Proposal: say what the two counts are and how 26 became 10.
+5. Replacing a revolve whose sketch had 6 dimensions driven by equations took 6 `equation_delete` calls for those, 2 more for the variables they used, then `feature_delete` with `deleteAbsorbed`. That is 9 calls for one feature. No equation error came of it. Proposal: `equation_delete` takes a list, or `feature_delete` offers to drop the equations of the dimensions it removes.
+6. S33, met again: four key sizes of one part (a thickness, a length, a washer, a flange) were typed again as global variables in a second part that places a groove from them. A change to one means an `equation_set` in each.
+7. Held: `asm_insert` with a 180° rotation about X read the placement back. `material_list {filter}` found the steel at once. `doc_close` of an assembly warned which of its references it closed with it.
+8. Point 3, met again with its cause narrowed: on a second round, `'… was modified outside this server since its last change (by the user?)'` came on the two `feature_chamfer` calls that each followed a `VERIFY_FAILED` rollback, and on no other call. The rollback is the trigger.
+9. Held: `doc_activate {allowEdit:true}` on three documents the owner had open as references of an open assembly; each backup was written, and the edits and `doc_save` went through with no conflict. `dimension_set` on two mates' `D1@DistanceN` moved the parts that depend on them.
+10. `feature_chamfer` `angle_distance` on the two circular end edges of a tube, in one call: `ok`, with `2 edge(s) not leg-checked (curved edge or non-planar faces)`. One end came out right and the other with its legs swapped, 1 radial and 0.577 axial. Only the volume showed it: -28.07 against -28.32 by hand, the sum of -14.16 and -13.91. `edge_list` on the feature confirmed it. This is the flip case of point 2 on curved edges, which the leg check skips, so here the server reported success on a wrong result. Proposal: on circular edges, measure the legs from the chamfer's two boundary circles (their radii and axial offset). Workaround: one chamfer per end, the second with `flip`. `feature_mirror` of the first chamfer about the mid-plane failed: `FEATURE_FAILED: … SOLIDWORKS created no feature (the API returned nothing)`.
+
+**2026-11-13: one chamfer over three edges split into two, mid-tree, in a part with 50 features**
+
+Build `0.1.0-sw2023-20261112-091908`.
+
+1. Missing: no call changes an existing chamfer's edge set or gives one edge its own distance. A distance-distance chamfer ran over three concave edges at the back of a flange, an arc and two straight ones, the flange 10 wide along the arc and 8.07 along the straight ones, so one distance (7.57) left 2.43 of flat along the arc. The fix took 7 calls: `feature_rollback` to the chamfer, `feature_delete`, two `feature_chamfer`, `equation_set`, `dimension_set`, `feature_rollback {to:'end'}`. All reported success and were right; the 42 features below the bar rebuilt with no error. Proposal: an edit of a chamfer's or fillet's edges, or per-edge distances in one `feature_chamfer`.
+2. `feature_delete` of a chamfer whose `D1` an equation drives: removed, with the warning `'Equations' now has rebuild error 51 (swSketchErrorExtRefFail)`. The equation stayed. A new `feature_chamfer` given the same `name` took it over: its result read `D1@… value 9.5, driven:true` while the equation still held the old expression (7.57), so for one call a dimension was marked driven by an equation it did not follow. `equation_set` on that lhs then reported `created:false` with the old text as `previous`, and the value held. Bears on the earlier proposal that `feature_delete` offers to drop the equations of the dimensions it removes; here keeping it was what the job wanted, so it should be a choice.
+3. The curved-edge leg check, met again (`1 edge(s) not leg-checked (curved edge or non-planar faces)`). Workaround that cost one call: make the chamfer with legs 0.1 apart (9.5 and 9.4), read the new cone face with `faceDetail:true`, `axisOriginMm` y 15.4 on an edge at y 6 and `halfAngleDeg` 45.30, which says `distance2Mm` is the axial leg, then `dimension_set` the second leg to its real value. The cone's apex height and half angle are in the result already: the server could work the two legs from them itself.
