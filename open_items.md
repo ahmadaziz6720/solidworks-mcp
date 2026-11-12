@@ -10,11 +10,11 @@ Three sections: **Open**, not yet fixed; **Waiting**, fixed and not yet settled 
 merged, a fix not yet run in a session); **Closed**, merged upstream, run and held, or
 decided against, with the record.
 
-**Open: S4, S5, S7, S10 to S12, S33, S34, S48 to S50, S52 to S65.** S48 and S49 are from the scenario
+**Open: S4, S5, S7, S10 to S12, S33, S34, S48 to S50, S52, S54 to S65.** S48 and S49 are from the scenario
 test of build `20261112-091908`, S50 to S66 from twenty working sessions on that build
-(findings 2026-11-12 and 13); S47, from that scenario test too, S51 and S66 are fixed
-and Waiting.
-Reported `ok` while wrong or misleading: S50, S52, S53, S58 (a), S60 (a), S63 (b); a
+(findings 2026-11-12 and 13); S47, from that scenario test too, S51, S53 and S66 are
+fixed and Waiting.
+Reported `ok` while wrong or misleading: S50, S52, S58 (a), S60 (a), S63 (b); a
 failure reported on a success: S56 (a).
 Next: the run planned below, every point of it decided 2026-11-13 by the owner. Not in
 it: S4, S5, S7 and S12 wait on upstream; S10, S11, S33 and S34 are parked until a job
@@ -230,17 +230,6 @@ assembly's frame), or the word "approximate" in the result and the descriptions.
 Taken into the run of 2026-11-13, no choice in it: a tight box (the bodies' extreme
 points, in the assembly's frame for a component); where it cannot be read, the box is
 marked approximate.
-
-**S53. `feature_extrude` with a `direction` vector off the sketch normal extrudes along the
-normal, reported `ok`.** On build `20261112-091908` (findings 2026-11-12, "a printed part's
-walls redrawn", point 1): `direction:"0,-0.642788,0.766044"`, 40° off the normal, built
-along the normal (`directionModel:[0,0,1]`), checks passed, no warning. `ResolveDirection`
-takes a vector only for its sign against the normal; the description ("a model axis like +y
-| x,y,z") reads as an extrude along it. Workaround: a plane square to the wanted direction
-and the profile converted onto it, 6 calls more. Local: refuse a vector not parallel to the
-normal, or extrude along it (a direction reference), and say which in the description.
-Decided 2026-11-13 by the owner: extrude along the vector (a direction reference), and the
-description says so.
 
 **S54. Equations outlive the features whose dimensions they drive, and bind by name.** On
 build `20261112-091908`, met in five sessions (findings 2026-11-12, "a feature with
@@ -841,6 +830,39 @@ and `Auxiliary_view_looks_square_onto_a_chamfer` that make chamfers, 9/9, and
 `ContractTests` (catalog, EntityRef schemas) 2/2, on 2023 SP3; unit tests 276/276;
 `--check-catalog` ok; `check_repo` ok. Local: on `sw2023`, in the commit that moves it
 here; not yet in a build. Upstream: not yet decided.
+
+**S53. `feature_extrude` with a `direction` vector off the sketch normal extrudes along the
+normal, reported `ok`.** On build `20261112-091908` (findings 2026-11-12, "a printed part's
+walls redrawn", point 1): `direction:"0,-0.642788,0.766044"`, 40° off the normal, built
+along the normal (`directionModel:[0,0,1]`), checks passed, no warning. `ResolveDirection`
+takes a vector only for its sign against the normal; the description ("a model axis like +y
+| x,y,z") reads as an extrude along it. Workaround: a plane square to the wanted direction
+and the profile converted onto it, 6 calls more. Local: refuse a vector not parallel to the
+normal, or extrude along it (a direction reference), and say which in the description.
+Decided 2026-11-13 by the owner: extrude along the vector (a direction reference), and the
+description says so. Fixed in the run of 2026-11-13. Cause: `ResolveDirection` read any axis or
+vector only for its sign against the sketch normal. Fix: a vector not parallel to the
+normal (and not in the sketch plane; at most 89° off it) is drawn as a 10 mm line in a new
+3D sketch from the sketch origin, and after the insert it is made the extrude's direction
+reference (`IExtrudeFeatureData2.SetDirectionReference`, `ModifyDefinition`); the depth
+is measured along the vector, as SOLIDWORKS does with a direction reference. The 3D
+sketch stays as the feature's parent and shows in `alsoCreated`; a rollback deletes it.
+The check: the caps are parallel to the sketch plane, at depth·cos θ from it (reported
+"cap at 10 mm" in the depth along the vector), and a point of the profile moved by the
+depth along the vector lies on a cap ("profile moved along [...]"), which an extrude along
+the normal fails. The `direction` description says a vector or axis is extruded along,
+the depth too. A vector parallel to the normal, or a model axis, works as before. New live
+test `A_direction_off_the_sketch_normal_extrudes_along_it` (a Ø10 boss on the top plane
+10 mm along [0, cos 40°, sin 40°], and a cut into a block along [0, -cos 40°, sin 40°]);
+it failed on the code before ("Expected: 0.766…, Actual: 1": `directionModel` along the
+normal). After: it passes, with `Box_extrude_…`, `Mid_plane_extrude_…`,
+`Cut_from_an_open_sketch_…`, `A_boss_buried_…` and `Concave_fillet_…` (6/6) and the
+catalog contract test (1/1, `--check-catalog` ok); unit tests 276/276; `check_repo` ok. The
+volume of the slanted boss reads 4e-5 under π·r²·h (SOLIDWORKS' mass properties of the
+slanted side); the test allows 0.05 mm³. Decided 2026-11-13 by the run, not the owner: the
+direction reference is a 3D sketch line kept in the tree, not a reference axis, because an
+axis needs two reference points or planes made first (three features, not one). Local: on
+`sw2023`, in the commit that moves it here; not yet in a build. Upstream: not yet decided.
 
 ## Closed
 

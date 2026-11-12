@@ -88,6 +88,40 @@ public class M0LiveTests(LiveFixture fx) : LiveTest(fx)
     }
 
     [Fact]
+    public async Task A_direction_off_the_sketch_normal_extrudes_along_it()
+    {
+        // S53: a Ø10 boss on the top plane (normal +y), 10 mm along [0, cos 40°, sin 40°]; it went along the normal.
+        string doc = await NewPartAsync("slanted");
+        var sk = new SketchService(S);
+        await sk.StartAsync(doc, new EntityRef { Name = "top" }, false);
+        await sk.AddAsync(doc, [new SketchEntity { Kind = "circle", Center = [0, 0], RadiusMm = 5 }]);
+        double c = Math.Cos(40 * Math.PI / 180), s = Math.Sin(40 * Math.PI / 180);
+        var r = await new FeatureService(S).ExtrudeAsync(new ExtrudeRequest
+        {
+            Doc = doc, DepthMm = 10, Direction = string.Create(System.Globalization.CultureInfo.InvariantCulture, $"0,{c},{s}"),
+        });
+        Assert.Equal(0, r.DirectionModel![0], 1e-6);
+        Assert.Equal(c, r.DirectionModel[1], 1e-6);
+        Assert.Equal(s, r.DirectionModel[2], 1e-6);
+        // An oblique cylinder: the cap is the circle moved 10 mm along the direction, 10·cos 40° above the plane.
+        Assert.Equal(Math.PI * 25 * 10 * c, r.Verified.VolumeDeltaMm3, 5e-2); // SOLIDWORKS' mass properties of the slanted side: 4e-5 off
+        Assert.Contains("cap at 10 mm", r.Verified.Checks!);
+        Assert.Contains(r.Verified.Checks!, x => x.StartsWith("profile moved along [0, 0.766, 0.643]"));
+
+        // A cut from the top face into the block, 10 mm along [0, -cos 40°, sin 40°].
+        string doc2 = await BlockAsync("slanted_cut");
+        await sk.StartAsync(doc2, new EntityRef { At = [0, 20, 0] }, false);
+        await sk.AddAsync(doc2, [new SketchEntity { Kind = "circle", Center = [0, 20, 0], RadiusMm = 5 }]);
+        var cut = await new FeatureService(S).ExtrudeAsync(new ExtrudeRequest
+        {
+            Doc = doc2, Cut = true, DepthMm = 10, Direction = string.Create(System.Globalization.CultureInfo.InvariantCulture, $"0,{-c},{s}"),
+        });
+        Assert.Equal(-Math.PI * 25 * 10 * c, cut.Verified.VolumeDeltaMm3, 5e-2);
+        Assert.Contains("floor at 10 mm", cut.Verified.Checks!);
+        Assert.Contains(cut.Verified.Checks!, x => x.StartsWith("profile moved along [0, -0.766, 0.643]"));
+    }
+
+    [Fact]
     public async Task Convex_fillet_removes_the_analytic_volume()
     {
         string doc = await BlockAsync("fillet_convex");

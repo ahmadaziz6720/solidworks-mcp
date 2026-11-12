@@ -63,8 +63,9 @@ public sealed partial class FeatureService(SwSession session)
             var origin = s2m.ApplyPoint(Vec3.Zero);
             var normal = s2m.ApplyVector(Vec3.UnitX).Cross(s2m.ApplyVector(Vec3.UnitY)).Normalized();
             var before = Snapshot.Take(d);
-            bool alongNormal = ResolveDirection(q, normal, origin, before, end);
-            var dirModel = alongNormal ? normal : -normal;
+            var (alongNormal, oblique) = ResolveDirection(q, normal, origin, before, end);
+            var capNormal = alongNormal ? normal : -normal;
+            var dirModel = oblique ?? capNormal;
             // API flag: bosses go along the sketch normal by default; cuts go against it by default.
             bool dirFlag = q.Cut ? alongNormal : !alongNormal;
 
@@ -79,6 +80,9 @@ public sealed partial class FeatureService(SwSession session)
             bool draft = q.DraftDeg is > 0;
             double draftRad = draft ? Units.Rad(q.DraftDeg!.Value) : 0;
 
+            // A direction off the normal: a 3D sketch line along it, made the extrude's direction reference (S53).
+            ISketchSegment? dirLine = oblique is Vec3 ov ? DirectionLine(d, origin, ov) : null;
+
             d.ClearSelection2(true);
             if (!sketchFeat.Select2(false, 0))
                 throw new SwException(ErrorCodes.FeatureFailed, $"Could not select sketch '{sketchFeat.Name}'.");
@@ -91,28 +95,51 @@ public sealed partial class FeatureService(SwSession session)
                     false, false, false, false, q.Merge, true, true,
                     (int)swStartConditions_e.swStartSketchPlane, 0, false);
             d.ClearSelection2(true);
+            if (dirLine is not null && api is IFeature made)
+            {
+                try { SetDirectionReference(d, made, dirLine, dirModel); }
+                catch (SwException ex) { throw new SwException(ex.Code, ex.Message + " " + FeatureVerifier.Rollback(ctx, d, before), ex.Hint, ex); }
+            }
 
+            var profile = sketch.Points().Select(sp => s2m.ApplyPoint(new Vec3(sp.X, sp.Y, sp.Z))).ToList();
             var o = FeatureVerifier.Check(ctx, d, before, q.Cut ? CutSpec : BossSpec,
-                (main, after, checks) => ExtrudeIntent(main, end, depth, origin, dirModel, q.Cut, checks),
+                (main, after, checks) => ExtrudeIntent(main, end, depth, origin, dirModel, capNormal, oblique is null ? null : profile, q.Cut, checks),
                 q.KeepOnFailure, api, q.Name);
             entry.LastSketch = null; // consumed
             Rename(ctx, o.Main, q.Name);
             return FeatureVerifier.Result(ctx, d, o, sketchFeat.Name, dirModel);
         }, RunOptions.Write(q.Doc), ct);
 
-    /// <summary>Tier B: a cap face of the new feature lies at the requested depth along the direction.</summary>
-    private static IEnumerable<string> ExtrudeIntent(IFeature main, string end, double depth, Vec3 origin, Vec3 dir, bool cut, List<string> checks)
+    /// <summary>
+    /// Tier B: a cap face of the new feature lies at the requested depth along the direction. The caps are parallel to
+    /// the sketch plane (normal <paramref name="capNormal"/>); along an oblique direction a depth d puts them d·cos θ off
+    /// it, and the profile's points moved d along the direction lie on a cap (<paramref name="profile"/>, oblique only).
+    /// </summary>
+    private static IEnumerable<string> ExtrudeIntent(IFeature main, string end, double depth, Vec3 origin, Vec3 dir, Vec3 capNormal,
+        List<Vec3>? profile, bool cut, List<string> checks)
     {
         if (end is not ("blind" or "mid_plane")) yield break;
         var expect = end == "mid_plane" ? new[] { depth / 2, -depth / 2 } : new[] { depth };
+        double cos = dir.Dot(capNormal);
         var offsets = new List<double>();
+        var caps = new List<IFace2>();
         foreach (var f in ComArgs.Objects<IFace2>((object?)main.GetFaces()))
         {
             if (Topology.SurfaceKind(f.Surface()) != "plane") continue;
             var n = f.NormalVec();
-            if (n.Length < 3 || !new Vec3(n[0], n[1], n[2]).IsParallelTo(dir, 1e-6)) continue;
+            if (n.Length < 3 || !new Vec3(n[0], n[1], n[2]).IsParallelTo(capNormal, 1e-6)) continue;
             var p = Topology.InteriorPoint(f);
-            offsets.Add((p - origin).Dot(dir));
+            offsets.Add((p - origin).Dot(capNormal) / cos); // the depth along the direction that puts a cap there
+            caps.Add(f);
+        }
+        if (profile is not null)
+        {
+            // The caps' offset alone fits the normal too (a shorter extrude); the profile moved along the direction tells.
+            var moved = expect.SelectMany(e => profile.Select(p => p + dir * e)).ToList();
+            if (moved.Count > 0 && !moved.Any(m => caps.Any(f => Topology.DistanceToFace(f, m) < 1e-6)))
+                yield return $"no cap where the profile lands moved along [{TopoQuery.Fmt(Units.Unit(dir))}]";
+            else if (moved.Count > 0)
+                checks.Add($"profile moved along [{TopoQuery.Fmt(Units.Unit(dir))}]");
         }
         // A cut whose far end leaves the body has no floor there (a hole through a plate, a pocket that opens through a
         // slanted underside). With no floor anywhere but where one was asked, that is the cut made as asked: it passes on
@@ -135,8 +162,31 @@ public sealed partial class FeatureService(SwSession session)
         }
     }
 
-    /// <summary>True when the feature goes along the sketch normal.</summary>
-    private static bool ResolveDirection(ExtrudeRequest q, Vec3 normal, Vec3 origin, Snapshot before, string end)
+    /// <summary>
+    /// Whether the feature goes to the sketch normal's side, and a direction off the normal when one was given (a vector
+    /// not parallel to it: the extrude goes along the vector, S53).
+    /// </summary>
+    private static (bool AlongNormal, Vec3? Oblique) ResolveDirection(ExtrudeRequest q, Vec3 normal, Vec3 origin, Snapshot before, string end) =>
+        Side(q, normal, origin, before) switch
+        {
+            bool b => (b, null),
+            null => Oblique(q.Direction!, normal),
+        };
+
+    private static (bool, Vec3?) Oblique(string direction, Vec3 normal)
+    {
+        var axis = TopoQuery.Axis(direction, "direction").Normalized();
+        double dot = axis.Dot(normal);
+        if (Math.Abs(dot) < 1e-6)
+            throw SwException.InvalidArgument($"direction [{TopoQuery.Fmt(Units.Unit(axis))}] lies in the sketch plane; an extrude leaves the plane along the normal [{TopoQuery.Fmt(Units.Unit(normal))}] or at an angle to it.");
+        if (Math.Abs(Math.Abs(dot) - 1) < 1e-9) return (dot > 0, null);
+        if (Math.Abs(dot) < Math.Cos(Units.Rad(89)))
+            throw SwException.InvalidArgument($"direction [{TopoQuery.Fmt(Units.Unit(axis))}] is {Units.Deg(Math.Acos(Math.Abs(dot)))}° off the sketch normal; at most 89°.");
+        return (dot > 0, axis);
+    }
+
+    /// <summary>The side for the named directions (normal, reverse, auto); null for an axis or vector.</summary>
+    private static bool? Side(ExtrudeRequest q, Vec3 normal, Vec3 origin, Snapshot before)
     {
         switch (q.Direction?.Trim().ToLowerInvariant())
         {
@@ -162,11 +212,52 @@ public sealed partial class FeatureService(SwSession session)
             case "reverse":
                 return false;
         }
-        var axis = TopoQuery.Axis(q.Direction!, "direction");
-        double dot = axis.Dot(normal);
-        if (Math.Abs(dot) < 1e-6)
-            throw SwException.InvalidArgument($"direction [{TopoQuery.Fmt(Units.Unit(axis))}] lies in the sketch plane; an extrude goes along the normal [{TopoQuery.Fmt(Units.Unit(normal))}] or against it.");
-        return dot > 0;
+        return null;
+    }
+
+    /// <summary>A 3D sketch with one line from <paramref name="from"/> along <paramref name="dir"/> (10 mm), drawn without inference.</summary>
+    private static ISketchSegment DirectionLine(IModelDoc2 d, Vec3 from, Vec3 dir)
+    {
+        var sm = d.SketchManager;
+        d.ClearSelection2(true);
+        sm.Insert3DSketch(true);
+        if (sm.ActiveSketch is not ISketch sketch)
+            throw new SwException(ErrorCodes.FeatureFailed, "SOLIDWORKS did not open a 3D sketch for the direction.");
+        bool addToDb = sm.AddToDB;
+        ISketchSegment? line;
+        try
+        {
+            sm.AddToDB = true;
+            var to = from + dir * 0.01;
+            line = sm.CreateLine(from.X, from.Y, from.Z, to.X, to.Y, to.Z);
+        }
+        finally
+        {
+            sm.AddToDB = addToDb;
+            sm.Insert3DSketch(true);
+        }
+        if (sm.ActiveSketch is not null) throw new SwException(ErrorCodes.SketchState, $"The direction sketch '{((IFeature)sketch).Name}' did not close.");
+        return line ?? throw new SwException(ErrorCodes.FeatureFailed, "Could not draw the direction line.");
+    }
+
+    /// <summary>Makes <paramref name="line"/> the extrude's direction reference, the way along <paramref name="dir"/>.</summary>
+    private static void SetDirectionReference(IModelDoc2 d, IFeature f, ISketchSegment line, Vec3 dir)
+    {
+        var data = (object?)f.GetDefinition() as IExtrudeFeatureData2
+                   ?? throw new SwException(ErrorCodes.Internal, $"'{f.Name}' has no extrude definition.");
+        if (!data.AccessSelections((ModelDoc2)d, null))
+            throw new SwException(ErrorCodes.FeatureFailed, $"SOLIDWORKS refused to open '{f.Name}' for its direction (AccessSelections).");
+        bool done = false;
+        try
+        {
+            data.SetDirectionReference(line, null);
+            done = f.ModifyDefinition(data, d, null);
+        }
+        finally
+        {
+            if (!done) data.ReleaseSelectionAccess();
+        }
+        if (!done) throw new SwException(ErrorCodes.FeatureFailed, $"SOLIDWORKS refused the direction reference on '{f.Name}' (ModifyDefinition).");
     }
 
     /// <summary>The profile sketch: the server's open sketch (closed now), the named sketch, or the last finished one.</summary>
