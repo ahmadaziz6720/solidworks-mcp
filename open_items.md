@@ -10,9 +10,12 @@ Three sections: **Open**, not yet fixed; **Waiting**, fixed and not yet settled 
 merged, a fix not yet run in a session); **Closed**, merged upstream, run and held, or
 decided against, with the record.
 
-**Open: S4, S5, S7, S10 to S12, S33, S34, S47 to S49.** S47 to S49 are from the scenario
+**Open: S4, S5, S7, S10 to S12, S33, S34, S47 to S66.** S47 to S49 are from the scenario
 test of build `20261112-091908`; S47 is a result reported `ok` that was wrong. Next: S47,
-decided 2026-11-12 by the owner; S48 and S49 not yet decided.
+decided 2026-11-12 by the owner; S48 and S49 not yet decided. S50 to S66 are from twenty
+working sessions on that build (findings 2026-11-12 and 13), not yet decided; reported
+`ok` while wrong or misleading: S50, S51 (b, c), S52, S53, S58 (a), S60 (a), S63 (b),
+S66, and a failure reported on a success, S56 (a).
 Decided 2026-11-11 by the owner, each in its item below. Every open item can be worked on
 but these: S4, S5, S7 and S12 wait on upstream; S10, S11, S33 and S34 are parked until a
 job needs them. S43 and S44 were found on build `…-064352`; their code is unchanged in
@@ -51,7 +54,8 @@ Upstream: issue #2. Usage until fixed: import by File > Open and `doc_activate`,
 a STEP round trip gave 16 surface bodies and no solid. Again in `…-235702`,
 `…-010708`, `…-014952`, `…-024431`, `…-034022`, `…-064352`, `…-091645`, `…-115800`,
 `…-134233`, `…-144220`, `20261111-140208` and `20261112-091908` (export `solids: 1`,
-import 16 surface bodies).
+import 16 surface bodies). The usage line misses one case: a STEP that comes in as an
+assembly reads `solidBodies: 0` on a good solid (S61 b); read `model_mass` there.
 
 **S7. `dimension_set` accepts a change that splits the body.** Upstream: issue #4. Usage:
 read `bodies` in the result after each `dimension_set`. A model driven by global variables
@@ -83,6 +87,8 @@ is one `equation_set` per part, and one made by hand in one part does not reach 
 (solids, surfaces, material) do not cover it. Local: link, unlink and read a document's
 external equation file, `equation_list` naming each variable's source; general, fit for a
 PR. Parked 2026-11-11 by the owner: taken up when a design of several parts needs it.
+Met 2026-11-13 (findings, "a revolved part remade", point 6): four key sizes of one part
+typed again as global variables in a second part, one `equation_set` in each per change.
 
 **S34. Reading and checking a model costs a caller listings and judgment.** From reading
 `ROADMAP.md` and the tool reference (findings 2026-11-11, first entry, points 2 to 4).
@@ -148,6 +154,230 @@ for the server's rule on foreign documents is not said anywhere, and the result 
 name the other document. Reported success, rightly. Bears on S27. Local: the component in
 the row, the assembly's volume change, and a line naming the part changed and not saved.
 Not yet decided.
+
+**S50. `asm_mate_add` `distance` puts the component on the other side, reported `ok`.**
+Met five times in four sessions on build `20261112-091908` (findings 2026-11-12, second
+entry, point 1; "a part's body raised", point 6; 2026-11-13, "four small printed parts",
+point 1; "a revolved part remade", point 1): a component inserted at X +75 with `distanceMm:
+75` to the assembly's parallel plane landed at X -75, another at Z -85.2 for +85.2, others
+at Y -55 for +55 and 73 mm and 5.5 mm the wrong way, each `ok`, "planes … mm apart".
+Right for the parameters given, but nothing in the result says the side, and a caller
+reads the success as the place it meant. The pattern held in one session: with no `flip`,
+`a` lands on the minus side of `b`'s normal, with `flip:true` on the plus side. Workaround:
+`feature_delete` of the mate and the same call with `flip:true`, two calls each time;
+then the side read from the result's `originMm`. Local, proposed by the sessions: the
+signed offset of the component's plane along `b`'s normal in the `verified` line, a warning
+when the component crossed to the other side of `b` from where it was inserted, or a point
+the component should end toward. Not yet decided.
+
+**S51. `feature_chamfer` takes the distance on whichever face, one `flip` for all edges,
+and a curved edge's legs are not checked, reported `ok`.** On build `20261112-091908`
+(findings 2026-11-13, "a groove's overhanging side", points 1 to 3; "a revolved part
+remade", points 2, 10; "one chamfer over three edges", points 1, 3). (a) `angle_distance`
+and `distance_distance` do not say which face takes the distance, and `flip` is one switch
+for the call: two edges of one groove, mirrored and patterned, took it on opposite faces.
+The leg check caught it (`VERIFY_FAILED … found legs 1/1.085649 mm`) but named one edge of
+the two; five attempts and four deletes to a right pair. (b) On circular edges the legs
+are not checked ("2 edge(s) not leg-checked (curved edge or non-planar faces)"): a tube's
+two end chamfers in one call, one with its legs swapped, came back `ok`; only the volume
+showed it (-28.07 against -28.32). The cone face's apex and half angle are in the result
+with `faceDetail`, enough to work the legs out, as a session did by hand. (c) A distance
+typed to 4 decimals at a face's width (1.4835 for 1.483537) left a sliver of 0.0003 mm²,
+`ok`. (d) Missing: no edit of a chamfer's edge set, no per-edge distance (a fix took 7
+calls with a rollback); `feature_mirror` of a chamfer failed `FEATURE_FAILED`. Usage
+until then: one chamfer per edge, each with its own `flip`; give the steepness as an angle
+from a face a distance should consume. Local: per edge, the face that took the distance and
+the chamfer face's angle to each neighbour, `flip` per edge, the legs of a curved edge from
+the cone, a warning for a selected edge's face left under ~0.01 mm². Not yet decided.
+
+**S52. The boxes in results are loose, and say nothing of it.** On build
+`20261112-091908`. (a) `model.box` in feature, `equation_set` and component results is a
+loose bound over B-spline and torus faces: ±30.63 for a body trimmed to Ø60; Y -16.3 to
+216.3 where the faces were at -4 and 215; 0.09 outside a filleted plate (findings
+2026-11-12, "a helical screw part", point 4; 2026-11-13, "a plate's two ends", point 2).
+After a change of variables the box looked like a failed trim. (b) `asm_component_list`'s
+and `asm_component_move`'s `box` for a rotated component is the part's box rotated and
+re-boxed: 5 mm low at 7.5° about X, 33 mm high in another (findings 2026-11-12, "a part's
+body raised", point 5; "a part placed in an assembly by hand", point 1). A clearance read
+from it is wrong. Workaround: `face_list {extreme}` or `{component, normal}`, or the volume.
+Local: a tight box (`GetPartBox` tight, or the bodies' `GetExtremePoint` in the
+assembly's frame), or the word "approximate" in the result and the descriptions. Not yet
+decided.
+
+**S53. `feature_extrude` with a `direction` vector off the sketch normal extrudes along the
+normal, reported `ok`.** On build `20261112-091908` (findings 2026-11-12, "a printed part's
+walls redrawn", point 1): `direction:"0,-0.642788,0.766044"`, 40° off the normal, built
+along the normal (`directionModel:[0,0,1]`), checks passed, no warning. `ResolveDirection`
+takes a vector only for its sign against the normal; the description ("a model axis like +y
+| x,y,z") reads as an extrude along it. Workaround: a plane square to the wanted direction
+and the profile converted onto it, 6 calls more. Local: refuse a vector not parallel to the
+normal, or extrude along it (a direction reference), and say which in the description. Not
+yet decided.
+
+**S54. Equations outlive the features whose dimensions they drive, and bind by name.** On
+build `20261112-091908`, met in five sessions (findings 2026-11-12, "a feature with
+children replaced", point 1; "two parts changed mid-tree", points 3, 4; 2026-11-13, "an
+existing part edited", point 2; "a revolved part remade", point 5; "one chamfer over three
+edges", point 2). (a) `feature_delete`, with `deleteChildren` and `deleteAbsorbed`, leaves
+the equations of the dimensions it removes, `ok` with "'Equations' now has rebuild error 51
+(swSketchErrorExtRefFail)"; the dry run does not list them. (b) `equation_delete` takes one
+lhs: seven calls, six, eight for one feature. (c) A new feature or sketch given a deleted
+one's name takes over its equations: `feature_rename` bound a deleted sketch's equations to
+the new sketch's `D1` to `D4`, meant for other sizes, shown only as `driven:true`; a new
+chamfer of the same name read `D1 … 9.5, driven:true` while the equation still held 7.57.
+Keeping an equation was once what the job wanted, so removal should be a choice. Local:
+the dry run and the delete list the equations on the dimensions to go, an option removes
+them, `equation_delete` takes a list as `equation_set` does since S37, and a rename or a
+new name that picks up existing equations warns and names them. Not yet decided.
+
+**S55. `sketch_constrain` passes the 50 s limit, with `symmetric` steps the suspect.** On
+build `20261112-091908`, five times (findings 2026-11-12, "six printed and stand-in parts",
+point 4; "a part of extrudes", point 1; "a part's body raised", point 1; "a printed part's
+walls", point 2; "a printed part's tree deleted", point 3): 24, 31, 18, 20 and ~20 steps
+returned `TIMEOUT` and completed at 54.6 to 95 s, all steps applied; meanwhile
+`sketch_info` was `BUSY`, and up to ten `sw_status` calls went to waiting. Calls of 14 to 18
+steps with no `symmetric` came back in seconds; those with two or three `symmetric` steps
+took 55 to 95 s. A caller cannot tell beforehand. Bears on S8 (Closed). Local: probe the
+cost of a `symmetric` step; then a limit that scales with the steps, or the cost in the
+description, or the result's time. Not yet decided.
+
+**S56. Relations SOLIDWORKS adds while drawing go unreported, and a relation it already
+has reads as refused.** On build `20261112-091908` (findings 2026-11-12, "six printed and
+stand-in parts", points 5, 6; "a helical screw part", point 5; "a part's body raised",
+point 2; "a printed part's tree deleted", point 5; "two parts changed mid-tree", point 2;
+2026-11-13, "an existing part edited", point 4; "four small printed parts", point 2). (a)
+`sketch_constrain` `equal` reported `VERIFY_FAILED: … SOLIDWORKS ignored the relation …
+no relation was added`, steps after it not run, while the relation was added: a failure
+reported on a success. (b) `sketch_add` brings relations it does not report: an `equal`
+on a rectangle drawn square, `coincident` to a body's edges on a plane through it,
+polygon centres, segment ends merged onto existing points. The next dimension is then
+refused as over-defining, or a `coincident` "ignored". Lessons the sessions left: ends a
+polyline was drawn onto are merged already, `symmetric` lines do not hold their ends along
+the centreline. Local: `sketch_add` lists the relations and merges SOLIDWORKS made on what
+it drew; the "ignored" check reads whether the relation or its equivalent now holds, and
+says so. Not yet decided.
+
+**S57. "modified outside this server … (by the user?)" after the server's own calls.** On
+build `20261112-091908`, six sessions, the owner out of SOLIDWORKS each time (findings
+2026-11-12, "a part's body raised", point 7; "two parts changed mid-tree", point 7;
+2026-11-13, "a groove's overhanging side", point 4; "a revolved part remade", points 3, 8;
+"a plate's two ends", point 4). It came on the call after a `VERIFY_FAILED` rollback, a
+`keepOnFailure`, a `FEATURE_FAILED` with no feature, a `feature_rollback`, and on an
+assembly changed only through documents it loads. A false alarm that reads as the owner
+editing. Local: a rollback, a kept or failed feature and a change through a loaded
+document count as the server's own. Not yet decided.
+
+**S58. `equation_set` results that mislead.** On build `20261112-091908`. (a) Three globals
+changed, three features failed (`swSketchErrorExtRefFail` on a boss, the cut on it, a
+mirror); the result gave `volumeDeltaMm3`, `bodies: 1` and only "The rebuild reported
+problems; feature_list shows features with errors", so it read as a success with the boss
+missing (findings 2026-11-13, "an existing part edited", point 1). (b) In one SOLIDWORKS
+session every equation was refused, `"X" = 60mm` and dimension equations alike, on a new
+empty part too, with a hint to check the syntax; after a restart the same 21 went in one
+call (findings 2026-11-12, "a second helical part", point 1). Nine calls and a restart.
+(c) An equation on a reference plane's offset gives the volume change, not where the plane
+went; one on the wrong side of its base passed every check (findings 2026-11-12, "two parts
+changed mid-tree", point 5). Local: (a) the warning names each failing feature and its
+error; (b) when SOLIDWORKS refuses a plain `"Name" = <number><unit>`, say the syntax is
+valid and suggest a restart, or tell the two apart on a scratch equation; (c) a driven
+plane's or axis's frame in the result. Not yet decided.
+
+**S59. Reference geometry that cannot be made.** On build `20261112-091908`. (a) No plane
+on a planar face: `ref_plane` `offset` 0 and `angle` 0 are refused (findings 2026-11-12,
+"six printed and stand-in parts", point 2). (b) `ref_plane` and `ref_axis` in an assembly:
+`WRONG_DOC_TYPE` (same entry, point 3; bears on S36). (c) A sketch line as the axis of an
+`angle` plane is refused, "needs edge or axis", which SOLIDWORKS takes (same entry, point
+2; "a printed part's tree deleted", point 4); way round: `ref_axis` `two_planes` or
+`two_points` first (findings 2026-11-12, "two parts changed mid-tree", point 8). (d) No
+change of an existing plane's `flip`; a plane made on the wrong side is made again with its
+sketch (same entry, point 6). Missing options. Not yet decided.
+
+**S60. What a session cannot tell about the process it runs on.** On build
+`20261112-091908`. (a) `sw_status` and `doc_activate` gave `dirty:false` for a part
+holding ~2 hours of unsaved work from the session before, a second server process listed
+in `otherServerPids` (findings 2026-11-12, "a printed part's tree deleted", point 1): a
+session trusting it would have left the work unsaved. (b) `NOT_CONNECTED: SOLIDWORKS is
+running … but can't be reached over COM`, with another server process listed, the hint
+naming privileges only (findings 2026-11-12, "a two-part assembly", point 5). (c) `sw_connect` after a restart that had not happened gave
+the same PID with no word (findings 2026-11-12, "a second helical part", point 2; bears on
+S16). (d) `sw_connect` warns "revision 31.3.0 is untested (tested: 33.x = 2025)" on a
+build made and tested on 2023 (findings 2026-11-12, "a two-part assembly", point 2); the
+same check as M0's live test that expects `33.` (S2, S17). Local: (a) probe how `dirty`
+is read and whether another process's changes hide it; (b) the hint names the other server
+process; (c) "same process as before" or "a new one"; (d) the fork's tested revision is
+31.x. Not yet decided.
+
+**S61. A STEP into an assembly.** On build `20261112-091908` (findings 2026-11-12, "STEP
+parts brought toward an existing assembly"). (a) `asm_insert` refuses a STEP; SOLIDWORKS
+inserts one by 3D Interconnect, linked to the file. (b) `doc_open` of a single-solid STEP
+came in as an assembly of one virtual component, reported `solidBodies: 0, surfaceBodies:
+0`, while `model_mass` read a solid: the body counts are wrong for an assembly import, and
+S5's usage line ("check `solidBodies`") reads 0 on a good solid. (c) The import left an
+empty `Part2` open, unnamed in the result, later closed with another assembly. Bears on
+S5. Not needed by that job. Not yet decided.
+
+**S62. Assembly reading and options.** On build `20261112-091908`. (a) `asm_mate_list`
+gives each entity `{component, kind: "plane"}` with no name, face id or point, so which
+plane or face a mate takes cannot be told (findings 2026-11-12, "a two-part assembly",
+point 1; bears on S36). (b) No "solve as flexible" for a subassembly in
+`asm_component_set` (findings 2026-11-12, "two parts mated into a subassembly", point 1).
+(c) A subassembly component held by a limit angle mate reads `constrained: "fully"` and
+`model_review` names no floating component; whether SOLIDWORKS says the same is not
+settled (same entry, point 2). To probe live first. (d) `doc_open` of a part the server
+had owned, now loaded by an assembly the server opened, returned it `foreign`, "the user's
+document", and `equation_set` failed `NOT_OWNED`; `doc_activate {allowEdit:true}` got past
+it (findings 2026-11-12, "a part edited while an assembly the server opened held it";
+bears on S27 and S49 b). (e) `asm_interference` with `includeCoincident:true`: 9 or 10
+pairs of 0 mm³ with "SOLIDWORKS counted 2 interference(s) but listed 25" (or 26); the
+three numbers do not explain each other (findings 2026-11-13, "four small printed parts",
+point 3; "a revolved part remade", point 4). Not yet decided.
+
+**S63. `feature_helix`: where its start is, and its turns in mm.** On build
+`20261112-091908` (findings 2026-11-12, "a helical screw part", points 1, 2). (a)
+`startAngleDeg` 0 on a top-plane circle started at model +Z, not the sketch's +x; the
+description does not say where the angle's zero is, and after a `dimension_set` of it
+nothing reads the start back (`feature_info` gives dimensions only; `model_measure` takes
+no point by `at`). (b) The revolutions dimension reads `"value": 5527.777778, "unit":
+"mm"` for 5.527778 turns, in `feature_helix` and `feature_info`: a count reported in mm
+and ×1000, `ok`. Local: the zero in the description, `startMm` in `feature_info`, the count
+without a length unit. Not yet decided.
+
+**S64. Feature calls refused, failed or counted wrong, with hints that miss.** On build
+`20261112-091908`. (a) A blind cut from a plane inside the body whose end lies outside it
+was refused, "no floor face at 13 mm … (planar faces at 0, 0 mm)", while right; kept with
+`keepOnFailure` (findings 2026-11-12, "a part of extrudes", point 4; bears on S40, whose
+fix passes a cut with no floor face at all). The same point: a second feature from a
+consumed sketch worked, which the description does not say. (b) `feature_extrude` boss
+toward +X from an offset plane failed `FEATURE_FAILED` (nothing created), `reverse` built
+at once; the hint did not apply ("a part's body raised", point 3). (c) `feature_fillet`
+and `feature_chamfer` of 1 mm over a tangent chain failed five times, `FEATURE_FAILED`,
+the hint "a radius too large" on faces 7 and 10 wide; 0.5 went through (2026-11-13, "a
+plate's two ends", point 1). Proposed: retry per edge and name the one that fails. (d)
+`feature_delete` of three named features failed `VERIFY_FAILED` after removing two of
+them, and the dry run had not said the call would need `deleteChildren` ("a printed part's
+walls", point 3): a failure that changed the model. (e) `sketch_constrain` with a
+reference `{name:"Line1", sketch:"<other>"}` resolved to the open sketch's `Line1` ("a
+printed part's tree deleted", point 2). (f) `sketch_add` of one hexagon on a planar face
+reported `regions: 2`, on a plane 1 ("a second helical part", point 3). (g)
+`feature_sweep` merged into a body warned that the start face (109.52 mm²) is smaller than
+the profile (155.295), the difference inside the existing body: a false alarm on a merged
+sweep ("a helical screw part", point 3). Not yet decided.
+
+**S65. Missing options met while modelling.** On build `20261112-091908`. (a) No body
+mirror: `feature_mirror` of two extrudes made `merge:false` failed "the mirrored copy must
+touch the body"; ~12 calls to build the other side (findings 2026-11-12, "two parts
+changed mid-tree", point 1). (b) A sketch text's position is not in `sketch_info` and no
+tool moves it ("a part's body raised", point 4). (c) An arc's centre cannot be named as a
+reference where another point sits on it ("a part of extrudes", point 2). (d)
+`view_screenshot` fits to reference axes too: a part 8% of the image ("a printed part's
+tree deleted", point 6); proposed `hideAxes` as `hidePlanes`. Not yet decided.
+
+**S66. A stale edge id resolves to another edge, reported `ok`.** On build
+`20261112-091908` (findings 2026-11-13, "a plate's two ends", point 3): after a fillet
+changed the edges, `feature_fillet {edges:[{id:"E25"}]}` with an id from the listing
+before it filleted another, short edge, `ok`, -0.666; `edge_list` after named the meant
+edges E28 to E31. Local: an id read before a topology change is refused, or the result
+says the ids were renumbered. Not yet decided.
 
 ## Waiting
 

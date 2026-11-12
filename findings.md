@@ -1238,6 +1238,8 @@ Build `0.1.0-sw2023-20261112-091908+276d378`, SOLIDWORKS 2023 (revision 31.3.0).
    at ~29 MB), the hint does not tell; it names privileges only. Proposed: when another
    server process is listed, the hint says it may hold SOLIDWORKS.
 
+Sorted into S62 new (1); S60 new (2, 5). Held: S21 (3). Not filed (4): a lesson.
+
 **2026-11-12: six printed and stand-in parts from sketches, a three-part subassembly redone in its own frame, and a ten-component assembly with a driven angle mate**
 
 Build `0.1.0-sw2023-20261112-091908+276d378`, SOLIDWORKS 2023 (revision 31.3.0). Written
@@ -1283,6 +1285,8 @@ before writing.
    global variable each solved, with `asm_interference` 0 at each. `material_set` found
    PETG in `Custom Materials`. `equation_delete` removed an unused global.
 
+Sorted into S50 new (1); S59 new (2, 3); S55 new (4); S56 new (5, 6). Held (7).
+
 **2026-11-12: STEP parts brought toward an existing assembly, then stopped**
 
 Build `0.1.0-sw2023-20261112-091908`, SOLIDWORKS revision 31.3.0 (`sw_connect`
@@ -1304,6 +1308,8 @@ warned "untested (tested: 33.x = 2025)").
    read-only assembly then closed it with that assembly's references ("SOLIDWORKS also
    closed: Part2, ..."), and a later `doc_close {doc:"D1"}` gave `DOC_CLOSED`. Stray
    document from the import; S27-like, no item covers the import case.
+
+Sorted into S61 new (1 to 3), and a line in S5 (2).
 
 **2026-11-12: a helical screw part rebuilt from a script, mated into an assembly**
 
@@ -1345,6 +1351,8 @@ Build `0.1.0-sw2023-20261112-091908`, SOLIDWORKS revision 31.3.0.
    `expect` 6, `ref_axis` two planes, `asm_mate_add` axis-to-axis and plane-to-plane,
    `asm_interference` with an overlap of 17.904 mm³ that matched a hand figure exactly.
 
+Sorted into S63 new (1, 2); S64 new (3); S52 new (4); S56 (5). Held (6).
+
 **2026-11-12: a second helical part rebuilt from a script, mated on the first**
 
 Build `0.1.0-sw2023-20261112-091908`, SOLIDWORKS revision 31.3.0.
@@ -1384,6 +1392,8 @@ Build `0.1.0-sw2023-20261112-091908`, SOLIDWORKS revision 31.3.0.
    plane-to-plane between two floating parts; `asm_interference` reading only a known
    overlap.
 
+Sorted into S58 new (1); S60 (2); S64 (3). Held (4).
+
 **2026-11-12: a part of extrudes, chamfers and reference planes, one sketch of two splines with driven points**
 
 Build `0.1.0-sw2023-20261112-091908`.
@@ -1415,6 +1425,8 @@ Build `0.1.0-sw2023-20261112-091908`.
    second feature from it (a shared sketch, a 45° draft cut), verified, which the
    description does not say is allowed.
 
+Sorted into S55 (1); S65 new (2); S64 (4). Held (3).
+
 **2026-11-12: two parts mated into a subassembly; a limit angle mate in a second configuration of the top assembly**
 Build `0.1.0-sw2023-20261112-091908+276d378`.
 
@@ -1438,6 +1450,8 @@ Build `0.1.0-sw2023-20261112-091908+276d378`.
    other one (`previous: true`), as SOLIDWORKS does by default. `doc_close` of an
    assembly closed its parts with it and said so in a warning.
 
+Sorted into S62 (1, 2). Held (3).
+
 **2026-11-12: a feature with children replaced in a part driven by equations**
 
 Build `0.1.0-sw2023-20261112-091908+276d378`.
@@ -1455,6 +1469,8 @@ Build `0.1.0-sw2023-20261112-091908+276d378`.
    verified the driven values to 1e-6. `feature_rollback` to insert a feature mid-tree, then
    to `end`, worked as described: the later cuts took the new boss.
 
+Sorted into S54 new (1). Held (2).
+
 **2026-11-12: a part edited while an assembly the server opened held it**
 
 Build `0.1.0-sw2023-20261112-091908+276d378`.
@@ -1466,6 +1482,8 @@ Build `0.1.0-sw2023-20261112-091908+276d378`.
    `doc_activate {allowEdit:true}` (a backup made), one call. Expected: a part loaded by an
    owned assembly, opened from the same path the server had owned, counts as owned, or
    the message says the assembly loaded it rather than "the user's document".
+
+Sorted into S62 (1).
 
 **2026-11-12: a part's body raised by its variables, two small parts made, two assemblies re-mated**
 
@@ -1479,12 +1497,16 @@ Build `0.1.0-sw2023-20261112-091908+276d378`.
 6. `asm_mate_add` distance, no `flip`: the component landed on the side opposite the one meant (Y -55 for +55), `ok`, "planes 55 mm apart": met again, as in the entry of 2026-11-12 on the side of a distance mate.
 7. `asm_insert` into an assembly and `doc_rebuild` of another warned "was modified outside this server since its last change (by the user?)" while the owner was not in SOLIDWORKS; both had only been changed by this server's calls on documents they load. A false alarm that reads as the owner editing.
 
+Sorted into S55 (1); S56 (2); S64 (3); S65 (4); S52 (5); S50 (6); S57 new (7).
+
 **2026-11-12: a part placed in an assembly by hand, turned and tilted, no mates**
 
 Build `0.1.0-sw2023-20261112-091908+276d378`.
 
 1. `asm_component_move` / `asm_component_list`: after a rotation off the 90° grid (7.5° about X), the component's `box` is the part's own box rotated and re-boxed, not the box of its geometry: it read max Y 295.78 while the highest face, read with `face_list {component, normal:+y}`, lay at 262.9 (a corner of the part's box that no geometry reaches). Reported `ok`, nothing says the box is loose. Workaround: place by a face from `face_list`, 1 call. Proposal: a tight box (`IBody2.GetExtremePoint` along each axis, or the body's box computed in the assembly frame), or the word "loose after rotation" in the result. No open item covers it.
 2. Worked as described, worth knowing: `asm_replace` of a fixed, unmated part by another file kept the old transform; float, `asm_component_move {absolute, rotation}`, fix took 3 calls, each read back.
+
+Sorted into S52 (1). Held (2).
 
 **2026-11-12: a printed part's walls redrawn to hang plumb in the world, through a tilted plane**
 
@@ -1494,6 +1516,8 @@ Build `0.1.0-sw2023-20261112-091908+276d378`.
 2. `sketch_constrain`, 20 steps on a closed 10-line polyline and a centreline, 3 `symmetric` (point, point, centreline) among them: `TIMEOUT` at 50 s, completed at 89.5 s, succeeded. Met again, as point 1 of the entry before (symmetric steps the suspect); 10 `sw_status` calls while waiting. An 18-step call on the next sketch with no `symmetric` (horizontals, verticals, two `collinear`, 8 dimensions) came back in a few seconds.
 3. `feature_delete ["Side wall","Wall plane","Mirror"]` with `deleteAbsorbed`: `VERIFY_FAILED: 'Side wall' still exist after the delete (removed: 'Wall plane', 'Mirror')`. The call failed but changed the model: two of the three were gone. A second call for the one left held. The `dryRun` before it, on the first two, listed `dependents: ["Mirror"]` and no word that the real call would refuse them without `deleteChildren` (it did: `INVALID_ARGUMENT`). Lesson: a failed delete may have deleted part of its list; read `removed` in the error.
 4. Worth knowing, held: `feature_mirror` warned "the copy's faces have 1.271 x the seed's area: it meets the body differently from the seed". It was right: a later boss had filled the seed counterbore on one side, so the mirror was not symmetric. The check caught a design clash nothing else reported.
+
+Sorted into S53 new (1); S55 (2); S64 (3). Held (4).
 
 **2026-11-12: a printed part's tree deleted to its sketches and rebuilt as bodies combined, across two sessions**
 
@@ -1506,6 +1530,8 @@ Build `0.1.0-sw2023-20261112-091908+276d378`.
 5. `sketch_constrain` `merge` of two coincident endpoints given by the same `at` point: refused, "needs 2 different entities"; a `coincident` of the endpoint to the other segment then `VERIFY_FAILED ... no relation was added` (the points were already merged by `sketch_add`). The sketch was fully defined by one more dimension. Lesson: endpoints a polyline was drawn onto are merged already; `sketch_info`'s relation count says so.
 6. `view_screenshot` zoom-to-fit includes reference axes: a construction axis ~150 mm from a ~100 mm part left the part ~8% of a 1870 px image. Proposal: `hideAxes` (default true, as `hidePlanes`) or fit to bodies only. No open item covers it.
 7. Held, worth knowing: `body_combine` add and subtract read back each body's volume and the overlap (`union 535043.921 = 25588.063 + 527223.352 − overlap 17767.494`); `feature_mirror` of two cuts checked 6/6 faces at their reflected positions; `asm_interference` filtered to one component came back in one call.
+
+Sorted into S60 (1); S64 (2); S55 (3); S59 (4); S56 (5); S65 (6). Held (7).
 
 **2026-11-12: two parts changed mid-tree: tool bodies cut from two bodies before a combine, and a through-all cut replaced by a loft**
 
@@ -1520,6 +1546,8 @@ Build `0.1.0-sw2023-20261112-091908+276d378`.
 7. Warning `'<part>' was modified outside this server since its last change (by the user?)` came after the server's own calls and nothing by the user: after `feature_rollback` re-activated the part, after a failed `feature_mirror` that was rolled back, and after `feature_delete`. A false alarm in this session. No open item covers it.
 8. Held, worth knowing: `ref_axis {kind:"two_points", entities:[{type:"sketch_point", sketch:<closed sketch>, at:[...]} x2]}` made an axis through two points of a closed sketch, a way round point 4 of the earlier entry of the same day (a sketch segment refused as a plane's axis). `body_combine` subtract with two tools at once gave each body's overlap; `feature_loft` cut between two closed five-line sketches mapped vertex to vertex, all faces planar.
 
+Sorted into S65 (1); S56 (2); S54 (3, 4); S58 (5); S59 (6, 8); S57 (7).
+
 **2026-11-13: an existing part edited: a section changed by a variable, a loft cut, a boss added and removed, grooves patterned**
 
 Build `bin\0.1.0-sw2023-20261112-091908`.
@@ -1528,6 +1556,8 @@ Build `bin\0.1.0-sw2023-20261112-091908`.
 2. `feature_delete` of three features with `deleteAbsorbed` left the equations of their dimensions: `'Equations' now has rebuild error 51 (swSketchErrorExtRefFail)`. Cleared by six `equation_delete` calls, one each: no batch form. Proposals: `feature_delete` lists the equations that drive the deleted dimensions (and an option removes them), and `equation_delete` takes several left-hand sides in one call, as `equation_set` does.
 3. Held, worth knowing: `feature_loft` cut between two fully defined five-line sketches on parallel planes, one with a 0.05 edge standing for nothing (a loft cannot start from a point), gave the expected volume (-898 against ~-880); `sketch_mirror` of a closed four-line profile about a centreline left the sketch fully defined; `feature_pattern_linear` of a cut whose instance meets the body differently reported `volume change per instance` with a clear warning that the area differs, correct here. `equation_set` with an expression that reads another sketch's dimension (`"D4@<sketch>"`) set and verified fine.
 4. `sketch_add` of a construction line drawn from one converted corner to the opposite one (after `sketch_convert` of a face) merged its ends onto the corners without saying so; the following `sketch_constrain` `coincident` of that end with the converted line then failed `VERIFY_FAILED: SOLIDWORKS ignored the relation 'coincident' ... no relation was added`, and steps 2 to 6 were not run. The sketch was in fact fully defined after a `midpoint`. Proposal: `sketch_add` reports end points it merged onto existing points (as `sketch_constrain` reports relation counts), and the ignored-relation hint names an existing coincidence when that is the reason. Reported as a failure; no harm, one extra call.
+
+Sorted into S58 (1); S54 (2); S56 (4). Held (3).
 
 **2026-11-13: four small printed parts (a plate on a tilted seat, a sleeve, a tube, a bearing stand-in) and six components mated into an existing assembly**
 
@@ -1538,6 +1568,8 @@ Build `0.1.0-sw2023-20261112-091908+276d378`.
 3. `asm_interference` with `includeCoincident:true` returned 9 touching pairs, each with volume 0, plus the warning `SOLIDWORKS counted 2 interference(s) but listed 25.` The three numbers (9, 2, 25) do not explain each other. Without `includeCoincident` it read 0, which was right. Proposal: drop the warning when every listed pair has zero volume, or say what each count is.
 4. Held, worth knowing: `feature_revolve` `cut:true` with `axis` naming a solid line of the closed profile, not a centerline, worked. It was a stepped profile on a standard plane, its axis tilted 30° (a Ø3 hole and a Ø6 counterbore along one axis): "3 face(s) coaxial with the axis [0.866, 0, 0.5]", -800.0 against ~800 by hand, and `feature_mirror` of it reflected right. A fully defined sketch on the Top Plane took 15 steps in one `sketch_constrain`, with the angle measured against a construction line from the origin.
 
+Sorted into S50 (1); S56 (2); S62 (3). Held (4).
+
 **2026-11-13 (later): a groove's overhanging side chamfered away in a part with a pattern, a hole swapped from through to blind**
 
 Build `0.1.0-sw2023-20261112-091908+276d378`.
@@ -1547,6 +1579,8 @@ Build `0.1.0-sw2023-20261112-091908+276d378`.
 3. A chamfer meant to consume a face whole, its distance typed to 4 decimals (1.4835 for 1.483537), passed with `ok` and left a sliver of that face, 0.0003 mm², seen only in a later `face_list`. A typed 1 for an exact 1 consumed the face with `faceCountDelta: 0`. Driving the distance by an equation to the exact value removed the sliver. Proposal: the chamfer's check flags a face of the selected edges left with an area under, say, 0.01 mm².
 4. `feature_delete` of a feature that an earlier call had kept with `keepOnFailure` warned `'… .SLDPRT' was modified outside this server since its last change (by the user?)`, three times in a row. Nobody else touched the part; the owner was not in SolidWorks. Likely a false alarm from the kept feature. Proposal: a feature this server kept on failure counts as its own change.
 5. Held: `equation_delete` of a sketch's two driven dimensions before `feature_delete` with `deleteAbsorbed` left no equation error (the lesson of the 2026-11-12 entry, done in that order). `dimension_set` on a plain hole diameter in a part full of equations: -10.933 against -10.9 by hand.
+
+Sorted into S51 new (1 to 3); S57 (4). Held (5).
 
 **2026-11-13: a revolved part remade as one extrude, a groove set patterned again and chamfered, parts swapped and mated in an assembly**
 
@@ -1563,6 +1597,9 @@ Build `0.1.0-sw2023-20261112-091908`.
 9. Held: `doc_activate {allowEdit:true}` on three documents the owner had open as references of an open assembly; each backup was written, and the edits and `doc_save` went through with no conflict. `dimension_set` on two mates' `D1@DistanceN` moved the parts that depend on them.
 10. `feature_chamfer` `angle_distance` on the two circular end edges of a tube, in one call: `ok`, with `2 edge(s) not leg-checked (curved edge or non-planar faces)`. One end came out right and the other with its legs swapped, 1 radial and 0.577 axial. Only the volume showed it: -28.07 against -28.32 by hand, the sum of -14.16 and -13.91. `edge_list` on the feature confirmed it. This is the flip case of point 2 on curved edges, which the leg check skips, so here the server reported success on a wrong result. Proposal: on circular edges, measure the legs from the chamfer's two boundary circles (their radii and axial offset). Workaround: one chamfer per end, the second with `flip`. `feature_mirror` of the first chamfer about the mid-plane failed: `FEATURE_FAILED: … SOLIDWORKS created no feature (the API returned nothing)`.
 
+Sorted into S50 (1); S51 (2, 10); S57 (3, 8); S62 (4); S54 (5); S33, met again (6). Held
+(7, 9).
+
 **2026-11-13: one chamfer over three edges split into two, mid-tree, in a part with 50 features**
 
 Build `0.1.0-sw2023-20261112-091908`.
@@ -1570,6 +1607,8 @@ Build `0.1.0-sw2023-20261112-091908`.
 1. Missing: no call changes an existing chamfer's edge set or gives one edge its own distance. A distance-distance chamfer ran over three concave edges at the back of a flange, an arc and two straight ones, the flange 10 wide along the arc and 8.07 along the straight ones, so one distance (7.57) left 2.43 of flat along the arc. The fix took 7 calls: `feature_rollback` to the chamfer, `feature_delete`, two `feature_chamfer`, `equation_set`, `dimension_set`, `feature_rollback {to:'end'}`. All reported success and were right; the 42 features below the bar rebuilt with no error. Proposal: an edit of a chamfer's or fillet's edges, or per-edge distances in one `feature_chamfer`.
 2. `feature_delete` of a chamfer whose `D1` an equation drives: removed, with the warning `'Equations' now has rebuild error 51 (swSketchErrorExtRefFail)`. The equation stayed. A new `feature_chamfer` given the same `name` took it over: its result read `D1@… value 9.5, driven:true` while the equation still held the old expression (7.57), so for one call a dimension was marked driven by an equation it did not follow. `equation_set` on that lhs then reported `created:false` with the old text as `previous`, and the value held. Bears on the earlier proposal that `feature_delete` offers to drop the equations of the dimensions it removes; here keeping it was what the job wanted, so it should be a choice.
 3. The curved-edge leg check, met again (`1 edge(s) not leg-checked (curved edge or non-planar faces)`). Workaround that cost one call: make the chamfer with legs 0.1 apart (9.5 and 9.4), read the new cone face with `faceDetail:true`, `axisOriginMm` y 15.4 on an edge at y 6 and `halfAngleDeg` 45.30, which says `distance2Mm` is the axial leg, then `dimension_set` the second leg to its real value. The cone's apex height and half angle are in the result already: the server could work the two legs from them itself.
+
+Sorted into S51 (1, 3); S54 (2).
 
 **2026-11-13: a plate's two ends cut to a quarter round through its thickness, mirrored, and its top edges rounded**
 
@@ -1580,3 +1619,5 @@ Build `0.1.0-sw2023-20261112-091908`.
 3. A stale edge id: after a fillet changed the edges, a second `feature_fillet {edges:[{id:"E25"}]}`, an id from the listing before it, resolved to another, short edge and filleted it (`ok`, -0.666). `edge_list` after showed the round edges as E28 to E31. Proposal: an id from before a topology change is refused, or the result says the ids were renumbered.
 4. The `modified outside this server` warning, met again: it came on each call that followed a `FEATURE_FAILED` with no feature made, as it does after a `VERIFY_FAILED` rollback.
 5. Held: `equation_set` with `equations`, three driven dimensions and then two variables, each one rebuild with the volume in the result; `feature_mirror` of a revolved cut and an extruded cut together, `3/3` faces reflected; `feature_delete` of the two fillets in one call.
+
+Sorted into S64 (1); S52 (2); S66 new (3); S57 (4). Held (5).
