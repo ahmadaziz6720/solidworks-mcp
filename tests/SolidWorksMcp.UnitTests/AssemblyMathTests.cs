@@ -184,6 +184,27 @@ public class AssemblyMateIntentTests
     }
 
     [Fact]
+    public void A_distance_mate_s_side_is_the_signed_offset_and_a_crossing_is_warned()
+    {
+        // S50: b the assembly's right plane (normal +x); a component's right plane inserted at x +75, solved at -75 or +75.
+        var b = Plane(Vec3.Zero, Vec3.UnitX);
+        var a0 = Plane(new Vec3(0.075, 0, 0), Vec3.UnitX);
+        var crossed = AsmMateIntent.Side(a0, b, Plane(new Vec3(-0.075, 0.01, 0), Vec3.UnitX), b, "a", "b")!.Value;
+        Assert.Equal("a at -75 mm along the normal of b [1, 0, 0]", crossed.Line);
+        Assert.Contains("other side", crossed.Warning);
+        var stayed = AsmMateIntent.Side(a0, b, Plane(new Vec3(0.075, 0, 0.02), -Vec3.UnitX), b, "a", "b")!.Value;
+        Assert.Equal("a at 75 mm along the normal of b [1, 0, 0]", stayed.Line);
+        Assert.Null(stayed.Warning);
+        // Inserted on b (0 mm): no side to keep, nothing warned.
+        Assert.Null(AsmMateIntent.Side(Plane(Vec3.Zero, Vec3.UnitX), b, Plane(new Vec3(-0.075, 0, 0), Vec3.UnitX), b, "a", "b")!.Value.Warning);
+        // A plane and a point the other way round: the point's offset along the plane's normal.
+        Assert.Equal("b at -5 mm along the normal of a [0, 1, 0]",
+            AsmMateIntent.Side(Plane(Vec3.Zero, Vec3.UnitY), Point(new Vec3(0, -0.005, 0)), Plane(Vec3.Zero, Vec3.UnitY), Point(new Vec3(0, -0.005, 0)), "a", "b")!.Value.Line);
+        // Two axes: no plane, no side.
+        Assert.Null(AsmMateIntent.Side(Line(Vec3.Zero, Vec3.UnitX), Line(Vec3.UnitY, Vec3.UnitX), Line(Vec3.Zero, Vec3.UnitX), Line(Vec3.UnitY, Vec3.UnitX), "a", "b"));
+    }
+
+    [Fact]
     public void Concentric_needs_coinciding_axes()
     {
         var shaft = Cyl(new Vec3(0, 0.007, 0), -Vec3.UnitY, 0.005);

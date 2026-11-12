@@ -531,6 +531,8 @@ public sealed partial class AssemblyService(SwSession session)
         var rawBefore = RawTransforms(asm);
         Frame? fa0 = a.Comp is null ? null : FrameOf(ctx, a.Comp);
         Frame? fb0 = b.Comp is null ? null : FrameOf(ctx, b.Comp);
+        AsmGeo? ga0 = typeName == "distance" ? Safe<AsmGeo?>(() => ToAsm(ctx, a), null) : null;
+        AsmGeo? gb0 = typeName == "distance" ? Safe<AsmGeo?>(() => ToAsm(ctx, b), null) : null;
         var before = Mates(d).Select(m => m.Name).ToHashSet(StringComparer.OrdinalIgnoreCase);
 
         d.ClearSelection2(true);
@@ -612,6 +614,13 @@ public sealed partial class AssemblyService(SwSession session)
                         ? LockIntent(ctx, a, b, fa0, fb0, checks)
                         : MateIntent(ctx, typeName, a, b, mc, md, mp, spec, main, checks);
                     if (problems.Count > 0) problem = string.Join("; ", problems);
+                    else if (ga0 is AsmGeo a0 && gb0 is AsmGeo b0 &&
+                             AsmMateIntent.Side(a0, b0, ToAsm(ctx, a), ToAsm(ctx, b), $"a ({a.Label})", $"b ({b.Label})") is { } side)
+                    {
+                        // The mate is right either side; which side it took is the caller's to judge (S50).
+                        checks.Add(side.Line);
+                        if (side.Warning is not null) ctx.Warn(side.Warning);
+                    }
                 }
             }
         }

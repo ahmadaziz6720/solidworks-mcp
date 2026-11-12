@@ -379,6 +379,38 @@ public class AssemblyLiveTests(LiveFixture fx) : LiveTest(fx)
     // ------------------------------------------------------------------ asm_mate_add / asm_mate_list
 
     [Fact]
+    public async Task A_distance_mate_says_which_side_the_component_landed_on()
+    {
+        // S50: a cube inserted at x +75, its right plane 75 mm from the assembly's, could land at x -75, reported ok. The
+        // result now gives the signed offset along b's normal, and warns when the component crossed b; flip as given.
+        var a = await CubeAsync("sideA");
+        var b = await CubeAsync("sideB");
+        var c = await CubeAsync("sideC");
+        string asm = await NewAssemblyAsync("asm_side");
+        await InsertAsync(asm, a.Path, [0, 0, 0]);
+        string nb = (await InsertAsync(asm, b.Path, [75, 0, 0])).Component.Name;
+        string nc = (await InsertAsync(asm, c.Path, [0, 0, 40])).Component.Name;
+        foreach (var (name, plane, axis, mm, flip) in new[] { (nb, "right", 0, 75.0, false), (nc, "front", 2, 40.0, true) })
+        {
+            var m = await Asm.MateAddAsync(new AsmMateRequest
+            {
+                Doc = asm, Type = "distance", A = Plane(name, plane), B = new EntityRef { Name = plane }, DistanceMm = mm, Flip = flip,
+            });
+            double at = m.Components.Single(x => x.Name == name).OriginMm![axis];
+            Assert.Equal(mm, Math.Abs(at), P);
+            var side = Assert.Single(m.Verified, v => v.Contains("mm along"));
+            // The offset is signed along b's normal as read, printed with it: offset × normal is where the component is.
+            var g = System.Text.RegularExpressions.Regex.Match(side, @"at (-?[\d.]+) mm along the normal of b .*\[(-?[\d.]+), (-?[\d.]+), (-?[\d.]+)\]");
+            Assert.True(g.Success, side);
+            double offset = double.Parse(g.Groups[1].Value, System.Globalization.CultureInfo.InvariantCulture);
+            double n = double.Parse(g.Groups[2 + axis].Value, System.Globalization.CultureInfo.InvariantCulture);
+            Assert.True(Math.Abs(offset * n - at) <= P, $"{side}; component at {at} mm");
+            // Inserted on the + side of the axis: warned exactly when it landed on the − side.
+            Assert.Equal(at < 0, m.Warnings?.Any(w => w.Contains("other side")) == true);
+        }
+    }
+
+    [Fact]
     public async Task Plane_mates_coincident_and_distance_reproduce_the_4000_mm3_overlap()
     {
         var a = await CubeAsync("mateA");

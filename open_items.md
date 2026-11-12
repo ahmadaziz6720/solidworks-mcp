@@ -10,11 +10,11 @@ Three sections: **Open**, not yet fixed; **Waiting**, fixed and not yet settled 
 merged, a fix not yet run in a session); **Closed**, merged upstream, run and held, or
 decided against, with the record.
 
-**Open: S4, S5, S7, S10 to S12, S33, S34, S48 to S50, S54 to S65.** S48 and S49 are from the scenario
+**Open: S4, S5, S7, S10 to S12, S33, S34, S48, S49, S54 to S65.** S48 and S49 are from the scenario
 test of build `20261112-091908`, S50 to S66 from twenty working sessions on that build
-(findings 2026-11-12 and 13); S47, from that scenario test too, S51 to S53 and S66 are
+(findings 2026-11-12 and 13); S47, from that scenario test too, S50 to S53 and S66 are
 fixed and Waiting.
-Reported `ok` while wrong or misleading: S50, S58 (a), S60 (a), S63 (b); a
+Reported `ok` while wrong or misleading: S58 (a), S60 (a), S63 (b); a
 failure reported on a success: S56 (a).
 Next: the run planned below, every point of it decided 2026-11-13 by the owner. Not in
 it: S4, S5, S7 and S12 wait on upstream; S10, S11, S33 and S34 are parked until a job
@@ -196,24 +196,6 @@ for the server's rule on foreign documents is not said anywhere, and the result 
 name the other document. Reported success, rightly. Bears on S27. Local: the component in
 the row, the assembly's volume change, and a line naming the part changed and not saved.
 Taken into the run of 2026-11-13 as proposed, no choice in it.
-
-**S50. `asm_mate_add` `distance` puts the component on the other side, reported `ok`.**
-Met five times in four sessions on build `20261112-091908` (findings 2026-11-12, second
-entry, point 1; "a part's body raised", point 6; 2026-11-13, "four small printed parts",
-point 1; "a revolved part remade", point 1): a component inserted at X +75 with `distanceMm:
-75` to the assembly's parallel plane landed at X -75, another at Z -85.2 for +85.2, others
-at Y -55 for +55 and 73 mm and 5.5 mm the wrong way, each `ok`, "planes … mm apart".
-Right for the parameters given, but nothing in the result says the side, and a caller
-reads the success as the place it meant. The pattern held in one session: with no `flip`,
-`a` lands on the minus side of `b`'s normal, with `flip:true` on the plus side. Workaround:
-`feature_delete` of the mate and the same call with `flip:true`, two calls each time;
-then the side read from the result's `originMm`. Local, proposed by the sessions: the
-signed offset of the component's plane along `b`'s normal in the `verified` line, a warning
-when the component crossed to the other side of `b` from where it was inserted, or a point
-the component should end toward. Taken into the run of 2026-11-13, no choice in it: the
-signed offset of the component's plane along `b`'s normal in the `verified` line, and a
-warning when the component crossed `b` from the side it was inserted on; the mate itself
-is not changed.
 
 **S54. Equations outlive the features whose dimensions they drive, and bind by name.** On
 build `20261112-091908`, met in five sessions (findings 2026-11-12, "a feature with
@@ -889,6 +871,46 @@ top chain rounded R0.5; an elliptic cylinder; `model_info`'s box too) and
 description changed: the `approximate` field speaks for itself); `check_repo` ok. Local:
 on `sw2023`, in the commit that moves it here; not yet in a build. Upstream: not yet
 decided.
+
+**S50. `asm_mate_add` `distance` puts the component on the other side, reported `ok`.**
+Met five times in four sessions on build `20261112-091908` (findings 2026-11-12, second
+entry, point 1; "a part's body raised", point 6; 2026-11-13, "four small printed parts",
+point 1; "a revolved part remade", point 1): a component inserted at X +75 with `distanceMm:
+75` to the assembly's parallel plane landed at X -75, another at Z -85.2 for +85.2, others
+at Y -55 for +55 and 73 mm and 5.5 mm the wrong way, each `ok`, "planes … mm apart".
+Right for the parameters given, but nothing in the result says the side, and a caller
+reads the success as the place it meant. The pattern held in one session: with no `flip`,
+`a` lands on the minus side of `b`'s normal, with `flip:true` on the plus side. Workaround:
+`feature_delete` of the mate and the same call with `flip:true`, two calls each time;
+then the side read from the result's `originMm`. Local, proposed by the sessions: the
+signed offset of the component's plane along `b`'s normal in the `verified` line, a warning
+when the component crossed to the other side of `b` from where it was inserted, or a point
+the component should end toward. Taken into the run of 2026-11-13, no choice in it: the
+signed offset of the component's plane along `b`'s normal in the `verified` line, and a
+warning when the component crossed `b` from the side it was inserted on; the mate itself
+is not changed. Fixed in the run of 2026-11-13. Cause: the check measured the distance
+between the planes unsigned ("planes 75 mm apart"), so either side passed and nothing said
+which. Fix: for a distance mate (limit distance too) the geometry of `a` and `b` is read
+before the mate as well, and `AsmMateIntent.Side` adds a `verified` line with the signed
+offset of `a`'s plane (or point) along `b`'s plane normal, the normal printed with it ("a
+(plane 'Right Plane' of …) at 75 mm along the normal of b (plane 'Right Plane') [-1, 0, 0]";
+with `b` a point and `a` a plane, `b`'s offset along `a`'s normal), and a warning when the
+sign changed from before the mate: "The distance mate put a (…) on the other side of b (…):
+-75 mm along its normal before, 75 mm after. If it should stay on the side it was on,
+delete the mate and add it again with flip the other way." The mate is not changed. Seen in
+the test: the assembly's Right Plane reads its normal as [-1, 0, 0] here, which is why the
+normal is printed with the offset. New live test
+`A_distance_mate_says_which_side_the_component_landed_on` (a cube inserted at x +75, its
+right plane 75 mm from the assembly's, no flip; another at z +40 to the front plane with
+flip: the offset times the printed normal is where each landed, warned exactly when it
+crossed; the first did cross, as the sessions met it) and a unit test
+`A_distance_mate_s_side_is_the_signed_offset_and_a_crossing_is_warned`. On the code before
+the live test failed: no `verified` line with the side (`["Distance1 (distance) created and
+solved without errors", "planes 75 mm apart"]`). After: it passes, with
+`Plane_mates_coincident_and_distance_…`, `Limit_distance_and_symmetric_mates_…` and
+`New_mate_types_without_their_entities_…` (4/4); unit tests 277/277; `--check-catalog` ok
+(no description changed); `check_repo` ok. Local: on `sw2023`, in the commit that moves it
+here; not yet in a build. Upstream: not yet decided.
 
 ## Closed
 

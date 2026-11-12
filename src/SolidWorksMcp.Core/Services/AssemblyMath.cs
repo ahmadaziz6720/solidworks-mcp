@@ -278,6 +278,31 @@ internal static class AsmMateIntent
         return problems;
     }
 
+    /// <summary>
+    /// The side a distance mate put <paramref name="a1"/> on (S50): its signed offset along the normal of the plane
+    /// <paramref name="b1"/> (a plane or a point of a; or, with b a point and a a plane, b's offset along a's normal), as a
+    /// check line; and a warning when that sign is not the one before the mate (<paramref name="a0"/>, <paramref name="b0"/>):
+    /// the component crossed to the other side. Null for geometry without a plane.
+    /// </summary>
+    public static (string Line, string? Warning)? Side(AsmGeo a0, AsmGeo b0, AsmGeo a1, AsmGeo b1, string aLabel, string bLabel)
+    {
+        double? Offset(AsmGeo a, AsmGeo b) =>
+            IsPlane(b) && (IsPlane(a) || IsPoint(a)) ? AsmMath.PointToPlane(b.P, b.D, a.P)
+            : IsPlane(a) && IsPoint(b) ? AsmMath.PointToPlane(a.P, a.D, b.P) : null;
+        if (Offset(a1, b1) is not double now) return null;
+        bool alongB = IsPlane(b1);
+        string what = alongB ? $"{aLabel} at {Mm(now)} mm along the normal of {bLabel} [{Dir(b1.D)}]"
+            : $"{bLabel} at {Mm(now)} mm along the normal of {aLabel} [{Dir(a1.D)}]";
+        string? warn = null;
+        if (Offset(a0, b0) is double was && Math.Abs(was) > PosTol && Math.Abs(now) > PosTol && Math.Sign(was) != Math.Sign(now))
+            warn = $"The distance mate put {(alongB ? aLabel : bLabel)} on the other side of {(alongB ? bLabel : aLabel)}: {Mm(was)} mm along its " +
+                   $"normal before, {Mm(now)} mm after. If it should stay on the side it was on, delete the mate and add it again with flip " +
+                   "the other way.";
+        return (what, warn);
+    }
+
+    private static string Dir(Vec3 v) => string.Join(", ", new[] { v.X, v.Y, v.Z }.Select(x => (Math.Round(x, 3) + 0.0).ToString("0.###", CultureInfo.InvariantCulture)));
+
     /// <summary>The distance or angle between two entities as a distance or angle mate measures it, when that is clear.</summary>
     public static double? Measure(string type, AsmGeo a, AsmGeo b)
     {
