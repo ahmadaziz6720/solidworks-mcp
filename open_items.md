@@ -20,20 +20,17 @@ test does not fail there is closed instead.
 **Order of work** (the owner, 2026-11-11): modelling first, the largest code first, then
 the small ones; drawings after; the release last.
 
-1. Modelling, large: S37, S42, S41, S45, S40 and S38 are done (Waiting, on `sw2023`, in
-   no build yet).
-2. Modelling, smaller: S43, S18, S31, S44, S39, S27 and S35 are done (Waiting); S30
-   too (Waiting, 2026-11-12). S6's wording is pushed to PR #6 (2026-11-12).
-3. Drawings: S14, S24, S32 and S13 are done (Waiting, on `sw2023`, in no build yet).
-4. Release: S46's line in `CLAUDE.md` step 4 (done, Waiting), then a build as that file
-   says, every project registered, and the opening sentence for the scenario test. A build may come
-   earlier, after a group, when the owner asks. Before it: `docs/tools.md` regenerated
-   (`solidworks-mcp --tools-md docs\tools.md`), since `equation_set`, the pattern
-   tools, `sketch_dimension_add` and the 37 tools with `faceDetail` changed their
-   descriptions or parameters and the file was left as it was; and the live tests of
-   the areas touched in full (Properties, SketchEdit, PartFeature, Modelling, Assembly,
-   and since group 3 and S30 Drawing and Configuration), of which only the tests that call
-   the changed code were run.
+1. Modelling, large: S37, S42, S41, S45, S40 and S38 are done (Waiting, in build
+   `20261112-091908`).
+2. Modelling, smaller: S43, S18, S31, S44, S39, S27, S35 and S30 are done (Waiting, in
+   that build). S6's wording is pushed to PR #6 (2026-11-12).
+3. Drawings: S14, S24, S32 and S13 are done (Waiting, in that build).
+4. Release: done 2026-11-12, build `20261112-091908` (`276d378`), registered in both
+   projects (S46, closed). Before it: `docs/tools.md` regenerated (`b7c4811`), the live
+   tests of Properties, Configuration, SketchEdit, PartFeature, Modelling, Assembly and
+   Drawing in full, 229 of 229, unit tests 276 of 276. Next: the scenario test, in two
+   sessions in the owner's project (modelling; drawing and assembly, the assembly mated by
+   the owner between them).
 
 ---
 
@@ -151,8 +148,8 @@ drawing, the hint naming the three edit tools; in a part an undo took back a bos
 extrude. In a part again in `…-014952`, `…-024431`, `…-034022`, `…-064352`, `…-091645` and `20261111-140208`.
 
 **S6. `sketch_dimension_add` angular refused the acute angle at a shared vertex.** Local:
-`18cbc57` on `sw2023`. The supplement is kept when `textAt` lies in its sector, and the value
-set after it is checked against the supplement. New live test fails without the fix;
+`18cbc57` on `sw2023`. The supplement is kept when `textAt` lies in its sector, and the
+value set after it is checked against the supplement. New live test fails without the fix;
 `SketchEditLiveTests` 58/58 on 2023 SP3. Held in the scenario test of build `…-181555`.
 Upstream: PR #6 (branch `fix/angular-supplement`, `dce4afe`, "Fixes #3"). Second part, the
 scenario entry's point 2: without `textAt`, a value that lands in the angle across the
@@ -162,26 +159,26 @@ on `sw2023`; on `fix/angular-supplement` as `ec2c32b`, pushed to PR #6. New live
 fails without it; `SketchEditLiveTests` 59/59 on 2023 SP3. Held in the scenario test of
 build `…-195750`, in a real sketch and in the bare two-line repro (one extra call over a
 sketch made with `textAt` from the start). Left open from that test, local and small, for
-PR #6 too: the hint and the accepted call's check name the acute angle by its current
-size (`To set the 7.5° angle` when 10° was asked), which reads like a value to use; say
-"the angle that is now 7.5°". Done in `f1d5fb8` on `sw2023`, the hint and the check, each
+PR #6 too: the hint and the accepted call's check name the acute angle by its current size
+(`To set the 7.5° angle` when 10° was asked), which reads like a value to use; say "the
+angle that is now 7.5°". Done in `f1d5fb8` on `sw2023`, the hint and the check, each
 asserted in the live test of the hint; in build `20261111-140208`. Not yet on
 `fix/angular-supplement`: a push there joins PR #6, the owner's call. Held in the scenario
 test of build `20261111-140208` (findings 2026-11-11, point 2): the hint reads "To set the
 angle that is now 7.500423°", and its `textAt` was accepted. One wording left from it,
 small: the accepted call's check says "the angle that is now 7.500423°, not on the one
 between the rays, now 172.499577°" in a result where they are 10° and 170°; "was" fits a
-result (the hint, given before any change, keeps "now"). Closes when that wording is in
-PR #6 and it is merged or refused. Decided 2026-11-11 by the owner: fix that wording on
+result (the hint, given before any change, keeps "now"). Closes when that wording is in PR
+#6 and it is merged or refused. Decided 2026-11-11 by the owner: fix that wording on
 `sw2023`, then push it with `f1d5fb8`'s change to `fix/angular-supplement`, joining PR #6.
 Fixed in `48d111f` on `sw2023`: the accepted call's check says "the angle that was
 7.500423°, not on the one between the rays, then 172.499577°"; the hint keeps "now". The
 live test of the hint asserts it; the 33 angle tests passed. Both commits cherry-picked
 clean onto `fix/angular-supplement` (`aa59f21`, `434d9e8`, in its worktree), not pushed
-yet: the push joins PR #6.
-Pushed 2026-11-12 on the owner's word: `fix/angular-supplement` at `434d9e8` joins PR #6,
-after the four angular live tests passed on it on 2023 SP3 (the interop patch on top,
-uncommitted); the PR's body has a section on the two commits.
+yet: the push joins PR #6. Pushed 2026-11-12 on the owner's word: `fix/angular-supplement`
+at `434d9e8` joins PR #6, after the four angular live tests passed on it on 2023 SP3 (the
+interop patch on top, uncommitted); the PR's body has a section on the two commits. In
+build `20261112-091908`.
 
 **S20. `drw_dimension_add` returned some dimensions without a value check, silently.** In the
 scenario test of build `…-204719`, 9 of 23: every one with a circular edge in it (a line to
@@ -349,38 +346,39 @@ equation of 0 and at a changed one, the equations and the volume as before each 
 the second fails without (d), no exception thrown. With the two older equation tests 4/4
 on 2023 SP3, Contract 7/7, unit tests 259/259. To check in the scenario test: a part of
 global variables set up in one call, its call count against the 83, and `bodies` after a
-change that splits it. Upstream: a PR not yet decided.
+change that splits it. Upstream: a PR not yet decided. In build `20261112-091908`.
 
-**S42. `sketch_dimension_add` angular could solve to the mirrored shape and report the angle matched.**
-In two printed parts on build `…-064352` (findings 2026-11-11, third entry, point 4): two
-lines meeting at a vertex 130° apart, 50° asked, `textAt` inside the wedge: one line went
-to the mirrored solution, the result read `value reads back 50°, geometry measures 50°`,
-only the `changed` list showed it, and the sketch went `fully` defined in the wrong shape.
-Bears on S6, whose fix keeps the supplement by `textAt` and checks the value, not the
-shape. Workaround: delete and redraw the line, dimension the angle the rays really make
-first, the distances after. Usage (point 5): `sketch_relation_add` `merge` of a free
-line's end onto a point held by relations moves the free line whole, and a second merge
-pulled the shape back into the mirrored solution; redraw at the held points' exact
-coordinates instead of merging onto them. Decided 2026-11-11 by the owner: a warning, not
-a refusal, since it can be what the caller meant. Fixed in `ef2eddd` on `sw2023`, in
-`sketch_dimension_add`, `sketch_relation_add` and each step of `sketch_constrain`
-(the warning starts "Step n:"). Found live first: the solver does not turn a line round
-here. With one line held horizontal and the other fixed the angle is refused as
-over-defining; with freedom left, a line turns by the 80° between 130° and 50°, which is
-the mirrored shape and no reversal. So three signs, one warning each: (a) an angular
-dimension set to within 0.5° of the angle the lines already made across the vertex, while
-it sits on the one between the rays: the warning names both angles, the lines that
-turned and a `textAt` inside the other angle; (b) a line turned by more than 90°, or an
-arc that bends the other way, after a dimension or a relation; (c) for a linear
+**S42. `sketch_dimension_add` angular could solve to the mirrored shape and report the
+angle matched.** In two printed parts on build `…-064352` (findings 2026-11-11, third
+entry, point 4): two lines meeting at a vertex 130° apart, 50° asked, `textAt` inside the
+wedge: one line went to the mirrored solution, the result read `value reads back 50°,
+geometry measures 50°`, only the `changed` list showed it, and the sketch went `fully`
+defined in the wrong shape. Bears on S6, whose fix keeps the supplement by `textAt` and
+checks the value, not the shape. Workaround: delete and redraw the line, dimension the
+angle the rays really make first, the distances after. Usage (point 5):
+`sketch_relation_add` `merge` of a free line's end onto a point held by relations moves
+the free line whole, and a second merge pulled the shape back into the mirrored solution;
+redraw at the held points' exact coordinates instead of merging onto them. Decided
+2026-11-11 by the owner: a warning, not a refusal, since it can be what the caller meant.
+Fixed in `ef2eddd` on `sw2023`, in `sketch_dimension_add`, `sketch_relation_add` and each
+step of `sketch_constrain` (the warning starts "Step n:"). Found live first: the solver
+does not turn a line round here. With one line held horizontal and the other fixed the
+angle is refused as over-defining; with freedom left, a line turns by the 80° between 130°
+and 50°, which is the mirrored shape and no reversal. So three signs, one warning each:
+(a) an angular dimension set to within 0.5° of the angle the lines already made across the
+vertex, while it sits on the one between the rays: the warning names both angles, the
+lines that turned and a `textAt` inside the other angle; (b) a line turned by more than
+90°, or an arc that bends the other way, after a dimension or a relation; (c) for a linear
 dimension, a segment's end moved more than twice what the value changed by, over 1 % of
 the sketch's extent. Three new live tests, each asserting a warning the tools did not
-give: the 130° wedge by the single tool and as step 2 of `sketch_constrain`; a line
-turned round by a horizontal dimension and by a `coincident` relation; a point on a line
-rising 80° moved 28.8 mm by 5 mm of horizontal distance; and no warning for a dimension
-that only moves what it measures. `SketchEditLiveTests` 66/66 on 2023 SP3. (c) also fires
-for a point that slides along a line steeper than 60° to the dimension, where the move
-is right: a warning the owner may find noise. To check in the scenario test: the wedge
-of point 4 warns, and a fully defined sketch of the test part gives no warning.
+give: the 130° wedge by the single tool and as step 2 of `sketch_constrain`; a line turned
+round by a horizontal dimension and by a `coincident` relation; a point on a line rising
+80° moved 28.8 mm by 5 mm of horizontal distance; and no warning for a dimension that only
+moves what it measures. `SketchEditLiveTests` 66/66 on 2023 SP3. (c) also fires for a
+point that slides along a line steeper than 60° to the dimension, where the move is right:
+a warning the owner may find noise. To check in the scenario test: the wedge of point 4
+warns, and a fully defined sketch of the test part gives no warning. In build
+`20261112-091908`.
 
 **S41. `feature_pattern_linear` `direction2` ignored its sign, reported `ok`.** In two
 printed parts on build `…-064352` (findings 2026-11-11, third entry, point 2): a 2 x 2
@@ -407,25 +405,25 @@ fail without it (a 3 x 2 grid toward `-z` from z = 20: 2 of 5 instances' volume;
 pattern along a chamfer's slanted edge toward `-x`: `not parallel to edge E2`). The
 twelve linear pattern tests of the part and three of the assembly pass on 2023 SP3. To
 check in the scenario test: a 2 x 2 pattern whose second direction SOLIDWORKS runs the
-wrong way by itself.
+wrong way by itself. In build `20261112-091908`.
 
 **S45. Feature results listed every new face in full.** In two printed parts on build
 `…-064352` (findings 2026-11-11, third entry, point 11): `feature_extrude`,
 `feature_mirror` and `feature_fillet` listed up to twelve new faces each, 2 to 4k
 characters, read for one id or none. Same kind as S22 (Closed), whose fix did not cover
-faces. Decided 2026-11-11 by the owner: a short list by default (each face's id and
-kind), the full detail by a flag. Fixed in `cbd79a7` on `sw2023`: `newFaces` is
-`[{id, surface}]` unless `faceDetail:true`, which gives each face as before (area, pick
-point, normal or axis, radius). In the 37 tools whose result carries `newFaces`: the
-feature tools, the body and surface tools, `face_edit` and the sheet-metal flanges,
-hem and bend; the server guide says so. The services still return every face in full
-and the cut is made where the result is written, so nothing a tool checks changed. A
-unit test of the two forms and a live test (a boss's three faces as a tool returns them,
-its cap's id from the short list taking the next sketch); the short form is the new
-behaviour, so neither is a test that fails without a fault. Unit tests 260/260,
-Contract 7/7; `tools/list` 242.4 to 246.5 KB for the new parameter. To check in the
-scenario test: the characters of a `feature_extrude`, a `feature_mirror` and a
-`feature_fillet` result against 2 to 4k, and one call with `faceDetail:true`.
+faces. Decided 2026-11-11 by the owner: a short list by default (each face's id and kind),
+the full detail by a flag. Fixed in `cbd79a7` on `sw2023`: `newFaces` is `[{id, surface}]`
+unless `faceDetail:true`, which gives each face as before (area, pick point, normal or
+axis, radius). In the 37 tools whose result carries `newFaces`: the feature tools, the
+body and surface tools, `face_edit` and the sheet-metal flanges, hem and bend; the server
+guide says so. The services still return every face in full and the cut is made where the
+result is written, so nothing a tool checks changed. A unit test of the two forms and a
+live test (a boss's three faces as a tool returns them, its cap's id from the short list
+taking the next sketch); the short form is the new behaviour, so neither is a test that
+fails without a fault. Unit tests 260/260, Contract 7/7; `tools/list` 242.4 to 246.5 KB
+for the new parameter. To check in the scenario test: the characters of a
+`feature_extrude`, a `feature_mirror` and a `feature_fillet` result against 2 to 4k, and
+one call with `faceDetail:true`. In build `20261112-091908`.
 
 **S40. A blind cut whose far end leaves the body was refused, though SOLIDWORKS made it.**
 In two printed parts on build `…-064352` (findings 2026-11-11, third entry, point 1): a
@@ -437,105 +435,106 @@ path `name` was not applied (`Cut-Extrude2` kept), one `feature_rename` more. De
 2026-11-11 by the owner: the cut passes on its volume with a check line, and `name` is
 applied on the `keepOnFailure` path; `upToFace` / `through next` parked. Fixed in
 `c1d3bc5` on `sw2023`. (a) A cut with no floor face at all passes on the volume it
-removed, with the check "no floor at 30 mm: the cut broke out of the body before its
-end" and the depth dimension's name; a cut with a floor at another depth than asked is
-still refused, and so is a boss with no cap. (b) A feature kept by `keepOnFailure` takes
-the call's `name`, and the error ends "The result was kept as '<name>' (keepOnFailure)";
-in `feature_extrude` only, the other feature tools keep SOLIDWORKS' name on that path.
-New live test (a blind cut 30 deep in a 20 mm block, its volume the hole's; a 5 mm
-pocket still showing "floor at 5 mm"; a boss inside the body kept as `Inner`) fails
-without it (`no floor face at 30 mm along [0, -1, 0]`). With the Modelling live tests
-10/10 on 2023 SP3. Not run: a pocket that opens through a slanted face on one side
-only, where part of a floor may be left at the asked depth (then it reads as a floor,
-with no line). To check in the scenario test: a blind hole deeper than its plate.
+removed, with the check "no floor at 30 mm: the cut broke out of the body before its end"
+and the depth dimension's name; a cut with a floor at another depth than asked is still
+refused, and so is a boss with no cap. (b) A feature kept by `keepOnFailure` takes the
+call's `name`, and the error ends "The result was kept as '<name>' (keepOnFailure)"; in
+`feature_extrude` only, the other feature tools keep SOLIDWORKS' name on that path. New
+live test (a blind cut 30 deep in a 20 mm block, its volume the hole's; a 5 mm pocket
+still showing "floor at 5 mm"; a boss inside the body kept as `Inner`) fails without it
+(`no floor face at 30 mm along [0, -1, 0]`). With the Modelling live tests 10/10 on 2023
+SP3. Not run: a pocket that opens through a slanted face on one side only, where part of a
+floor may be left at the asked depth (then it reads as a floor, with no line). To check in
+the scenario test: a blind hole deeper than its plate. In build `20261112-091908`.
 
 **S38. `feature_hole` leaves its placement sketch under-defined, unreported.** In the same
 part (point 4): the result names the hole's own sketch dimensions but not the placement
-sketch or its status; only `model_review` showed it, as `info`
-(`sketch_under_defined`), and a pattern of the hole rests on a point that can move.
-Workaround, 5 calls: `sketch_edit`, one `sketch_constrain` (horizontal and vertical from
-the origin, `fully`), `sketch_finish`, two `equation_set`. Local: return the placement
-sketch's name and constrained status, an option to dimension each point from the origin;
-perhaps `model_review` ranks an under-defined sketch as a warning. Decided 2026-11-11 by
-the owner: the placement sketch's name and constrained status in the result, and a warning
+sketch or its status; only `model_review` showed it, as `info` (`sketch_under_defined`),
+and a pattern of the hole rests on a point that can move. Workaround, 5 calls:
+`sketch_edit`, one `sketch_constrain` (horizontal and vertical from the origin, `fully`),
+`sketch_finish`, two `equation_set`. Local: return the placement sketch's name and
+constrained status, an option to dimension each point from the origin; perhaps
+`model_review` ranks an under-defined sketch as a warning. Decided 2026-11-11 by the
+owner: the placement sketch's name and constrained status in the result, and a warning
 when it is under-defined; no dimensioning option (`sketch_constrain` does it in one call);
 `model_review`'s rank stays. Fixed in `dbd72ed` on `sw2023`: the result's
 `placementSketches` gives, per hole, its feature, the sketch that places it and its
 `constrained` status, read after the hole is made (of the hole's two sketches, the one
-with points and no segment but construction geometry; the other is the profile with
-`Hole Dia.`), and a warning names each one not fully defined with the way out
-(`sketch_edit`, `sketch_constrain`, `sketch_finish`). The tool's description says so.
-A live test (two through holes: two placement sketches, each `under`, each in
-`model_review` as `sketch_under_defined`, neither the profile) fails without it
-(`placementSketches` null). The hole tests 10/10 and the five other live tests that make
-holes (Drawing 4, FeatureManagement 1) passed; unit tests 260/260. To check in the
-scenario test: a `feature_hole` result names its placement sketch as `under` with the
-warning; after `sketch_constrain` `model_review` no longer lists it.
+with points and no segment but construction geometry; the other is the profile with `Hole
+Dia.`), and a warning names each one not fully defined with the way out (`sketch_edit`,
+`sketch_constrain`, `sketch_finish`). The tool's description says so. A live test (two
+through holes: two placement sketches, each `under`, each in `model_review` as
+`sketch_under_defined`, neither the profile) fails without it (`placementSketches` null).
+The hole tests 10/10 and the five other live tests that make holes (Drawing 4,
+FeatureManagement 1) passed; unit tests 260/260. To check in the scenario test: a
+`feature_hole` result names its placement sketch as `under` with the warning; after
+`sketch_constrain` `model_review` no longer lists it. In build `20261112-091908`.
 
 **S43. `sketch_offset` has no dimension a caller can name, and reads under-defined.** Same
-parts (point 6), met in both: the offset's dimension could not be found (`D5@<sketch>`
-not found after four dimensions), so no equation can drive it; and a sketch that read
-`constrained: fully` while open is listed `sketch_under_defined` by `model_review` once
-it holds an offset. Local: return the offset dimension's full name in the result; read
-why `model_review` and the sketch's own status disagree. Fixed in `fa434e5` on `sw2023`. The cause: `SketchOffset2` was called with its
-last argument, the dimension, off, so the offset was held by its relation alone; the
-status read while open did not count that until a rebuild, hence `fully` open and
-`under` after. The offset is now made with its dimension (one per side for `both`), and
-the result's `dimensions` names each (`D3@<sketch>`), with a check line, and a warning if
-SOLIDWORKS adds none. A live test (a fully defined 100 x 60 rectangle offset 5 outward:
-`D3 = 5`, still `fully`, not in `model_review` after finish; `D3` set to 8 gives a
-116 x 76 loop) fails without it (`dimensions` null); the six offset tests passed, the
-both-sides one now reading two dimensions of 5; unit tests 260/260. To check in the
-scenario test: an offset's result names its dimension, an `equation_set` on it holds,
-and `model_review` does not list the sketch.
+parts (point 6), met in both: the offset's dimension could not be found (`D5@<sketch>` not
+found after four dimensions), so no equation can drive it; and a sketch that read
+`constrained: fully` while open is listed `sketch_under_defined` by `model_review` once it
+holds an offset. Local: return the offset dimension's full name in the result; read why
+`model_review` and the sketch's own status disagree. Fixed in `fa434e5` on `sw2023`. The
+cause: `SketchOffset2` was called with its last argument, the dimension, off, so the
+offset was held by its relation alone; the status read while open did not count that until
+a rebuild, hence `fully` open and `under` after. The offset is now made with its dimension
+(one per side for `both`), and the result's `dimensions` names each (`D3@<sketch>`), with
+a check line, and a warning if SOLIDWORKS adds none. A live test (a fully defined 100 x 60
+rectangle offset 5 outward: `D3 = 5`, still `fully`, not in `model_review` after finish;
+`D3` set to 8 gives a 116 x 76 loop) fails without it (`dimensions` null); the six offset
+tests passed, the both-sides one now reading two dimensions of 5; unit tests 260/260. To
+check in the scenario test: an offset's result names its dimension, an `equation_set` on
+it holds, and `model_review` does not list the sketch. In build `20261112-091908`.
 
 **S18. `doc_pack` faults.** (1) From a document opened `readOnly:true`, the copies still
 reference the originals (`VERIFY_FAILED: Some copies still reference other files`), three
 times; read-only is the likely cause, not yet tested with a writable open. Workaround that
-held: close all, remove the originals, reopen the copies. (2) `includeDrawings:true` copies
-no drawing when the drawings lie in another folder, and reports success; Pack and Go only
-looks next to the model. (3) Missing: new names per file (only prefix or suffix). Local:
-refuse or reopen a read-only source, report `noDrawingsFound`, say both in the description;
-then PR. (3) not yet decided. Decided 2026-11-11 by the owner: (1) refuse a source opened
-read-only, with a hint to open it writable; (2) report `noDrawingsFound`; both in the
-description. (3) parked. Fixed in `fc5e4a4` on `sw2023`. (1) Confirmed live: from an
-assembly opened read-only the copies were written and `VERIFY_FAILED` said they still
-referenced the originals; such a document is now refused before anything is written
+held: close all, remove the originals, reopen the copies. (2) `includeDrawings:true`
+copies no drawing when the drawings lie in another folder, and reports success; Pack and
+Go only looks next to the model. (3) Missing: new names per file (only prefix or suffix).
+Local: refuse or reopen a read-only source, report `noDrawingsFound`, say both in the
+description; then PR. (3) not yet decided. Decided 2026-11-11 by the owner: (1) refuse a
+source opened read-only, with a hint to open it writable; (2) report `noDrawingsFound`;
+both in the description. (3) parked. Fixed in `fc5e4a4` on `sw2023`. (1) Confirmed live:
+from an assembly opened read-only the copies were written and `VERIFY_FAILED` said they
+still referenced the originals; such a document is now refused before anything is written
 (`INVALID_ARGUMENT`, "open read-only", the hint to close and open it writable). (2) With
 drawings asked for and none in Pack and Go's list, `noDrawingsFound: true` and a warning
 that it looks only next to each model under its name. Both in the description. The pack
-live test now does both (on the code before, the read-only pack got `VERIFY_FAILED`);
-the two pack tests passed, unit tests 260/260. (3) stays parked, out of this item. To
-check in the scenario test: `doc_pack` of a read-only document is refused, and a part
-whose drawing lies elsewhere reads `noDrawingsFound`.
+live test now does both (on the code before, the read-only pack got `VERIFY_FAILED`); the
+two pack tests passed, unit tests 260/260. (3) stays parked, out of this item. To check in
+the scenario test: `doc_pack` of a read-only document is refused, and a part whose drawing
+lies elsewhere reads `noDrawingsFound`. In build `20261112-091908`.
 
 **S31. `feature_delete` `dryRun` says kept what the delete removes.** In the scenario test
 of build `20261111-140208` (point 3, from S26): a mirror with two Hole Wizard children,
 `deleteChildren`, `dryRun:true` listed the holes' four sketches under `keptAbsorbed`; the
 real call then removed them, each `absorbed by <hole>`. A child's absorbed sketches go
 with the child whatever `deleteAbsorbed` says. Local, small: the plan lists them as
-removed with that `why`, so the dry run and the delete agree. Fixed in `40ffab9` on `sw2023`: with `deleteChildren`, a
-child's absorbed sketches are planned as removed (`absorbed by <child>`), whatever
-`deleteAbsorbed` says; it still decides for the requested features' own sketches. The
-live test of a delete with children now runs a dry run first and compares both lists
-with the delete's; on the code before, the dry run lacked the hole's two sketches. The
-FeatureManagement delete tests passed. To check in the scenario test: a mirror with two
-holes, `deleteChildren`, `dryRun` then the delete, the same lists.
+removed with that `why`, so the dry run and the delete agree. Fixed in `40ffab9` on
+`sw2023`: with `deleteChildren`, a child's absorbed sketches are planned as removed
+(`absorbed by <child>`), whatever `deleteAbsorbed` says; it still decides for the
+requested features' own sketches. The live test of a delete with children now runs a dry
+run first and compares both lists with the delete's; on the code before, the dry run
+lacked the hole's two sketches. The FeatureManagement delete tests passed. To check in the
+scenario test: a mirror with two holes, `deleteChildren`, `dryRun` then the delete, the
+same lists. In build `20261112-091908`.
 
-**S44. `feature_chamfer` `equal` makes a chamfer with no faces on 2023.** Same parts (point
-7): on a concave edge and on a circular edge, `'Chamfer1' was created but has no faces`,
-then the tool fell back to distance-distance by itself and held. Twice in two tries.
-Reported success, the right chamfer. Local, small: if `swChamferEqualDistance` never works
-on 2023 SP3 (a live probe first), go straight to distance-distance and drop the warning,
-in the interop patch or behind a version check. Probed 2026-11-11, live: the equal type made a chamfer with no
-faces on a convex straight edge, a convex circular edge and a concave circular edge, each
-time. Fixed in `2a1f5ae` on `sw2023`, behind a version check: on revision 31 (2023) an
-equal chamfer is made as distance-distance with equal legs at once, no failed attempt,
-no warning; other versions keep the attempt and its fallback, untried here. The equal
-chamfer live test now asserts no warning and adds one on a boss's concave base; on the
-code before it carried the warning. Chamfer tests and the two others that make
-chamfers passed. To check in the scenario test: an `equal` chamfer's result has no
-warning.
+**S44. `feature_chamfer` `equal` makes a chamfer with no faces on 2023.** Same parts
+(point 7): on a concave edge and on a circular edge, `'Chamfer1' was created but has no
+faces`, then the tool fell back to distance-distance by itself and held. Twice in two
+tries. Reported success, the right chamfer. Local, small: if `swChamferEqualDistance`
+never works on 2023 SP3 (a live probe first), go straight to distance-distance and drop
+the warning, in the interop patch or behind a version check. Probed 2026-11-11, live: the
+equal type made a chamfer with no faces on a convex straight edge, a convex circular edge
+and a concave circular edge, each time. Fixed in `2a1f5ae` on `sw2023`, behind a version
+check: on revision 31 (2023) an equal chamfer is made as distance-distance with equal legs
+at once, no failed attempt, no warning; other versions keep the attempt and its fallback,
+untried here. The equal chamfer live test now asserts no warning and adds one on a boss's
+concave base; on the code before it carried the warning. Chamfer tests and the two others
+that make chamfers passed. To check in the scenario test: an `equal` chamfer's result has
+no warning. In build `20261112-091908`.
 
 **S39. Two small result follow-ups from the same part** (point 7). (a) `sketch_add` of a
 centre rectangle returns six segments and `sides` names four: the two construction
@@ -544,27 +543,27 @@ diagonals, needed for a midpoint relation to the origin, are not named and were 
 of databases, repeated on every call. Same kind as S22 (Closed). Local, small. Fixed on
 `sw2023`: (a) in `7742f2c`, a centre rectangle's entity names its two construction
 diagonals in `diagonals` (a corner rectangle has none); (b) in `0470a2e`, `material_list`
-with a filter lists only the databases it reaches (by name or by a row found), all of
-them without one. A live test of each fails without it (no
-`diagonals`; 4 of 5 databases holding none of the rows). To check in the scenario test:
-a centre rectangle's `diagonals`, and `material_list {filter:"6061"}`'s length.
+with a filter lists only the databases it reaches (by name or by a row found), all of them
+without one. A live test of each fails without it (no `diagonals`; 4 of 5 databases
+holding none of the rows). To check in the scenario test: a centre rectangle's
+`diagonals`, and `material_list {filter:"6061"}`'s length. In build `20261112-091908`.
 
-**S27. A document loaded as a reference shows as `foreign` in `doc_list`.** In the scenario
-test of build `…-091645` (point 5): after `doc_open` of a drawing (read-only), the part it
-references was listed as a document of its own, `access: foreign`, though nobody opened
-it, and `doc_close` of the drawing closed it too (`also closed`). Right in SOLIDWORKS
-terms, but `foreign` reads as the user's document, which `doc_close` says it never closes.
-Usage: a part listed after opening a drawing or an assembly may be its reference, loaded
-with it. Local, small: mark such a document (an `access` value or a `loadedBy`), and say in
-the `doc_list` description. Decided 2026-11-11 by the owner: a `loadedBy` field naming the
-document that loaded it; `access` keeps its values. Fixed in `e340317` on `sw2023`: `doc_open` marks
-each document that came in with the one it opened and that the server does not own;
-`doc_list` gives it `loadedBy`, that document's handle; the description says so. The
-drawing-close live test now reads `doc_list` first (the part foreign, `loadedBy` the
-drawing's handle; on the code before, null); Export and TopDown live tests and the pack
-test, which open files, passed. Only `doc_open` marks; a reference loaded otherwise (an
-`asm_insert`) has none. To check in the scenario test: `doc_open` of a drawing, then
-`doc_list`.
+**S27. A document loaded as a reference shows as `foreign` in `doc_list`.** In the
+scenario test of build `…-091645` (point 5): after `doc_open` of a drawing (read-only),
+the part it references was listed as a document of its own, `access: foreign`, though
+nobody opened it, and `doc_close` of the drawing closed it too (`also closed`). Right in
+SOLIDWORKS terms, but `foreign` reads as the user's document, which `doc_close` says it
+never closes. Usage: a part listed after opening a drawing or an assembly may be its
+reference, loaded with it. Local, small: mark such a document (an `access` value or a
+`loadedBy`), and say in the `doc_list` description. Decided 2026-11-11 by the owner: a
+`loadedBy` field naming the document that loaded it; `access` keeps its values. Fixed in
+`e340317` on `sw2023`: `doc_open` marks each document that came in with the one it opened
+and that the server does not own; `doc_list` gives it `loadedBy`, that document's handle;
+the description says so. The drawing-close live test now reads `doc_list` first (the part
+foreign, `loadedBy` the drawing's handle; on the code before, null); Export and TopDown
+live tests and the pack test, which open files, passed. Only `doc_open` marks; a reference
+loaded otherwise (an `asm_insert`) has none. To check in the scenario test: `doc_open` of
+a drawing, then `doc_list`. In build `20261112-091908`.
 
 **S35. `model_compare` against an earlier revision of the same file name.** From the
 source, not run (findings 2026-11-11, first entry, point 5): `other` is opened with
@@ -574,74 +573,74 @@ under another name, its components resolve to the open documents of those names,
 revisions compare the same parts and nothing says so. Local: the description names both,
 or the tool copies `other` to a temporary name and warns when an assembly's components
 came from memory. To confirm live first. Decided 2026-11-11 by the owner: confirm both
-live, then a line in the tool's description naming each case; the copy to a temporary
-name parked. Confirmed live 2026-11-11 and fixed in `4e6d556` on `sw2023`. (1) Worse than
-read: a full path to the earlier revision was taken for the open document of that file
-name, so the call ended "'other' is this document", and with another open document of
-that name it would have compared that one, reported `ok`. A full path is now that file;
-SOLIDWORKS does not open it, and the `IoError` names the open document in the way and
-how to get past it. (2) The copied assembly opened and read 30 mm deep, the open part's
-size, not the 20 mm of its own files. Both named in the description. A live test of both
-(on the code before, `INVALID_ARGUMENT` for the first). To check in the scenario test:
-`model_compare` against a copy of an open part in another folder under its name.
+live, then a line in the tool's description naming each case; the copy to a temporary name
+parked. Confirmed live 2026-11-11 and fixed in `4e6d556` on `sw2023`. (1) Worse than read:
+a full path to the earlier revision was taken for the open document of that file name, so
+the call ended "'other' is this document", and with another open document of that name it
+would have compared that one, reported `ok`. A full path is now that file; SOLIDWORKS does
+not open it, and the `IoError` names the open document in the way and how to get past it.
+(2) The copied assembly opened and read 30 mm deep, the open part's size, not the 20 mm of
+its own files. Both named in the description. A live test of both (on the code before,
+`INVALID_ARGUMENT` for the first). To check in the scenario test: `model_compare` against
+a copy of an open part in another folder under its name. In build `20261112-091908`.
 
 **S14. A drawing view's axes and the sheet's drawable area are not reported.** Which model
 axis points where on the sheet (in a top view model −Z points up) decides the side for an
 angular's `textAtMm`, guessed wrong it gives the supplement (S4). The format's border and
 title block are not reported either: a note at x = 18 mm overwrote the zone letters of the
 ISO A3 border at ≈19 mm. Local: model-to-sheet axes in the `drw_view_add` / `drw_info`
-result, border and title block rectangles in `drw_info`; then PR. Met again in the scenario
-test of build `…-230924`: `drw_view_edit` move reported "no overlaps with other views"
-while the moved section view's label sat on the letter of another section line in the
-parent view; the check covers view bounds only, not labels, section letters or
+result, border and title block rectangles in `drw_info`; then PR. Met again in the
+scenario test of build `…-230924`: `drw_view_edit` move reported "no overlaps with other
+views" while the moved section view's label sat on the letter of another section line in
+the parent view; the check covers view bounds only, not labels, section letters or
 dimensions. Again in `…-235702`: `drw_annotation_edit` moved a section label 4.3 mm onto
 the other section line's letter, `position read back`, no warning; moving a label is the
 easiest way to land one on another view's annotation. Again in `…-010708`: `drw_note_add`
-120 mm from the sheet's right edge with a first line ≈180 mm long, `position read back`, no
-warning, the line cut off at the page edge in the PDF; the result gives the position, not
-the note's extent. Again in `…-034022`: `drw_dimension_add` `horizontal` with `textAtMm` on
-the row of an existing dimension from the same edge, its dimension line on the other's and
-the two texts side by side, `textAtMm` echoed, no warning; the result does not show a clash
-with the view's other dimensions. Again in `…-064352`: a dimension's `textAtMm` at y 292 on an
-A3 sheet (297 high) put the text over the border's zone strip, `textAtMm` echoed, no warning.
-Again in `…-144220` (point 2): a section's `modelBoxMm` is the whole model's box, not what
-the view shows. Cut through a tray's side ears looking along +X at 1:2, `boundsMm`
-horizontal 72.68–107.32, `modelBoxMm` 67.24–101.38 (the full 68.28 mm extent), while the
-PDF draws the section from 78.6 to 101.35: one edge right, the other 11.4 sheet mm off. The
-section's checks passed. A caller placing text or a view from `modelBoxMm`, as
-`drw_views_standard`'s description suggests for plain views, lands beside the section.
-Local, either: the cut geometry's box for a section, or a word in the description that a
-section keeps the model's box. That point is fixed in `ff6eaec` on `sw2023` (the owner,
-2026-11-11: the box, not the word): for a section of a part `modelBoxMm` is the box of
-what the view draws, from its visible edges (a line by its ends, a full circle by its
-projected radius, other edges by points along them), taken when it lies inside the
-model's box; a section of an assembly keeps the model's box, and `drw_info` says both.
-New live test (a block with a taller end cut in the middle, both ways round: 60 high one
-way, 100 the other) fails without it. In build `20261111-140208`; to check in its
-scenario test. Held there (findings 2026-11-11, point 4): the same section through a
-tray's side holes read 78.624–101.376 against the PDF's 78.6–101.35 (was 67.24–101.38),
-in `drw_info` of a saved drawing and in a new `drw_view_section` result; a centreline
-section kept the full height. The item's other points (axes, the border and title block,
-labels, dimension and note extents) stay open. Met again in that test: two `diameter`
-dimensions on the same hole edge without `textAtMm` were both placed at the same sheet
-point, the second a duplicate, with no warning for either.
-Fixed in `8d105c3` on `sw2023` (2026-11-12): `drw_info` and `drw_sheet_setup` give
-`drawableMm` and `titleBlockMm` (ISO A3: [20, 10, 410, 287] and [230, 10, 410, 65.25]),
-from the format's lines on the sheet's own view (`IView.GetLines4`), else its zone
-margins; each view gives `axes` (the model direction to the sheet's right, up and out; a
-top view's up is -Z); `drw_note_add` gives `extentMm` (`INote.GetExtent`) and
-`drw_dimension_add` `textBoxMm` (estimated from the display data, 0.6 x the height a
-character); both, and a `drw_annotation_edit` move, warn when the text runs off the sheet,
-crosses the border, lies on the title block or on another annotation, which is named (the
-same value there: "a duplicate?"); a new or moved view's check covers the border, the
-title block and its own annotations against the other views'. Found live: after a view
-moves, its label's `INote.GetExtent` still reads the old place, so the check shifts the
-boxes read before the move by the view's move. Four new live tests, each failing without
-it; `DrawingLiveTests` 54/54 on 2023 SP3 with it, and 56/56 with S24 and S32 (the S24 test
-after its own setup was fixed). Not covered: a section line's letters in the parent view
-(not checked whether SOLIDWORKS lists them as annotations), and a dimension whose
-dimension line runs on another's with the texts side by side (only overlapping texts are
-caught). In no build yet; a PR upstream after it held.
+120 mm from the sheet's right edge with a first line ≈180 mm long, `position read back`,
+no warning, the line cut off at the page edge in the PDF; the result gives the position,
+not the note's extent. Again in `…-034022`: `drw_dimension_add` `horizontal` with
+`textAtMm` on the row of an existing dimension from the same edge, its dimension line on
+the other's and the two texts side by side, `textAtMm` echoed, no warning; the result does
+not show a clash with the view's other dimensions. Again in `…-064352`: a dimension's
+`textAtMm` at y 292 on an A3 sheet (297 high) put the text over the border's zone strip,
+`textAtMm` echoed, no warning. Again in `…-144220` (point 2): a section's `modelBoxMm` is
+the whole model's box, not what the view shows. Cut through a tray's side ears looking
+along +X at 1:2, `boundsMm` horizontal 72.68–107.32, `modelBoxMm` 67.24–101.38 (the full
+68.28 mm extent), while the PDF draws the section from 78.6 to 101.35: one edge right, the
+other 11.4 sheet mm off. The section's checks passed. A caller placing text or a view from
+`modelBoxMm`, as `drw_views_standard`'s description suggests for plain views, lands beside
+the section. Local, either: the cut geometry's box for a section, or a word in the
+description that a section keeps the model's box. That point is fixed in `ff6eaec` on
+`sw2023` (the owner, 2026-11-11: the box, not the word): for a section of a part
+`modelBoxMm` is the box of what the view draws, from its visible edges (a line by its
+ends, a full circle by its projected radius, other edges by points along them), taken when
+it lies inside the model's box; a section of an assembly keeps the model's box, and
+`drw_info` says both. New live test (a block with a taller end cut in the middle, both
+ways round: 60 high one way, 100 the other) fails without it. In build `20261111-140208`;
+to check in its scenario test. Held there (findings 2026-11-11, point 4): the same section
+through a tray's side holes read 78.624–101.376 against the PDF's 78.6–101.35 (was
+67.24–101.38), in `drw_info` of a saved drawing and in a new `drw_view_section` result; a
+centreline section kept the full height. The item's other points (axes, the border and
+title block, labels, dimension and note extents) stay open. Met again in that test: two
+`diameter` dimensions on the same hole edge without `textAtMm` were both placed at the
+same sheet point, the second a duplicate, with no warning for either. Fixed in `8d105c3`
+on `sw2023` (2026-11-12): `drw_info` and `drw_sheet_setup` give `drawableMm` and
+`titleBlockMm` (ISO A3: [20, 10, 410, 287] and [230, 10, 410, 65.25]), from the format's
+lines on the sheet's own view (`IView.GetLines4`), else its zone margins; each view gives
+`axes` (the model direction to the sheet's right, up and out; a top view's up is -Z);
+`drw_note_add` gives `extentMm` (`INote.GetExtent`) and `drw_dimension_add` `textBoxMm`
+(estimated from the display data, 0.6 x the height a character); both, and a
+`drw_annotation_edit` move, warn when the text runs off the sheet, crosses the border,
+lies on the title block or on another annotation, which is named (the same value there: "a
+duplicate?"); a new or moved view's check covers the border, the title block and its own
+annotations against the other views'. Found live: after a view moves, its label's
+`INote.GetExtent` still reads the old place, so the check shifts the boxes read before the
+move by the view's move. Four new live tests, each failing without it; `DrawingLiveTests`
+54/54 on 2023 SP3 with it, and 56/56 with S24 and S32 (the S24 test after its own setup
+was fixed). Not covered: a section line's letters in the parent view (not checked whether
+SOLIDWORKS lists them as annotations), and a dimension whose dimension line runs on
+another's with the texts side by side (only overlapping texts are caught). In build
+`20261112-091908`; a PR upstream after it held.
 
 **S24. `drw_annotation_edit` delete moves other dimensions, unreported.** In the scenario
 test of build `…-024431`: three horizontal dimensions stacked below a view, text at y 109,
@@ -656,7 +655,7 @@ Fixed in `479b885` on `sw2023` (2026-11-12): a delete reads the other annotation
 positions before and after; each that moved is in `othersMoved` (name, view, beforeMm,
 afterMm) and in a warning, else a check says they stayed where they were. New live test
 (three stacked horizontal dimensions, the first deleted: SOLIDWORKS moved the others)
-fails without it. In no build yet.
+fails without it. In build `20261112-091908`.
 
 **S32. Two small result follow-ups from the scenario test of build `20261111-140208`.**
 (a) From S22 (point 5): the results of `drw_views_standard` and `drw_view_section` still
@@ -664,13 +663,12 @@ carry the model's full path in each view, which `drw_info` cut. (b) From S25 (po
 pick one diameter off a hole's centre rightly got "used the nearest one, 2.25 mm away",
 but 2.25 is also the radius and it read as the centre case, and an `edge_list` call went
 to finding the real centre; when the edge taken is a circle, that warning can name its
-centre and radius. Local, small. Not yet fixed.
-Fixed in `d3f401c` on `sw2023` (2026-11-12): (a) the views of `drw_views_standard` and of
-the derived views (projected, section, detail, auxiliary) name the model's file only; the
-full path stays at the result's top or in the parent view. (b) When the nearest edge taken
-is a circle, the warning names it: "used the nearest one, 1 mm away: a circular edge of
-radius 1 mm centred at [30, 0, 20] mm". A live test for each fails without it. In no build
-yet.
+centre and radius. Local, small. Not yet fixed. Fixed in `d3f401c` on `sw2023`
+(2026-11-12): (a) the views of `drw_views_standard` and of the derived views (projected,
+section, detail, auxiliary) name the model's file only; the full path stays at the
+result's top or in the parent view. (b) When the nearest edge taken is a circle, the
+warning names it: "used the nearest one, 1 mm away: a circular edge of radius 1 mm centred
+at [30, 0, 20] mm". A live test for each fails without it. In build `20261112-091908`.
 
 **S13. `drw_dimensions_auto` gives dimensions that cannot be used, reported as success.**
 On a part with fully defined sketches: 25 dimensions, construction ones among them,
@@ -681,65 +679,66 @@ S3's `drw_annotation_edit` (Waiting) they can be deleted one by one. Usage: manu
 description says the result needs cleaning and points to `drw_dimension_add`.
 Done in `5bd35ec` on `sw2023` (2026-11-12): `drw_dimensions_auto`'s description says the
 result needs cleaning (duplicates, construction ones, overlapping texts) and that
-`drw_dimension_add` checks each. In no build yet.
+`drw_dimension_add` checks each. In build `20261112-091908`.
 
 **S30. `model_mass` and `material_set` name a material the configuration does not have.**
-In the scenario test of build `20261111-140208` (point 1): with a material in rows A and
-C only, `model_mass` in `Default` gave `"material":"AISI 1020"` beside a density of 1000,
+In the scenario test of build `20261111-140208` (point 1): with a material in rows A and C
+only, `model_mass` in `Default` gave `"material":"AISI 1020"` beside a density of 1000,
 and a following `material_set` with no `configuration` reported `"previous":"AISI 1020"`,
 both `ok`; the table, which reads by the configuration's name, gave none for `Default`.
-Both read `GetMaterialPropertyName2("")`. Likely the material that reached `Default`
-while row A was set (S29's cause) and was given back by name still answers to `""`; not
-probed. Local: read by the active configuration's name in both, and probe whether S29's
-putting back leaves something behind under `""`. Probed 2026-11-11 on `sw2023` at
-`fa434e5`, live: a block, `config_table` rows A (`AISI 1020`), B, C, `material_set` 6061
-in C with `Default` active. Read by each configuration's name, `Default` has no material
-until it is activated again after A, B and C; from then on `GetMaterialPropertyName2`
-by its own name, by `""` and `MaterialIdName` all give `AISI 1020`, after a rebuild too,
-while its mass reads 1000 kg/m³ and its body names no material. So reading by the
-active configuration's name does not fix it: SOLIDWORKS keeps a name it does not apply.
-A test that fails on it (`model_mass` names `AISI 1020` in `Default`) and the reads by
-name in six services were written and set aside, not committed. Waits on the owner: what the tools
-report when the name and the density disagree (e.g. the name with a warning, or no
-material), and whether to look for where the name comes from (S29's putting back, or
-`Default`'s activation).
+Both read `GetMaterialPropertyName2("")`. Likely the material that reached `Default` while
+row A was set (S29's cause) and was given back by name still answers to `""`; not probed.
+Local: read by the active configuration's name in both, and probe whether S29's putting
+back leaves something behind under `""`. Probed 2026-11-11 on `sw2023` at `fa434e5`, live:
+a block, `config_table` rows A (`AISI 1020`), B, C, `material_set` 6061 in C with
+`Default` active. Read by each configuration's name, `Default` has no material until it is
+activated again after A, B and C; from then on `GetMaterialPropertyName2` by its own name,
+by `""` and `MaterialIdName` all give `AISI 1020`, after a rebuild too, while its mass
+reads 1000 kg/m³ and its body names no material. So reading by the active configuration's
+name does not fix it: SOLIDWORKS keeps a name it does not apply. A test that fails on it
+(`model_mass` names `AISI 1020` in `Default`) and the reads by name in six services were
+written and set aside, not committed. Waits on the owner: what the tools report when the
+name and the density disagree (e.g. the name with a warning, or no material), and whether
+to look for where the name comes from (S29's putting back, or `Default`'s activation).
 Decided 2026-11-12 by the owner: report, and apply again. `model_mass` and `material_set`
 say the configuration has no material (SOLIDWORKS still names one) with a warning, and
 `material_set` with that configuration applies the material again, so the name and the
 density agree. Setting the document's density, or a custom material by `material_add`, was
-offered and not taken: it hides the mismatch. Fixed in `bb23828` on `sw2023`: where the named material's database density and the
-measured one disagree (and no body has its own material), `model_mass` reports no material
-and `material_set` no previous one, each with a warning naming both densities, and
-`material_set` with that material applies it again. A live test (rows A to C, `AISI 1020`
-in A, `6061 Alloy` in C, each activated in turn, then `Default`) fails without it (`model_mass`
-names `AISI 1020` at 1000 kg/m³); with it, both paths (`configuration` named and not)
-read 7900 kg/m³ after `material_set`; with the 16 other live tests that call `model_mass`
-or `material_set`, 17/17. Not changed: the other readers of the name (`model_info`, cost,
-`model_review`, simulation), which still read it by `""`. To check in the scenario test:
-the same part, `model_mass` in `Default`, then `material_set` and its mass.
+offered and not taken: it hides the mismatch. Fixed in `bb23828` on `sw2023`: where the
+named material's database density and the measured one disagree (and no body has its own
+material), `model_mass` reports no material and `material_set` no previous one, each with
+a warning naming both densities, and `material_set` with that material applies it again. A
+live test (rows A to C, `AISI 1020` in A, `6061 Alloy` in C, each activated in turn, then
+`Default`) fails without it (`model_mass` names `AISI 1020` at 1000 kg/m³); with it, both
+paths (`configuration` named and not) read 7900 kg/m³ after `material_set`; with the 16
+other live tests that call `model_mass` or `material_set`, 17/17. Not changed: the other
+readers of the name (`model_info`, cost, `model_review`, simulation), which still read it
+by `""`. To check in the scenario test: the same part, `model_mass` in `Default`, then
+`material_set` and its mass. In build `20261112-091908`.
+
+## Closed
 
 **S46. A release is registered in one project, the server in two.** From reading a
 session's call count (findings 2026-11-11, fourth entry): `CLAUDE.md`'s release step 4
-registers the new exe "(scope local, in the owner's project)". The server is registered
-at local scope in two of the owner's projects, each with its own exe path in
+registers the new exe "(scope local, in the owner's project)". The server is registered at
+local scope in two of the owner's projects, each with its own exe path in
 `~/.claude.json`; builds up to `…-064352` went to both, the five after it only to the one
-where the scenario test runs. A session in the other project ran two parts and an
-assembly on `…-064352`, without `sketch_constrain` (S8), ~150 of ~330 calls single
-relations and dimensions. `sw_status` reported the old build rightly; nothing compared it
-with the latest release. Bears on S15 and S16. Local, in this repo's release steps:
-step 4 reads every project's `mcpServers.solidworks-mcp.command` from `~/.claude.json`,
-names each on an older build in the question to the owner, and registers the new exe in
-each. The owner's call. Taken up outside this repo the same day: a session-start hook of
-the owner's re-registers a project's `solidworks-mcp` on the newest `build-` tag, run by
-hand once (it moved the stale project to `20261111-140208`), not yet run at a session
-start. With it, step 4 may only need to say that the hook does the other projects.
-Decided 2026-11-11 by the owner: a line in step 4, to register the new exe by hand in
-every project `~/.claude.json` lists with `solidworks-mcp`, until that hook has held at
-a session start. Done in `0e1de7a` on `sw2023`: step 4's question names every project with the
-build it runs, and the yes registers the new exe in each. Closes when it has held at a
-release.
-
-## Closed
+where the scenario test runs. A session in the other project ran two parts and an assembly
+on `…-064352`, without `sketch_constrain` (S8), ~150 of ~330 calls single relations and
+dimensions. `sw_status` reported the old build rightly; nothing compared it with the
+latest release. Bears on S15 and S16. Local, in this repo's release steps: step 4 reads
+every project's `mcpServers.solidworks-mcp.command` from `~/.claude.json`, names each on
+an older build in the question to the owner, and registers the new exe in each. The
+owner's call. Taken up outside this repo the same day: a session-start hook of the owner's
+re-registers a project's `solidworks-mcp` on the newest `build-` tag, run by hand once (it
+moved the stale project to `20261111-140208`), not yet run at a session start. With it,
+step 4 may only need to say that the hook does the other projects. Decided 2026-11-11 by
+the owner: a line in step 4, to register the new exe by hand in every project
+`~/.claude.json` lists with `solidworks-mcp`, until that hook has held at a session start.
+Done in `0e1de7a` on `sw2023`: step 4's question names every project with the build it
+runs, and the yes registers the new exe in each. Closes when it has held at a release.
+Held at build `20261112-091908` (2026-11-12): both projects were named with the build they
+ran (`20261111-140208`) and registered on the new exe. Closed 2026-11-12.
 
 **S36. Tools no session had run.** From the tool reference (findings 2026-11-11, first
 entry, point 6): `equation_set`, `feature_rename`, `model_review`, `model_compare`,
