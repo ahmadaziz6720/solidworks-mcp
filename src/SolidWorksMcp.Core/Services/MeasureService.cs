@@ -399,14 +399,24 @@ public sealed class MeasureService(SwSession session)
                     throw new SwException(ErrorCodes.EntityNotFound, $"'{ctx.Title(d)}' has no solid geometry to measure.", "Insert components first.");
             }
 
-            string? material = null;
+            string? material = null, db = null;
             try
             {
                 material = rb is not null
                     ? ((IBody2)rb.Obj).GetMaterialPropertyName("", out _)
-                    : part?.GetMaterialPropertyName2("", out _);
+                    : part?.GetMaterialPropertyName2("", out db);
             }
             catch (COMException e) when (!ComArgs.IsDisconnect(e)) { /* no material information */ }
+            // A name SOLIDWORKS keeps and does not apply (S30): none, with the warning.
+            if (rb is null && part is not null && material is { Length: > 0 } named && m.Volume > 0)
+            {
+                string cfg = d.ConfigurationManager?.ActiveConfiguration?.Name ?? "";
+                if (PropertiesService.MaterialNotApplied(ctx, part, cfg, named, db, m.Mass / m.Volume) is { } notApplied)
+                {
+                    ctx.Warn($"{notApplied} material_set \"{named}\" with configuration '{cfg}' applies it again.");
+                    material = null;
+                }
+            }
 
             return new MassResult
             {

@@ -85,6 +85,35 @@ public class ConfigurationLiveTests(LiveFixture fx) : LiveTest(fx)
             Assert.Equal(Block(h, true) * 1e-9 * density, (await new MeasureService(S).MassAsync(doc, null)).MassKg, 1e-5);
         }
     }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task A_material_named_but_not_applied_reads_as_none_and_is_applied_again(bool named)
+    {
+        // S30, on SOLIDWORKS 2023: after rows A to C, A with a material, the first configuration names that material once
+        // activated again, while its mass has the default density. The tools say it has none, and material_set applies it.
+        string doc = await HoledBlockAsync("cfg_named");
+        string start = (await P.ConfigListAsync(doc)).Active;
+        await P.ConfigTableAsync(doc,
+            [Row("A", ("D1@Boss-Extrude1", 10), ("$MATERIAL", "AISI 1020")), Row("B", ("D1@Boss-Extrude1", 30)), Row("C", ("D1@Boss-Extrude1", 40))]);
+        await P.MaterialSetAsync(doc, "6061 Alloy", null, "C");
+        foreach (var c in new[] { "A", "B", "C", start }) await P.ConfigActivateAsync(doc, c);
+
+        var mass = await new MeasureService(S).MassAsync(doc, null);
+        Assert.Equal(1000, mass.DensityKgM3, 1.0);
+        Assert.Null(mass.Material);
+        Assert.Contains(mass.Warnings ?? [], w => w.Contains("'AISI 1020'") && w.Contains(start));
+
+        var set = await P.MaterialSetAsync(doc, "AISI 1020", null, named ? start : null); // named: as the warning says
+        Assert.Null(set.Previous);
+        Assert.Contains(set.Warnings ?? [], w => w.Contains("'AISI 1020'"));
+        Assert.Equal(7900, set.DensityKgM3!.Value, 1.0);
+        var after = await new MeasureService(S).MassAsync(doc, null);
+        Assert.Equal("AISI 1020", after.Material);
+        Assert.Equal(Block(20, true) * 1e-9 * 7900, after.MassKg, 1e-5);
+    }
+
     [Fact]
     public async Task A_table_makes_three_sizes_each_with_its_own_volume_and_reads_back()
     {

@@ -250,13 +250,18 @@ public sealed partial class PropertiesService(SwSession session)
     /// </summary>
     private static MaterialCatalog.Catalog LoadCatalog(SwContext ctx)
     {
+        var cat = MaterialCatalog.Load(CatalogFolders(ctx), ctx.Paths.AllowNetwork);
+        foreach (var w in cat.Warnings) ctx.Warn(w);
+        return cat;
+    }
+
+    private static string CatalogFolders(SwContext ctx)
+    {
         string folders = ctx.App.GetUserPreferenceStringValue((int)swUserPreferenceStringValue_e.swFileLocationsMaterialDatabases) ?? "";
         // The File Locations list usually names only the custom folders: SOLIDWORKS always loads its standard databases
         // ("SOLIDWORKS Materials", DIN, …) from <install>\lang\<language>\sldmaterials as well (verified live).
         if (StandardMaterialFolder(ctx.App) is { } std) folders = std + ";" + folders;
-        var cat = MaterialCatalog.Load(folders, ctx.Paths.AllowNetwork);
-        foreach (var w in cat.Warnings) ctx.Warn(w);
-        return cat;
+        return folders;
     }
 
     /// <summary>&lt;SOLIDWORKS folder&gt;\lang\&lt;UI language&gt;\sldmaterials (english as the fallback), when it exists.</summary>
@@ -301,6 +306,16 @@ public sealed partial class PropertiesService(SwSession session)
             string db = entry?.Database ?? MaterialCatalog.ApiName(string.IsNullOrWhiteSpace(database) ? MaterialCatalog.DefaultDatabase : database!.Trim());
 
             string prev = part.GetMaterialPropertyName2(cfg, out string prevDb) ?? "";
+            // A name SOLIDWORKS keeps and does not apply (S30) was no material: say so, and the set below applies one.
+            bool prevApplied = true;
+            if (prev.Length > 0 && string.Equals(cfgName, active, StringComparison.OrdinalIgnoreCase) && d.SketchManager?.ActiveSketch is null &&
+                MassProps(d) is { } before && before.Volume > 1e-15 &&
+                MaterialNotApplied(ctx, part, cfgName, prev, prevDb, before.Mass / before.Volume) is { } notApplied)
+            {
+                prevApplied = false;
+                ctx.Warn(notApplied); // whether this call applied its material is the density check below
+
+            }
             if (cfg.Length > 0) SetMaterialIn(ctx, d, cfg, db, material); // a named configuration: that one only
             else part.SetMaterialPropertyName2(cfg, db, material);
             string now = part.GetMaterialPropertyName2(cfg, out string nowDb) ?? "";
@@ -354,8 +369,8 @@ public sealed partial class PropertiesService(SwSession session)
                 Database = string.IsNullOrEmpty(nowDb) ? db : nowDb,
                 Classification = entry?.Classification is { Length: > 0 } c ? c : null,
                 Configuration = cfgName,
-                Previous = prev.Length == 0 ? null : prev,
-                PreviousDatabase = prev.Length == 0 || string.IsNullOrEmpty(prevDb) ? null : prevDb,
+                Previous = prev.Length == 0 || !prevApplied ? null : prev,
+                PreviousDatabase = prev.Length == 0 || !prevApplied || string.IsNullOrEmpty(prevDb) ? null : prevDb,
                 DensityKgM3 = density is double x ? Math.Round(x, 3) : null,
                 DatabaseDensityKgM3 = entry?.DensityKgM3,
                 MassKg = mass is double m ? Units.R(m) : null,
@@ -410,6 +425,32 @@ public sealed partial class PropertiesService(SwSession session)
                 $"'{name}' is in several databases: {string.Join(", ", hits.Select(h => h.Database).Distinct())}.", "Pass 'database'.");
         }
         return hits[0];
+    }
+
+    /// <summary>
+    /// S30: SOLIDWORKS 2023 can name a material for the active configuration that it does not apply (a part with a
+    /// configuration table, after its configurations were activated in turn): the name reads back by '""', by the
+    /// configuration's name and as MaterialIdName, while the mass has the document's default density. Reading by name
+    /// does not tell, so the density is the check: the warning when the name's database density and the measured one
+    /// disagree, null when they agree or it can't be judged (no catalog entry, bodies with their own material).
+    /// </summary>
+    internal static string? MaterialNotApplied(SwContext ctx, IPartDoc part, string config, string name, string? database,
+        double densityKgM3)
+    {
+        if (name.Length == 0 || !(densityKgM3 > 0)) return null;
+        try
+        {
+            if (part.Bodies(swBodyType_e.swSolidBody, visibleOnly: false)
+                .Any(b => (b.GetMaterialPropertyName("", out _) ?? "") is { Length: > 0 } own && own != name)) return null;
+        }
+        catch (COMException e) when (!ComArgs.IsDisconnect(e)) { return null; }
+        var cat = MaterialCatalog.Load(CatalogFolders(ctx), ctx.Paths.AllowNetwork); // its warnings are material_list's
+        var hits = cat.Materials.Where(m => m.Name == name && m.DensityKgM3 is > 0).ToList();
+        var entry = hits.FirstOrDefault(m => !string.IsNullOrEmpty(database) && MaterialCatalog.SameDatabase(database, m.Database))
+                    ?? (hits.Count == 1 ? hits[0] : null);
+        if (entry?.DensityKgM3 is not double expect || Math.Abs(densityKgM3 - expect) <= DensityRelTol * expect) return null;
+        return $"SOLIDWORKS names the material '{name}' for '{config}', but its mass has {F(densityKgM3)} kg/m³, not the " +
+               $"{F(expect)} kg/m³ of '{name}': the material is not applied, so it is reported as none.";
     }
 
     private static IMassProperty2? MassProps(IModelDoc2 d)
