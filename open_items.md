@@ -10,12 +10,12 @@ Three sections: **Open**, not yet fixed; **Waiting**, fixed and not yet settled 
 merged, a fix not yet run in a session); **Closed**, merged upstream, run and held, or
 decided against, with the record.
 
-**Open: S4, S5, S7, S10 to S12, S33, S34, S36.**
+**Open: S4, S5, S7, S10 to S12, S33, S34.**
 Decided 2026-11-11 by the owner, each in its item below. Every open item can be worked on
 but these: S4, S5, S7 and S12 wait on upstream; S10, S11, S33 and S34 are parked until a
-job needs them; S36 is done in the scenario test, not here. S43 and S44 were found on
-build `…-064352`; their code is unchanged in `20261111-140208`. Each fix starts with its
-live test on the current build: an item whose test does not fail there is closed instead.
+job needs them. S43 and S44 were found on build `…-064352`; their code is unchanged in
+`20261111-140208`. Each fix starts with its live test on the current build: an item whose
+test does not fail there is closed instead.
 
 **Order of work** (the owner, 2026-11-11): modelling first, the largest code first, then
 the small ones; drawings after; the release last.
@@ -91,21 +91,6 @@ it, sketch relations and fragile references, in place of `model_info`, `feature_
 `dimension_list` and `equation_list`. (c) Session export as a replayable recipe (T3.15,
 not built), an idea for now. Upstream roadmap items; (a) first if built. Parked 2026-11-11
 by the owner: taken up when a job needs it.
-
-**S36. Tools no session had run.** From the tool reference (findings 2026-11-11, first
-entry, point 6): `equation_set`, `feature_rename`, `model_review`, `model_compare`,
-`asm_component_list` and `asm_mate_list` on an assembly built by hand, `asm_part_new`,
-`asm_replace`, `doc_activate` with `allowEdit`. The scenario test covers a part, a STEP
-round trip, a two-part assembly and a drawing. Run since on build `20261111-140208`
-(that day's second entry, points 1, 5, 6), all held: `equation_set` (ten globals,
-thirteen dimensions linked, among them an offset plane's offset, a pattern's spacings and
-a placement sketch's dimensions; the volume after a change of all ten against a hand
-figure, 173487.816 mm³ against 173487.8), `feature_rename` on a feature and a sketch, and
-`model_review` with and without findings. Proposed: a scenario item that opens an assembly
-built by hand, reads its components and mates and changes one dimension; one that sets a
-global variable, renames a feature and reads `model_review`. Usage: the scenario test,
-the owner's call. Decided 2026-11-11 by the owner: both scenario items, written into the
-scenario test where it is kept, not here. Closes when they are there.
 
 ## Waiting
 
@@ -755,6 +740,24 @@ build it runs, and the yes registers the new exe in each. Closes when it has hel
 release.
 
 ## Closed
+
+**S36. Tools no session had run.** From the tool reference (findings 2026-11-11, first
+entry, point 6): `equation_set`, `feature_rename`, `model_review`, `model_compare`,
+`asm_component_list` and `asm_mate_list` on an assembly built by hand, `asm_part_new`,
+`asm_replace`, `doc_activate` with `allowEdit`. The scenario test covers a part, a STEP
+round trip, a two-part assembly and a drawing. Run since on build `20261111-140208`
+(that day's second entry, points 1, 5, 6), all held: `equation_set` (ten globals,
+thirteen dimensions linked, among them an offset plane's offset, a pattern's spacings and
+a placement sketch's dimensions; the volume after a change of all ten against a hand
+figure, 173487.816 mm³ against 173487.8), `feature_rename` on a feature and a sketch, and
+`model_review` with and without findings. Proposed: a scenario item that opens an assembly
+built by hand, reads its components and mates and changes one dimension; one that sets a
+global variable, renames a feature and reads `model_review`. Usage: the scenario test,
+the owner's call. Decided 2026-11-11 by the owner: both scenario items, written into the
+scenario test where it is kept, not here. Closes when they are there. Written 2026-11-12 into the scenario test where it is kept: a part of global
+variables built again with a feature and a sketch renamed and `model_review` read, and an
+assembly of two parts the server makes and the owner mates by hand, its components and
+mates read and one length changed. Closed 2026-11-12, as decided.
 
 Each goes back to Waiting if it is sent upstream, as S3 did.
 
