@@ -656,8 +656,8 @@ public class PartFeatureLiveTests(LiveFixture fx) : LiveTest(fx)
         Assert.Equal(boss.NewFaces!.Count, faces.Count);
         Assert.All(faces, f => Assert.Equal(2, f.Fields));
         Assert.Contains(faces, f => f.Surface == "cylinder");
-        Assert.True(brief.Length < ResultJson.Serialize(boss, faceDetail: true).Length - 200, "the short list saves little");
-        Assert.Contains("pickMm", ResultJson.Serialize(boss, faceDetail: true));
+        Assert.True(brief.Length < ResultJson.Serialize(boss, detail: true).Length - 200, "the short list saves little");
+        Assert.Contains("pickMm", ResultJson.Serialize(boss, detail: true));
 
         // The boss's cap is its plane face at y = 30: found by its id alone.
         string cap = boss.NewFaces!.Single(f => f.Surface == "plane" && Math.Abs(f.PickMm[1] - 30) < 1e-6).Id;

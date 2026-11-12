@@ -152,7 +152,7 @@ public sealed class EquationChange
     public required IReadOnlyList<string> Checks { get; init; }
 }
 
-public sealed class EquationBatchResult : ToolResult
+public sealed class EquationBatchResult : ToolResult, IShortRows
 {
     /// <summary>In the order given.</summary>
     public required IReadOnlyList<EquationChange> Equations { get; init; }
@@ -160,6 +160,20 @@ public sealed class EquationBatchResult : ToolResult
     public ModelState? Model { get; init; }
     /// <summary>Features that fail to rebuild after the call and did not before (null = none).</summary>
     public IReadOnlyList<FeatureError>? FeatureErrors { get; init; }
+
+    /// <summary>
+    /// Each row as lhs, value and previousValue (none = new), and a reference plane's or axis's frame (S58 c); the full
+    /// rows were up to 3.9k characters for thirteen (S48 d). The warnings and featureErrors stay as they are.
+    /// </summary>
+    public (string Property, System.Text.Json.Nodes.JsonArray Rows)? ShortRows() =>
+        ("equations", new System.Text.Json.Nodes.JsonArray([.. Equations.Select(e =>
+        {
+            var row = new System.Text.Json.Nodes.JsonObject { ["lhs"] = e.Equation.Lhs };
+            if (e.Equation.Value is double v) row["value"] = v;
+            if (e.Previous?.Value is double was) row["previousValue"] = was;
+            if (e.Frame is not null) row["frame"] = System.Text.Json.JsonSerializer.SerializeToNode(e.Frame, ResultJson.Options);
+            return (System.Text.Json.Nodes.JsonNode)row;
+        })]));
 }
 
 public sealed class EquationDeleteResult : ToolResult

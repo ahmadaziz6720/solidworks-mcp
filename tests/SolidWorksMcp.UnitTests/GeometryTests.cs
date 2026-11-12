@@ -68,12 +68,29 @@ public class UnitsTests
         string brief = Core.Model.ResultJson.Serialize(r);
         Assert.Contains("\"newFaces\":[{\"id\":\"F1\",\"surface\":\"plane\"},{\"id\":\"F2\",\"surface\":\"cylinder\"}],\"newFaceCount\":2", brief);
         Assert.DoesNotContain("pickMm", brief);
-        string full = Core.Model.ResultJson.Serialize(r, faceDetail: true);
+        string full = Core.Model.ResultJson.Serialize(r, detail: true);
         Assert.Contains("\"pickMm\":[1,2,3]", full);
         Assert.Contains("\"radiusMm\":3", full);
         // Everything but the faces is the same text.
         Assert.Equal(full[..full.IndexOf("\"newFaces\"", StringComparison.Ordinal)], brief[..brief.IndexOf("\"newFaces\"", StringComparison.Ordinal)]);
         Assert.Equal(full[full.IndexOf("\"newFaceCount\"", StringComparison.Ordinal)..], brief[brief.IndexOf("\"newFaceCount\"", StringComparison.Ordinal)..]);
+    }
+
+    private sealed class RowsResult : Core.Model.ToolResult, Core.Model.IShortRows
+    {
+        public required string[] Rows { get; init; }
+        public int Count { get; init; }
+        public (string Property, System.Text.Json.Nodes.JsonArray Rows)? ShortRows() =>
+            ("rows", new System.Text.Json.Nodes.JsonArray([.. Rows.Select(r => (System.Text.Json.Nodes.JsonNode)r[..1])]));
+    }
+
+    [Fact]
+    public void A_result_with_short_rows_gives_them_in_place_unless_asked_in_full()
+    {
+        // S48 (d): equation_set's batch rows go through the same path.
+        var r = new RowsResult { Doc = "Part1", Rows = ["abc", "def"], Count = 2, Warnings = ["w"] };
+        Assert.Equal("{\"doc\":\"Part1\",\"rows\":[\"a\",\"d\"],\"count\":2,\"warnings\":[\"w\"]}", Core.Model.ResultJson.Serialize(r));
+        Assert.Equal("{\"doc\":\"Part1\",\"rows\":[\"abc\",\"def\"],\"count\":2,\"warnings\":[\"w\"]}", Core.Model.ResultJson.Serialize(r, detail: true));
     }
 }
 

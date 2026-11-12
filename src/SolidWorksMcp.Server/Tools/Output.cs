@@ -7,13 +7,13 @@ namespace SolidWorksMcp.Server.Tools;
 /// <summary>Result serialization and progress heartbeats shared by all tool classes.</summary>
 internal static class Output
 {
-    /// <summary>Awaits a service call, reporting progress every 5 s while it runs, and returns its compact JSON.</summary>
+    /// <summary>Awaits a service call, reporting progress every 5 s while it runs, and returns its compact JSON (<paramref name="detail"/>: rows in full).</summary>
     public static async Task<string> Json<T>(Task<T> task, IProgress<ProgressNotificationValue>? progress, string operation,
-        bool faceDetail = false)
+        bool detail = false)
         where T : ToolResult
     {
         await Heartbeat(task, progress, operation).ConfigureAwait(false);
-        return ResultJson.Serialize(await task.ConfigureAwait(false), faceDetail);
+        return ResultJson.Serialize(await task.ConfigureAwait(false), detail);
     }
 
     public static async Task Heartbeat(Task task, IProgress<ProgressNotificationValue>? progress, string operation)

@@ -210,7 +210,28 @@ Proposed by the session: a short row form (lhs, value, previous value), the full
 flag as `faceDetail` does for faces. Not wrong. Local, small. Taken into the run of
 2026-11-13: (a) to (c) as proposed, no choice in them. (d) Decided 2026-11-13 by the
 owner: a short row (lhs, value, previous value) by default, the full row by a flag, as
-`faceDetail` does.
+`faceDetail` does. (d) fixed in the run of 2026-11-13; (a) to (c) still open. Cause: a
+batch's result serialized every `EquationChange` in full (the equation, the previous one,
+the dimension, the checks). Fix: `ResultJson.Serialize` takes `detail` (was `faceDetail`)
+and shortens any result with the new `IShortRows`, as it does `newFaces`; `equation_set`'s
+batch rows are then `{lhs, value, previousValue}` (no `previousValue`: the equation is
+new), and `equationDetail=true` gives them in full. The warnings and `featureErrors` (S58)
+stay whatever the flag. Decided 2026-11-13 by the run, not the owner: (1) only the batch
+is shortened, the single call keeps its full result, because the finding is about batches
+and one row is a few hundred characters; (2) a row keeps `frame` when the dimension drives
+a reference plane or axis, because it is there so that a plane on the wrong side shows
+(S58 c); (3) the `equations` parameter's example drops its second entry, because the flag
+took the tool list over its byte budget. Before, on the code before the fix,
+`A_batch_result_gives_short_rows_unless_asked_in_full` (ten globals and a depth link)
+failed: "Collections differ at index 0, Expected: lhs, Actual: equation". After:
+it passes, the eleven rows under 900 characters; with
+`An_equation_on_a_plane_s_offset_gives_where_the_plane_went`,
+`Several_equations_go_in_one_call_…`, `An_equation_that_breaks_a_feature_names_it_and_its_error`,
+`A_batch_with_a_row_that_fails_…`, `Equation_delete_takes_a_list_…` and
+`A_feature_result_lists_its_new_faces_short_…` 7 of 7 live; unit tests 278 of 278 (with
+`A_result_with_short_rows_gives_them_in_place_…`); `ContractTests.Tool_catalog_follows_the_conventions`
+and `--check-catalog` ok; `check_repo` ok. Local: on `sw2023`, in the commit that records
+(d) here; not yet in a build. Upstream: not yet decided.
 
 **S49. `dimension_set` through an assembly does not say which component, nor the
 document it changed.** In the scenario test of build `20261112-091908` (findings

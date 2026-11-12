@@ -440,6 +440,7 @@ public class PropertiesLiveTests(LiveFixture fx) : LiveTest(fx)
         var many = await P.EquationSetManyAsync(doc, [Eq("H", "20mm"), Eq(offset, "\"H\"")]);
         Assert.Null(many.Equations[0].Frame); // a global variable
         Assert.Equal(20, many.Equations[1].Frame!.OriginMm[1], 1e-6);
+        Assert.Contains("\"frame\":{", ResultJson.Serialize(many)); // the short rows keep it (S48 d)
     }
 
     [Fact]
@@ -467,6 +468,32 @@ public class PropertiesLiveTests(LiveFixture fx) : LiveTest(fx)
         Assert.Contains("syntax", dim.Hint);
         Assert.Contains("restarted", dim.Hint);
         Assert.Equal(".", EquationText.Refused("W", "\"H\" / 2", false).Why);
+    }
+
+    [Fact]
+    public async Task A_batch_result_gives_short_rows_unless_asked_in_full()
+    {
+        // S48 (d): each row gave the equation, the previous one or the driven dimension, and two checks: 3.1k for ten globals.
+        var (doc, depth) = await BlockAsync("equations_short");
+        await P.EquationSetManyAsync(doc, [.. Enumerable.Range(1, 10).Select(i => Eq($"G{i}", $"{i}mm")), Eq(depth, "\"G10\" * 3")]);
+        var r = await P.EquationSetManyAsync(doc, [.. Enumerable.Range(1, 10).Select(i => Eq($"G{i}", $"{i + 1}mm")), Eq(depth, "\"G10\" * 4")]);
+        string brief = ResultJson.Serialize(r);
+        var rows = System.Text.Json.Nodes.JsonNode.Parse(brief)!["equations"]!.AsArray();
+        Assert.Equal(11, rows.Count);
+        Assert.Equal(new[] { "lhs", "value", "previousValue" }, rows[0]!.AsObject().Select(p => p.Key));
+        Assert.Equal("G1", (string?)rows[0]!["lhs"]);
+        Assert.Equal(2, (double)rows[0]!["value"]!, 1e-6);
+        Assert.Equal(1, (double)rows[0]!["previousValue"]!, 1e-6);
+        Assert.Equal(depth, (string?)rows[10]!["lhs"], StringComparer.OrdinalIgnoreCase);
+        Assert.Equal(44, (double)rows[10]!["value"]!, 1e-6);
+        Assert.Equal(30, (double)rows[10]!["previousValue"]!, 1e-6);
+        Assert.True(brief.Length < 900, $"{brief.Length} characters: {brief}");
+        string full = ResultJson.Serialize(r, detail: true);
+        Assert.Contains("\"checks\":[", full);
+        Assert.Contains("\"previous\":{", full);
+        // Everything after the rows (volume, model, warnings) is the same text.
+        Assert.Equal(full[full.IndexOf("\"volumeDeltaMm3\"", StringComparison.Ordinal)..],
+            brief[brief.IndexOf("\"volumeDeltaMm3\"", StringComparison.Ordinal)..]);
     }
 
     private static EquationInput Eq(string lhs, string expression) => new() { Lhs = lhs, Expression = expression };

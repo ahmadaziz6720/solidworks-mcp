@@ -122,12 +122,13 @@ public sealed class PropertiesTools(SwSession session)
         IProgress<ProgressNotificationValue> progress,
         [Description("Left-hand side without quotes: a global variable (W) or a dimension (D1@Sketch1). With 'expression', for one equation.")] string? lhs = null,
         [Description("Right-hand side, e.g. 60mm or \"W\" / 2 + 5mm; names in double quotes.")] string? expression = null,
-        [Description("Several equations instead of lhs / expression, e.g. [{lhs:'W', expression:'60mm'}, {lhs:'D1@Sketch1', expression:'\"W\" / 2'}].")] EquationInput[]? equations = null,
+        [Description("Several equations instead of lhs / expression, e.g. [{lhs:'W', expression:'60mm'}].")] EquationInput[]? equations = null,
+        [Description("true: full rows, not lhs/value/previousValue.")] bool equationDetail = false,
         [Description(DocArg)] string? doc = null,
         CancellationToken cancellationToken = default) =>
         equations is null
             ? Output.Json(_svc.EquationSetAsync(doc, lhs, expression, cancellationToken), progress, "equation_set")
-            : Output.Json(_svc.EquationSetManyAsync(doc, equations, lhs, expression, cancellationToken), progress, "equation_set");
+            : Output.Json(_svc.EquationSetManyAsync(doc, equations, lhs, expression, cancellationToken), progress, "equation_set", equationDetail);
 
     [McpServerTool(Name = "equation_delete", Title = "Delete equation", ReadOnly = false, Destructive = true, Idempotent = false, OpenWorld = false)]
     [Description("Deletes the equation of a left-hand side (a global variable, or a dimension's driving equation; the dimension stays), " +
