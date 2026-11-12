@@ -275,6 +275,10 @@ internal static class EntityResolver
                 centre.DistanceTo(asked) <= Math.Max(tol, 1e-6))
                 ctx.Warn($"{argName}: {where} is the centre of a circular edge (radius {Units.Mm(radius)} mm), not a point on it; " +
                          "used the circle centred there.");
+            else if (best.Obj is IEdge arc && Topology.Describe(arc) is { Curve: "circle", Center: { } c, Radius: { } rad })
+                // The distance alone can read as the centre case (a pick one diameter off is a radius away): say which circle (S32).
+                ctx.Warn($"{argName}: no {KindName(kind)} exactly at {where}; used the nearest one, {Units.Mm(best.Dist)} mm away: " +
+                         $"a circular edge of radius {Units.Mm(rad)} mm centred at [{TopoQuery.Fmt(Units.Mm(c))}] mm.");
             else
                 ctx.Warn($"{argName}: no {KindName(kind)} exactly at {where}; used the nearest one, {Units.Mm(best.Dist)} mm away.");
         }

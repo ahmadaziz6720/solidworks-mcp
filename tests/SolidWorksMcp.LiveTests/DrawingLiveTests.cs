@@ -690,6 +690,24 @@ public class DrawingLiveTests(LiveFixture fx) : LiveTest(fx)
         // A point off the edge that is not its centre is still a near miss.
         var near = await Drw.DimensionAddAsync(front.Name, new EntityRef { Type = "edge", At = [30.5, 0, 20] }, null, "diameter", null, drw);
         Assert.Contains(near.Warnings!, w => w.Contains("used the nearest one"));
+        // One diameter off the centre the pick is a radius away from the edge, which read as the centre case (S32): the
+        // warning names the circle it took.
+        var off = await Drw.DimensionAddAsync(front.Name, new EntityRef { Type = "edge", At = [32, 0, 20] }, null, "diameter", null, drw);
+        Assert.Contains(off.Warnings!, w => w.Contains("used the nearest one, 1 mm away: a circular edge of radius 1 mm centred at [30, 0, 20] mm"));
+    }
+
+    [Fact]
+    public async Task View_results_name_the_model_s_full_path_once()
+    {
+        // S32: drw_info names the full path once; the views and section results gave it in every view.
+        var (drw, r) = await ViewsAsync("drw_paths", ["front", "top"]);
+        Assert.True(Path.IsPathRooted(r.Model), r.Model);
+        Assert.All(r.Views, v => Assert.Equal(Path.GetFileName(r.Model), v.Model, ignoreCase: true));
+        var front = r.Views.Single(v => v.Orientation == "front");
+        var b = front.ModelBoxMm!;
+        double cx = (b[0] + b[2]) / 2;
+        var sec = await Drw.SectionAsync(front.Name, [cx, b[1] - 10], [cx, b[3] + 10], null, null, drw);
+        Assert.Equal(Path.GetFileName(r.Model), sec.View.Model, ignoreCase: true);
     }
 
     // ------------------------------------------------------------------ M8 WP2: sheets, flat-pattern / auxiliary views, breaks

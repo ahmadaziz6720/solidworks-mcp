@@ -324,7 +324,7 @@ public sealed partial class DrawingService
                 checks.Add($"looks along [{Dir(toward)}]: square to {r.Label} and to '{hit.Name}'");
             }
             OverlapCheck(ctx, sheet, [nv], checks);
-            return new DrwViewResult { Doc = ctx.Title(d), View = info with { Parent = hit.Name }, Label = label, Checks = checks };
+            return new DrwViewResult { Doc = ctx.Title(d), View = info with { Parent = hit.Name, Model = FileOnly(info.Model) }, Label = label, Checks = checks };
         }
         catch (Exception e) when (!ComArgs.IsDisconnect(e))
         {

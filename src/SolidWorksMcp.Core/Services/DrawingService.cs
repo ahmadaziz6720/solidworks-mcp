@@ -538,7 +538,8 @@ public sealed partial class DrawingService(SwSession session)
                 if (xf.Length >= 13 && DrawingLayout.AxesOf(xf).Toward.DistanceTo(want) > DirTol)
                     ctx.Warn($"View '{vn}' ({slot}) reads as {info.Orientation ?? "another orientation"} from its model-to-sheet transform; check it (drw_info).");
                 MappingCheck(ctx, v, info);
-                result.Add(info);
+                // The result names the model's full path once, at its top (S32).
+                result.Add(info with { Model = FileOnly(info.Model) });
             }
             checks.Add($"{created.Count} view(s) of {Path.GetFileName(path)} at {DrawingLayout.FormatScale(sc)}, orientation, model and scale read back");
             OverlapCheck(ctx, sheet, created.Select(c => c.View).ToList(), checks);
@@ -715,7 +716,7 @@ public sealed partial class DrawingService(SwSession session)
                 }
                 MappingCheck(ctx, nv, info);
                 OverlapCheck(ctx, sheet, [nv], checks);
-                return new DrwViewResult { Doc = ctx.Title(d), View = info with { Parent = hit.Name }, Checks = checks };
+                return new DrwViewResult { Doc = ctx.Title(d), View = info with { Parent = hit.Name, Model = FileOnly(info.Model) }, Checks = checks };
             }
             catch (Exception ex) when (!ComArgs.IsDisconnect(ex))
             {
@@ -838,7 +839,7 @@ public sealed partial class DrawingService(SwSession session)
                 if (hatches > 0) checks.Add($"{hatches} hatched cut face(s)");
                 else ctx.Warn($"'{info.Name}' reads no hatched cut faces; check in a screenshot that the cut line crosses the part.");
                 OverlapCheck(ctx, sheet, [sv], checks);
-                return new DrwViewResult { Doc = ctx.Title(d), View = info with { Parent = hit.Name }, Label = lb, Checks = checks };
+                return new DrwViewResult { Doc = ctx.Title(d), View = info with { Parent = hit.Name, Model = FileOnly(info.Model) }, Label = lb, Checks = checks };
             }
             catch (Exception ex) when (!ComArgs.IsDisconnect(ex))
             {
@@ -952,7 +953,7 @@ public sealed partial class DrawingService(SwSession session)
                     ctx.Warn($"'{info.Name}' reports no visible edges: it may be empty (seen in earlier testing). Check it in a PDF export (model_export) " +
                              "and move the circle onto the part's edges if so.");
                 OverlapCheck(ctx, sheet, [dv], checks);
-                return new DrwViewResult { Doc = ctx.Title(d), View = info with { Parent = hit.Name }, Label = lb, Checks = checks };
+                return new DrwViewResult { Doc = ctx.Title(d), View = info with { Parent = hit.Name, Model = FileOnly(info.Model) }, Label = lb, Checks = checks };
             }
             catch (Exception ex) when (!ComArgs.IsDisconnect(ex))
             {
@@ -2396,6 +2397,9 @@ public sealed partial class DrawingService(SwSession session)
     private static string Fmt(double[]? a) => a is null ? "?" : TopoQuery.Fmt(a.Select(v => Math.Round(v, 3)).ToArray());
 
     private static string Dir(Vec3 v) => TopoQuery.Fmt(Units.Unit(v.Normalized()).Select(x => Math.Round(x, 4)).ToArray());
+
+    /// <summary>A model path cut to its file name: a derived view's model is its parent's, named in full there (S32).</summary>
+    private static string? FileOnly(string? path) => path is null ? null : Path.GetFileName(path);
 
     private static string Clip(string s, int max) => s.Length <= max ? s : s[..max] + "…";
 }
