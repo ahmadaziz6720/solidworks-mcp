@@ -10,9 +10,10 @@ Three sections: **Open**, not yet fixed; **Waiting**, fixed and not yet settled 
 merged, a fix not yet run in a session); **Closed**, merged upstream, run and held, or
 decided against, with the record.
 
-**Open: S4, S5, S7, S10 to S12, S33, S34, S47 to S66.** S47 to S49 are from the scenario
+**Open: S4, S5, S7, S10 to S12, S33, S34, S48 to S66.** S48 and S49 are from the scenario
 test of build `20261112-091908`, S50 to S66 from twenty working sessions on that build
-(findings 2026-11-12 and 13). Reported `ok` while wrong or misleading: S47, S50, S51 (b,
+(findings 2026-11-12 and 13); S47, from that scenario test too, is fixed and Waiting.
+Reported `ok` while wrong or misleading: S50, S51 (b,
 c), S52, S53, S58 (a), S60 (a), S63 (b), S66; a failure reported on a success: S56 (a).
 Next: the run planned below, every point of it decided 2026-11-13 by the owner. Not in
 it: S4, S5, S7 and S12 wait on upstream; S10, S11, S33 and S34 are parked until a job
@@ -156,24 +157,6 @@ it, sketch relations and fragile references, in place of `model_info`, `feature_
 `dimension_list` and `equation_list`. (c) Session export as a replayable recipe (T3.15,
 not built), an idea for now. Upstream roadmap items; (a) first if built. Parked 2026-11-11
 by the owner: taken up when a job needs it.
-
-**S47. The sheet's frame grows with the sheet's scale, and the checks on it pass wrong,
-reported `ok`.** In the scenario test of build `20261112-091908` (findings 2026-11-12,
-second entry, point 1), from S14's `8d105c3`: on an ISO A3 sheet at 1:2, `drw_info` gave
-`drawableMm` [40, 20, 820, 574] and `titleBlockMm` [460, 20, 820, 130.5], twice the right
-[20, 10, 410, 287] and [230, 10, 410, 65.25]. A new drawing at 1:1 read them right, and
-`drw_sheet_setup {scale:"1:2"}` on it gave the doubled pair at once, so the factor is the
-sheet's scale. Every check built on them went wrong: a note at x 18 was warned of the
-border, but against x 40 (one at x 30 would be warned wrongly); a note at [300, 40], on
-the real title block, and a dimension with `textAtMm` [150, 292], over the zone strip and
-outside the border at 287, each read "clear of the border, the title block and the other
-annotations"; a section view whose `boundsMm` reached y 289.01 read "inside the border".
-S14's live tests ran on 1:1 sheets. Likely cause, from the source, not probed: `FrameOf`
-in `DrawingService` reads the format's lines by `GetLines4` on the sheet's own view, whose
-coordinates are that view's and scale with the sheet. Local: the frame in sheet
-millimetres at any scale, a live test on a 1:2 sheet that fails now. Bears on S14, whose
-PR waits on this. Decided 2026-11-12 by the owner: as proposed, and first, before S48
-and S49.
 
 **S48. Four small result follow-ups from the modelling scenario test of build
 `20261112-091908`** (findings 2026-11-12, first entry, points 2 to 5). (a) From S40: a
@@ -762,6 +745,39 @@ dimension '…' (the same value: a duplicate?)" with the first one's name (point
 for the frame (point 1): on a sheet at 1:2 `drawableMm` and `titleBlockMm` read twice
 their values, and the checks built on them were wrong and reported success; that is S47.
 The PR upstream waits on S47.
+
+**S47. The sheet's frame grows with the sheet's scale, and the checks on it pass wrong,
+reported `ok`.** In the scenario test of build `20261112-091908` (findings 2026-11-12,
+second entry, point 1), from S14's `8d105c3`: on an ISO A3 sheet at 1:2, `drw_info` gave
+`drawableMm` [40, 20, 820, 574] and `titleBlockMm` [460, 20, 820, 130.5], twice the right
+[20, 10, 410, 287] and [230, 10, 410, 65.25]. A new drawing at 1:1 read them right, and
+`drw_sheet_setup {scale:"1:2"}` on it gave the doubled pair at once, so the factor is the
+sheet's scale. Every check built on them went wrong: a note at x 18 was warned of the
+border, but against x 40 (one at x 30 would be warned wrongly); a note at [300, 40], on
+the real title block, and a dimension with `textAtMm` [150, 292], over the zone strip and
+outside the border at 287, each read "clear of the border, the title block and the other
+annotations"; a section view whose `boundsMm` reached y 289.01 read "inside the border".
+S14's live tests ran on 1:1 sheets. Likely cause, from the source, not probed: `FrameOf`
+in `DrawingService` reads the format's lines by `GetLines4` on the sheet's own view, whose
+coordinates are that view's and scale with the sheet. Local: the frame in sheet
+millimetres at any scale, a live test on a 1:2 sheet that fails now. Bears on S14, whose
+PR waits on this. Decided 2026-11-12 by the owner: as proposed, and first, before S48
+and S49. Fixed in the run of 2026-11-13. Cause, as read from the source and confirmed
+live: `IView.GetLines4` on the sheet's own view gives the format's lines in that view's
+units, which are sheet millimetres divided by the sheet's scale (at 1:2 a line 20 mm from
+the edge reads 40, at 2:1 it reads 10). Fix: `FrameOf` multiplies the lines' ends by the
+sheet's scale (`ISheet.GetProperties2` [2] / [3], as `drw_info` already reads it) before
+the border and blocks are found; the zone margins, already in sheet mm, are unchanged.
+Every check on the frame (`drw_info`, `drw_sheet_setup`, a view's border and title block
+check, a note's, a dimension's and a moved annotation's) reads it through `FrameOf`. New
+live test `The_frame_is_in_sheet_mm_at_a_sheet_scale_other_than_1_1` (an ISO A3 sheet at
+1:2: `drawableMm`, `titleBlockMm` in `drw_sheet_setup` and `drw_info`, a note at
+[300, 40] warned "overlaps the title block", a note at [30, 200] clear of the border; then
+2:1, the same frame); it failed on the code before ("Expected [20, 10, 410, 287], Actual
+[40, 20, 820, 574]"). After: it passes, and with the S14 frame tests, `Sheet_setup_…`,
+`Standard_views_…` (both) and `Sheets_are_added_…`, 9/9 on 2023 SP3; unit tests 276/276;
+`check_repo` ok. Local: on `sw2023`, in the commit that moves it here; not yet in a build.
+Upstream: not yet decided.
 
 ## Closed
 

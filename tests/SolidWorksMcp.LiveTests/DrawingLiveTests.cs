@@ -902,6 +902,35 @@ public class DrawingLiveTests(LiveFixture fx) : LiveTest(fx)
     }
 
     [Fact]
+    public async Task The_frame_is_in_sheet_mm_at_a_sheet_scale_other_than_1_1()
+    {
+        // S47: the format's lines read through the sheet's own view came in that view's units, which scale with the sheet:
+        // at 1:2 the border and the title block read twice their size, and every check on them passed wrong.
+        string drw = await DrawingAsync("drw_frame_scale");
+        var half = (await Drw.SheetSetupAsync(new DrwSheetRequest { Doc = drw, Scale = "1:2" })).Sheet;
+        Assert.Equal("1:2", half.Scale);
+        Assert.Equal([20, 10, 410, 287], half.DrawableMm!);
+        Assert.Equal([230, 10, 410, 65.25], half.TitleBlockMm!);
+        var info = (await Drw.InfoAsync(drw)).Sheets[0];
+        Assert.Equal([20, 10, 410, 287], info.DrawableMm!);
+        Assert.Equal([230, 10, 410, 65.25], info.TitleBlockMm!);
+
+        // On the real title block, though inside the doubled frame's free area: warned.
+        var onTitle = await Drw.NoteAddAsync("SWMCP ON THE TITLE BLOCK", [300, 40], 3.5, null, drw);
+        Assert.Contains(onTitle.Warnings ?? [], w => w.Contains("overlaps the title block"));
+        // Inside the real border at x 20, though left of the doubled one at x 40: clear.
+        var inside = await Drw.NoteAddAsync("SWMCP INSIDE", [30, 200], 3.5, null, drw);
+        Assert.Contains(inside.Checks!, c => c.Contains("clear of the border"));
+        Assert.DoesNotContain(inside.Warnings ?? [], w => w.Contains("border"));
+
+        // At 2:1 the same frame, not halved.
+        var twice = (await Drw.SheetSetupAsync(new DrwSheetRequest { Doc = drw, Scale = "2:1" })).Sheet;
+        Assert.Equal("2:1", twice.Scale);
+        Assert.Equal([20, 10, 410, 287], twice.DrawableMm!);
+        Assert.Equal([230, 10, 410, 65.25], twice.TitleBlockMm!);
+    }
+
+    [Fact]
     public async Task A_note_gives_its_extent_and_is_warned_off_the_page_on_the_title_block_or_on_another()
     {
         string drw = await DrawingAsync("drw_note_frame");

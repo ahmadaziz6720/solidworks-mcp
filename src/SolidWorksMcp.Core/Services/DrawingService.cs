@@ -2253,6 +2253,8 @@ public sealed partial class DrawingService(SwSession session)
     /// <summary>
     /// The sheet's frame (S14): the format's lines, read from the sheet's own view (IView.GetLines4: 12 values a line, its
     /// ends at 6..11, in m), and its zone margins for a format whose lines close no border. Null when it cannot be read.
+    /// The lines come in the sheet view's own units, which scale with the sheet: at 1:2 a border line 20 mm from the edge
+    /// reads 40 (S47, 2023 SP3). They are taken back to sheet mm by the sheet's scale.
     /// </summary>
     private static SheetFrame? FrameOf(ISheet? sh, IView? sheetView)
     {
@@ -2263,12 +2265,15 @@ public sealed partial class DrawingService(SwSession session)
             double w = p.Length > 6 ? Units.Mm(p[5]) : 0, h = p.Length > 6 ? Units.Mm(p[6]) : 0;
             if (w <= 0 || h <= 0) return null;
             bool hasFormat = !(p.Length > 1 && (int)Math.Round(p[1]) == TemplateNone) && sh.GetTemplateName() is { Length: > 0 } && sh.SheetFormatVisible;
+            // The sheet's scale, numerator over denominator (ISheet.GetProperties2 [2], [3]).
+            double scale = p.Length > 3 && p[2] > 0 && p[3] > 0 ? p[2] / p[3] : 1;
             var lines = new List<SheetLine>();
             if (hasFormat && sheetView is not null)
             {
                 var a = ComArgs.Doubles((object?)sheetView.GetLines4(1));
+                double Mm(double m) => Units.Mm(m * scale);
                 for (int i = 0; i + 12 <= a.Length; i += 12)
-                    lines.Add(new SheetLine(Units.Mm(a[i + 6]), Units.Mm(a[i + 7]), Units.Mm(a[i + 9]), Units.Mm(a[i + 10])));
+                    lines.Add(new SheetLine(Mm(a[i + 6]), Mm(a[i + 7]), Mm(a[i + 9]), Mm(a[i + 10])));
             }
             double[]? margins = null;
             try { margins = [.. new[] { 0, 1, 2, 3 }.Select(k => Units.Mm(sh.GetZoneMargin(k)))]; }
