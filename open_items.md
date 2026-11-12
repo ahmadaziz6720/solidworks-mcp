@@ -10,7 +10,7 @@ Three sections: **Open**, not yet fixed; **Waiting**, fixed and not yet settled 
 merged, a fix not yet run in a session); **Closed**, merged upstream, run and held, or
 decided against, with the record.
 
-**Open: S4, S5, S7, S10 to S14, S24, S30, S32 to S34, S36, S46.**
+**Open: S4, S5, S7, S10 to S12, S30, S33, S34, S36, S46.**
 Decided 2026-11-11 by the owner, each in its item below. Every open item can be worked on
 but these: S4, S5, S7 and S12 wait on upstream; S10, S11, S33 and S34 are parked until a
 job needs them; S36 is done in the scenario test, not here. S43 and S44 were found on
@@ -23,10 +23,9 @@ the small ones; drawings after; the release last.
 1. Modelling, large: S37, S42, S41, S45, S40 and S38 are done (Waiting, on `sw2023`, in
    no build yet).
 2. Modelling, smaller: S43, S18, S31, S44, S39, S27 and S35 are done (Waiting); S30
-   probed, waits on the owner. S6's wording is done on `sw2023` and on
-   `fix/angular-supplement`, the push to PR #6 waiting on the owner's word.
-3. Drawings: S14 (the largest: view axes, border and title block, extents), S24, S32,
-   S13 (a description line).
+   decided 2026-11-12 (report, and apply the material again), not yet done. S6's wording
+   is pushed to PR #6 (2026-11-12).
+3. Drawings: S14, S24, S32 and S13 are done (Waiting, on `sw2023`, in no build yet).
 4. Release: S46's line in `CLAUDE.md` step 4, then a build as that file says, every
    project registered, and the opening sentence for the scenario test. A build may come
    earlier, after a group, when the owner asks. Before it: `docs/tools.md` regenerated
@@ -71,65 +70,6 @@ Parked 2026-11-11 by the owner: taken up when a job needs it.
 (findings 2026-11-09, point 12). Upstream: proposed in PR #1's text; a description change
 when PR #1 is settled.
 
-**S13. `drw_dimensions_auto` gives dimensions that cannot be used, reported as success.**
-On a part with fully defined sketches: 25 dimensions, construction ones among them,
-duplicates, overlapping texts, some off the sheet, none for features whose sketches had
-none. Without a delete tool they could not be removed, so the drawing was restarted; with
-S3's `drw_annotation_edit` (Waiting) they can be deleted one by one. Usage: manual
-`drw_dimension_add` only. Decided 2026-11-11 by the owner: no code change; the
-description says the result needs cleaning and points to `drw_dimension_add`.
-
-**S14. A drawing view's axes and the sheet's drawable area are not reported.** Which model
-axis points where on the sheet (in a top view model −Z points up) decides the side for an
-angular's `textAtMm`, guessed wrong it gives the supplement (S4). The format's border and
-title block are not reported either: a note at x = 18 mm overwrote the zone letters of the
-ISO A3 border at ≈19 mm. Local: model-to-sheet axes in the `drw_view_add` / `drw_info`
-result, border and title block rectangles in `drw_info`; then PR. Met again in the scenario
-test of build `…-230924`: `drw_view_edit` move reported "no overlaps with other views"
-while the moved section view's label sat on the letter of another section line in the
-parent view; the check covers view bounds only, not labels, section letters or
-dimensions. Again in `…-235702`: `drw_annotation_edit` moved a section label 4.3 mm onto
-the other section line's letter, `position read back`, no warning; moving a label is the
-easiest way to land one on another view's annotation. Again in `…-010708`: `drw_note_add`
-120 mm from the sheet's right edge with a first line ≈180 mm long, `position read back`, no
-warning, the line cut off at the page edge in the PDF; the result gives the position, not
-the note's extent. Again in `…-034022`: `drw_dimension_add` `horizontal` with `textAtMm` on
-the row of an existing dimension from the same edge, its dimension line on the other's and
-the two texts side by side, `textAtMm` echoed, no warning; the result does not show a clash
-with the view's other dimensions. Again in `…-064352`: a dimension's `textAtMm` at y 292 on an
-A3 sheet (297 high) put the text over the border's zone strip, `textAtMm` echoed, no warning.
-Again in `…-144220` (point 2): a section's `modelBoxMm` is the whole model's box, not what
-the view shows. Cut through a tray's side ears looking along +X at 1:2, `boundsMm`
-horizontal 72.68–107.32, `modelBoxMm` 67.24–101.38 (the full 68.28 mm extent), while the
-PDF draws the section from 78.6 to 101.35: one edge right, the other 11.4 sheet mm off. The
-section's checks passed. A caller placing text or a view from `modelBoxMm`, as
-`drw_views_standard`'s description suggests for plain views, lands beside the section.
-Local, either: the cut geometry's box for a section, or a word in the description that a
-section keeps the model's box. That point is fixed in `ff6eaec` on `sw2023` (the owner,
-2026-11-11: the box, not the word): for a section of a part `modelBoxMm` is the box of
-what the view draws, from its visible edges (a line by its ends, a full circle by its
-projected radius, other edges by points along them), taken when it lies inside the
-model's box; a section of an assembly keeps the model's box, and `drw_info` says both.
-New live test (a block with a taller end cut in the middle, both ways round: 60 high one
-way, 100 the other) fails without it. In build `20261111-140208`; to check in its
-scenario test. Held there (findings 2026-11-11, point 4): the same section through a
-tray's side holes read 78.624–101.376 against the PDF's 78.6–101.35 (was 67.24–101.38),
-in `drw_info` of a saved drawing and in a new `drw_view_section` result; a centreline
-section kept the full height. The item's other points (axes, the border and title block,
-labels, dimension and note extents) stay open. Met again in that test: two `diameter`
-dimensions on the same hole edge without `textAtMm` were both placed at the same sheet
-point, the second a duplicate, with no warning for either.
-
-**S24. `drw_annotation_edit` delete moves other dimensions, unreported.** In the scenario
-test of build `…-024431`: three horizontal dimensions stacked below a view, text at y 109,
-101 and 93 mm. After the one at 109 was deleted, the `before` of the next two deletes gave
-both at y 109: SOLIDWORKS had closed up the stack. The result says only that the count
-went down by one and the name is no longer listed; in a drawing that keeps them, the
-layout changes without a word. Bears on S3 (Closed), whose tool it is. Local: read the
-view's other annotations' positions before and after a delete and name each that moved.
-Decided 2026-11-11 by the owner: name each that moved, before and after; do not put them
-back (a caller moves one with `drw_annotation_edit` if it wants).
-
 **S30. `model_mass` and `material_set` name a material the configuration does not have.**
 In the scenario test of build `20261111-140208` (point 1): with a material in rows A and
 C only, `model_mass` in `Default` gave `"material":"AISI 1020"` beside a density of 1000,
@@ -150,14 +90,11 @@ name in six services were written and set aside, not committed. Waits on the own
 report when the name and the density disagree (e.g. the name with a warning, or no
 material), and whether to look for where the name comes from (S29's putting back, or
 `Default`'s activation).
-
-**S32. Two small result follow-ups from the scenario test of build `20261111-140208`.**
-(a) From S22 (point 5): the results of `drw_views_standard` and `drw_view_section` still
-carry the model's full path in each view, which `drw_info` cut. (b) From S25 (point 6): a
-pick one diameter off a hole's centre rightly got "used the nearest one, 2.25 mm away",
-but 2.25 is also the radius and it read as the centre case, and an `edge_list` call went
-to finding the real centre; when the edge taken is a circle, that warning can name its
-centre and radius. Local, small. Not yet fixed.
+Decided 2026-11-12 by the owner: report, and apply again. `model_mass` and `material_set`
+say the configuration has no material (SOLIDWORKS still names one) with a warning, and
+`material_set` with that configuration applies the material again, so the name and the
+density agree. Setting the document's density, or a custom material by `material_add`, was
+offered and not taken: it hides the mismatch.
 
 **S33. No equations linked to a file.** From reading the source (findings 2026-11-11,
 first entry, point 1): `equation_set`, `equation_list` and `equation_delete` act on one
@@ -302,6 +239,9 @@ Fixed in `48d111f` on `sw2023`: the accepted call's check says "the angle that w
 live test of the hint asserts it; the 33 angle tests passed. Both commits cherry-picked
 clean onto `fix/angular-supplement` (`aa59f21`, `434d9e8`, in its worktree), not pushed
 yet: the push joins PR #6.
+Pushed 2026-11-12 on the owner's word: `fix/angular-supplement` at `434d9e8` joins PR #6,
+after the four angular live tests passed on it on 2023 SP3 (the interop patch on top,
+uncommitted); the PR's body has a section on the two commits.
 
 **S20. `drw_dimension_add` returned some dimensions without a value check, silently.** In the
 scenario test of build `…-204719`, 9 of 23: every one with a circular edge in it (a line to
@@ -704,6 +644,104 @@ how to get past it. (2) The copied assembly opened and read 30 mm deep, the open
 size, not the 20 mm of its own files. Both named in the description. A live test of both
 (on the code before, `INVALID_ARGUMENT` for the first). To check in the scenario test:
 `model_compare` against a copy of an open part in another folder under its name.
+
+**S14. A drawing view's axes and the sheet's drawable area are not reported.** Which model
+axis points where on the sheet (in a top view model −Z points up) decides the side for an
+angular's `textAtMm`, guessed wrong it gives the supplement (S4). The format's border and
+title block are not reported either: a note at x = 18 mm overwrote the zone letters of the
+ISO A3 border at ≈19 mm. Local: model-to-sheet axes in the `drw_view_add` / `drw_info`
+result, border and title block rectangles in `drw_info`; then PR. Met again in the scenario
+test of build `…-230924`: `drw_view_edit` move reported "no overlaps with other views"
+while the moved section view's label sat on the letter of another section line in the
+parent view; the check covers view bounds only, not labels, section letters or
+dimensions. Again in `…-235702`: `drw_annotation_edit` moved a section label 4.3 mm onto
+the other section line's letter, `position read back`, no warning; moving a label is the
+easiest way to land one on another view's annotation. Again in `…-010708`: `drw_note_add`
+120 mm from the sheet's right edge with a first line ≈180 mm long, `position read back`, no
+warning, the line cut off at the page edge in the PDF; the result gives the position, not
+the note's extent. Again in `…-034022`: `drw_dimension_add` `horizontal` with `textAtMm` on
+the row of an existing dimension from the same edge, its dimension line on the other's and
+the two texts side by side, `textAtMm` echoed, no warning; the result does not show a clash
+with the view's other dimensions. Again in `…-064352`: a dimension's `textAtMm` at y 292 on an
+A3 sheet (297 high) put the text over the border's zone strip, `textAtMm` echoed, no warning.
+Again in `…-144220` (point 2): a section's `modelBoxMm` is the whole model's box, not what
+the view shows. Cut through a tray's side ears looking along +X at 1:2, `boundsMm`
+horizontal 72.68–107.32, `modelBoxMm` 67.24–101.38 (the full 68.28 mm extent), while the
+PDF draws the section from 78.6 to 101.35: one edge right, the other 11.4 sheet mm off. The
+section's checks passed. A caller placing text or a view from `modelBoxMm`, as
+`drw_views_standard`'s description suggests for plain views, lands beside the section.
+Local, either: the cut geometry's box for a section, or a word in the description that a
+section keeps the model's box. That point is fixed in `ff6eaec` on `sw2023` (the owner,
+2026-11-11: the box, not the word): for a section of a part `modelBoxMm` is the box of
+what the view draws, from its visible edges (a line by its ends, a full circle by its
+projected radius, other edges by points along them), taken when it lies inside the
+model's box; a section of an assembly keeps the model's box, and `drw_info` says both.
+New live test (a block with a taller end cut in the middle, both ways round: 60 high one
+way, 100 the other) fails without it. In build `20261111-140208`; to check in its
+scenario test. Held there (findings 2026-11-11, point 4): the same section through a
+tray's side holes read 78.624–101.376 against the PDF's 78.6–101.35 (was 67.24–101.38),
+in `drw_info` of a saved drawing and in a new `drw_view_section` result; a centreline
+section kept the full height. The item's other points (axes, the border and title block,
+labels, dimension and note extents) stay open. Met again in that test: two `diameter`
+dimensions on the same hole edge without `textAtMm` were both placed at the same sheet
+point, the second a duplicate, with no warning for either.
+Fixed in `8d105c3` on `sw2023` (2026-11-12): `drw_info` and `drw_sheet_setup` give
+`drawableMm` and `titleBlockMm` (ISO A3: [20, 10, 410, 287] and [230, 10, 410, 65.25]),
+from the format's lines on the sheet's own view (`IView.GetLines4`), else its zone
+margins; each view gives `axes` (the model direction to the sheet's right, up and out; a
+top view's up is -Z); `drw_note_add` gives `extentMm` (`INote.GetExtent`) and
+`drw_dimension_add` `textBoxMm` (estimated from the display data, 0.6 x the height a
+character); both, and a `drw_annotation_edit` move, warn when the text runs off the sheet,
+crosses the border, lies on the title block or on another annotation, which is named (the
+same value there: "a duplicate?"); a new or moved view's check covers the border, the
+title block and its own annotations against the other views'. Found live: after a view
+moves, its label's `INote.GetExtent` still reads the old place, so the check shifts the
+boxes read before the move by the view's move. Four new live tests, each failing without
+it; `DrawingLiveTests` 54/54 on 2023 SP3 with it, and 56/56 with S24 and S32 (the S24 test
+after its own setup was fixed). Not covered: a section line's letters in the parent view
+(not checked whether SOLIDWORKS lists them as annotations), and a dimension whose
+dimension line runs on another's with the texts side by side (only overlapping texts are
+caught). In no build yet; a PR upstream after it held.
+
+**S24. `drw_annotation_edit` delete moves other dimensions, unreported.** In the scenario
+test of build `…-024431`: three horizontal dimensions stacked below a view, text at y 109,
+101 and 93 mm. After the one at 109 was deleted, the `before` of the next two deletes gave
+both at y 109: SOLIDWORKS had closed up the stack. The result says only that the count
+went down by one and the name is no longer listed; in a drawing that keeps them, the
+layout changes without a word. Bears on S3 (Closed), whose tool it is. Local: read the
+view's other annotations' positions before and after a delete and name each that moved.
+Decided 2026-11-11 by the owner: name each that moved, before and after; do not put them
+back (a caller moves one with `drw_annotation_edit` if it wants).
+Fixed in `479b885` on `sw2023` (2026-11-12): a delete reads the other annotations'
+positions before and after; each that moved is in `othersMoved` (name, view, beforeMm,
+afterMm) and in a warning, else a check says they stayed where they were. New live test
+(three stacked horizontal dimensions, the first deleted: SOLIDWORKS moved the others)
+fails without it. In no build yet.
+
+**S32. Two small result follow-ups from the scenario test of build `20261111-140208`.**
+(a) From S22 (point 5): the results of `drw_views_standard` and `drw_view_section` still
+carry the model's full path in each view, which `drw_info` cut. (b) From S25 (point 6): a
+pick one diameter off a hole's centre rightly got "used the nearest one, 2.25 mm away",
+but 2.25 is also the radius and it read as the centre case, and an `edge_list` call went
+to finding the real centre; when the edge taken is a circle, that warning can name its
+centre and radius. Local, small. Not yet fixed.
+Fixed in `d3f401c` on `sw2023` (2026-11-12): (a) the views of `drw_views_standard` and of
+the derived views (projected, section, detail, auxiliary) name the model's file only; the
+full path stays at the result's top or in the parent view. (b) When the nearest edge taken
+is a circle, the warning names it: "used the nearest one, 1 mm away: a circular edge of
+radius 1 mm centred at [30, 0, 20] mm". A live test for each fails without it. In no build
+yet.
+
+**S13. `drw_dimensions_auto` gives dimensions that cannot be used, reported as success.**
+On a part with fully defined sketches: 25 dimensions, construction ones among them,
+duplicates, overlapping texts, some off the sheet, none for features whose sketches had
+none. Without a delete tool they could not be removed, so the drawing was restarted; with
+S3's `drw_annotation_edit` (Waiting) they can be deleted one by one. Usage: manual
+`drw_dimension_add` only. Decided 2026-11-11 by the owner: no code change; the
+description says the result needs cleaning and points to `drw_dimension_add`.
+Done in `5bd35ec` on `sw2023` (2026-11-12): `drw_dimensions_auto`'s description says the
+result needs cleaning (duplicates, construction ones, overlapping texts) and that
+`drw_dimension_add` checks each. In no build yet.
 
 ## Closed
 
