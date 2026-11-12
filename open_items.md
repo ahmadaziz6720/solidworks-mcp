@@ -10,12 +10,11 @@ Three sections: **Open**, not yet fixed; **Waiting**, fixed and not yet settled 
 merged, a fix not yet run in a session); **Closed**, merged upstream, run and held, or
 decided against, with the record.
 
-**Open: S4, S5, S7, S10 to S12, S33, S34, S48, S49, S55 to S57, S59 to S65.** S48 and S49 are from the scenario
-test of build `20261112-091908`, S50 to S66 from twenty working sessions on that build
-(findings 2026-11-12 and 13); S47, from that scenario test too, S50 to S54, S58 and S66
-are fixed and Waiting.
-Reported `ok` while wrong or misleading: S60 (a), S63 (b); a
-failure reported on a success: S56 (a).
+**Open: S4, S5, S7, S10 to S12, S33, S34, S48, S49, S55 to S57, S59 to S65.** S48 and
+S49 are from the scenario test of build `20261112-091908`, S50 to S66 from twenty
+working sessions on that build (findings 2026-11-12 and 13); S47, from that scenario
+test too, S50 to S54, S58 and S66 are fixed and Waiting. Reported `ok` while wrong or
+misleading: S60 (a), S63 (b); a failure reported on a success: S56 (a).
 Next: the run planned below, every point of it decided 2026-11-13 by the owner. Not in
 it: S4, S5, S7 and S12 wait on upstream; S10, S11, S33 and S34 are parked until a job
 needs them; S61 (a), S62 (b), S64 (c) and S65 (b to d) were offered for this run and not
@@ -58,8 +57,11 @@ How it runs:
 - **One SOLIDWORKS, so one batch at a time.** Live tests drive the one SOLIDWORKS on this
   machine, and most batches touch the same services (`FeatureService`, `SketchService`,
   `AssemblyService`, `SwContext`), so the batches go one after another on `sw2023` in the
-  main tree, not in parallel worktrees. The main session stays thin: it hands one batch
-  to one subagent, reads its short report and the diff, and commits.
+  main tree, not in parallel worktrees. The main session stays thin: it hands the work
+  to subagents, reads each short report and the diff, and commits. **One fresh subagent
+  per item** (the owner, 2026-11-13, mid-run), or per named pair of small items on the
+  same files, still one after another: one agent resumed item by item through batch 2
+  reached ~450k tokens, a fresh one per item ~160-180k.
 - **Per item**, as `CONTRIBUTING.md` and the owner's rules give it: first the live test
   that shows the fault, run on the current code (an item whose test does not fail is
   closed instead, with the test kept if it is worth keeping); then the fix; then that
@@ -70,9 +72,23 @@ How it runs:
 - **Commits**: one per item, its fix and its note moving the item to Waiting with the
   commit, as `git-workflow:pr` gives a commit on `sw2023` (no trailer). No push until the
   release; no branch, no PR upstream (each item's upstream line stays "not yet decided").
-- **A subagent's brief**: the batch's items as written here and in each item, the files
-  likely touched, the test rule above, "do not commit, do not push, report in ten lines:
-  per item the failing test's output before, after, and the tests run". Findings that
+- **A subagent's brief**: its item as written here and in the item, the decision on it,
+  the files likely touched, and these rules: read `CLAUDE.md`, `CONTRIBUTING.md`, the
+  parts of `docs/solidworks-api-notes.md` it needs, and this brief; never switch
+  branches, touch `.claude/worktrees/*`, commit, push, tag or reset; a stash only by
+  name and file. SOLIDWORKS 2023 (`C:\Program Files\SOLIDWORKS Corp\SOLIDWORKS\SLDWORKS.exe`)
+  started if not running, live tests as
+  `$env:SWMCP_LIVE_TESTS=1; dotnet test --project tests/SolidWorksMcp.LiveTests --filter-method "<Class>.<Method>"`.
+  The test rule above, a failing test that is not the item's said as such. Then
+  `open_items.md`: the item moved to the end of Waiting with its cause, fix, the test
+  before (its message), the tests after with counts, and "Local: on `sw2023`, in the
+  commit that moves it here; not yet in a build. Upstream: not yet decided."; a partly
+  done item stays Open with what was tried; the `**Open: …**` line updated and `python
+  board.py --check` clean. A description changed: short (the tool list is at its byte
+  budget, `--check-catalog` and `ContractTests.Tool_catalog_follows_the_conventions`
+  run each time). `findings.md` is not the subagent's to edit. Report, ten lines: the
+  outcome, the failing test before, the tests after with counts, every file changed,
+  its "Decided … by the run" lines, a proposed commit subject and body. Findings that
   name where they came from stay out (`findings.md`'s top).
 - **Descriptions changed** → `docs/tools.md` regenerated once, in the release batch.
 
@@ -97,6 +113,20 @@ modelling, the largest first; the release last):
 
 If the session ends before the last batch, this list and the items' Waiting lines say
 where the next one picks up.
+
+**Where the run stands** (the first session, 2026-11-13, handed over on the owner's word
+to go on in a new session the same way). Committed on `sw2023`, not pushed: batch 1, S47
+`f71b034`; batch 2, S66 `657fc23`, S51 `16699e2`, S53 `59beaae`, S52 `8dff953`, S50
+`1bc3cbb`; batch 3, S54 `9939f28`, S58 `32698d5`. **Next: batch 3's S48 (d), then S63**,
+then batches 4 to 7. The opening question was asked and answered in the first session
+and holds for the rest of the run, so the next session asks nothing: the release is
+tagged and registered in both projects that list the server in `~/.claude.json`, and
+`sw2023` is pushed at the release. Decided 2026-11-13 by the run, not the owner: a
+Waiting line names its commit as "the commit that moves it here", since a commit cannot
+hold its own hash; the release batch writes each item's hash and the build into its
+line, from this list and `git log`. Per item, the main session reads the diff of any
+check made stricter against the common flow before committing it (S66's edge check was
+first shown live not to refuse ids of edges no feature touched).
 
 ---
 
