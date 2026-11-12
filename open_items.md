@@ -11,8 +11,8 @@ merged, a fix not yet run in a session); **Closed**, merged upstream, run and he
 decided against, with the record.
 
 **Open: S4, S5, S7, S10 to S12, S33, S34, S47 to S49.** S47 to S49 are from the scenario
-test of build `20261112-091908`, not yet decided; S47 is a result reported `ok` that was
-wrong.
+test of build `20261112-091908`; S47 is a result reported `ok` that was wrong. Next: S47,
+decided 2026-11-12 by the owner; S48 and S49 not yet decided.
 Decided 2026-11-11 by the owner, each in its item below. Every open item can be worked on
 but these: S4, S5, S7 and S12 wait on upstream; S10, S11, S33 and S34 are parked until a
 job needs them. S43 and S44 were found on build `…-064352`; their code is unchanged in
@@ -35,8 +35,8 @@ the small ones; drawings after; the release last.
    S41, S45, S40, S38, S43, S18, S31, S44, S39, S27, S35, S30, S6's wording, S24, S32,
    S13, and S14 but for its frame. Failed: S14's frame at a sheet scale other than 1:1,
    now S47. New: S47 to S49. The items that held closed the same day on the owner's word,
-   but S6 and S14, which stay for their PRs. Waits on the owner: the decisions on S47 to
-   S49.
+   but S6 and S14, which stay for their PRs. Next: S47 (decided), then the owner's
+   decisions on S48 and S49.
 
 ---
 
@@ -111,7 +111,8 @@ S14's live tests ran on 1:1 sheets. Likely cause, from the source, not probed: `
 in `DrawingService` reads the format's lines by `GetLines4` on the sheet's own view, whose
 coordinates are that view's and scale with the sheet. Local: the frame in sheet
 millimetres at any scale, a live test on a 1:2 sheet that fails now. Bears on S14, whose
-PR waits on this. Not yet decided.
+PR waits on this. Decided 2026-11-12 by the owner: as proposed, and first, before S48
+and S49.
 
 **S48. Four small result follow-ups from the modelling scenario test of build
 `20261112-091908`** (findings 2026-11-12, first entry, points 2 to 5). (a) From S40: a
