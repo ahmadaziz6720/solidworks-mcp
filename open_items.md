@@ -10,7 +10,7 @@ Three sections: **Open**, not yet fixed; **Waiting**, fixed and not yet settled 
 merged, a fix not yet run in a session); **Closed**, merged upstream, run and held, or
 decided against, with the record.
 
-**Open: S4, S5, S7, S10 to S12, S30, S33, S34, S36, S46.**
+**Open: S4, S5, S7, S10 to S12, S33, S34, S36.**
 Decided 2026-11-11 by the owner, each in its item below. Every open item can be worked on
 but these: S4, S5, S7 and S12 wait on upstream; S10, S11, S33 and S34 are parked until a
 job needs them; S36 is done in the scenario test, not here. S43 and S44 were found on
@@ -23,17 +23,17 @@ the small ones; drawings after; the release last.
 1. Modelling, large: S37, S42, S41, S45, S40 and S38 are done (Waiting, on `sw2023`, in
    no build yet).
 2. Modelling, smaller: S43, S18, S31, S44, S39, S27 and S35 are done (Waiting); S30
-   decided 2026-11-12 (report, and apply the material again), not yet done. S6's wording
-   is pushed to PR #6 (2026-11-12).
+   too (Waiting, 2026-11-12). S6's wording is pushed to PR #6 (2026-11-12).
 3. Drawings: S14, S24, S32 and S13 are done (Waiting, on `sw2023`, in no build yet).
-4. Release: S46's line in `CLAUDE.md` step 4, then a build as that file says, every
-   project registered, and the opening sentence for the scenario test. A build may come
+4. Release: S46's line in `CLAUDE.md` step 4 (done, Waiting), then a build as that file
+   says, every project registered, and the opening sentence for the scenario test. A build may come
    earlier, after a group, when the owner asks. Before it: `docs/tools.md` regenerated
    (`solidworks-mcp --tools-md docs\tools.md`), since `equation_set`, the pattern
    tools, `sketch_dimension_add` and the 37 tools with `faceDetail` changed their
    descriptions or parameters and the file was left as it was; and the live tests of
-   the areas touched in full (Properties, SketchEdit, PartFeature, Modelling, Assembly),
-   of which only the tests that call the changed code were run.
+   the areas touched in full (Properties, SketchEdit, PartFeature, Modelling, Assembly,
+   and since group 3 and S30 Drawing and Configuration), of which only the tests that call
+   the changed code were run.
 
 ---
 
@@ -69,32 +69,6 @@ Parked 2026-11-11 by the owner: taken up when a job needs it.
 **S12. Section orientation is not in the tool description.** Arrow side and view direction
 (findings 2026-11-09, point 12). Upstream: proposed in PR #1's text; a description change
 when PR #1 is settled.
-
-**S30. `model_mass` and `material_set` name a material the configuration does not have.**
-In the scenario test of build `20261111-140208` (point 1): with a material in rows A and
-C only, `model_mass` in `Default` gave `"material":"AISI 1020"` beside a density of 1000,
-and a following `material_set` with no `configuration` reported `"previous":"AISI 1020"`,
-both `ok`; the table, which reads by the configuration's name, gave none for `Default`.
-Both read `GetMaterialPropertyName2("")`. Likely the material that reached `Default`
-while row A was set (S29's cause) and was given back by name still answers to `""`; not
-probed. Local: read by the active configuration's name in both, and probe whether S29's
-putting back leaves something behind under `""`. Probed 2026-11-11 on `sw2023` at
-`fa434e5`, live: a block, `config_table` rows A (`AISI 1020`), B, C, `material_set` 6061
-in C with `Default` active. Read by each configuration's name, `Default` has no material
-until it is activated again after A, B and C; from then on `GetMaterialPropertyName2`
-by its own name, by `""` and `MaterialIdName` all give `AISI 1020`, after a rebuild too,
-while its mass reads 1000 kg/m³ and its body names no material. So reading by the
-active configuration's name does not fix it: SOLIDWORKS keeps a name it does not apply.
-A test that fails on it (`model_mass` names `AISI 1020` in `Default`) and the reads by
-name in six services were written and set aside, not committed. Waits on the owner: what the tools
-report when the name and the density disagree (e.g. the name with a warning, or no
-material), and whether to look for where the name comes from (S29's putting back, or
-`Default`'s activation).
-Decided 2026-11-12 by the owner: report, and apply again. `model_mass` and `material_set`
-say the configuration has no material (SOLIDWORKS still names one) with a warning, and
-`material_set` with that configuration applies the material again, so the name and the
-density agree. Setting the document's density, or a custom material by `material_add`, was
-offered and not taken: it hides the mismatch.
 
 **S33. No equations linked to a file.** From reading the source (findings 2026-11-11,
 first entry, point 1): `equation_set`, `equation_list` and `equation_delete` act on one
@@ -132,25 +106,6 @@ built by hand, reads its components and mates and changes one dimension; one tha
 global variable, renames a feature and reads `model_review`. Usage: the scenario test,
 the owner's call. Decided 2026-11-11 by the owner: both scenario items, written into the
 scenario test where it is kept, not here. Closes when they are there.
-
-**S46. A release is registered in one project, the server in two.** From reading a
-session's call count (findings 2026-11-11, fourth entry): `CLAUDE.md`'s release step 4
-registers the new exe "(scope local, in the owner's project)". The server is registered
-at local scope in two of the owner's projects, each with its own exe path in
-`~/.claude.json`; builds up to `…-064352` went to both, the five after it only to the one
-where the scenario test runs. A session in the other project ran two parts and an
-assembly on `…-064352`, without `sketch_constrain` (S8), ~150 of ~330 calls single
-relations and dimensions. `sw_status` reported the old build rightly; nothing compared it
-with the latest release. Bears on S15 and S16. Local, in this repo's release steps:
-step 4 reads every project's `mcpServers.solidworks-mcp.command` from `~/.claude.json`,
-names each on an older build in the question to the owner, and registers the new exe in
-each. The owner's call. Taken up outside this repo the same day: a session-start hook of
-the owner's re-registers a project's `solidworks-mcp` on the newest `build-` tag, run by
-hand once (it moved the stale project to `20261111-140208`), not yet run at a session
-start. With it, step 4 may only need to say that the hook does the other projects.
-Decided 2026-11-11 by the owner: a line in step 4, to register the new exe by hand in
-every project `~/.claude.json` lists with `solidworks-mcp`, until that hook has held at
-a session start.
 
 ## Waiting
 
@@ -742,6 +697,62 @@ description says the result needs cleaning and points to `drw_dimension_add`.
 Done in `5bd35ec` on `sw2023` (2026-11-12): `drw_dimensions_auto`'s description says the
 result needs cleaning (duplicates, construction ones, overlapping texts) and that
 `drw_dimension_add` checks each. In no build yet.
+
+**S30. `model_mass` and `material_set` name a material the configuration does not have.**
+In the scenario test of build `20261111-140208` (point 1): with a material in rows A and
+C only, `model_mass` in `Default` gave `"material":"AISI 1020"` beside a density of 1000,
+and a following `material_set` with no `configuration` reported `"previous":"AISI 1020"`,
+both `ok`; the table, which reads by the configuration's name, gave none for `Default`.
+Both read `GetMaterialPropertyName2("")`. Likely the material that reached `Default`
+while row A was set (S29's cause) and was given back by name still answers to `""`; not
+probed. Local: read by the active configuration's name in both, and probe whether S29's
+putting back leaves something behind under `""`. Probed 2026-11-11 on `sw2023` at
+`fa434e5`, live: a block, `config_table` rows A (`AISI 1020`), B, C, `material_set` 6061
+in C with `Default` active. Read by each configuration's name, `Default` has no material
+until it is activated again after A, B and C; from then on `GetMaterialPropertyName2`
+by its own name, by `""` and `MaterialIdName` all give `AISI 1020`, after a rebuild too,
+while its mass reads 1000 kg/m³ and its body names no material. So reading by the
+active configuration's name does not fix it: SOLIDWORKS keeps a name it does not apply.
+A test that fails on it (`model_mass` names `AISI 1020` in `Default`) and the reads by
+name in six services were written and set aside, not committed. Waits on the owner: what the tools
+report when the name and the density disagree (e.g. the name with a warning, or no
+material), and whether to look for where the name comes from (S29's putting back, or
+`Default`'s activation).
+Decided 2026-11-12 by the owner: report, and apply again. `model_mass` and `material_set`
+say the configuration has no material (SOLIDWORKS still names one) with a warning, and
+`material_set` with that configuration applies the material again, so the name and the
+density agree. Setting the document's density, or a custom material by `material_add`, was
+offered and not taken: it hides the mismatch. Fixed in `bb23828` on `sw2023`: where the named material's database density and the
+measured one disagree (and no body has its own material), `model_mass` reports no material
+and `material_set` no previous one, each with a warning naming both densities, and
+`material_set` with that material applies it again. A live test (rows A to C, `AISI 1020`
+in A, `6061 Alloy` in C, each activated in turn, then `Default`) fails without it (`model_mass`
+names `AISI 1020` at 1000 kg/m³); with it, both paths (`configuration` named and not)
+read 7900 kg/m³ after `material_set`; with the 16 other live tests that call `model_mass`
+or `material_set`, 17/17. Not changed: the other readers of the name (`model_info`, cost,
+`model_review`, simulation), which still read it by `""`. To check in the scenario test:
+the same part, `model_mass` in `Default`, then `material_set` and its mass.
+
+**S46. A release is registered in one project, the server in two.** From reading a
+session's call count (findings 2026-11-11, fourth entry): `CLAUDE.md`'s release step 4
+registers the new exe "(scope local, in the owner's project)". The server is registered
+at local scope in two of the owner's projects, each with its own exe path in
+`~/.claude.json`; builds up to `…-064352` went to both, the five after it only to the one
+where the scenario test runs. A session in the other project ran two parts and an
+assembly on `…-064352`, without `sketch_constrain` (S8), ~150 of ~330 calls single
+relations and dimensions. `sw_status` reported the old build rightly; nothing compared it
+with the latest release. Bears on S15 and S16. Local, in this repo's release steps:
+step 4 reads every project's `mcpServers.solidworks-mcp.command` from `~/.claude.json`,
+names each on an older build in the question to the owner, and registers the new exe in
+each. The owner's call. Taken up outside this repo the same day: a session-start hook of
+the owner's re-registers a project's `solidworks-mcp` on the newest `build-` tag, run by
+hand once (it moved the stale project to `20261111-140208`), not yet run at a session
+start. With it, step 4 may only need to say that the hook does the other projects.
+Decided 2026-11-11 by the owner: a line in step 4, to register the new exe by hand in
+every project `~/.claude.json` lists with `solidworks-mcp`, until that hook has held at
+a session start. Done in `0e1de7a` on `sw2023`: step 4's question names every project with the
+build it runs, and the yes registers the new exe in each. Closes when it has held at a
+release.
 
 ## Closed
 
