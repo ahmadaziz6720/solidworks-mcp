@@ -1104,3 +1104,99 @@ by a call.
    an older build in the question to the owner.
 
 Sorted into S46 new (1).
+
+**2026-11-12: scenario test of the modelling items (a shelled tray, a machined part of global variables, probes in throwaway parts)**
+
+Build `0.1.0-sw2023-20261112-091908` (`serverVersion` `…-091908+276d378`). 128 calls, 69.9k
+characters, 2 errors, both refusals the test asked for.
+
+1. Held: S37, S42, S41, S45, S40, S38, S43, S18, S31, S44, S39, S27, S35, S30 and S6's
+   wording. In order: ten global variables in one `equation_set`, thirteen dimension links
+   in one more, each row read back, `bodies: 1` in each result, the ten changed and set back
+   in one call each with the volume back exact; a machined part of ten globals took 39
+   calls and 26.3k characters against 83 and 32.4k on build `20261111-140208`. No "turned" /
+   "moved" warning in nine fully defined sketches; a 130° wedge given 50° with `textAt`
+   inside it warns with both angles, the line that turned and a `textAt` in the other
+   angle. A 2 x 2 pattern toward `-x` and `-z` lands all four holes, "direction flipped",
+   no instance-face warning. `newFaces` id and surface only (a boss's result 0.75k), in
+   full with `faceDetail:true`. A blind cut 15 deep in a 10 mm block passes on its volume
+   with the no-floor line and takes its `name`. `feature_hole` names each placement sketch
+   `under` with a warning; after `sketch_constrain` and two equations `model_review` is
+   clean. `sketch_offset` names `D3@<sketch>` = 5, stays `fully`, an equation of 8 gives
+   the 116 x 76 loop, the sketch not in `model_review`. `doc_pack` of an assembly open
+   read-only refused before writing; a part with no drawing beside it `noDrawingsFound`.
+   `feature_delete` `deleteChildren`: dry run and delete list the same seven items.
+   `feature_chamfer` `equal` on a bore's circular edge: no warning, volume as computed. A
+   centre rectangle's `diagonals`; `material_list {filter:"6061"}` 0.65k, one database.
+   `doc_open` of a drawing read-only: its model in `doc_list` with `loadedBy`.
+   `model_compare` against a file whose name is open: refused, both paths named. Rows A to C,
+   a material in A and C: `model_mass` in `Default` names none, with the warning; then
+   `material_set` in `Default` reads 7900 kg/m³ and `model_mass` names it. The accepted
+   angle's check reads "the angle that was 7.5°, … then 172.5°" (S6).
+2. `feature_extrude` cut with `name`, no floor (S40): the check line names the depth
+   dimension by the feature's name before the rename, "no floor at 15 mm: … (D1@Cut-Extrude1
+   reads 15 mm)", while `dimensions` in the same result gives `D1@<name>`. A caller who
+   takes the name from the check gets one that no longer exists. Reported success, rightly;
+   wording.
+3. `material_set` with the configuration whose material SOLIDWORKS names but does not
+   apply (S30): the call applies it (`densityKgM3` 7900, "matches the database") and still
+   carries the warning "… its mass has 1000 kg/m³ … the material is not applied, so it is
+   reported as none", written as of now. It is the reason `previous` is absent; in a result
+   whose material is applied it reads as if the call failed. "was not applied" / "the
+   previous one is reported as none" would fit.
+4. `feature_hole` with several points (S38): one warning per hole, the same 220-character
+   sentence with the feature and sketch names changed. Six holes: 1.3k of the result's 3.6k,
+   four holes 0.9k. One warning naming the sketches, then the way out once, would say the
+   same. Wasteful, not wrong.
+5. `equation_set` with `equations` (S37): the largest results of the session, 3.9k for
+   thirteen dimension links and 3.1k for ten globals changed, each row giving the equation,
+   the previous equation (or the driven dimension) and two checks. Few calls now, but these
+   two kinds of call are a quarter of the part's characters. A short row form (lhs, value,
+   previous value), the full one by a flag as `faceDetail` does for faces, would cut it.
+   Not wrong.
+
+**2026-11-12: scenario test of the drawing and assembly items (a hand-mated two-part assembly, a drawing of a shelled tray at 1:2, a STEP round trip, a two-part assembly's interference)**
+
+Build `bin\0.1.0-20261112-091908` (`serverVersion` `0.1.0-sw2023-20261112-091908+276d378`).
+42 calls, 21.4k characters, no errors.
+
+1. `drw_info` and `drw_sheet_setup` (S14): on an ISO A3 sheet at scale 1:2, `drawableMm`
+   reads [40, 20, 820, 574] and `titleBlockMm` [460, 20, 820, 130.5], twice the right
+   [20, 10, 410, 287] and [230, 10, 410, 65.25] (the sheet is 420 × 297). A new drawing
+   at 1:1 reads them right; `drw_sheet_setup {scale:"1:2"}` on it returns the doubled pair
+   at once, so the factor is the sheet scale. Every check built on them is then wrong and
+   reported success: a note at x 18 warns of crossing the border, but against x 40 (a note
+   at x 30 would be warned wrongly); a note at [300, 40], on the real title block, gets
+   "clear of the border, the title block and the other annotations"; a dimension with
+   `textAtMm` [150, 292], over the zone strip and outside the border at 287, gets the same;
+   a section view whose `boundsMm` reaches y 289.01 gets "inside the border". The live
+   tests that hold these values are likely on a 1:1 sheet; a test on a 1:2 sheet would
+   fail now.
+2. Held: `drw_info` `axes` on all three views (a top view: right +X, up −Z, out +Y);
+   `drw_note_add` `extentMm` and `drw_dimension_add` `textBoxMm`; a second `diameter` on
+   the same hole edge without `textAtMm` warned "overlaps dimension '…' (the same value: a
+   duplicate?)" with the first one's name (S14). `drw_annotation_edit` delete of the first
+   of three stacked dimensions: `othersMoved` names the three SOLIDWORKS closed up, before
+   and after, with the warning; other deletes "stayed where they were" (S24). The views of
+   `drw_views_standard` and of two new sections name the model's file only, the path once
+   at the top; a pick one diameter off a hole's centre warns "used the nearest one, 2.25 mm
+   away: a circular edge of radius 2.25 mm centred at […]" (S32). `drw_dimensions_auto`'s
+   description says it needs cleaning and points to `drw_dimension_add` (S13). Sections
+   through a centreline (1 hatched face) and through two holes (3) as before. An assembly
+   mated by hand (S36): `asm_component_list` 2 components, the first fixed, the second
+   `under` with 2 mates; `asm_mate_list` concentric and coincident, `inError: 0`;
+   `model_mass` volume 127 402.659 mm³ as computed; a part's length 60 → 80 through the
+   assembly, rebuild, mates still without error, 133 685.844 mm³ as computed.
+3. `dimension_set` on an assembly with a component's dimension
+   (`D1@Boss-Extrude1@<component>-1`): the change is right, but the result names it
+   `D1@Boss-Extrude1`, without the component, and carries no volume change, which the
+   description promises and a part's result gives. With two components holding a
+   `D1@Boss-Extrude1` the row would not say which changed. Reported success, rightly.
+4. `dimension_set` through an assembly the server opened changed a part that `doc_list`
+   lists as `foreign` (`loadedBy` the assembly), leaving it dirty; closing the assembly
+   with `discard` closed and discarded it too ("SOLIDWORKS also closed"), and the part's
+   file was not touched. Whether a referenced part counts as the assembly's for rule 5 is
+   not said anywhere; the result does not mention the other document either. Not wrong as
+   such; worth a word in the result ("also changes <part>, not saved").
+5. STEP AP214 export of a shelled solid and `doc_open` of it: 16 surface bodies, as before
+   (S5). Interference of a two-part assembly at its saved position: 0, as before.
