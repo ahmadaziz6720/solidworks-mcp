@@ -35,6 +35,8 @@ public sealed record DrwView
     public required string Type { get; init; }
     /// <summary>front | back | top | bottom | left | right | iso when the view looks along one of them.</summary>
     public string? Orientation { get; init; }
+    /// <summary>Which model direction points to the sheet's right, up and out of the sheet (from the model-to-sheet transform).</summary>
+    public DrwAxes? Axes { get; init; }
     public required string Scale { get; init; }
     /// <summary>The view's position on the sheet (IView.Position).</summary>
     public double[]? CenterMm { get; init; }
@@ -65,6 +67,12 @@ public sealed class DrwSheet
     public required string Projection { get; init; }
     /// <summary>The sheet format file (title block); null = none.</summary>
     public string? Format { get; init; }
+    /// <summary>The inside of the format's border [xMin, yMin, xMax, yMax]: where views, notes and dimensions belong.</summary>
+    public double[]? DrawableMm { get; init; }
+    /// <summary>The format's title block [xMin, yMin, xMax, yMax], inside the drawable area; keep out of it.</summary>
+    public double[]? TitleBlockMm { get; init; }
+    /// <summary>Other blocks the format draws inside its border (a revision table, …); keep out of them too.</summary>
+    public IReadOnlyList<double[]>? FormatBlocksMm { get; init; }
     public bool? Current { get; init; }
     public IReadOnlyList<DrwView>? Views { get; init; }
     /// <summary>Annotations placed on the sheet itself (not in a view).</summary>
@@ -127,6 +135,8 @@ public sealed class DrwDimensionResult : ToolResult
     /// <summary>hole_callout: the callout's text parts as SOLIDWORKS holds them.</summary>
     public string? Callout { get; init; }
     public double[]? TextAtMm { get; init; }
+    /// <summary>The box the dimension's text covers [xMin, yMin, xMax, yMax], estimated from its height and length (±1 mm).</summary>
+    public double[]? TextBoxMm { get; init; }
     public IReadOnlyList<string>? Checks { get; init; }
     public IReadOnlyList<ResolvedInfo>? Resolved { get; init; }
 }
@@ -137,6 +147,8 @@ public sealed class DrwNoteResult : ToolResult
     public required string Text { get; init; }
     public double[]? AtMm { get; init; }
     public double? HeightMm { get; init; }
+    /// <summary>The box the note's text covers on the sheet [xMin, yMin, xMax, yMax] (INote.GetExtent); atMm is its top-left corner.</summary>
+    public double[]? ExtentMm { get; init; }
     /// <summary>The view the note belongs to (null = the sheet).</summary>
     public string? View { get; init; }
     public IReadOnlyList<string>? Checks { get; init; }
@@ -371,7 +383,7 @@ public sealed partial class DrawingService(SwSession session)
         checks.Add($"read back: {paper.Size} {paper.Orientation} {paper.WidthMm} x {paper.HeightMm} mm, {DrawingLayout.FormatScale(num, den)}, " +
                    $"{(firstAngle ? "first" : "third")} angle, format {(formatPath is null ? "none" : Path.GetFileNameWithoutExtension(formatPath))}");
         FormatOrientationCheck(ctx, sheet, paper);
-        return SheetInfo(sheet, true);
+        return SheetInfo(sheet, true, frame: FrameOf(sheet, drw.DrwSheetView()));
     }
 
     /// <summary>Warns when the sheet format's lines span the paper turned by 90° (a portrait format on landscape paper).</summary>
@@ -1147,18 +1159,23 @@ public sealed partial class DrawingService(SwSession session)
             else ctx.Warn($"'{hit.Name}' went from {before} to {after} dimension(s).");
             var resolved = new List<ResolvedInfo> { ra.Info("a") };
             if (rb is not null) resolved.Add(rb.Info("b"));
+            string dimName = FeatureVerifier.ShortName(dim.FullName);
+            SheetRect? textBox = null;
+            if ((object?)dd.GetAnnotation() is IAnnotation dan)
+                PlacementCheck(ctx, drw, dan, dimName, "The dimension's text", checks, out textBox, angular ? Units.Deg(v) : Units.Mm(v));
             return new DrwDimensionResult
             {
                 Doc = ctx.Title(d),
                 View = hit.Name,
                 Kind = made,
-                Dimension = FeatureVerifier.ShortName(dim.FullName),
+                Dimension = dimName,
                 Value = angular ? Units.Deg(v) : Units.Mm(v),
                 Unit = angular ? "deg" : "mm",
                 Expected = expected is double ex ? (angular ? Units.Deg(ex) : Units.Mm(ex)) : null,
                 Reference = dim.DrivenState == (int)swDimensionDrivenState_e.swDimensionDriven ? true : null,
                 Callout = callout,
                 TextAtMm = [Math.Round(tp.X, 3), Math.Round(tp.Y, 3)],
+                TextBoxMm = textBox?.ToArray(),
                 Checks = checks,
                 Resolved = resolved,
             };
@@ -1600,6 +1617,7 @@ public sealed partial class DrawingService(SwSession session)
                 ctx.Warn($"The note belongs to '{owner}', not '{hit.Name}'.");
             if (hit is null && owner is not null && !string.Equals(owner, sheet.GetName(), StringComparison.OrdinalIgnoreCase))
                 ctx.Warn($"The note belongs to view '{owner}' (it moves with that view), not to the sheet.");
+            PlacementCheck(ctx, drw, an, noteName, "The note's text", checks, out var extent);
             return new DrwNoteResult
             {
                 Doc = ctx.Title(d),
@@ -1608,6 +1626,7 @@ public sealed partial class DrawingService(SwSession session)
                 Text = Cut(got),
                 AtMm = pos.Length >= 2 ? [Math.Round(pos[0] * 1000, 3), Math.Round(pos[1] * 1000, 3)] : null,
                 HeightMm = height is double hh ? Units.Mm(hh) : Units.Mm(note.GetHeight()),
+                ExtentMm = extent?.ToArray(),
                 View = hit?.Name,
                 Checks = checks,
             };
@@ -1806,7 +1825,8 @@ public sealed partial class DrawingService(SwSession session)
                     total++;
                 }
                 var sheetView = bySheet.FirstOrDefault(a => a.Count > 0 && string.Equals(a[0].GetName2(), name, StringComparison.OrdinalIgnoreCase))?[0];
-                sheets.Add(SheetInfo(sh, string.Equals(name, current, StringComparison.OrdinalIgnoreCase), views, sheetView is null ? null : Count(sheetView)));
+                sheets.Add(SheetInfo(sh, string.Equals(name, current, StringComparison.OrdinalIgnoreCase), views, sheetView is null ? null : Count(sheetView),
+                    FrameOf(sh, sheetView)));
             }
             return new DrwInfoResult { Doc = ctx.Title(d), Sheets = sheets, ViewCount = total, Truncated = truncated ? true : null };
         }, RunOptions.Read(doc), ct);
@@ -2037,7 +2057,7 @@ public sealed partial class DrawingService(SwSession session)
         sheet.DrwViews().Select(v => SheetRect.FromMeters(v.DrwOutline())).OfType<SheetRect>().ToList();
 
     /// <summary>Warns about views (the new ones against all on the sheet) whose outlines overlap.</summary>
-    private static void OverlapCheck(SwContext ctx, ISheet sheet, IReadOnlyList<IView> newViews, List<string> checks)
+    private static void OverlapCheck(SwContext ctx, ISheet sheet, IReadOnlyList<IView> newViews, List<string> checks, List<Placed>? placedNow = null)
     {
         try
         {
@@ -2045,15 +2065,30 @@ public sealed partial class DrawingService(SwSession session)
             var sp = sheet.DrwProps();
             var paper = sp.Length >= 7 ? new SheetRect(0, 0, sp[5] * 1000, sp[6] * 1000) : (SheetRect?)null;
             var names = newViews.Select(v => v.GetName2() ?? "").ToHashSet(StringComparer.OrdinalIgnoreCase);
+            var drw = ctx.Drawing();
+            var frame = FrameOfSheet(drw, sheet);
             var clashes = new List<string>();
             foreach (var n in all.Where(x => names.Contains(x.Name)))
             {
                 foreach (var o in all.Where(x => x.Name != n.Name && (!names.Contains(x.Name) || string.CompareOrdinal(x.Name, n.Name) > 0)))
                     if (n.R!.Value.Overlaps(o.R!.Value)) clashes.Add($"'{n.Name}' overlaps '{o.Name}'");
-                if (paper is SheetRect p && !n.R!.Value.Inside(p, 0.5)) clashes.Add($"'{n.Name}' extends past the sheet");
+                // The format's border and title block (S14); without a frame, the sheet's edge.
+                if (frame is not null) clashes.AddRange(frame.Clashes(n.R!.Value).Select(c => $"'{n.Name}' {SheetFrame.Fmt(n.R!.Value)} {c}"));
+                else if (paper is SheetRect p && !n.R!.Value.Inside(p, 0.5)) clashes.Add($"'{n.Name}' extends past the sheet");
             }
-            if (clashes.Count == 0) checks.Add("no overlaps with other views, inside the sheet");
-            else ctx.Warn(string.Join("; ", clashes.Take(6)) + ".");
+            // The views' own annotations (a section's label, its dimensions) against the frame and the other views' (S14):
+            // they move with the view, and a label is the easiest thing to land on another view's annotation.
+            bool onCurrent = string.Equals(drw.DrwCurrentSheet()?.GetName(), sheet.GetName(), StringComparison.OrdinalIgnoreCase);
+            var placed = placedNow ?? (onCurrent ? PlacedOnSheet(ctx, drw) : []);
+            foreach (var mine in placed.Where(x => names.Contains(x.View)))
+            {
+                var found = LandsOn(frame, placed.Where(o => !names.Contains(o.View)), mine.Box);
+                if (found.Count > 0) clashes.Add($"{mine.Kind.Replace('_', ' ')} '{mine.Name}' of '{mine.View}' {SheetFrame.Fmt(mine.Box)} {string.Join("; ", found)}");
+            }
+            if (clashes.Count == 0)
+                checks.Add(frame?.Border is null ? "no overlaps with other views, inside the sheet"
+                    : "no overlaps with other views or their annotations, inside the border, clear of the title block");
+            else ctx.Warn(string.Join("; ", clashes.Take(6)) + (clashes.Count > 6 ? $"; and {clashes.Count - 6} more" : "") + ".");
         }
         catch (COMException) { /* informational only */ }
     }
@@ -2187,7 +2222,7 @@ public sealed partial class DrawingService(SwSession session)
 
     // ------------------------------------------------------------------ reading views and sheets
 
-    private static DrwSheet SheetInfo(ISheet sh, bool current, IReadOnlyList<DrwView>? views = null, DrwCounts? counts = null)
+    private static DrwSheet SheetInfo(ISheet sh, bool current, IReadOnlyList<DrwView>? views = null, DrwCounts? counts = null, SheetFrame? frame = null)
     {
         var p = sh.DrwProps();
         int paper = p.Length > 0 ? (int)Math.Round(p[0]) : DrawingLayout.UserPaper;
@@ -2205,11 +2240,45 @@ public sealed partial class DrawingService(SwSession session)
             Scale = DrawingLayout.FormatScale(s1, s2),
             Projection = p.Length > 4 && p[4] != 0 ? "first_angle" : "third_angle",
             Format = none || tpl.Length == 0 ? null : Path.GetFileName(tpl),
+            DrawableMm = frame?.Border?.ToArray(),
+            TitleBlockMm = frame?.TitleBlock?.ToArray(),
+            FormatBlocksMm = frame?.Blocks.Skip(frame.TitleBlock is null ? 0 : 1).Select(b => b.ToArray()).ToList() is { Count: > 0 } other ? other : null,
             Current = current ? true : null,
             Views = views,
             Annotations = counts,
         };
     }
+
+    /// <summary>
+    /// The sheet's frame (S14): the format's lines, read from the sheet's own view (IView.GetLines4: 12 values a line, its
+    /// ends at 6..11, in m), and its zone margins for a format whose lines close no border. Null when it cannot be read.
+    /// </summary>
+    private static SheetFrame? FrameOf(ISheet? sh, IView? sheetView)
+    {
+        if (sh is null) return null;
+        try
+        {
+            var p = sh.DrwProps();
+            double w = p.Length > 6 ? Units.Mm(p[5]) : 0, h = p.Length > 6 ? Units.Mm(p[6]) : 0;
+            if (w <= 0 || h <= 0) return null;
+            bool hasFormat = !(p.Length > 1 && (int)Math.Round(p[1]) == TemplateNone) && sh.GetTemplateName() is { Length: > 0 } && sh.SheetFormatVisible;
+            var lines = new List<SheetLine>();
+            if (hasFormat && sheetView is not null)
+            {
+                var a = ComArgs.Doubles((object?)sheetView.GetLines4(1));
+                for (int i = 0; i + 12 <= a.Length; i += 12)
+                    lines.Add(new SheetLine(Units.Mm(a[i + 6]), Units.Mm(a[i + 7]), Units.Mm(a[i + 9]), Units.Mm(a[i + 10])));
+            }
+            double[]? margins = null;
+            try { margins = [.. new[] { 0, 1, 2, 3 }.Select(k => Units.Mm(sh.GetZoneMargin(k)))]; }
+            catch (COMException) { /* no zones */ }
+            return SheetFrame.From(w, h, hasFormat, lines, margins);
+        }
+        catch (COMException) { return null; }
+    }
+
+    /// <summary>The current sheet's frame.</summary>
+    private static SheetFrame? CurrentFrame(IDrawingDoc drw) => FrameOf(drw.DrwCurrentSheet(), drw.DrwSheetView());
 
     private static string Summary(DrwSheet s) =>
         $"{s.Size.ToUpperInvariant()} {s.Orientation} {s.WidthMm} x {s.HeightMm} mm, {s.Scale}, {s.Projection.Replace('_', ' ')}, format {s.Format ?? "none"}";
@@ -2249,6 +2318,7 @@ public sealed partial class DrawingService(SwSession session)
             Name = v.GetName2() ?? "",
             Type = TypeName(type),
             Orientation = xf.Length >= 13 && type != (int)swDrawingViewTypes_e.swDrawingSheet ? DrawingLayout.Classify(DrawingLayout.AxesOf(xf)) : null,
+            Axes = xf.Length >= 13 && type != (int)swDrawingViewTypes_e.swDrawingSheet ? DrwAxes.Of(DrawingLayout.AxesOf(xf)) : null,
             Scale = scale,
             CenterMm = pos.Length >= 2 ? [Math.Round(pos[0] * 1000, 3), Math.Round(pos[1] * 1000, 3)] : null,
             BoundsMm = outline?.ToArray(),

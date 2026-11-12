@@ -836,6 +836,96 @@ public class DrawingLiveTests(LiveFixture fx) : LiveTest(fx)
 
     // ------------------------------------------------------------------ drw_note_add
 
+    // ------------------------------------------------------------------ where things land on the sheet (S14)
+
+    [Fact]
+    public async Task Drw_info_gives_the_border_the_title_block_and_each_view_s_axes()
+    {
+        var (drw, r) = await ViewsAsync("drw_frame", ["front", "top"]);
+        var sheet = (await Drw.InfoAsync(drw)).Sheets[0];
+        // SOLIDWORKS 2023's ISO A3 format: the border inside a 20 mm binding margin and 10 mm elsewhere, the title block
+        // in its lower right corner.
+        Assert.Equal([20, 10, 410, 287], sheet.DrawableMm!);
+        Assert.Equal([230, 10, 410, 65.25], sheet.TitleBlockMm!);
+        Assert.Null(sheet.FormatBlocksMm);
+        var front = sheet.Views!.Single(v => v.Orientation == "front");
+        Assert.Equal(("+X", "+Y", "+Z"), (front.Axes!.Right, front.Axes.Up, front.Axes.Out));
+        // drw_views_standard's result carries them too: in a top view the model's -Z points up the sheet.
+        var top = r.Views.Single(v => v.Orientation == "top");
+        Assert.Equal(("+X", "-Z", "+Y"), (top.Axes!.Right, top.Axes.Up, top.Axes.Out));
+
+        var none = await Drw.SheetSetupAsync(new DrwSheetRequest { Doc = drw, Format = "none" });
+        Assert.Null(none.Sheet.DrawableMm);
+        Assert.Null(none.Sheet.TitleBlockMm);
+    }
+
+    [Fact]
+    public async Task A_note_gives_its_extent_and_is_warned_off_the_page_on_the_title_block_or_on_another()
+    {
+        string drw = await DrawingAsync("drw_note_frame");
+        var free = await Drw.NoteAddAsync("SWMCP FREE NOTE", [100, 200], 5, null, drw);
+        var e = free.ExtentMm!;
+        Assert.Equal(100, e[0], 1.0);
+        Assert.Equal(200, e[3], 1.0);
+        Assert.True(e[2] > e[0] + 20 && e[1] < e[3] - 3, $"extent [{string.Join(", ", e)}]");
+        Assert.Contains(free.Checks!, c => c.Contains("clear of the border"));
+        Assert.DoesNotContain(free.Warnings ?? [], w => w.Contains("note's text"));
+
+        // 120 mm from the right edge with a line far longer than that: the line is cut off at the page edge in a PDF.
+        var off = await Drw.NoteAddAsync(new string('W', 60), [300, 150], 5, null, drw);
+        Assert.True(off.ExtentMm![2] > 420, $"extent [{string.Join(", ", off.ExtentMm)}]");
+        Assert.Contains(off.Warnings ?? [], w => w.Contains("runs off the sheet"));
+
+        var onTitle = await Drw.NoteAddAsync("SWMCP ON THE TITLE BLOCK", [300, 45], 3.5, null, drw);
+        Assert.Contains(onTitle.Warnings ?? [], w => w.Contains("overlaps the title block"));
+
+        var onNote = await Drw.NoteAddAsync("SWMCP SECOND", [104, 199], 5, null, drw);
+        Assert.Contains(onNote.Warnings ?? [], w => w.Contains(free.Note));
+    }
+
+    [Fact]
+    public async Task A_dimension_on_the_same_point_or_past_the_border_is_warned()
+    {
+        var (drw, r) = await ViewsAsync("drw_dim_frame", ["front"], hole: true);
+        var front = r.Views[0];
+        var dia = await Drw.DimensionAddAsync(front.Name, new EntityRef { Type = "edge", At = [10, 0, 20] }, null, "diameter", null, drw);
+        Assert.NotNull(dia.TextBoxMm);
+        Assert.Contains(dia.Checks!, c => c.Contains("clear of the border"));
+
+        // The same hole again without textAtMm: SOLIDWORKS puts it on the first one's text.
+        var again = await Drw.DimensionAddAsync(front.Name, new EntityRef { Type = "edge", At = [10, 0, 20] }, null, "diameter", null, drw);
+        Assert.Contains(again.Warnings ?? [], w => w.Contains(dia.Dimension) && w.Contains("duplicate"));
+
+        // Text at y 292 on a 297 high A3 sheet: over the border's zone strip.
+        var high = await Drw.DimensionAddAsync(front.Name, new EntityRef { Type = "edge", At = [0, 30, 20] }, null, "linear", [front.CenterMm![0], 292], drw);
+        Assert.Contains(high.Warnings ?? [], w => w.Contains("crosses the format's border"));
+    }
+
+    [Fact]
+    public async Task Moving_an_annotation_or_a_view_s_label_onto_another_text_is_warned()
+    {
+        var (drw, r) = await ViewsAsync("drw_move_clash", ["front"]);
+        var front = r.Views[0];
+        var b = front.ModelBoxMm!;
+        double cx = (b[0] + b[2]) / 2;
+        var sec = await Drw.SectionAsync(front.Name, [cx, b[1] - 10], [cx, b[3] + 10], null, null, drw);
+        var width = await Drw.DimensionAddAsync(front.Name, new EntityRef { Type = "edge", At = [0, 30, 20] }, null, "linear", null, drw);
+
+        var label = (await Drw.AnnotationListAsync(null, null, drw)).Annotations.Single(a => a.Kind == "view_label" && a.View == sec.View.Name);
+        // A note at the label's height, left of the front view; the section, aligned with its parent, moves along x only.
+        var target = await Drw.NoteAddAsync("SWMCP TARGET", [40, label.AtMm![1] + 2], 5, null, drw);
+        Assert.Contains(target.Checks!, c => c.Contains("clear of the border"));
+
+        var moved = await Drw.AnnotationEditAsync(width.Dimension, "move", [50, label.AtMm[1] + 1], null, null, drw);
+        Assert.Contains(moved.Warnings ?? [], w => w.Contains(target.Note));
+        await Drw.AnnotationEditAsync(width.Dimension, "move", [front.CenterMm![0], b[3] + 10], null, null, drw);
+
+        double dx = 60 - label.AtMm[0];
+        var view = await Drw.ViewEditAsync(new DrwViewEditRequest { Doc = drw, Kind = "move", View = sec.View.Name, AtMm = [sec.View.CenterMm![0] + dx, sec.View.CenterMm[1]] });
+        // A moved view's label reads its old extent from SOLIDWORKS: the check moves it with the view.
+        Assert.Contains(view.Warnings ?? [], w => w.Contains("view label") && w.Contains(target.Note));
+    }
+
     [Fact]
     public async Task Note_reads_back_its_text_position_and_height()
     {

@@ -121,7 +121,7 @@ public sealed class DrawingTools(SwSession session)
     [McpServerTool(Name = "drw_views_standard", Title = "Standard drawing views", ReadOnly = false, Destructive = false, Idempotent = false, OpenWorld = false)]
     [Description("Standard / orthographic views (front, top, right, iso, ...) of a saved part or assembly, laid out for the sheet's " +
                  "projection without overlaps and scaled to fit unless scale is given. Verified per view: model, orientation and scale read " +
-                 "back. Returns each view's name, centerMm, boundsMm (outline) and modelBoxMm (the model box on the sheet).")]
+                 "back. Returns each view's name, centerMm, boundsMm (outline), modelBoxMm (the model box on the sheet) and axes.")]
     public Task<string> DrwViewsStandard(
         IProgress<ProgressNotificationValue> progress,
         [Description("Saved .sldprt/.sldasm path, or an open saved document (handle or title).")] string model,
@@ -189,7 +189,7 @@ public sealed class DrawingTools(SwSession session)
                  "near or far side as the dimension's arc condition says), otherwise removed; linear on a single circle is checked as the " +
                  "diameter or radius SOLIDWORKS makes of it, and kind says which; on a circle seen edge-on, as the diameter it is drawn " +
                  "across (Ø); a value that could not be compared " +
-                 "comes with a warning. Tolerances: " +
+                 "comes with a warning. textBoxMm: its text (approx.); warns of what it lands on. Tolerances: " +
                  "dimension_tolerance_set with the returned name.")]
     public async Task<string> DrwDimensionAdd(
         [Description("View name (drw_info lists views).")] string view,
@@ -203,7 +203,7 @@ public sealed class DrawingTools(SwSession session)
 
     [McpServerTool(Name = "drw_note_add", Title = "Drawing note", ReadOnly = false, Destructive = false, Idempotent = false, OpenWorld = false)]
     [Description("Note / text on the sheet, or in a view (it then moves with the view), at [x,y] sheet mm; a line break or \\n starts a new line. " +
-                 "Verified: text and position read back.")]
+                 "Verified: text and position read back. extentMm: its text's box; warns of what it lands on.")]
     public async Task<string> DrwNoteAdd(
         [Description("Note text.")] string text,
         [Description("Position [x,y] sheet mm, from the lower-left corner.")] double[] atMm,
@@ -316,9 +316,10 @@ public sealed class DrawingTools(SwSession session)
         Output.Json(_svc.CenterMarksAsync(views, doc, cancellationToken), progress, "drw_center_marks");
 
     [McpServerTool(Name = "drw_info", Title = "Drawing info", ReadOnly = true, Destructive = false, Idempotent = true, OpenWorld = false)]
-    [Description("Drawing overview: sheets (size, scale, projection, format) and their views (name, type, orientation, scale, centerMm, " +
+    [Description("Drawing overview: sheets (size, scale, projection, format, drawableMm inside the border, titleBlockMm) " +
+                 "and their views (name, type, orientation, axes: model directions to the sheet's right, up and out, scale, centerMm, " +
                  "boundsMm, modelBoxMm, model, configuration, parent) with annotation counts (dimensions, notes, tables, center marks; a view's own label as viewLabels, not a note). " +
-                 "model is the file's full path in the first view that shows it and its file name in the others. modelBoxMm is where the model is drawn; for a section of a part, the side behind the cut only (from its visible edges), for a section of an assembly the whole model's box. " +
+                 "model: the full path in the first view that shows it, the file name after. modelBoxMm: where the model is drawn (a part's section: behind the cut only). " +
                  "Positions are sheet mm from the lower-left corner.")]
     public async Task<string> DrwInfo(
         [Description(DocDesc)] string? doc = null,

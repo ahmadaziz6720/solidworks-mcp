@@ -333,6 +333,7 @@ public sealed partial class DrawingService
                 $"{(set ? "" : " (SetPosition2 returned false)")}; {back}.");
         }
         checks.Add("position read back");
+        PlacementCheck(ctx, ctx.Drawing(), hit.A, hit.Item.Name, $"'{hit.Item.Name}'", checks, out _, hit.Item.Value);
         return new DrwAnnotationEditResult
         {
             Doc = ctx.Title(d),
@@ -413,6 +414,8 @@ public sealed partial class DrawingService
             .Select(h => (h.Name, h.View, Pos: h.View.DrwPosition())).ToList();
         var before = Outline(hit);
         var old = hit.View.DrwPosition();
+        // The annotations' boxes before the move: a moved view's notes read their old extent after it (live, 2023 SP3).
+        var placedBefore = PlacedOnSheet(ctx, drw);
         hit.View.DrwMoveTo(Units.M(to.X), Units.M(to.Y));
         d.GraphicsRedraw2();
         var pos = hit.View.DrwPosition();
@@ -434,7 +437,15 @@ public sealed partial class DrawingService
                 moved.Add(o.Name);
         }
         if (moved.Count > 0) checks.Add($"moved with it (aligned): {string.Join(", ", moved)}");
-        OverlapCheck(ctx, sheet, [hit.View, .. others.Where(o => moved.Contains(o.Name)).Select(o => o.View)], checks);
+        // Each moved view's annotations go where the view went.
+        var shift = new Dictionary<string, (double X, double Y)>(StringComparer.OrdinalIgnoreCase);
+        if (old.Length >= 2) shift[hit.Name] = (Units.Mm(pos[0] - old[0]), Units.Mm(pos[1] - old[1]));
+        foreach (var o in others.Where(o => moved.Contains(o.Name)))
+            if (Safe(() => o.View.DrwPosition(), []) is { Length: >= 2 } now && o.Pos.Length >= 2)
+                shift[o.Name] = (Units.Mm(now[0] - o.Pos[0]), Units.Mm(now[1] - o.Pos[1]));
+        var placedNow = placedBefore.Select(p => shift.TryGetValue(p.View, out var s)
+            ? p with { Box = new SheetRect(p.Box.X0 + s.X, p.Box.Y0 + s.Y, p.Box.X1 + s.X, p.Box.Y1 + s.Y) } : p).ToList();
+        OverlapCheck(ctx, sheet, [hit.View, .. others.Where(o => moved.Contains(o.Name)).Select(o => o.View)], checks, placedNow);
         return new DrwViewEditResult
         {
             Doc = ctx.Title(d),
