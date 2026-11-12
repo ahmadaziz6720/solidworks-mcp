@@ -1294,10 +1294,10 @@ public sealed partial class FeatureManagementService(SwSession session)
         return map;
     }
 
-    private sealed record ErrorState(string Name, string Type, int Code, bool Warning);
+    internal sealed record ErrorState(string Name, string Type, int Code, bool Warning);
 
     /// <summary>Features (sub-features included) with a rebuild error or warning, by id.</summary>
-    private static Dictionary<int, ErrorState> ErrorMap(IModelDoc2 d)
+    internal static Dictionary<int, ErrorState> ErrorMap(IModelDoc2 d)
     {
         var map = new Dictionary<int, ErrorState>();
         foreach (var f in Tree.WalkAll(d))
@@ -1314,7 +1314,7 @@ public sealed partial class FeatureManagementService(SwSession session)
     }
 
     /// <summary>Errors that are new, or got worse (warning → error, another code), since <paramref name="before"/>.</summary>
-    private static List<FeatureError> NewErrors(Dictionary<int, ErrorState> before, Dictionary<int, ErrorState> after) =>
+    internal static List<FeatureError> NewErrors(Dictionary<int, ErrorState> before, Dictionary<int, ErrorState> after) =>
         after.Where(kv => !before.TryGetValue(kv.Key, out var b) || b.Code != kv.Value.Code || (b.Warning && !kv.Value.Warning))
             .Select(kv => ToError(kv.Value)).ToList();
 

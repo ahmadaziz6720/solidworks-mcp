@@ -118,11 +118,15 @@ public sealed class EquationSetResult : ToolResult
     public EquationRow? Previous { get; init; }
     /// <summary>For a dimension left-hand side: the dimension after the rebuild (mm / deg / count).</summary>
     public DimensionInfo? Dimension { get; init; }
+    /// <summary>For a dimension of a reference plane or axis: where that plane or axis lies after the rebuild.</summary>
+    public RefFrame? Frame { get; init; }
     public required IReadOnlyList<string> Checks { get; init; }
     /// <summary>For a part: the change in solid volume over the call, as dimension_set reports it.</summary>
     public double? VolumeDeltaMm3 { get; init; }
     /// <summary>For a part: volume, body count and box after the rebuild.</summary>
     public ModelState? Model { get; init; }
+    /// <summary>Features that fail to rebuild after the call and did not before (null = none).</summary>
+    public IReadOnlyList<FeatureError>? FeatureErrors { get; init; }
 }
 
 /// <summary>One equation_set entry of a batch.</summary>
@@ -143,6 +147,8 @@ public sealed class EquationChange
     public bool Created { get; init; }
     public EquationRow? Previous { get; init; }
     public DimensionInfo? Dimension { get; init; }
+    /// <summary>For a dimension of a reference plane or axis: where that plane or axis lies after the rebuild.</summary>
+    public RefFrame? Frame { get; init; }
     public required IReadOnlyList<string> Checks { get; init; }
 }
 
@@ -152,6 +158,8 @@ public sealed class EquationBatchResult : ToolResult
     public required IReadOnlyList<EquationChange> Equations { get; init; }
     public double? VolumeDeltaMm3 { get; init; }
     public ModelState? Model { get; init; }
+    /// <summary>Features that fail to rebuild after the call and did not before (null = none).</summary>
+    public IReadOnlyList<FeatureError>? FeatureErrors { get; init; }
 }
 
 public sealed class EquationDeleteResult : ToolResult
@@ -704,6 +712,7 @@ public sealed partial class PropertiesService(SwSession session)
             return new EquationSetResult
             {
                 Doc = run.Doc, Equation = one.Equation, Created = one.Created, Previous = one.Previous, Dimension = one.Dimension,
+                Frame = one.Frame, FeatureErrors = run.FeatureErrors,
                 Checks = one.Checks, VolumeDeltaMm3 = run.VolumeDeltaMm3, Model = run.Model,
             };
         }, RunOptions.Write(doc) with { Timeout = RebuildTimeout }, ct);
@@ -720,7 +729,10 @@ public sealed partial class PropertiesService(SwSession session)
             if (!string.IsNullOrWhiteSpace(lhs) || !string.IsNullOrWhiteSpace(expression))
                 throw SwException.InvalidArgument("Give either 'equations' or 'lhs' with 'expression', not both.");
             var run = SetEquations(ctx, EquationText.RequireEquations(equations).Select(e => new EquationPlan(e.Lhs, e.Expression)).ToList());
-            return new EquationBatchResult { Doc = run.Doc, Equations = run.Changes, VolumeDeltaMm3 = run.VolumeDeltaMm3, Model = run.Model };
+            return new EquationBatchResult
+            {
+                Doc = run.Doc, Equations = run.Changes, VolumeDeltaMm3 = run.VolumeDeltaMm3, Model = run.Model, FeatureErrors = run.FeatureErrors,
+            };
         }, RunOptions.Write(doc) with { Timeout = RebuildTimeout }, ct);
 
     private sealed record EquationPlan(string Key, string Expr)
@@ -729,7 +741,8 @@ public sealed partial class PropertiesService(SwSession session)
         public bool IsDim => Key.Contains('@');
     }
 
-    private sealed record EquationRun(string Doc, List<EquationChange> Changes, double? VolumeDeltaMm3, ModelState? Model);
+    private sealed record EquationRun(string Doc, List<EquationChange> Changes, double? VolumeDeltaMm3, ModelState? Model,
+        List<FeatureError>? FeatureErrors);
 
     private sealed record EquationCheck(EquationRow? Row, DimensionInfo? Dimension, List<string> Checks, List<string> Problems);
 
@@ -765,6 +778,7 @@ public sealed partial class PropertiesService(SwSession session)
         var dimBefore = plan.Select(p => p.IsDim && Dim(d, p.Key) is { } dim ? dim.SystemValue : (double?)null).ToList();
         bool part = d.GetType() == (int)swDocumentTypes_e.swDocPART;
         var snapBefore = part ? Snapshot.Take(d) : null;
+        var errorsBefore = FeatureManagementService.ErrorMap(d);
 
         using var prefs = ctx.SystemPrefs();
         prefs.Toggle(SystemPrefIds.ShowErrorsEveryRebuild, false); // no modal What's Wrong box on a bad expression
@@ -776,10 +790,11 @@ public sealed partial class PropertiesService(SwSession session)
             int at = prevs[i] is null ? -1 : IndexOfEquation(em, p.Key);
             if (at >= 0) em.Equation[at] = p.Text; // assigning Equation(i) updates in place (VERIFIED)
             else if (em.Add2(-1, p.Text, true) < 0)
+            {
+                var (why, hint) = EquationText.Refused(p.Key, p.Expr, p.IsDim);
                 throw new SwException(ErrorCodes.FeatureFailed,
-                    $"SOLIDWORKS rejected the equation {p.Text}.{(written.Count == 0 ? "" : " " + Restore())}",
-                    "Check the syntax: names in double quotes, units on numbers (60mm), operators and function names; and that " +
-                    "the value is one the dimension can take (a depth of 0 is refused).");
+                    $"SOLIDWORKS rejected the equation {p.Text}{why}{(written.Count == 0 ? "" : " " + Restore())}", hint);
+            }
             written.Add(i);
         }
         bool rebuilt = d.EditRebuild3(); // one rebuild for the whole batch
@@ -814,14 +829,26 @@ public sealed partial class PropertiesService(SwSession session)
             if (now.Value == 0 && EquationText.Literal(plan[i].Expr) is null)
                 ctx.Warn($"{now.Text} evaluates to 0; check the expression (SOLIDWORKS may keep an equation it can't evaluate).");
         }
-        if (!rebuilt) ctx.Warn("The rebuild reported problems; feature_list shows features with errors.");
+        // Kept, not rolled back: the equations are what was asked for, and a session may mean to fix the features next. But
+        // a change that breaks features must not read as a success (S58 a): each one is named, with its error.
+        var newErrors = FeatureManagementService.NewErrors(errorsBefore, FeatureManagementService.ErrorMap(d));
+        var broken = newErrors.Where(e => e.Warning != true).ToList();
+        if (broken.Count > 0)
+            ctx.Warn($"The equations went in, but {broken.Count} feature(s) now fail to rebuild: " +
+                     string.Join("; ", broken.Take(8).Select(e => $"'{e.Feature}' ({e.Type}) error {e.Code} {e.Error}")) +
+                     (broken.Count > 8 ? $"; and {broken.Count - 8} more" : "") +
+                     ". The volume and bodies are the model without them; fix the values or undo.");
+        foreach (var e in newErrors.Where(e => e.Warning == true))
+            ctx.Warn($"'{e.Feature}' now has rebuild warning {e.Code} ({e.Error}).");
+        if (!rebuilt && newErrors.Count == 0) ctx.Warn("The rebuild reported problems; feature_list shows features with errors.");
         var snapAfter = part ? Snapshot.Take(d) : null;
         return new EquationRun(ctx.Title(d),
             plan.Select((p, i) => new EquationChange
             {
-                Equation = found[i].Row!, Created = prevs[i] is null, Previous = prevs[i], Dimension = found[i].Dimension, Checks = found[i].Checks,
+                Equation = found[i].Row!, Created = prevs[i] is null, Previous = prevs[i], Dimension = found[i].Dimension,
+                Frame = p.IsDim ? RefFrameOf(ctx, d, p.Key) : null, Checks = found[i].Checks,
             }).ToList(),
-            part ? Units.Mm3(snapAfter!.Volume - snapBefore!.Volume) : null, snapAfter?.ToState());
+            part ? Units.Mm3(snapAfter!.Volume - snapBefore!.Volume) : null, snapAfter?.ToState(), newErrors.Count > 0 ? newErrors : null);
 
         List<EquationCheck> Verify()
         {
@@ -833,6 +860,13 @@ public sealed partial class PropertiesService(SwSession session)
         string Restore() =>
             RestoreEquations(d, em, Enumerable.Reverse(written).Select(i => (plan[i].Key, prevs[i], dimBefore[i])).ToList(), snapBefore);
     }
+
+    /// <summary>
+    /// For a dimension of a reference plane or axis (an offset, an angle): where it lies now, so that a plane driven to the
+    /// wrong side of its base shows (S58 c). Null for a dimension of any other feature.
+    /// </summary>
+    private static RefFrame? RefFrameOf(SwContext ctx, IModelDoc2 d, string key) =>
+        EquationText.FeatureOf(key) is { } name && EntityResolver.FeatureByName(d, name) is { } f ? ReferenceService.FrameOf(ctx, f) : null;
 
     /// <summary>Tier B for one equation: it is there, evaluates to the literal it was given, and drives its dimension.</summary>
     private static EquationCheck VerifyEquation(IModelDoc2 d, IReadOnlyList<EquationRow> now, EquationPlan p, EquationRow? prev,
@@ -1804,6 +1838,31 @@ internal static class EquationText
             path.RemoveAt(path.Count - 1);
             return false;
         }
+    }
+
+    /// <summary>Names SOLIDWORKS 2023 refuses as a global variable, in any case: its functions and pi (probed, S58).</summary>
+    private static readonly HashSet<string> RefusedNames = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "sin", "cos", "tan", "sec", "cosec", "cotan", "arcsin", "arccos", "atn", "arcsec", "exp", "log", "sqr", "int", "sgn", "abs", "pi",
+    };
+
+    /// <summary>
+    /// Why IEquationMgr.Add2 refused an equation, as the rest of the message after its text, and the hint (S58 b). A global
+    /// set to a plain number is valid unless its name is a function's; SOLIDWORKS can come to refuse every equation, in a
+    /// new part too, until it is restarted, and that is the likelier cause then.
+    /// </summary>
+    public static (string Why, string Hint) Refused(string lhs, string expression, bool dimension)
+    {
+        if (!dimension && RefusedNames.Contains(lhs))
+            return ($": \"{lhs}\" is the name of a SOLIDWORKS function, which it refuses as a variable name.",
+                $"Give the variable another name, e.g. {lhs}1.");
+        if (!dimension && Literal(expression) is not null)
+            return (", though the equation is valid: a global variable set to a number. SOLIDWORKS can come to refuse every " +
+                    "equation, in a new part too, until it is restarted.",
+                "Save the open documents, restart SOLIDWORKS and repeat the call; the equation needs no change.");
+        return (".", "Check the syntax: names in double quotes, units on numbers (60mm), operators and function names; and that the " +
+                     "value is one the dimension can take (a depth of 0 is refused). If a plain \"W\" = 1mm is refused too, SOLIDWORKS " +
+                     "refuses every equation until it is restarted.");
     }
 
     /// <summary>A single literal such as "60mm", "2.5in", "30deg" or "12": its value and lower-case unit ("" for none).</summary>

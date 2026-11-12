@@ -10,11 +10,11 @@ Three sections: **Open**, not yet fixed; **Waiting**, fixed and not yet settled 
 merged, a fix not yet run in a session); **Closed**, merged upstream, run and held, or
 decided against, with the record.
 
-**Open: S4, S5, S7, S10 to S12, S33, S34, S48, S49, S55 to S65.** S48 and S49 are from the scenario
+**Open: S4, S5, S7, S10 to S12, S33, S34, S48, S49, S55 to S57, S59 to S65.** S48 and S49 are from the scenario
 test of build `20261112-091908`, S50 to S66 from twenty working sessions on that build
-(findings 2026-11-12 and 13); S47, from that scenario test too, S50 to S54 and S66 are
-fixed and Waiting.
-Reported `ok` while wrong or misleading: S58 (a), S60 (a), S63 (b); a
+(findings 2026-11-12 and 13); S47, from that scenario test too, S50 to S54, S58 and S66
+are fixed and Waiting.
+Reported `ok` while wrong or misleading: S60 (a), S63 (b); a
 failure reported on a success: S56 (a).
 Next: the run planned below, every point of it decided 2026-11-13 by the owner. Not in
 it: S4, S5, S7 and S12 wait on upstream; S10, S11, S33 and S34 are parked until a job
@@ -237,22 +237,6 @@ assembly changed only through documents it loads. A false alarm that reads as th
 editing. Local: a rollback, a kept or failed feature and a change through a loaded
 document count as the server's own. Taken into the run of 2026-11-13 as proposed, no
 choice in it.
-
-**S58. `equation_set` results that mislead.** On build `20261112-091908`. (a) Three globals
-changed, three features failed (`swSketchErrorExtRefFail` on a boss, the cut on it, a
-mirror); the result gave `volumeDeltaMm3`, `bodies: 1` and only "The rebuild reported
-problems; feature_list shows features with errors", so it read as a success with the boss
-missing (findings 2026-11-13, "an existing part edited", point 1). (b) In one SOLIDWORKS
-session every equation was refused, `"X" = 60mm` and dimension equations alike, on a new
-empty part too, with a hint to check the syntax; after a restart the same 21 went in one
-call (findings 2026-11-12, "a second helical part", point 1). Nine calls and a restart.
-(c) An equation on a reference plane's offset gives the volume change, not where the plane
-went; one on the wrong side of its base passed every check (findings 2026-11-12, "two parts
-changed mid-tree", point 5). Local: (a) the warning names each failing feature and its
-error; (b) when SOLIDWORKS refuses a plain `"Name" = <number><unit>`, say the syntax is
-valid and suggest a restart, or tell the two apart on a scratch equation; (c) a driven
-plane's or axis's frame in the result. Taken into the run of 2026-11-13 as proposed, no
-choice in it; (b) by its message, a probe equation only if it is cheap.
 
 **S59. Reference geometry that cannot be made.** On build `20261112-091908`. (a) No plane
 on a planar face: `ref_plane` `offset` 0 and `angle` 0 are refused (findings 2026-11-12,
@@ -952,6 +936,63 @@ paths, the four `Feature_delete_…`, the two `Rename_…`, `Units_set_switches_
 and `A_batch_with_a_row_that_fails_…`, pass (14/14); contract tests 7/7; unit tests
 277/277; `--check-catalog` ok; `check_repo` ok. Local: on `sw2023`, in the commit that
 moves it here; not yet in a build. Upstream: not yet decided.
+
+**S58. `equation_set` results that mislead.** On build `20261112-091908`. (a) Three globals
+changed, three features failed (`swSketchErrorExtRefFail` on a boss, the cut on it, a
+mirror); the result gave `volumeDeltaMm3`, `bodies: 1` and only "The rebuild reported
+problems; feature_list shows features with errors", so it read as a success with the boss
+missing (findings 2026-11-13, "an existing part edited", point 1). (b) In one SOLIDWORKS
+session every equation was refused, `"X" = 60mm` and dimension equations alike, on a new
+empty part too, with a hint to check the syntax; after a restart the same 21 went in one
+call (findings 2026-11-12, "a second helical part", point 1). Nine calls and a restart.
+(c) An equation on a reference plane's offset gives the volume change, not where the plane
+went; one on the wrong side of its base passed every check (findings 2026-11-12, "two parts
+changed mid-tree", point 5). Local: (a) the warning names each failing feature and its
+error; (b) when SOLIDWORKS refuses a plain `"Name" = <number><unit>`, say the syntax is
+valid and suggest a restart, or tell the two apart on a scratch equation; (c) a driven
+plane's or axis's frame in the result. Taken into the run of 2026-11-13 as proposed, no
+choice in it; (b) by its message, a probe equation only if it is cheap. Fixed in the run of 2026-11-13. Probe first (b):
+on SOLIDWORKS 2023 SP3, a global named `sin`, `cos`, `tan`, `sec`, `cosec`, `cotan`, `arcsin`,
+`arccos`, `atn`, `arcsec`, `exp`, `log`, `sqr`, `int`, `sgn`, `abs` or `pi` (any case) is refused
+by `IEquationMgr.Add2`; `arccosec`, `arccotan`, `iif`, `if`, `max`, `min`, `mod`, `round`, `sqrt`,
+`ln`, `e`, `mm`, `in`, names with a space, a dot, a hyphen or a leading digit are taken. So a
+refused plain global is proof of the refusing state only when its name is none of those.
+Cause: (a) `equation_set` read the rebuild's return only, and a feature that failed gave one
+generic line under a result whose volume and bodies read as a success; (b) every refusal by
+`Add2` got the same hint about syntax; (c) a dimension's result was its value, nothing about
+the feature it drives. Fix: (a) the features' rebuild errors are read before the write and
+after the rebuild (`FeatureManagementService.ErrorMap`/`NewErrors`, made internal for it);
+each feature that fails now and did not before is named with its type and its error in a
+warning ("The equations went in, but N feature(s) now fail to rebuild: 'Shell1' (Shell) error
+… swFeatureError…"), new warnings in their own, and both results carry them in
+`featureErrors`. (b) `EquationText.Refused` chooses the message: a global named like a
+function says so; any other global set to a plain number says the equation is valid and that
+SOLIDWORKS can refuse every equation until it is restarted, the hint "save, restart
+SOLIDWORKS and repeat the call"; any other refusal keeps the syntax hint and adds that a
+refused plain `"W" = 1mm` means a restart. (c) A dimension of a reference plane or axis
+gives that feature's `frame` (as `ref_plane` and `ref_axis` report it,
+`ReferenceService.FrameOf`) in the result, single and batch. Decided 2026-11-13 by the run,
+not the owner: (1) the equations are kept when features fail, with the warning and
+`featureErrors`, not rolled back as `dimension_set` does, because the decision names a
+warning and a session may mean to fix the broken features next; (2) no probe equation is
+written to tell the refusing state apart, because the only cheap probe is on the user's own
+document and the message covers it; the names SOLIDWORKS refuses are told apart instead,
+because without that the restart message would be wrong for them. On the code before, the
+live tests failed: a shell made 25 mm thick by an equation on a 20 mm block gave no warning
+naming 'Shell1' or its error, and an equation on an offset plane's distance gave no `frame`
+(both in their final form `An_equation_that_breaks_a_feature_names_it_and_its_error` and
+`An_equation_on_a_plane_s_offset_gives_where_the_plane_went`; a fillet radius was tried
+first and does not break: SOLIDWORKS lets r100 overflow the block). (b) has no state to
+provoke: `A_refused_plain_global_points_to_a_restart` (offline) checks the message choice
+and `A_global_named_like_a_function_is_refused_for_its_name` the path live. After: those
+four pass; the live tests on the changed paths, `A_global_variable_drives_…`,
+`Equation_delete_takes_a_list_…`, `Equation_errors_are_typed_…`, `Several_equations_go_in_one_call_…`,
+`A_batch_with_a_row_that_fails_…`, `Offset_plane_from_top_lies_at_y_25`,
+`Negative_offset_and_flip_both_…`, `Axis_from_front_and_right_planes_…`,
+`Dimension_set_restores_the_value_when_a_feature_breaks` and
+`Feature_delete_lists_the_equations_…`, pass (14/14 with the four); contract tests 7/7;
+unit tests 277/277; `check_repo` ok. Local: on `sw2023`, in the commit that moves it here;
+not yet in a build. Upstream: not yet decided.
 
 ## Closed
 

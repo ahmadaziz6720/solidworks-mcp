@@ -403,6 +403,72 @@ public class PropertiesLiveTests(LiveFixture fx) : LiveTest(fx)
         Assert.Equal(25, Assert.Single(list.Equations, e => e.Lhs == "H").Value!.Value, 1e-6); // unchanged
     }
 
+    [Fact]
+    public async Task An_equation_that_breaks_a_feature_names_it_and_its_error()
+    {
+        // S58 (a): a change that made features fail read as a success, "the rebuild reported problems" its only word.
+        // Not a fillet radius: SOLIDWORKS lets a fillet overflow its faces (r100 on the block rebuilds). A shell thicker than
+        // the 20 mm block fails.
+        var (doc, _) = await BlockAsync("equations_breaks");
+        var shell = await new PartFeatureService(S).ShellAsync(new ShellRequest { Doc = doc, RemoveFaces = [new EntityRef { At = [0, 20, 0] }], ThicknessMm = 2 });
+        string wall = shell.Dimensions!.First(x => x.Unit == "mm" && Math.Abs(x.Value - 2) < 1e-9).Name;
+        var r = await P.EquationSetAsync(doc, wall, "25mm");
+        var e = Assert.Single(r.FeatureErrors!);
+        Assert.Equal(shell.Feature.Name, e.Feature);
+        Assert.Null(e.Warning);
+        Assert.Contains(r.Warnings!, w => w.Contains("1 feature(s) now fail") && w.Contains($"'{shell.Feature.Name}'") && w.Contains(e.Error));
+        Assert.DoesNotContain(r.Warnings!, w => w.Contains("The rebuild reported problems"));
+
+        // A batch says it too, and one that breaks nothing new carries no list.
+        var b = await P.EquationSetManyAsync(doc, [Eq("T", "3mm"), Eq(wall, "\"T\"")]);
+        Assert.Null(b.FeatureErrors); // the shell failed before the call and rebuilds now
+        var b2 = await P.EquationSetManyAsync(doc, [Eq("T", "30mm")]);
+        Assert.Equal(shell.Feature.Name, Assert.Single(b2.FeatureErrors!).Feature);
+    }
+
+    [Fact]
+    public async Task An_equation_on_a_plane_s_offset_gives_where_the_plane_went()
+    {
+        // S58 (c): the result gave the volume change, not where the plane went.
+        string doc = await NewPartAsync("equations_plane");
+        var plane = await new ReferenceService(S).PlaneAsync(new RefPlaneRequest { Doc = doc, Kind = "offset", Base = new EntityRef { Name = "top" }, OffsetMm = 30 });
+        string offset = plane.Dimensions!.First(x => x.Unit == "mm" && Math.Abs(x.Value - 30) < 1e-9).Name;
+        var r = await P.EquationSetAsync(doc, offset, "45mm");
+        Assert.Equal(45, Math.Abs(r.Frame!.OffsetMm!.Value), 1e-6);
+        Assert.Equal(1, Math.Abs(r.Frame.Normal![1]), 1e-9); // still parallel to the top plane
+        Assert.Equal(45, r.Frame.OriginMm[1], 1e-6); // and 45 above it
+        var many = await P.EquationSetManyAsync(doc, [Eq("H", "20mm"), Eq(offset, "\"H\"")]);
+        Assert.Null(many.Equations[0].Frame); // a global variable
+        Assert.Equal(20, many.Equations[1].Frame!.OriginMm[1], 1e-6);
+    }
+
+    [Fact]
+    public async Task A_global_named_like_a_function_is_refused_for_its_name()
+    {
+        // S58 (b): SOLIDWORKS refuses the name of one of its functions as a variable; the message says so (probed 2026-11-13).
+        string doc = await NewPartAsync("equations_refused");
+        var ex = await Assert.ThrowsAsync<SwException>(() => P.EquationSetAsync(doc, "sin", "5mm"));
+        Assert.Equal(ErrorCodes.FeatureFailed, ex.Code);
+        Assert.Contains("name of a SOLIDWORKS function", ex.Message);
+        Assert.Empty((await P.EquationListAsync(doc)).Equations);
+    }
+
+    [Fact]
+    public void A_refused_plain_global_points_to_a_restart()
+    {
+        // S58 (b): every equation refused in one SOLIDWORKS session, "X" = 60mm too, the hint naming the syntax only.
+        var (why, hint) = EquationText.Refused("X", "60mm", false);
+        Assert.Contains("valid", why);
+        Assert.Contains("restart SOLIDWORKS", hint);
+        Assert.DoesNotContain("syntax", hint);
+        Assert.Contains("SOLIDWORKS function", EquationText.Refused("Pi", "3", false).Why);
+        var dim = EquationText.Refused("D1@Boss-Extrude1", "0mm", true); // a dimension can refuse a value; a plain one is no proof
+        Assert.Equal(".", dim.Why);
+        Assert.Contains("syntax", dim.Hint);
+        Assert.Contains("restarted", dim.Hint);
+        Assert.Equal(".", EquationText.Refused("W", "\"H\" / 2", false).Why);
+    }
+
     private static EquationInput Eq(string lhs, string expression) => new() { Lhs = lhs, Expression = expression };
 
     /// <summary>

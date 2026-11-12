@@ -399,6 +399,28 @@ public sealed partial class ReferenceService(SwSession session)
         return plan.Expect(g, checks, state);
     }
 
+    /// <summary>Where an existing reference plane or axis lies (null for any other feature), as ref_plane and ref_axis report it.</summary>
+    internal static RefFrame? FrameOf(SwContext ctx, IFeature f)
+    {
+        switch (f.Specific())
+        {
+            case IRefPlane rp:
+                return PlaneFrame(ReadPlane(ctx, rp, $"'{f.Name}'"));
+            case IRefAxis ax:
+                var p = ax.RefAxisEnds();
+                if (p.Length < 6) return null;
+                var a = Vec3.From(p, 0);
+                var b = Vec3.From(p, 3);
+                return new RefFrame
+                {
+                    OriginMm = Clean(Units.Mm(a)), EndMm = Clean(Units.Mm(b)),
+                    Direction = (b - a).Length < 1e-12 ? null : Clean(Units.Unit((b - a).Normalized())),
+                };
+            default:
+                return null;
+        }
+    }
+
     private static RefFrame PlaneFrame(PlaneGeom g) => new()
     {
         OriginMm = Clean(Units.Mm(g.Origin)),
