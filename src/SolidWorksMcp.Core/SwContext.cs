@@ -26,6 +26,7 @@ internal sealed class SwContext
 {
     private IModelDoc2? _doc;
     private int? _stampAtBind; // writes: the document's update stamp when the operation started
+    private Dictionary<string, List<string>>? _unboundAtBind; // writes: equations naming no existing dimension (S54)
 
     public SwContext(SwSession session, ISldWorks app, OperationContext op)
     {
@@ -97,6 +98,8 @@ internal sealed class SwContext
             _stampAtBind = stamp;
             if (entry.StampAfterLastOp is int last && last != stamp)
                 Warn($"'{entry.Title}' was modified outside this server since its last change (by the user?).");
+            try { _unboundAtBind = Services.EquationBindings.Unbound(doc); }
+            catch (Exception ex) when (!ComArgs.IsDisconnect(ex)) { _unboundAtBind = null; /* a check, not the call's work */ }
         }
         _doc = doc;
     }
@@ -105,6 +108,10 @@ internal sealed class SwContext
     internal void AfterWrite()
     {
         if (Access != DocAccess.Write || _doc is null) return;
+        // S54: equations left by a deleted feature that this call gave a dimension again, by a new name or a rename.
+        if (_unboundAtBind is { Count: > 0 } unbound)
+            try { Services.EquationBindings.WarnBound(this, _doc, unbound); }
+            catch { /* the document may have been closed by the operation */ }
         try
         {
             var e = Documents.Find(_doc);

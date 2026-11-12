@@ -160,6 +160,13 @@ public sealed class EquationDeleteResult : ToolResult
     public int Remaining { get; init; }
 }
 
+public sealed class EquationDeleteBatchResult : ToolResult
+{
+    /// <summary>In the order given, as they were before the call.</summary>
+    public required IReadOnlyList<EquationRow> Deleted { get; init; }
+    public int Remaining { get; init; }
+}
+
 public sealed class ConfigListResult : ToolResult
 {
     public required IReadOnlyList<string> Configurations { get; init; }
@@ -880,42 +887,98 @@ public sealed partial class PropertiesService(SwSession session)
             "Create the variable first (equation_set with lhs W), or use a dimension name such as D1@Sketch1.");
     }
 
-    public Task<EquationDeleteResult> EquationDeleteAsync(string? doc, string lhs, CancellationToken ct = default) =>
+    public Task<EquationDeleteResult> EquationDeleteAsync(string? doc, string? lhs, CancellationToken ct = default) =>
         session.RunAsync("equation_delete", ctx =>
         {
-            string key = EquationText.NormalizeLhs(lhs);
-            var d = ctx.DocOfType(swDocumentTypes_e.swDocPART, swDocumentTypes_e.swDocASSEMBLY);
-            NoOpenSketch(ctx, d, "equation_delete");
-            var em = EquationMgr(d);
-            var all = ReadEquations(em);
-            var target = all.FirstOrDefault(e => EquationText.SameLhs(e.Lhs, key))
-                         ?? throw new SwException(ErrorCodes.EntityNotFound, $"No equation for \"{key}\".",
-                             all.Count == 0 ? "The document has no equations." : $"Left-hand sides: {string.Join(", ", all.Select(e => e.Lhs).Take(20))}.");
-            if (!key.Contains('@'))
-            {
-                // Deleting a global variable breaks every equation that uses it.
-                var users = all.Where(e => e.Index != target.Index &&
-                                           EquationText.References(e.Text).Any(r => EquationText.SameLhs(r, target.Lhs))).ToList();
-                if (users.Count > 0)
-                    throw SwException.InvalidArgument($"\"{target.Lhs}\" is used by {string.Join(", ", users.Select(u => u.Text).Take(6))}.",
-                        "Delete or change those equations first (equation_set / equation_delete).");
-            }
-            using var prefs = ctx.SystemPrefs();
-            prefs.Toggle(SystemPrefIds.ShowErrorsEveryRebuild, false);
-            em.Delete(target.Index);
-            d.EditRebuild3();
-            var after = ReadEquations(em);
-            if (after.Any(e => EquationText.SameLhs(e.Lhs, key)))
-                throw new SwException(ErrorCodes.VerifyFailed, $"The equation for \"{key}\" is still there after deleting it.");
-            if (after.Count != all.Count - 1)
-                ctx.Warn($"The document had {all.Count} equations and now has {after.Count}.");
-            return new EquationDeleteResult { Doc = ctx.Title(d), Deleted = target, Remaining = after.Count };
+            if (string.IsNullOrWhiteSpace(lhs))
+                throw SwException.InvalidArgument("Give 'lhs' (W or D1@Sketch1), or 'equations' for several: ['W', 'D1@Sketch1'].");
+            var (d, deleted, remaining) = DeleteEquations(ctx, [EquationText.NormalizeLhs(lhs)]);
+            return new EquationDeleteResult { Doc = ctx.Title(d), Deleted = deleted[0], Remaining = remaining };
         }, RunOptions.Write(doc) with { Timeout = RebuildTimeout }, ct);
 
-    private static IEquationMgr EquationMgr(IModelDoc2 d) =>
+    /// <summary>
+    /// Several equations in one call (S54): all checked before the first is deleted, one rebuild. <paramref name="lhs"/> is the
+    /// single call's argument, refused here.
+    /// </summary>
+    public Task<EquationDeleteBatchResult> EquationDeleteManyAsync(string? doc, IReadOnlyList<string>? equations, string? lhs = null,
+        CancellationToken ct = default) =>
+        session.RunAsync("equation_delete", ctx =>
+        {
+            if (!string.IsNullOrWhiteSpace(lhs)) throw SwException.InvalidArgument("Give either 'equations' or 'lhs', not both.");
+            if (equations is null || equations.Count == 0)
+                throw SwException.InvalidArgument("'equations' must name at least one left-hand side, e.g. ['W', 'D1@Sketch1'].");
+            if (equations.Count > 100) throw SwException.InvalidArgument($"'equations' has {equations.Count} entries (at most 100 per call).");
+            var keys = new List<string>();
+            for (int i = 0; i < equations.Count; i++)
+            {
+                string key;
+                try { key = EquationText.NormalizeLhs(equations[i]); }
+                catch (SwException ex) when (ex.Code == ErrorCodes.InvalidArgument)
+                {
+                    throw SwException.InvalidArgument($"equations[{i}]: {ex.Message}", ex.Hint);
+                }
+                if (keys.Any(k => EquationText.SameLhs(k, key))) throw SwException.InvalidArgument($"\"{key}\" is listed twice in 'equations'.");
+                keys.Add(key);
+            }
+            var (d, deleted, remaining) = DeleteEquations(ctx, keys);
+            return new EquationDeleteBatchResult { Doc = ctx.Title(d), Deleted = deleted, Remaining = remaining };
+        }, RunOptions.Write(doc) with { Timeout = RebuildTimeout }, ct);
+
+    /// <summary>
+    /// equation_delete's work for one left-hand side or several: every one found, and no global variable deleted that an
+    /// equation staying uses, before anything changes; then deleted, one rebuild, and checked gone.
+    /// </summary>
+    private static (IModelDoc2 Doc, List<EquationRow> Deleted, int Remaining) DeleteEquations(SwContext ctx, IReadOnlyList<string> keys)
+    {
+        var d = ctx.DocOfType(swDocumentTypes_e.swDocPART, swDocumentTypes_e.swDocASSEMBLY);
+        NoOpenSketch(ctx, d, "equation_delete");
+        var em = EquationMgr(d);
+        var all = ReadEquations(em);
+        var missing = keys.Where(k => !all.Any(e => EquationText.SameLhs(e.Lhs, k))).ToList();
+        if (missing.Count > 0)
+            throw new SwException(ErrorCodes.EntityNotFound,
+                $"No equation for {string.Join(", ", missing.Take(6).Select(k => $"\"{k}\""))}{(keys.Count > 1 ? "; nothing was deleted" : "")}.",
+                all.Count == 0 ? "The document has no equations." : $"Left-hand sides: {string.Join(", ", all.Select(e => e.Lhs).Take(20))}.");
+        var targets = keys.Select(k => all.First(e => EquationText.SameLhs(e.Lhs, k))).ToList();
+        foreach (var target in targets.Where(t => !t.Lhs.Contains('@')))
+        {
+            // Deleting a global variable breaks every equation that uses it, unless those go in the same call.
+            var users = all.Where(e => !targets.Any(t => t.Index == e.Index) &&
+                                       EquationText.References(e.Text).Any(r => EquationText.SameLhs(r, target.Lhs))).ToList();
+            if (users.Count > 0)
+                throw SwException.InvalidArgument($"\"{target.Lhs}\" is used by {string.Join(", ", users.Select(u => u.Text).Take(6))}.",
+                    "Delete or change those equations first, or in the same call (equation_set / equation_delete).");
+        }
+        using var prefs = ctx.SystemPrefs();
+        prefs.Toggle(SystemPrefIds.ShowErrorsEveryRebuild, false);
+        var left = RemoveEquations(d, em, targets, out var after);
+        if (left.Count > 0)
+            throw new SwException(ErrorCodes.VerifyFailed, targets.Count == 1
+                ? $"The equation for \"{targets[0].Lhs}\" is still there after deleting it."
+                : $"{string.Join(", ", left.Take(6).Select(t => $"\"{t.Lhs}\""))} still there after deleting {targets.Count} equations; " +
+                  $"the other {targets.Count - left.Count} are gone.");
+        if (after.Count != all.Count - targets.Count)
+            ctx.Warn($"The document had {all.Count} equations and now has {after.Count}.");
+        return (d, targets, after.Count);
+    }
+
+    /// <summary>
+    /// Deletes <paramref name="rows"/> (as just read: their indices are current), the last first so that the indices hold, and
+    /// rebuilds once. Returns the rows still there afterwards. The caller turns off the What's Wrong box.
+    /// </summary>
+    internal static List<EquationRow> RemoveEquations(IModelDoc2 d, IEquationMgr em, IReadOnlyList<EquationRow> rows, out List<EquationRow> after)
+    {
+        foreach (var r in rows.OrderByDescending(r => r.Index)) em.Delete(r.Index);
+        d.EditRebuild3();
+        var now = ReadEquations(em);
+        after = now;
+        return rows.Where(r => now.Any(e => EquationText.SameLhs(e.Lhs, r.Lhs))).ToList();
+    }
+
+    internal static IEquationMgr EquationMgr(IModelDoc2 d) =>
         d.GetEquationMgr() ?? throw new SwException(ErrorCodes.NotSupported, "SOLIDWORKS returned no equation manager for this document.");
 
-    private static List<EquationRow> ReadEquations(IEquationMgr em)
+    internal static List<EquationRow> ReadEquations(IEquationMgr em)
     {
         int n = em.GetCount();
         var list = new List<EquationRow>(Math.Max(0, n));
@@ -1006,7 +1069,7 @@ public sealed partial class PropertiesService(SwSession session)
     }
 
     /// <summary>The dimension of that name (D1@Sketch1), or null; IModelDoc2.Parameter may fault on names it can't parse.</summary>
-    private static IDimension? Dim(IModelDoc2 d, string name)
+    internal static IDimension? Dim(IModelDoc2 d, string name)
     {
         try { return (object?)d.Parameter(name) as IDimension; }
         catch (COMException ex) when (!ComArgs.IsDisconnect(ex)) { return null; }
@@ -1669,6 +1732,27 @@ internal static class EquationText
         var m = LhsRx.Match(text);
         int start = m.Success ? m.Length : Math.Max(0, text.IndexOf('=') + 1);
         return QuotedRx.Matches(text[start..]).Select(x => x.Groups[1].Value.Trim()).ToList();
+    }
+
+    /// <summary>
+    /// The feature an equation's left-hand side belongs to: "D1@Sketch1" → Sketch1, a suppression equation's "Fillet1" →
+    /// Fillet1 (when it is not a global variable); null for a global variable or a name in another document.
+    /// </summary>
+    public static string? FeatureOf(string lhs, bool global = false)
+    {
+        string s = lhs.Trim().Trim('"').Trim();
+        if (s.Length == 0 || IsExternal(s)) return null;
+        int at = s.IndexOf('@');
+        return at < 0 ? (global ? null : s) : at + 1 < s.Length ? s[(at + 1)..] : null;
+    }
+
+    /// <summary>The dimension names of this document an equation uses, its left-hand side included (D1@Sketch1; no global variables, no external names).</summary>
+    public static List<string> DimensionNames(string text)
+    {
+        var names = new List<string>();
+        if (Lhs(text) is { } lhs) names.Add(lhs);
+        names.AddRange(ExpressionReferences(text[Math.Max(0, text.IndexOf('=') + 1)..]));
+        return names.Where(n => n.IndexOf('@') > 0 && !IsExternal(n)).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
     }
 
     /// <summary>Quoted words that are values, not names (feature suppression equations).</summary>

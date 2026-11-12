@@ -289,6 +289,62 @@ public class FeatureManagementLiveTests(LiveFixture fx) : LiveTest(fx)
         Assert.Equal(0, r.Model!.Bodies);
     }
 
+    [Fact]
+    public async Task Feature_delete_lists_the_equations_on_the_dimensions_that_go()
+    {
+        // S54 (a): the delete left the depth's equation behind, reported only as "'Equations' now has rebuild error 51",
+        // and the dry run did not list it. Kept by default, listed and warned about.
+        var b = await BlockAsync("fm_delete_equations");
+        var p = new PropertiesService(S);
+        await p.EquationSetAsync(b.Doc, b.Depth, "20mm");
+        var dry = await M.DeleteAsync(b.Doc, [b.Extrude], dryRun: true);
+        Assert.Contains(b.Depth, Assert.Single(dry.Equations!), StringComparison.OrdinalIgnoreCase);
+        Assert.Null(dry.EquationsDeleted);
+        Assert.Contains(dry.Warnings ?? [], w => w.Contains(b.Depth, StringComparison.OrdinalIgnoreCase) && w.Contains("deleteEquations"));
+        var r = await M.DeleteAsync(b.Doc, [b.Extrude]);
+        Assert.Equal(dry.Equations, r.Equations);
+        Assert.Null(r.EquationsDeleted);
+        Assert.Contains(r.Warnings ?? [], w => w.Contains(b.Depth, StringComparison.OrdinalIgnoreCase) && w.Contains("deleteEquations"));
+        Assert.Single((await p.EquationListAsync(b.Doc)).Equations);
+    }
+
+    [Fact]
+    public async Task Feature_delete_with_deleteEquations_removes_them_and_leaves_no_rebuild_error()
+    {
+        var b = await BlockAsync("fm_delete_equations_too");
+        var p = new PropertiesService(S);
+        await p.EquationSetAsync(b.Doc, b.Depth, "20mm");
+        var dry = await M.DeleteAsync(b.Doc, [b.Extrude], dryRun: true, deleteEquations: true);
+        Assert.True(dry.EquationsDeleted);
+        Assert.Single((await p.EquationListAsync(b.Doc)).Equations); // the dry run changed nothing
+        var r = await M.DeleteAsync(b.Doc, [b.Extrude], deleteEquations: true);
+        Assert.True(r.EquationsDeleted);
+        Assert.Contains(b.Depth, Assert.Single(r.Equations!), StringComparison.OrdinalIgnoreCase);
+        Assert.Null(r.Warnings); // no "'Equations' now has rebuild error 51", nothing kept
+        Assert.Empty((await p.EquationListAsync(b.Doc)).Equations);
+    }
+
+    [Fact]
+    public async Task A_name_that_picks_up_a_deleted_feature_s_equations_warns()
+    {
+        // S54 (c): a new feature given a deleted one's name, or a feature renamed to it, takes over its equations unsaid.
+        var b = await BlockAsync("fm_equation_pickup");
+        var p = new PropertiesService(S);
+        var fs = new FeatureService(S);
+        await p.EquationSetAsync(b.Doc, b.Depth, "20mm");
+        await M.DeleteAsync(b.Doc, [b.Extrude]);
+        var named = await fs.ExtrudeAsync(new ExtrudeRequest { Doc = b.Doc, Sketch = b.Sketch, DepthMm = 10, Name = b.Extrude });
+        Assert.Equal(b.Extrude, named.Feature.Name);
+        Assert.Contains(named.Warnings ?? [], w => w.Contains(b.Depth, StringComparison.OrdinalIgnoreCase) && w.Contains("bind by name"));
+
+        await M.DeleteAsync(b.Doc, [b.Extrude]);
+        var other = await fs.ExtrudeAsync(new ExtrudeRequest { Doc = b.Doc, Sketch = b.Sketch, DepthMm = 10, Name = "Plate" });
+        Assert.DoesNotContain(other.Warnings ?? [], w => w.Contains("bind by name")); // another name binds nothing
+        var renamed = await M.RenameAsync(b.Doc, "Plate", b.Extrude);
+        Assert.Contains(renamed.Warnings ?? [], w => w.Contains(b.Depth, StringComparison.OrdinalIgnoreCase) && w.Contains("bind by name"));
+        Assert.Null((await M.RenameAsync(b.Doc, b.Extrude, "Plate")).Warnings); // renamed away: nothing new is bound
+    }
+
     // ------------------------------------------------------------------ feature_suppress_set
 
     [Fact]

@@ -95,6 +95,10 @@ public sealed class FeatureDeleteResult : ToolResult
     public IReadOnlyList<string>? Dependents { get; init; }
     /// <summary>Absorbed sketches that stay in the model (deleteAbsorbed=false).</summary>
     public IReadOnlyList<string>? KeptAbsorbed { get; init; }
+    /// <summary>The equations on the dimensions (or the suppression) of the features that go (S54), as they read before.</summary>
+    public IReadOnlyList<string>? Equations { get; init; }
+    /// <summary>True when those equations were deleted too (deleteEquations; a dry run: would be); else they are kept.</summary>
+    public bool? EquationsDeleted { get; init; }
     public double? VolumeDeltaMm3 { get; init; }
     public ModelState? Model { get; init; }
 }
@@ -417,7 +421,7 @@ public sealed partial class FeatureManagementService(SwSession session)
     private sealed record Planned(IFeature Feature, int Id, string Why);
 
     public async Task<FeatureDeleteResult> DeleteAsync(string? doc, IReadOnlyList<string> features, bool deleteChildren = false,
-        bool deleteAbsorbed = false, bool dryRun = false, CancellationToken ct = default)
+        bool deleteAbsorbed = false, bool dryRun = false, bool deleteEquations = false, CancellationToken ct = default)
     {
         var names = FeatureManagementLogic.RequireNames(features, "features");
         // A dry run changes nothing, so it may look at any document (the user's too).
@@ -431,6 +435,8 @@ public sealed partial class FeatureManagementService(SwSession session)
             var plan = DeletePlan(targets, deleteChildren, deleteAbsorbed, out var dependents, out var keepAbsorbed);
 
             if (dryRun)
+            {
+                var onPlan = EquationsOn(ctx, d, plan.Select(p => p.Feature.Name).ToList(), deleteEquations, true);
                 return new FeatureDeleteResult
                 {
                     Doc = ctx.Title(d),
@@ -438,7 +444,10 @@ public sealed partial class FeatureManagementService(SwSession session)
                     Removed = plan.Select(p => Row(p.Feature, p.Why)).ToList(),
                     Dependents = !deleteChildren && dependents.Count > 0 ? dependents.Select(x => x.Feature.Name).ToList() : null,
                     KeptAbsorbed = keepAbsorbed.Count > 0 ? keepAbsorbed.Select(x => x.Feature.Name).ToList() : null,
+                    Equations = onPlan.Count > 0 ? onPlan.Select(e => e.Text).ToList() : null,
+                    EquationsDeleted = deleteEquations && onPlan.Count > 0 ? true : null,
                 };
+            }
             if (dependents.Count > 0 && !deleteChildren)
                 throw SwException.InvalidArgument(
                     $"{Quote(targets.Select(t => t.Name))} {(targets.Count == 1 ? "has" : "have")} dependent features: " +
@@ -499,6 +508,8 @@ public sealed partial class FeatureManagementService(SwSession session)
                 throw new SwException(ErrorCodes.VerifyFailed,
                     $"{Quote(left)} still exist after the delete (removed: {Quote(removed.Select(x => x.Name), 10)}).",
                     "Check feature_list; SOLIDWORKS may refuse to delete a feature that others reference.");
+            // Before the rebuild errors are read: deleting the equations clears the error they leave on 'Equations'.
+            var onRemoved = EquationsOn(ctx, d, removed.Select(x => x.Name).ToList(), deleteEquations, false);
             foreach (var e in NewErrors(errorsBefore, ErrorMap(d)))
                 ctx.Warn($"'{e.Feature}' now has rebuild {(e.Warning == true ? "warning" : "error")} {e.Code} ({e.Error}).");
             var entry = ctx.DocEntry;
@@ -510,10 +521,41 @@ public sealed partial class FeatureManagementService(SwSession session)
                 Doc = ctx.Title(d),
                 Removed = removed,
                 KeptAbsorbed = kept.Count == 0 ? null : kept,
+                Equations = onRemoved.Count > 0 ? onRemoved.Select(e => e.Text).ToList() : null,
+                EquationsDeleted = deleteEquations && onRemoved.Count > 0 ? true : null,
                 VolumeDeltaMm3 = part ? Units.Mm3(after.Volume - before.Volume) : null,
                 Model = part ? after.ToState() : null,
             };
         }, options, ct).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// The equations on the dimensions (or the suppression) of <paramref name="features"/>, the features a delete removes
+    /// (S54). Deleted when <paramref name="delete"/> and not <paramref name="dryRun"/>; kept ones are warned about, as are
+    /// other equations that use those dimensions on their right-hand side (they stay: they drive dimensions that stay).
+    /// </summary>
+    private static List<EquationRow> EquationsOn(SwContext ctx, IModelDoc2 d, IReadOnlyList<string> features, bool delete, bool dryRun)
+    {
+        if (d.GetEquationMgr() is not IEquationMgr em || em.GetCount() <= 0) return [];
+        var all = PropertiesService.ReadEquations(em);
+        var on = EquationBindings.OnFeatures(all, features);
+        var users = EquationBindings.UsersOf(all, features, on);
+        if (users.Count > 0)
+            ctx.Warn($"{users.Count} other equation(s) use dimensions of the features that {(dryRun ? "would go" : "went")} and " +
+                     $"{(dryRun ? "would" : "will")} not evaluate: {string.Join("; ", users.Take(6).Select(e => e.Text))}.");
+        if (on.Count == 0) return on;
+        if (delete && !dryRun)
+        {
+            var left = PropertiesService.RemoveEquations(d, em, on, out _);
+            if (left.Count > 0)
+                ctx.Warn($"Could not delete {left.Count} of the {on.Count} equations on the deleted features: " +
+                         $"{string.Join("; ", left.Take(6).Select(e => e.Text))}. equation_list shows them; equation_delete takes a list.");
+        }
+        else if (!delete)
+            ctx.Warn($"{on.Count} equation(s) drive dimensions of the features that {(dryRun ? "would go" : "went")}, and " +
+                     $"{(dryRun ? "would stay" : "stay")}: {string.Join("; ", on.Take(6).Select(e => e.Text))}{(on.Count > 6 ? $"; and {on.Count - 6} more" : "")}. " +
+                     "They bind by name: a feature given that name later takes them over. deleteEquations:true removes them.");
+        return on;
     }
 
     /// <summary>

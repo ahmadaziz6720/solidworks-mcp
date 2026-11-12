@@ -130,14 +130,18 @@ public sealed class PropertiesTools(SwSession session)
             : Output.Json(_svc.EquationSetManyAsync(doc, equations, lhs, expression, cancellationToken), progress, "equation_set");
 
     [McpServerTool(Name = "equation_delete", Title = "Delete equation", ReadOnly = false, Destructive = true, Idempotent = false, OpenWorld = false)]
-    [Description("Deletes the equation of a left-hand side (a global variable, or a dimension's driving equation; the dimension stays). " +
-                 "Refuses a global variable other equations use. Rebuilds and verifies it is gone.")]
+    [Description("Deletes the equation of a left-hand side (a global variable, or a dimension's driving equation; the dimension stays), " +
+                 "or of several with 'equations' (one rebuild). Refuses a global variable other equations use, unless they go too. " +
+                 "Nothing is deleted if one is missing. Rebuilds and verifies they are gone.")]
     public Task<string> EquationDelete(
         IProgress<ProgressNotificationValue> progress,
-        [Description("Left-hand side without quotes: W or D1@Sketch1.")] string lhs,
+        [Description("Left-hand side without quotes: W or D1@Sketch1.")] string? lhs = null,
+        [Description("Several left-hand sides instead of lhs, e.g. ['D1@Sketch1', 'W'].")] string[]? equations = null,
         [Description(DocArg)] string? doc = null,
         CancellationToken cancellationToken = default) =>
-        Output.Json(_svc.EquationDeleteAsync(doc, lhs, cancellationToken), progress, "equation_delete");
+        equations is null
+            ? Output.Json(_svc.EquationDeleteAsync(doc, lhs, cancellationToken), progress, "equation_delete")
+            : Output.Json(_svc.EquationDeleteManyAsync(doc, equations, lhs, cancellationToken), progress, "equation_delete");
 
     // ------------------------------------------------------------------ configurations
 

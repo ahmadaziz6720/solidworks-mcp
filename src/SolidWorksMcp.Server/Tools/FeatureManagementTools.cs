@@ -28,16 +28,17 @@ public sealed class FeatureManagementTools(SwSession session)
     [McpServerTool(Name = "feature_delete", Title = "Delete features", ReadOnly = false, Destructive = true, Idempotent = false, OpenWorld = false)]
     [Description("Deletes features by name. By default only the features themselves: absorbed sketches stay, and the call refuses " +
                  "(listing them) when other features depend on them. dryRun lists what would go. Verified: the features are gone; " +
-                 "returns everything removed and the volume change.")]
+                 "returns everything removed, the equations on their dimensions and the volume change.")]
     public Task<string> FeatureDelete(
         IProgress<ProgressNotificationValue> progress,
         [Description("Feature names to delete.")] string[] features,
         [Description("Also delete the features that depend on them.")] bool deleteChildren = false,
         [Description("Also delete their absorbed sketches.")] bool deleteAbsorbed = false,
         [Description("Only report what would be deleted.")] bool dryRun = false,
+        [Description("Also delete the equations on their dimensions. Kept by default, they bind to a later feature of the same name.")] bool deleteEquations = false,
         [Description(DocArg)] string? doc = null,
         CancellationToken cancellationToken = default) =>
-        Output.Json(_svc.DeleteAsync(doc, features, deleteChildren, deleteAbsorbed, dryRun, cancellationToken), progress, "feature_delete");
+        Output.Json(_svc.DeleteAsync(doc, features, deleteChildren, deleteAbsorbed, dryRun, deleteEquations, cancellationToken), progress, "feature_delete");
 
     [McpServerTool(Name = "feature_suppress_set", Title = "Suppress or unsuppress", ReadOnly = false, Destructive = false, Idempotent = true, OpenWorld = false)]
     [Description("Suppresses or unsuppresses features (dependents follow a suppressed parent). Verified by reading the state back; " +

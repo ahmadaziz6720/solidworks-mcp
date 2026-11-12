@@ -354,6 +354,25 @@ public class PropertiesLiveTests(LiveFixture fx) : LiveTest(fx)
     }
 
     [Fact]
+    public async Task Equation_delete_takes_a_list_checked_before_anything_goes()
+    {
+        // S54 (b): one lhs per call took seven calls for one feature's equations.
+        var (doc, depth) = await BlockAsync("equations_delete_list");
+        await P.EquationSetManyAsync(doc, [new EquationInput { Lhs = "W", Expression = "60mm" }, new EquationInput { Lhs = depth, Expression = "\"W\" / 3" }]);
+        Assert.Equal(ErrorCodes.InvalidArgument, await Code(() => P.EquationDeleteManyAsync(doc, ["W"]))); // the depth uses W
+        Assert.Equal(ErrorCodes.EntityNotFound, await Code(() => P.EquationDeleteManyAsync(doc, [depth, "Nope"])));
+        Assert.Equal(ErrorCodes.InvalidArgument, await Code(() => P.EquationDeleteManyAsync(doc, ["W", "w"])));
+        Assert.Equal(ErrorCodes.InvalidArgument, await Code(() => P.EquationDeleteManyAsync(doc, ["W"], "W")));
+        Assert.Equal(2, (await P.EquationListAsync(doc)).Equations.Count); // nothing was deleted
+
+        var r = await P.EquationDeleteManyAsync(doc, ["W", depth]); // W goes with the equation that uses it
+        Assert.Equal(new[] { "W", depth }, r.Deleted.Select(x => x.Lhs), StringComparer.OrdinalIgnoreCase);
+        Assert.Equal(0, r.Remaining);
+        Assert.Null(r.Warnings);
+        Assert.Empty((await P.EquationListAsync(doc)).Equations);
+    }
+
+    [Fact]
     public async Task Equation_errors_are_typed_and_bare_numbers_warn()
     {
         var (doc, _) = await BlockAsync("equations_bad");
@@ -626,6 +645,19 @@ public class PropertiesOfflineTests
         Assert.Equal(ErrorCodes.InvalidArgument, Assert.Throws<SwException>(() => EquationText.Expression("\"W / 2")).Code);
         Assert.Equal("\"W\" = 60mm", EquationText.Build("W", "60mm"));
         Assert.True(EquationText.SameText("\"W\"=60MM", "\"W\" = 60mm"));
+    }
+
+    [Fact]
+    public void Equations_name_their_features_and_dimensions()
+    {
+        // S54: what binds an equation to a feature is the name after '@' (or a suppression equation's left-hand side).
+        Assert.Equal("Boss-Extrude1", EquationText.FeatureOf("D1@Boss-Extrude1"));
+        Assert.Equal("Fillet1", EquationText.FeatureOf("Fillet1"));
+        Assert.Null(EquationText.FeatureOf("W", global: true));
+        Assert.Null(EquationText.FeatureOf("D1@Sketch1@bracket-1.Part"));
+        Assert.Equal(["D1@Sketch1", "D2@Boss-Extrude1"], EquationText.DimensionNames("\"D1@Sketch1\" = \"W\" / 2 + \"D2@Boss-Extrude1\""));
+        Assert.Equal(["D3@Cut1"], EquationText.DimensionNames("\"W\" = \"D3@Cut1\" * 2 + \"SW-Mass@Part1.SLDPRT\""));
+        Assert.Empty(EquationText.DimensionNames("\"Fillet1\" = \"suppressed\""));
     }
 
     [Fact]

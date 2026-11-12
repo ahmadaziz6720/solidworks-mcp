@@ -10,9 +10,9 @@ Three sections: **Open**, not yet fixed; **Waiting**, fixed and not yet settled 
 merged, a fix not yet run in a session); **Closed**, merged upstream, run and held, or
 decided against, with the record.
 
-**Open: S4, S5, S7, S10 to S12, S33, S34, S48, S49, S54 to S65.** S48 and S49 are from the scenario
+**Open: S4, S5, S7, S10 to S12, S33, S34, S48, S49, S55 to S65.** S48 and S49 are from the scenario
 test of build `20261112-091908`, S50 to S66 from twenty working sessions on that build
-(findings 2026-11-12 and 13); S47, from that scenario test too, S50 to S53 and S66 are
+(findings 2026-11-12 and 13); S47, from that scenario test too, S50 to S54 and S66 are
 fixed and Waiting.
 Reported `ok` while wrong or misleading: S58 (a), S60 (a), S63 (b); a
 failure reported on a success: S56 (a).
@@ -196,26 +196,6 @@ for the server's rule on foreign documents is not said anywhere, and the result 
 name the other document. Reported success, rightly. Bears on S27. Local: the component in
 the row, the assembly's volume change, and a line naming the part changed and not saved.
 Taken into the run of 2026-11-13 as proposed, no choice in it.
-
-**S54. Equations outlive the features whose dimensions they drive, and bind by name.** On
-build `20261112-091908`, met in five sessions (findings 2026-11-12, "a feature with
-children replaced", point 1; "two parts changed mid-tree", points 3, 4; 2026-11-13, "an
-existing part edited", point 2; "a revolved part remade", point 5; "one chamfer over three
-edges", point 2). (a) `feature_delete`, with `deleteChildren` and `deleteAbsorbed`, leaves
-the equations of the dimensions it removes, `ok` with "'Equations' now has rebuild error 51
-(swSketchErrorExtRefFail)"; the dry run does not list them. (b) `equation_delete` takes one
-lhs: seven calls, six, eight for one feature. (c) A new feature or sketch given a deleted
-one's name takes over its equations: `feature_rename` bound a deleted sketch's equations to
-the new sketch's `D1` to `D4`, meant for other sizes, shown only as `driven:true`; a new
-chamfer of the same name read `D1 … 9.5, driven:true` while the equation still held 7.57.
-Keeping an equation was once what the job wanted, so removal should be a choice. Local:
-the dry run and the delete list the equations on the dimensions to go, an option removes
-them, `equation_delete` takes a list as `equation_set` does since S37, and a rename or a
-new name that picks up existing equations warns and names them. Decided 2026-11-13 by the
-owner: the dry run and the delete list the equations on the dimensions that go, with a
-warning; `deleteEquations:true` removes them, the default keeps them; `equation_delete`
-takes a list; a rename or a new name that picks up existing equations warns and names
-them.
 
 **S55. `sketch_constrain` passes the 50 s limit, with `symmetric` steps the suspect.** On
 build `20261112-091908`, five times (findings 2026-11-12, "six printed and stand-in parts",
@@ -911,6 +891,67 @@ solved without errors", "planes 75 mm apart"]`). After: it passes, with
 `New_mate_types_without_their_entities_…` (4/4); unit tests 277/277; `--check-catalog` ok
 (no description changed); `check_repo` ok. Local: on `sw2023`, in the commit that moves it
 here; not yet in a build. Upstream: not yet decided.
+
+**S54. Equations outlive the features whose dimensions they drive, and bind by name.** On
+build `20261112-091908`, met in five sessions (findings 2026-11-12, "a feature with
+children replaced", point 1; "two parts changed mid-tree", points 3, 4; 2026-11-13, "an
+existing part edited", point 2; "a revolved part remade", point 5; "one chamfer over three
+edges", point 2). (a) `feature_delete`, with `deleteChildren` and `deleteAbsorbed`, leaves
+the equations of the dimensions it removes, `ok` with "'Equations' now has rebuild error 51
+(swSketchErrorExtRefFail)"; the dry run does not list them. (b) `equation_delete` takes one
+lhs: seven calls, six, eight for one feature. (c) A new feature or sketch given a deleted
+one's name takes over its equations: `feature_rename` bound a deleted sketch's equations to
+the new sketch's `D1` to `D4`, meant for other sizes, shown only as `driven:true`; a new
+chamfer of the same name read `D1 … 9.5, driven:true` while the equation still held 7.57.
+Keeping an equation was once what the job wanted, so removal should be a choice. Local:
+the dry run and the delete list the equations on the dimensions to go, an option removes
+them, `equation_delete` takes a list as `equation_set` does since S37, and a rename or a
+new name that picks up existing equations warns and names them. Decided 2026-11-13 by the
+owner: the dry run and the delete list the equations on the dimensions that go, with a
+warning; `deleteEquations:true` removes them, the default keeps them; `equation_delete`
+takes a list; a rename or a new name that picks up existing equations warns and names
+them. Fixed in the run of 2026-11-13. Cause: an equation names its
+dimension by text ("D1@Boss-Extrude1"); SOLIDWORKS keeps it when the feature goes and binds
+it to whatever later carries that name. `feature_delete` saw the equations only as the
+rebuild error they left, `equation_delete` took one lhs, and no call compared the names the
+equations use before and after it. Fix: (a) `feature_delete` reads the equations whose
+left-hand side is a dimension (or the suppression) of a feature that goes, in the dry run
+from the plan, in the delete from what was removed, and returns them in `equations`. Kept
+by default, with a warning that names them and says they bind by name; `deleteEquations:
+true` deletes them after the features, one rebuild, before the rebuild errors are read (so
+"'Equations' now has rebuild error 51" goes with them), and returns `equationsDeleted:
+true`. Other equations that use those dimensions on their right-hand side are warned about
+and kept. (b) `equation_delete` takes `equations`, a list of left-hand sides: all found,
+and no global variable deleted that a staying equation uses, before the first goes (a
+variable goes together with the equations that use it); one rebuild; checked gone. (c)
+Every write call on a part or assembly reads, when it starts, the equations that name a
+dimension the document does not have (`EquationBindings.Unbound`, in `SwContext.Bind`), and
+at its end warns, naming them and the feature, about those that now find their dimension
+(`WarnBound`, in `AfterWrite`): a new feature or sketch given the name, a `feature_rename`,
+a dimension added later, an undo. Decided 2026-11-13 by the run, not the owner: (1) the
+pick-up check sits in the session's write path, for every call, rather than in
+`feature_rename` and each tool that names a feature, because the name comes from
+SOLIDWORKS' own numbering, a `name` argument in a dozen tools, a rename or a dimension
+added later, and one check at the call's edge covers them all; its cost is one read of the
+equations per write and one dimension lookup per name they use, nothing in a document
+without equations. (2) Equations that use a deleted feature's dimensions only on their
+right-hand side are warned about, not deleted by `deleteEquations`, because they drive
+dimensions that stay. (3) A suppression equation (`"Fillet1" = "suppressed"`) is listed and
+deleted with its feature, but the pick-up warning reads dimension names only. (4) The list
+is `equations` (string[]) beside `lhs`, the name `equation_set` gives its list. On the code
+before, the live tests failed: `Feature_delete_lists_the_equations_on_the_dimensions_that_go`
+(no warning in the dry run named the depth's equation) and
+`A_name_that_picks_up_a_deleted_feature_s_equations_warns` (no warning on an extrude named
+after the deleted one); the list of `equation_delete` had no argument to test on that code.
+After: those two, in their final form, `Feature_delete_with_deleteEquations_removes_them_and_leaves_no_rebuild_error`,
+`Equation_delete_takes_a_list_checked_before_anything_goes` and the offline
+`Equations_name_their_features_and_dimensions` pass (5/5); the live tests on the changed
+paths, the four `Feature_delete_…`, the two `Rename_…`, `Units_set_switches_…`,
+`Undo_after_a_fillet_removes_it`, `Undo_never_goes_beyond_…`, `Dimension_set_changes_…`,
+`A_global_variable_drives_…`, `Equation_errors_are_typed_…`, `Several_equations_go_in_one_call_…`
+and `A_batch_with_a_row_that_fails_…`, pass (14/14); contract tests 7/7; unit tests
+277/277; `--check-catalog` ok; `check_repo` ok. Local: on `sw2023`, in the commit that
+moves it here; not yet in a build. Upstream: not yet decided.
 
 ## Closed
 
