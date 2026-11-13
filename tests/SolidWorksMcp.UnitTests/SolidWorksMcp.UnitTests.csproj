@@ -21,6 +21,7 @@
   <ItemGroup>
     <Compile Include="..\..\src\SolidWorksMcp.Core\BuildVersion.cs" Link="Core\BuildVersion.cs" />
     <Compile Include="..\..\src\SolidWorksMcp.Core\GlobalUsings.cs" Link="Core\GlobalUsings.cs" />
+    <Compile Include="..\..\src\SolidWorksMcp.Core\SessionNotes.cs" Link="Core\SessionNotes.cs" />
     <Compile Include="..\..\src\SolidWorksMcp.Core\SwException.cs" Link="Core\SwException.cs" />
     <Compile Include="..\..\src\SolidWorksMcp.Core\SwOptions.cs" Link="Core\SwOptions.cs" />
     <Compile Include="..\..\src\SolidWorksMcp.Core\Com\ComArgs.cs" Link="Core\Com\ComArgs.cs" />

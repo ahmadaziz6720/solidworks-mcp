@@ -286,7 +286,51 @@ process; (c) "same process as before" or "a new one"; (d) the fork's tested revi
 31.x. Taken into the run of 2026-11-13: (a) a probe first, fixed in the run when it shows
 the cause; (b) and (c) as proposed, no choice in them. (d) Decided 2026-11-13 by the
 owner: on `sw2023` only, the tested revision 31.x, M0's live test with it; not for
-upstream.
+upstream. (b) to (d) fixed in the run of 2026-11-13; (a) probed, its cause not found,
+still open. (a) The probe: `dirty` is SOLIDWORKS's own `IModelDoc2.GetSaveFlag`, read the
+same way by `doc_list`, `sw_status` and `doc_activate` (`DocumentService.Info`); nothing in
+the server sets or clears it (no `SetSaveFlag`). Live on 2023 SP3, a part saved and then
+changed read `dirty:true` in all three after a change by the server, and after a change
+made by another process through COM (a VBScript client setting a dimension and
+rebuilding, the way a second server process would); it stayed true through
+`model_export` (STL, 3MF, STEP, PNG, PDF, Parasolid), `view_screenshot`, `doc_save`
+`copy`, `doc_undo` back to the saved state, `feature_rename`, `feature_suppress` and back,
+`doc_rebuild` `force`, a sketch, `feature_delete`, and 13 minutes idle with SOLIDWORKS'
+auto-recover on (every 10 minutes); only a save cleared it, and a call refused before any
+change left it false. So another process's changes do not hide it; what cleared it in that
+session is not known (a save the session did not make, by the user or by a tool that saves
+another document, is left). Kept as
+`M0LiveTests.Dirty_reads_unsaved_changes_made_through_another_process` (passes on the code
+before and after). Usage until found: a part opened before the session, of unknown
+history, is saved or asked about, never closed on `dirty:false` alone. (b) Cause: the
+`NOT_CONNECTED` text named only "still starting" and privileges. Fix: the error (now
+`SessionNotes.Unreachable`) names each other `solidworks-mcp` process with its start time,
+"an older build or another session", and the hint says it may have started SOLIDWORKS at its
+own level or be stuck in a call, never to end it, and to ask the user to close that session
+or restart SOLIDWORKS; with no other process the text is as before. (c) Cause: the result
+carried the PID only. Fix: `sw_connect` gives `processStarted` and `process`: "same as
+before" (the same PID and start time as the instance this server was last attached to, kept
+across a lost connection), "a new one (before: pid …, started …)", or "first connection of
+this server". (d) Fix: `sw_connect` warns of an untested revision unless it is 31.x
+(2023), `SessionService.TestedMajor`; `M0LiveTests.Connect_reports_the_revision` expects
+`31.` and no warning. Before, on the code before the fix:
+`Connect_reports_the_revision` failed ("Assert.Null() Failure: … SOLIDWORKS revision 31.3.0
+is untested (tested: 33…"), and the new
+`Connect_says_whether_it_found_the_same_SOLIDWORKS_process_as_before` failed ("Sub-string
+not found … "process":"same as before""). (b) and (c)'s "a new one" cannot be shown live
+(another server holding COM, a SOLIDWORKS restart mid-test): unit tests instead,
+`SessionNoteTests` (6, the logic in the interop-free `SessionNotes.cs`, compiled into the
+unit tests). After: both pass, with `Status_names_the_commit_…`,
+`Status_gives_a_failed_call_s_error_code_…`, `A_modal_dialog_returns_DIALOG_BLOCKING_…`,
+`Dirty_owned_documents_need_save_or_discard` and the new dirty test, 7/7 live; unit tests
+284/284; `check_repo` ok; no description changed. Made stricter: none. Decided 2026-11-13
+by the run, not the owner: (1) "before" is the instance this server process was last
+attached to, through any call, not a previous server's, because a new process has no
+connection of its own to compare and says "first connection of this server"; (2) the same
+PID with another start time reads as a new process, because Windows reuses PIDs; (3) (a)
+stays open with a usage line rather than a change to how `dirty` is read, because the probe
+found the reading right in every case it tried. Local: (b) to (d) on `sw2023`, in the
+commit that records them here; not yet in a build. Upstream: not yet decided; (d) never.
 
 **S61. A STEP into an assembly.** On build `20261112-091908` (findings 2026-11-12, "STEP
 parts brought toward an existing assembly"). (a) `asm_insert` refuses a STEP; SOLIDWORKS

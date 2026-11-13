@@ -27,7 +27,20 @@ public class M0LiveTests(LiveFixture fx) : LiveTest(fx)
     {
         var st = await new SessionService(S).StatusAsync();
         Assert.True(st.Attached);
-        Assert.StartsWith("33.", st.Revision);
+        // sw2023 only (S60 d): this fork is tested on SOLIDWORKS 2023, revision 31.x, so sw_connect warns of no untested revision.
+        Assert.StartsWith("31.", st.Revision);
+        var c = await new SessionService(S).ConnectAsync(false);
+        Assert.Null(c.Warnings);
+    }
+
+    [Fact]
+    public async Task Connect_says_whether_it_found_the_same_SOLIDWORKS_process_as_before()
+    {
+        // S60 (c): a session that asked the user to restart SOLIDWORKS could not tell that the restart had not happened.
+        var c = await new SessionService(S).ConnectAsync(false);
+        string json = ResultJson.Serialize(c);
+        Assert.Contains("\"process\":\"same as before\"", json);
+        Assert.Matches("\"processStarted\":\"\\d{4}-\\d\\d-\\d\\d \\d\\d:\\d\\d:\\d\\d\"", json);
     }
 
     [Fact]
@@ -331,5 +344,67 @@ public class M0LiveTests(LiveFixture fx) : LiveTest(fx)
         Assert.True(answered.Closed);
         for (int i = 0; i < 50 && session.Dispatcher.Current is not null; i++) await Task.Delay(100);
         Assert.Contains(session.Dispatcher.LateCompletions, l => l.Name == "vba_run" && l.Succeeded);
+    }
+
+    [Fact]
+    public async Task Dirty_reads_unsaved_changes_made_through_another_process()
+    {
+        // S60 (a), probe kept as a test: a part holding unsaved work read dirty:false in a session with a second server
+        // process. GetSaveFlag is SOLIDWORKS's own: a change through another COM client (a VBScript here) reads dirty in
+        // doc_list, sw_status and doc_activate; an export and a saved copy leave it dirty, a save clears it.
+        var docs = new DocumentService(S);
+        string dir = Path.Combine(Path.GetTempPath(), $"swmcp_status_{Guid.NewGuid():N}");
+        Directory.CreateDirectory(dir);
+        try
+        {
+            async Task<bool> Dirty(string doc)
+            {
+                bool listed = (await docs.ListAsync()).Documents.Single(x => x.Handle == doc).Dirty;
+                bool status = (await new SessionService(S).StatusAsync()).Documents!.Single(x => x.Handle == doc).Dirty;
+                Assert.Equal(listed, status);
+                return listed;
+            }
+            string doc = await NewPartAsync("dirty");
+            var sk = new SketchService(S);
+            await sk.StartAsync(doc, new EntityRef { Name = "top" }, false);
+            await sk.AddAsync(doc, [new SketchEntity { Kind = "rectangle", Center = [0, 0], WidthMm = 100, HeightMm = 60 }]);
+            string f = (await new FeatureService(S).ExtrudeAsync(new ExtrudeRequest { Doc = doc, DepthMm = 20 })).Feature.Name;
+            string file = Path.Combine(dir, "dirty.sldprt");
+            await docs.SaveAsync(doc, "as", file, false);
+            Assert.False(await Dirty(doc));
+            await new FeatureManagementService(S).DimensionSetAsync(doc, [new DimensionValue { Name = $"D1@{f}", Value = 25 }]);
+            Assert.True(await Dirty(doc));
+            await new ExportService(S).ExportAsync(new ExportRequest { Doc = doc, Path = Path.Combine(dir, "dirty.stl") });
+            await docs.SaveAsync(doc, "copy", Path.Combine(dir, "copy.sldprt"), false);
+            Assert.True(await Dirty(doc));
+            await docs.SaveAsync(doc, "inPlace", null, false);
+            Assert.False(await Dirty(doc));
+
+            // Another process changes the depth to 30 mm through COM (whole millimetres: CDbl would read the locale).
+            string vbs = Path.Combine(dir, "change.vbs");
+            File.WriteAllText(vbs, string.Join("\r\n",
+                "Set sw = GetObject(, \"SldWorks.Application\")",
+                "Set doc = sw.GetOpenDocumentByName(WScript.Arguments(0))",
+                "Set d = doc.Parameter(WScript.Arguments(1))",
+                "d.SystemValue = CLng(WScript.Arguments(2)) / 1000",
+                "doc.EditRebuild3",
+                "WScript.Echo \"saveflag \" & doc.GetSaveFlag()"));
+            var psi = new System.Diagnostics.ProcessStartInfo(Path.Combine(Environment.SystemDirectory, "cscript.exe"),
+                $"//nologo \"{vbs}\" \"{file}\" \"D1@{f}\" 30")
+            { RedirectStandardOutput = true, RedirectStandardError = true, UseShellExecute = false };
+            using (var p = System.Diagnostics.Process.Start(psi)!)
+            {
+                string output = await p.StandardOutput.ReadToEndAsync() + await p.StandardError.ReadToEndAsync();
+                await p.WaitForExitAsync();
+                Assert.True(p.ExitCode == 0 && output.Contains("saveflag True"), output);
+            }
+            Assert.True(await Dirty(doc));
+            Assert.True((await docs.ActivateAsync(doc, false)).Document.Dirty);
+            Assert.Equal(30 * 100 * 60, (await new InspectService(S).ModelInfoAsync(doc)).VolumeMm3!.Value, V);
+        }
+        finally
+        {
+            try { Directory.Delete(dir, recursive: true); } catch (Exception e) when (e is IOException or UnauthorizedAccessException) { /* SOLIDWORKS may hold it; the sweep removes it */ }
+        }
     }
 }

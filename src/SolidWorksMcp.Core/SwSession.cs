@@ -35,8 +35,11 @@ public sealed record RunOptions
 }
 
 /// <summary>Result of attaching to (or launching) SOLIDWORKS.</summary>
+/// <param name="ProcessStarted">When the SLDWORKS.exe process started (local time); null if it can't be read.</param>
+/// <param name="PreviousPid">The instance this server was attached to before this call (kept across a lost connection);
+/// null on the server process's first connection.</param>
 public sealed record ConnectInfo(bool Connected, bool Launched, string Revision, int ProcessId, string? ExecutablePath,
-    IReadOnlyList<string> RecoveredPreferences);
+    IReadOnlyList<string> RecoveredPreferences, DateTime? ProcessStarted = null, int? PreviousPid = null, DateTime? PreviousStarted = null);
 
 /// <summary>
 /// The connection to one running SOLIDWORKS instance and everything that must be shared by all tools: the STA
@@ -52,6 +55,9 @@ public sealed class SwSession : IDisposable
     private volatile string? _revision;
     private volatile bool _attached;
     private bool _everAttached;
+    private DateTime? _started; // the attached SLDWORKS.exe's start time (local)
+    private int _lastPid; // the instance last attached, kept across Detach (S60 c)
+    private DateTime? _lastStarted;
     private IReadOnlyList<string> _lastRecovered = [];
 
     public SwSession(SwOptions? options = null, ILoggerFactory? loggerFactory = null)
@@ -198,13 +204,15 @@ public sealed class SwSession : IDisposable
         Dispatcher.InvokeAsync("sw_connect", _ =>
         {
             bool alreadyRunning = SolidWorksProcessIds().Count > 0;
+            var (prevPid, prevStarted) = (_lastPid, _lastStarted);
             var app = Attach(launch);
             bool launched = launch && !alreadyRunning;
             var recovered = _lastRecovered;
             _lastRecovered = [];
             string? exe = null;
             try { exe = app.GetExecutablePath(); } catch { /* optional */ }
-            return new ConnectInfo(true, launched, _revision ?? "", _pid, exe, recovered);
+            return new ConnectInfo(true, launched, _revision ?? "", _pid, exe, recovered, _started,
+                prevPid == 0 ? null : prevPid, prevPid == 0 ? null : prevStarted);
         }, launch ? TimeSpan.FromSeconds(Math.Max(200, Options.DefaultTimeout.TotalSeconds)) : Options.DefaultTimeout,
             null, cancellationToken);
 
@@ -221,12 +229,7 @@ public sealed class SwSession : IDisposable
         if (app is null)
         {
             var running = SolidWorksProcessIds();
-            if (running.Count > 0)
-                throw new SwException(ErrorCodes.NotConnected,
-                    $"SOLIDWORKS is running (pid {string.Join(", ", running)}) but can't be reached over COM: it may still be starting, " +
-                    "or it runs with different privileges than this server.",
-                    "Wait until SOLIDWORKS has finished starting and retry. If it was started 'as administrator' (or the MCP client was), " +
-                    "restart one of them so both run at the same level. A second SOLIDWORKS is never launched.");
+            if (running.Count > 0) throw SessionNotes.Unreachable(running, SessionNotes.OtherServerProcesses());
             // Auto-launch only on the very first attach of this process; after a disconnect only sw_connect may launch.
             bool mayLaunch = launch || (Options.AutoLaunch && !_everAttached);
             if (!mayLaunch)
@@ -238,6 +241,8 @@ public sealed class SwSession : IDisposable
         _app = app;
         _pid = app.GetProcessID();
         _revision = app.RevisionNumber();
+        _started = SessionNotes.StartTime(_pid);
+        (_lastPid, _lastStarted) = (_pid, _started);
         try { Interlocked.Exchange(ref _mainHwnd, ((IFrame)(object)app.Frame()).GetHWndx64()); }
         catch { Interlocked.Exchange(ref _mainHwnd, 0); }
         _attached = true;
@@ -273,6 +278,7 @@ public sealed class SwSession : IDisposable
         if (_app is not null) _log.LogWarning("Detached from SOLIDWORKS (pid {Pid})", _pid);
         _app = null;
         _pid = 0;
+        _started = null;
         Interlocked.Exchange(ref _mainHwnd, 0);
         _attached = false;
         Documents.Clear();

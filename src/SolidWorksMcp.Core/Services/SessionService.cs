@@ -1,4 +1,3 @@
-using System.Diagnostics;
 using SolidWorks.Interop.sldworks;
 using SolidWorksMcp.Core.Com;
 using SolidWorksMcp.Core.Documents;
@@ -61,6 +60,10 @@ public sealed class ConnectResult : ToolResult
 {
     public required string Revision { get; init; }
     public int ProcessId { get; init; }
+    /// <summary>When that SLDWORKS.exe started (local time).</summary>
+    public string? ProcessStarted { get; init; }
+    /// <summary>"same as before", "a new one (before: …)" or "first connection of this server" (S60 c).</summary>
+    public string? Process { get; init; }
     public bool Launched { get; init; }
     public string? ExecutablePath { get; init; }
     public IReadOnlyList<string>? RecoveredPreferences { get; init; }
@@ -94,7 +97,7 @@ public sealed class SessionService(SwSession session)
         var dialogs = Rows(session.ListDialogs());
         bool blocked = session.IsUiBlocked;
         var current = session.Dispatcher.Current;
-        var others = OtherServers();
+        var others = SessionNotes.OtherServerProcesses().Select(o => o.Pid).ToList();
         var pending = session.Journal.Entries.Select(e => new JournalRow
         {
             Preference = $"{e.Kind} {e.Pref}", Original = e.OldValue, Operation = e.Operation,
@@ -172,14 +175,20 @@ public sealed class SessionService(SwSession session)
         {
             Revision = info.Revision,
             ProcessId = info.ProcessId,
+            ProcessStarted = info.ProcessStarted?.ToString("yyyy-MM-dd HH:mm:ss", System.Globalization.CultureInfo.InvariantCulture),
+            Process = SessionNotes.ProcessNote(info.ProcessId, info.ProcessStarted, info.PreviousPid, info.PreviousStarted),
             Launched = info.Launched,
             ExecutablePath = info.ExecutablePath,
             RecoveredPreferences = info.RecoveredPreferences.Count == 0 ? null : info.RecoveredPreferences,
         };
         string major = info.Revision.Split('.')[0];
-        if (major != "33") r.Warnings = [$"SOLIDWORKS revision {info.Revision} is untested (tested: 33.x = 2025). Please report problems."];
+        if (major != TestedMajor) r.Warnings = [$"SOLIDWORKS revision {info.Revision} is untested (tested: {TestedMajor}.x = {TestedRelease}). Please report problems."];
         return r;
     }
+
+    // sw2023 only (S60 d, the owner's decision of 2026-11-13; not for upstream): this fork is built and tested on 2023.
+    private const string TestedMajor = "31";
+    private const string TestedRelease = "2023";
 
     public DialogListResult ListDialogs()
     {
@@ -223,16 +232,4 @@ public sealed class SessionService(SwSession session)
     }).ToList();
 
     private static string Clip(string s, int n) => s.Length <= n ? s : s[..n] + "…";
-
-    private static List<int> OtherServers()
-    {
-        try
-        {
-            var me = Environment.ProcessId;
-            var procs = Process.GetProcessesByName("solidworks-mcp");
-            try { return procs.Select(p => p.Id).Where(id => id != me).ToList(); }
-            finally { foreach (var p in procs) p.Dispose(); }
-        }
-        catch { return []; }
-    }
 }
