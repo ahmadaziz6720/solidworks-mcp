@@ -1008,13 +1008,29 @@ public sealed partial class PartFeatureService(SwSession session)
             }
             if (plan.Note is not null) ctx.Warn(plan.Note);
             var placements = mains.Select(HolePlacement).OfType<PlacementSketch>().ToList();
-            foreach (var p in placements.Where(p => p.Constrained != "fully"))
-                ctx.Warn($"{p.Feature}: its placement sketch '{p.Sketch}' is " +
-                         (p.Constrained == "under" ? "under defined" : $"not fully defined ({p.Constrained})") + ", so the hole (and a pattern of it) can " +
-                         "move: sketch_edit it, sketch_constrain its point(s) from the origin until it reads fully, then sketch_finish.");
+            if (PlacementWarning(placements) is { } placing) ctx.Warn(placing);
             var outcome = new FeatureOutcome(mains[0], mains, first, last, checksAll.Distinct().ToList());
             return FeatureVerifier.Result(ctx, d, outcome, resolved: resolved, placementSketches: placements.Count == 0 ? null : placements);
         }, RunOptions.Write(q.Doc) with { Timeout = timeout }, ct);
+    }
+
+    /// <summary>
+    /// One warning for the placement sketches not fully defined (S38), naming each with its hole, then the way out once
+    /// (S48 c: it was one ~220-character sentence per hole). Null when every one is fully defined.
+    /// </summary>
+    private static string? PlacementWarning(IReadOnlyList<PlacementSketch> placements)
+    {
+        static string State(string c) => c == "under" ? "under defined" : $"not fully defined ({c})";
+        var loose = placements.Where(p => p.Constrained != "fully").ToList();
+        if (loose.Count == 0) return null;
+        const string Out = "sketch_constrain its point(s) from the origin until it reads fully, then sketch_finish.";
+        if (loose.Count == 1)
+            return $"{loose[0].Feature}: its placement sketch '{loose[0].Sketch}' is {State(loose[0].Constrained)}, so the hole " +
+                   $"(and a pattern of it) can move: sketch_edit it, {Out}";
+        bool same = loose.All(p => p.Constrained == loose[0].Constrained);
+        string list = string.Join(", ", loose.Select(p => $"'{p.Sketch}' of {p.Feature}" + (same ? "" : $" {State(p.Constrained)}")));
+        return $"The placement sketches {list} are {(same ? State(loose[0].Constrained) : "not fully defined")}, so those holes " +
+               $"(and a pattern of them) can move: sketch_edit each, {Out}";
     }
 
     /// <summary>

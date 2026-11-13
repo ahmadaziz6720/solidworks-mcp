@@ -106,7 +106,7 @@ public sealed partial class FeatureService(SwSession session)
                 (main, after, checks) => ExtrudeIntent(main, end, depth, origin, dirModel, capNormal, oblique is null ? null : profile, q.Cut, checks),
                 q.KeepOnFailure, api, q.Name);
             entry.LastSketch = null; // consumed
-            Rename(ctx, o.Main, q.Name);
+            o = Rename(ctx, o, q.Name);
             return FeatureVerifier.Result(ctx, d, o, sketchFeat.Name, dirModel);
         }, RunOptions.Write(q.Doc), ct);
 
@@ -353,6 +353,15 @@ public sealed partial class FeatureService(SwSession session)
         if (radii.Any(x => Math.Abs(x - r) < 1e-6)) { checks.Add($"round face r {Units.Mm(r)} mm"); yield break; }
         if (radii.Count == 0) { checks.Add("fillet faces are freeform (radius not checked)"); yield break; }
         yield return $"no fillet face of radius {Units.Mm(r)} mm (found {string.Join(", ", radii.Select(x => Units.Mm(x)).Distinct())} mm)";
+    }
+
+    /// <summary>Renames the feature, and the dimension names its check lines give with it (S48 a: "D1@Cut-Extrude1 reads …").</summary>
+    private static FeatureOutcome Rename(SwContext ctx, FeatureOutcome o, string? name)
+    {
+        string was = o.Main.Name;
+        Rename(ctx, o.Main, name);
+        string now = o.Main.Name;
+        return now == was ? o : o with { Checks = o.Checks.Select(c => c.Replace($"@{was} ", $"@{now} ", StringComparison.Ordinal)).ToList() };
     }
 
     private static void Rename(SwContext ctx, IFeature f, string? name)

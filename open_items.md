@@ -10,10 +10,10 @@ Three sections: **Open**, not yet fixed; **Waiting**, fixed and not yet settled 
 merged, a fix not yet run in a session); **Closed**, merged upstream, run and held, or
 decided against, with the record.
 
-**Open: S4, S5, S7, S10 to S12, S33, S34, S48, S60 to S62, S64, S65.** S48 and
-S49 are from the scenario test of build `20261112-091908`, S50 to S66 from twenty
-working sessions on that build (findings 2026-11-12 and 13); S47 and S49, from that scenario
-test too, S50 to S59, S63 and S66 are fixed and Waiting. Reported `ok` while wrong or
+**Open: S4, S5, S7, S10 to S12, S33, S34, S60 to S62, S64, S65.** S60 to S62, S64 and
+S65 are from twenty working sessions on build `20261112-091908` (findings 2026-11-12 and
+13); S47 to S49, from that build's scenario test, and S50 to S59, S63 and S66, from those
+sessions, are fixed and Waiting. Reported `ok` while wrong or
 misleading: S60 (a).
 Next: the run planned below, every point of it decided 2026-11-13 by the owner. Not in
 it: S4, S5, S7 and S12 wait on upstream; S10, S11, S33 and S34 are parked until a job
@@ -218,50 +218,6 @@ it, sketch relations and fragile references, in place of `model_info`, `feature_
 `dimension_list` and `equation_list`. (c) Session export as a replayable recipe (T3.15,
 not built), an idea for now. Upstream roadmap items; (a) first if built. Parked 2026-11-11
 by the owner: taken up when a job needs it.
-
-**S48. Four small result follow-ups from the modelling scenario test of build
-`20261112-091908`** (findings 2026-11-12, first entry, points 2 to 5). (a) From S40: a
-blind cut with `name` and no floor, the check line names the depth dimension by the
-feature's name before the rename, "no floor at 15 mm: … (D1@Cut-Extrude1 reads 15 mm)",
-while `dimensions` in the same result gives `D1@<name>`; a caller taking the name from the
-check gets one that no longer exists. Reported success, rightly; wording. (b) From S30:
-`material_set` with the configuration whose material SOLIDWORKS names but does not apply
-applies it (`densityKgM3` 7900, "matches the database") and still carries the warning
-"… the material is not applied, so it is reported as none", as of now; it is why
-`previous` is absent, and in a result whose material is applied it reads as a failure.
-"was not applied" / "the previous one is reported as none" would fit. (c) From S38:
-`feature_hole` with several points gives one warning per hole, the same 220-character
-sentence with the names changed: six holes 1.3k of a 3.6k result, four holes 0.9k. One
-warning naming the sketches, then the way out once. Wasteful, not wrong. (d) From S37:
-`equation_set` with `equations` gave the session's largest results, 3.9k for thirteen
-dimension links and 3.1k for ten globals changed, a quarter of the part's characters;
-each row gives the equation, the previous one (or the driven dimension) and two checks.
-Proposed by the session: a short row form (lhs, value, previous value), the full one by a
-flag as `faceDetail` does for faces. Not wrong. Local, small. Taken into the run of
-2026-11-13: (a) to (c) as proposed, no choice in them. (d) Decided 2026-11-13 by the
-owner: a short row (lhs, value, previous value) by default, the full row by a flag, as
-`faceDetail` does. (d) fixed in the run of 2026-11-13; (a) to (c) still open. Cause: a
-batch's result serialized every `EquationChange` in full (the equation, the previous one,
-the dimension, the checks). Fix: `ResultJson.Serialize` takes `detail` (was `faceDetail`)
-and shortens any result with the new `IShortRows`, as it does `newFaces`; `equation_set`'s
-batch rows are then `{lhs, value, previousValue}` (no `previousValue`: the equation is
-new), and `equationDetail=true` gives them in full. The warnings and `featureErrors` (S58)
-stay whatever the flag. Decided 2026-11-13 by the run, not the owner: (1) only the batch
-is shortened, the single call keeps its full result, because the finding is about batches
-and one row is a few hundred characters; (2) a row keeps `frame` when the dimension drives
-a reference plane or axis, because it is there so that a plane on the wrong side shows
-(S58 c); (3) the `equations` parameter's example drops its second entry, because the flag
-took the tool list over its byte budget. Before, on the code before the fix,
-`A_batch_result_gives_short_rows_unless_asked_in_full` (ten globals and a depth link)
-failed: "Collections differ at index 0, Expected: lhs, Actual: equation". After:
-it passes, the eleven rows under 900 characters; with
-`An_equation_on_a_plane_s_offset_gives_where_the_plane_went`,
-`Several_equations_go_in_one_call_…`, `An_equation_that_breaks_a_feature_names_it_and_its_error`,
-`A_batch_with_a_row_that_fails_…`, `Equation_delete_takes_a_list_…` and
-`A_feature_result_lists_its_new_faces_short_…` 7 of 7 live; unit tests 278 of 278 (with
-`A_result_with_short_rows_gives_them_in_place_…`); `ContractTests.Tool_catalog_follows_the_conventions`
-and `--check-catalog` ok; `check_repo` ok. Local: on `sw2023`, in the commit that records
-(d) here; not yet in a build. Upstream: not yet decided.
 
 **S60. What a session cannot tell about the process it runs on.** On build
 `20261112-091908`. (a) `sw_status` and `doc_activate` gave `dirty:false` for a part
@@ -1647,6 +1603,86 @@ description changed. Made stricter: none (a batch the old check refused, two com
 dimensions of one name, now goes through).
 Local: on `sw2023`, in the commit that moves it here; not yet in a build. Upstream: not yet
 decided.
+
+**S48. Four small result follow-ups from the modelling scenario test of build
+`20261112-091908`** (findings 2026-11-12, first entry, points 2 to 5). (a) From S40: a
+blind cut with `name` and no floor, the check line names the depth dimension by the
+feature's name before the rename, "no floor at 15 mm: … (D1@Cut-Extrude1 reads 15 mm)",
+while `dimensions` in the same result gives `D1@<name>`; a caller taking the name from the
+check gets one that no longer exists. Reported success, rightly; wording. (b) From S30:
+`material_set` with the configuration whose material SOLIDWORKS names but does not apply
+applies it (`densityKgM3` 7900, "matches the database") and still carries the warning
+"… the material is not applied, so it is reported as none", as of now; it is why
+`previous` is absent, and in a result whose material is applied it reads as a failure.
+"was not applied" / "the previous one is reported as none" would fit. (c) From S38:
+`feature_hole` with several points gives one warning per hole, the same 220-character
+sentence with the names changed: six holes 1.3k of a 3.6k result, four holes 0.9k. One
+warning naming the sketches, then the way out once. Wasteful, not wrong. (d) From S37:
+`equation_set` with `equations` gave the session's largest results, 3.9k for thirteen
+dimension links and 3.1k for ten globals changed, a quarter of the part's characters;
+each row gives the equation, the previous one (or the driven dimension) and two checks.
+Proposed by the session: a short row form (lhs, value, previous value), the full one by a
+flag as `faceDetail` does for faces. Not wrong. Local, small. Taken into the run of
+2026-11-13: (a) to (c) as proposed, no choice in them. (d) Decided 2026-11-13 by the
+owner: a short row (lhs, value, previous value) by default, the full row by a flag, as
+`faceDetail` does. (d) fixed in the run of 2026-11-13, then (a) to (c) (below). Cause: a
+batch's result serialized every `EquationChange` in full (the equation, the previous one,
+the dimension, the checks). Fix: `ResultJson.Serialize` takes `detail` (was `faceDetail`)
+and shortens any result with the new `IShortRows`, as it does `newFaces`; `equation_set`'s
+batch rows are then `{lhs, value, previousValue}` (no `previousValue`: the equation is
+new), and `equationDetail=true` gives them in full. The warnings and `featureErrors` (S58)
+stay whatever the flag. Decided 2026-11-13 by the run, not the owner: (1) only the batch
+is shortened, the single call keeps its full result, because the finding is about batches
+and one row is a few hundred characters; (2) a row keeps `frame` when the dimension drives
+a reference plane or axis, because it is there so that a plane on the wrong side shows
+(S58 c); (3) the `equations` parameter's example drops its second entry, because the flag
+took the tool list over its byte budget. Before, on the code before the fix,
+`A_batch_result_gives_short_rows_unless_asked_in_full` (ten globals and a depth link)
+failed: "Collections differ at index 0, Expected: lhs, Actual: equation". After:
+it passes, the eleven rows under 900 characters; with
+`An_equation_on_a_plane_s_offset_gives_where_the_plane_went`,
+`Several_equations_go_in_one_call_…`, `An_equation_that_breaks_a_feature_names_it_and_its_error`,
+`A_batch_with_a_row_that_fails_…`, `Equation_delete_takes_a_list_…` and
+`A_feature_result_lists_its_new_faces_short_…` 7 of 7 live; unit tests 278 of 278 (with
+`A_result_with_short_rows_gives_them_in_place_…`); `ContractTests.Tool_catalog_follows_the_conventions`
+and `--check-catalog` ok; `check_repo` ok. Local: on `sw2023`, in the commit that records
+(d) here; not yet in a build. Upstream: not yet decided.
+(a) to (c) fixed in the run of 2026-11-13. (a) Cause: `feature_extrude` wrote the no-floor
+check line while the cut still had SOLIDWORKS' name and applied `name` after it, so the
+dimension in the line kept the old name. Fix: the rename takes the check lines with it, a
+`@<old name> ` in a line reading `@<new name> `. (b) Cause: `material_set` and
+`model_mass` shared one sentence, written for `model_mass`, where it is the state now. Fix:
+`material_set`'s reads as of before the call, "SOLIDWORKS named the material '…' for '…',
+but its mass had … kg/m³, not the … kg/m³ of '…': it was not applied, so the previous one is
+reported as none."; `model_mass`'s is as before. (c) Cause: one warning per placement
+sketch not fully defined. Fix: one warning for them all, "The placement sketches '<sketch>'
+of <hole>, … are under defined, so those holes (and a pattern of them) can move:
+sketch_edit each, sketch_constrain its point(s) from the origin until it reads fully, then
+sketch_finish.", each sketch's state in the list when they differ; a single hole keeps its
+sentence as before. Before, on the code before the fix, each test with the point's asserts
+added: `PartFeatureLiveTests.A_blind_cut_that_leaves_the_body_…_a_kept_failure_takes_its_name`
+failed ("Assert.Contains() Failure: Filter not matched in collection: ["volume", "no floor
+at 30 mm: the cut broke out of the body b"···]": no line naming `D1@ThroughHole`, while
+`dimensions` did); `ConfigurationLiveTests.A_material_named_but_not_applied_reads_as_none_and_is_applied_again`,
+both cases, failed ("Sub-string not found … Not found: "was not applied, so the previous
+one is reported a"···"); `PartFeatureLiveTests.Hole_names_each_placement_sketch_and_warns_while_it_is_under_defined`
+failed ("Assert.Single() Failure: The collection contained 2 matching items", one per
+hole). After: the three pass (4/4, the theory's two cases); with
+`A_blind_cut_from_a_plane_inside_the_body_…`, `Hole_through_all_at_two_points_…`,
+`Hole_drill_6x10_…` (one hole, the sentence as before), `Hole_on_an_explicit_face_…` and
+`Hole_failing_at_the_second_point_…` of `PartFeatureLiveTests`,
+`A_name_that_picks_up_a_deleted_feature_s_equations_warns` and
+`The_servers_own_failed_kept_and_rolled_back_changes_…` of `FeatureManagementLiveTests`,
+`ConfigurationLiveTests.A_material_set_in_one_configuration_stays_out_of_the_others`, and
+`Material_set_AISI_1020_gives_the_analytic_mass` and `Material_set_rejects_unknown_names_…`
+of `PropertiesLiveTests`, 14/14 live; unit tests 284/284; `check_repo` ok; no description
+changed. Made stricter: none. Decided 2026-11-13 by the run, not the owner: (1) in (c), a
+single hole keeps its own sentence and several share one naming each as "'<sketch>' of
+<hole>", because the finding is about the repeat and a hole's name holds parentheses
+("Ø5.0 (5) Diameter Hole1"); (2) in (a), only `feature_extrude`'s rename carries its check
+lines, because it is the one feature tool whose check line names a dimension. Local: (a)
+to (c) on `sw2023`, in the commit that moves it here; not yet in a build. Upstream: not
+yet decided.
 
 ## Closed
 

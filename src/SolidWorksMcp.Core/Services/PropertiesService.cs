@@ -339,7 +339,7 @@ public sealed partial class PropertiesService(SwSession session)
             bool prevApplied = true;
             if (prev.Length > 0 && string.Equals(cfgName, active, StringComparison.OrdinalIgnoreCase) && d.SketchManager?.ActiveSketch is null &&
                 MassProps(d) is { } before && before.Volume > 1e-15 &&
-                MaterialNotApplied(ctx, part, cfgName, prev, prevDb, before.Mass / before.Volume) is { } notApplied)
+                MaterialNotApplied(ctx, part, cfgName, prev, prevDb, before.Mass / before.Volume, previous: true) is { } notApplied)
             {
                 prevApplied = false;
                 ctx.Warn(notApplied); // whether this call applied its material is the density check below
@@ -462,9 +462,10 @@ public sealed partial class PropertiesService(SwSession session)
     /// configuration's name and as MaterialIdName, while the mass has the document's default density. Reading by name
     /// does not tell, so the density is the check: the warning when the name's database density and the measured one
     /// disagree, null when they agree or it can't be judged (no catalog entry, bodies with their own material).
+    /// <paramref name="previous"/>: worded as the state before a material_set, which applies one (S48 b).
     /// </summary>
     internal static string? MaterialNotApplied(SwContext ctx, IPartDoc part, string config, string name, string? database,
-        double densityKgM3)
+        double densityKgM3, bool previous = false)
     {
         if (name.Length == 0 || !(densityKgM3 > 0)) return null;
         try
@@ -478,8 +479,11 @@ public sealed partial class PropertiesService(SwSession session)
         var entry = hits.FirstOrDefault(m => !string.IsNullOrEmpty(database) && MaterialCatalog.SameDatabase(database, m.Database))
                     ?? (hits.Count == 1 ? hits[0] : null);
         if (entry?.DensityKgM3 is not double expect || Math.Abs(densityKgM3 - expect) <= DensityRelTol * expect) return null;
-        return $"SOLIDWORKS names the material '{name}' for '{config}', but its mass has {F(densityKgM3)} kg/m³, not the " +
-               $"{F(expect)} kg/m³ of '{name}': the material is not applied, so it is reported as none.";
+        return previous
+            ? $"SOLIDWORKS named the material '{name}' for '{config}', but its mass had {F(densityKgM3)} kg/m³, not the " +
+              $"{F(expect)} kg/m³ of '{name}': it was not applied, so the previous one is reported as none."
+            : $"SOLIDWORKS names the material '{name}' for '{config}', but its mass has {F(densityKgM3)} kg/m³, not the " +
+              $"{F(expect)} kg/m³ of '{name}': the material is not applied, so it is reported as none.";
     }
 
     private static IMassProperty2? MassProps(IModelDoc2 d)

@@ -519,7 +519,11 @@ public class PartFeatureLiveTests(LiveFixture fx) : LiveTest(fx)
         var review = await new ReviewService(S).ReviewAsync(doc);
         var under = review.Issues.Where(i => i.Kind == "sketch_under_defined").Select(i => i.Where).ToHashSet();
         Assert.All(r.PlacementSketches, p => Assert.Contains(p.Sketch, under));
-        Assert.All(r.PlacementSketches, p => Assert.Contains(r.Warnings!, w => w.Contains($"placement sketch '{p.Sketch}' is under defined")));
+        // S48 (c): one warning names every placement sketch, and the way out once (it was one ~220-character sentence per hole).
+        var placing = Assert.Single(r.Warnings!, w => w.Contains("placement sketch"));
+        Assert.All(r.PlacementSketches, p => Assert.Contains($"'{p.Sketch}' of {p.Feature}", placing));
+        Assert.Contains("are under defined", placing);
+        Assert.Single(r.Warnings!, w => w.Contains("sketch_constrain"));
     }
 
     [Fact]
@@ -680,6 +684,9 @@ public class PartFeatureLiveTests(LiveFixture fx) : LiveTest(fx)
         Assert.Equal(-Math.PI * 9 * 20, through.Verified.VolumeDeltaMm3, Vq);
         Assert.Equal("ThroughHole", through.Feature.Name);
         Assert.Contains(through.Verified.Checks!, c => c.Contains("broke out of the body"));
+        // S48 (a): the line names the depth dimension as the result's dimensions do, by the name the call gave.
+        Assert.Contains(through.Dimensions!, x => x.Name == "D1@ThroughHole");
+        Assert.Contains(through.Verified.Checks!, c => c.Contains("(D1@ThroughHole reads 30 mm)"));
 
         // A cut that ends inside the body still shows its floor, and no such line.
         await Sk.StartAsync(doc, new EntityRef { At = [20, 20, 0] }, false);

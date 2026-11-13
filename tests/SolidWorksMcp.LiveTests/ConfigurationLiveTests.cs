@@ -107,7 +107,11 @@ public class ConfigurationLiveTests(LiveFixture fx) : LiveTest(fx)
 
         var set = await P.MaterialSetAsync(doc, "AISI 1020", null, named ? start : null); // named: as the warning says
         Assert.Null(set.Previous);
-        Assert.Contains(set.Warnings ?? [], w => w.Contains("'AISI 1020'"));
+        // S48 (b): the warning is about the state before the call (why `previous` is absent), not the material it applied.
+        var was = Assert.Single(set.Warnings ?? [], w => w.Contains("'AISI 1020'"));
+        Assert.Contains("was not applied, so the previous one is reported as none", was);
+        Assert.DoesNotContain("is not applied", was);
+        Assert.Contains(mass.Warnings ?? [], w => w.Contains("is not applied, so it is reported as none"));
         Assert.Equal(7900, set.DensityKgM3!.Value, 1.0);
         var after = await new MeasureService(S).MassAsync(doc, null);
         Assert.Equal("AISI 1020", after.Material);
