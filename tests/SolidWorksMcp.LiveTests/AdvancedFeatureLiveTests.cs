@@ -179,6 +179,47 @@ public class AdvancedFeatureLiveTests(LiveFixture fx) : LiveTest(fx)
     }
 
     [Fact]
+    public async Task Sweep_merged_with_part_of_its_profile_inside_the_body_does_not_warn_of_lost_contours()
+    {
+        // S64 (g): a merged sweep's start face is the profile less the part inside the existing body; that is no lost
+        // contour. On the block, the path runs along its top edge line from x = 0 to 60, past its end at 50; the profiles
+        // on the right plane (x = 0) are centered on the top face.
+        async Task<FeatureResult> SweepAsync(string name, SketchEntity[] profile)
+        {
+            string doc = await BlockAsync(name);
+            string path = await SketchAsync(doc, Named("front"), Line([0, 20], [60, 20]));
+            string sketch = await SketchAsync(doc, Named("right"), profile);
+            var r = await Af.SweepAsync(new SweepRequest { Doc = doc, Profile = Named(sketch), Path = Named(path) });
+            Assert.DoesNotContain(r.Warnings ?? [], w => w.Contains("start face"));
+            Assert.Contains(r.Verified.Checks!, c => c.Contains("the rest lies inside the existing body"));
+            Assert.Equal("added", r.Verified.Material);
+            return r;
+        }
+
+        // A circle r 5, half in the block: half a cylinder over the block's 50 mm, a whole one over the 10 past it.
+        var circle = await SweepAsync("sweep_buried", [Circle([0, 20, 0], 5)]);
+        Assert.Equal(Math.PI * 25 * (50.0 / 2 + 10), circle.Verified.VolumeDeltaMm3, Vq); // 2 748.89 mm³
+        // A ring r 5 / r 2: its hole is no part of the profile, in the block or out of it.
+        var ring = await SweepAsync("sweep_buried_ring", [Circle([0, 20, 0], 5), Circle([0, 20, 0], 2)]);
+        Assert.Equal(Math.PI * 21 * (50.0 / 2 + 10), ring.Verified.VolumeDeltaMm3, Vq); // 2 309.07 mm³
+        // And a second circle clear of the block, a body of its own: the body count grew, yet the sweep merged too, so
+        // its volume is not profile area x path length (before: VERIFY_FAILED on that comparison).
+        var two = await SweepAsync("sweep_buried_two", [Circle([0, 20, 0], 5), Circle([0, 35, 0], 3)]);
+        Assert.Equal(Math.PI * 25 * (50.0 / 2 + 10) + Math.PI * 9 * 60, two.Verified.VolumeDeltaMm3, Vq); // 4 445.35 mm³
+    }
+
+    [Fact]
+    public async Task Points_inside_a_body_are_told_from_points_outside_and_on_its_faces()
+    {
+        // S64 (g): a merged sweep's start face is let off only when every point of the profile off it is inside a body; a
+        // point outside, or on a face (a contour SOLIDWORKS did not sweep, sketched on the body), keeps the warning.
+        string doc = await BlockAsync("inside_solid");
+        Vec3[] pts = [new(0, 0.01, 0), new(0, 0.03, 0), new(0, 0.02, 0), new(0.05, 0.01, 0), new(0.049, 0.019, 0.029)];
+        var inside = await S.RunAsync("test", ctx => Topology.InsideSolid(ctx, pts, new Vec3(1, 0.31, 0.17).Normalized()), RunOptions.Read(doc));
+        Assert.Equal([true, false, false, false, true], inside);
+    }
+
+    [Fact]
     public async Task Sweep_with_a_twist_keeps_the_volume_and_twists_the_sides()
     {
         // Best guess: TwistCtrlOption = constant twist along the path (8), TwistAngle in radians.
@@ -727,6 +768,40 @@ public class AdvancedFeatureLogicTests
         Assert.Contains("not compared", AdvancedFeatureLogic.SweepVolume(0.1 * a * l, a, l, 1, true, true, false, false, false, false).Check);
         Assert.Contains("not compared", AdvancedFeatureLogic.SweepVolume(0.1 * a * l, a, l, 1, true, true, true, true, false, false).Check);
         Assert.Contains("not compared", AdvancedFeatureLogic.SweepVolume(0.1 * a * l, null, l, 1, true, true, true, false, false, false).Check);
+    }
+
+    [Fact]
+    public void Start_face_smaller_than_the_profile_warns_unless_the_rest_is_inside_the_body()
+    {
+        // S64 (g). Equal within 0.1 %: nothing. Smaller with every point off it inside the body: a check, buried.
+        double a = 155.295e-6, cap = 109.52e-6;
+        Assert.Equal(new AdvancedFeatureLogic.CapVerdict(null, null, false), AdvancedFeatureLogic.StartFace(a * 0.9995, a, 0, 0));
+        var buried = AdvancedFeatureLogic.StartFace(cap, a, 40, 40);
+        Assert.Null(buried.Warning);
+        Assert.True(buried.Buried);
+        Assert.Contains("the rest lies inside the existing body", buried.Check);
+        // A point off it outside the body, no point to test, or a start face larger than the profile: the warning.
+        Assert.Contains("not all the rest lies inside", AdvancedFeatureLogic.StartFace(cap, a, 40, 39).Warning);
+        Assert.Contains("only some of its contours", AdvancedFeatureLogic.StartFace(cap, a, 40, 0).Warning);
+        Assert.Contains("only some of its contours", AdvancedFeatureLogic.StartFace(cap, a, 0, 0).Warning);
+        Assert.Contains("only some of its contours", AdvancedFeatureLogic.StartFace(a * 1.2, a, 0, 0).Warning);
+        Assert.False(AdvancedFeatureLogic.StartFace(cap, a, 40, 39).Buried);
+    }
+
+    [Fact]
+    public void Interior_points_of_a_ring_leave_out_its_hole_and_its_contours()
+    {
+        var c = new Vec3(0.01, -0.02, 0);
+        var set = AdvancedFeatureLogic.Chains([AdvancedFeatureLogic.Seg.Circle(c, 0.005), AdvancedFeatureLogic.Seg.Circle(c, 0.002)]);
+        var pts = AdvancedFeatureLogic.InteriorPoints(set);
+        Assert.True(pts.Count > 50, $"{pts.Count} points");
+        double cell = 0.010 / 16;
+        Assert.All(pts, p =>
+        {
+            double r = p.DistanceTo(c);
+            Assert.InRange(r, 0.002 + cell / 4 - 1e-6, 0.005 - cell / 4 + 1e-6);
+        });
+        Assert.Empty(AdvancedFeatureLogic.InteriorPoints(AdvancedFeatureLogic.Chains([AdvancedFeatureLogic.Seg.Line(Vec3.Zero, Vec3.UnitX)])));
     }
 
     // ------------------------------------------------------------------ helix

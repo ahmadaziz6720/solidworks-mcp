@@ -175,4 +175,43 @@ internal static class Topology
         var cp = f.ClosestPoint(p);
         return cp.Length >= 3 ? Vec3.From(cp).DistanceTo(p) : double.MaxValue;
     }
+
+    /// <summary>
+    /// The hits of rays on bodies, one RayIntersections call (docs/solidworks-api-notes.md, Ray casts): per ray, each hit's
+    /// body index, distance along the ray (m, ahead of its start only) and hit type.
+    /// </summary>
+    public static List<(int Body, double Dist, int Type)>[] RayHits(IModelDoc2 d, IReadOnlyList<IBody2> bodies, IReadOnlyList<(Vec3 From, Vec3 Dir)> rays)
+    {
+        var result = rays.Select(_ => new List<(int, double, int)>()).ToArray();
+        if (rays.Count == 0 || bodies.Count == 0) return result;
+        var pts = rays.SelectMany(r => new[] { r.From.X, r.From.Y, r.From.Z }).ToArray();
+        var dirs = rays.SelectMany(r => new[] { r.Dir.X, r.Dir.Y, r.Dir.Z }).ToArray();
+        int n = d.Extension.RayIntersections(ComArgs.DispatchArray(bodies.ToList()), pts, dirs, 0, 1e-7, 1e-7, true);
+        if (n <= 0) return result;
+        var h = ComArgs.Doubles((object?)d.GetRayIntersectionsPoints());
+        for (int k = 0; k + 5 < h.Length; k += 6)
+        {
+            int ray = (int)h[k + 1];
+            if (ray < 0 || ray >= rays.Count) continue;
+            double dist = (new Vec3(h[k + 3], h[k + 4], h[k + 5]) - rays[ray].From).Dot(rays[ray].Dir);
+            if (dist > 0) result[ray].Add(((int)h[k], dist, (int)h[k + 2]));
+        }
+        return result;
+    }
+
+    /// <summary>
+    /// Whether each point lies strictly inside one of the part's solid bodies: a ray each way along
+    /// <paramref name="dir"/> (pick one oblique to the faces near the points) crosses that body's faces an odd number of
+    /// times. Hits within 1 µm of the point are left out, so a point on a face counts as not inside (live: the ray
+    /// leaving the body then has none).
+    /// </summary>
+    public static bool[] InsideSolid(SwContext ctx, IReadOnlyList<Vec3> points, Vec3 dir)
+    {
+        var part = ctx.Part();
+        var bodies = part.Bodies(SolidWorks.Interop.swconst.swBodyType_e.swSolidBody, visibleOnly: false);
+        var rays = points.SelectMany(p => new[] { (p, dir), (p, -dir) }).ToList();
+        var hits = RayHits((IModelDoc2)part, bodies, rays);
+        bool Odd(int ray, int body) => hits[ray].Count(h => h.Body == body && h.Dist > 1e-6) % 2 == 1;
+        return points.Select((_, i) => Enumerable.Range(0, bodies.Count).Any(b => Odd(2 * i, b) && Odd(2 * i + 1, b))).ToArray();
+    }
 }

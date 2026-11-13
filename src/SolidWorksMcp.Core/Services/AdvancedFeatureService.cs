@@ -286,6 +286,8 @@ public sealed class AdvancedFeatureService(SwSession session)
     /// Tier B: the circular profile reads back, and the swept volume (when nothing merged with it) matches profile area ×
     /// path length — exactly on a straight path, roughly on a curved one (a partial sweep fails). The profile area is
     /// SOLIDWORKS' own: the sweep's start face in the profile plane; the area computed from the sketch is the fallback.
+    /// A start face smaller than the sketch's area warns, unless the sweep merged and the rest of the profile lies
+    /// inside the existing body (S64 g): then the volume is not compared either, as part of the profile is buried.
     /// </summary>
     private static List<string> SweepIntent(SwContext ctx, IFeature main, Snapshot before, Snapshot after, SweepRequest q, ProfileInfo? profile,
         PathInfo path, double? dia, bool twisted, bool guides, bool offStart, List<string> checks)
@@ -302,15 +304,29 @@ public sealed class AdvancedFeatureService(SwSession session)
             }
             else checks.Add("circular profile not read back (no feature data)");
         }
-        double? cap = dia is null && profile is not null ? StartCapArea(main, profile) : null;
-        if (cap is double ca && profile is { AreaExact: true, Area: double sa } && Math.Abs(ca - sa) > 1e-3 * sa)
-            ctx.Warn($"The sweep's start face is {F(Units.Mm2(ca))} mm², but the profile sketch encloses {F(Units.Mm2(sa))} mm² " +
-                     "(SOLIDWORKS may have used only some of its contours).");
+        var caps = dia is null && profile is not null ? StartCaps(main, profile) : [];
+        double? cap = caps.Count > 0 ? caps.Sum(f => f.GetArea()) : null;
+        bool buried = false;
+        if (cap is double ca && profile is { AreaExact: true, Area: double sa })
+        {
+            // Merged into a body: the profile's points off the start face, tested against the solid bodies now (S64 g).
+            int off = 0, offInside = 0;
+            if (ca < sa && !q.Cut && q.Merge && before.SolidBodies > 0)
+            {
+                var lost = profile.Interior().Where(x => caps.All(f => Topology.DistanceToFace(f, x) >= OnFaceTol)).ToList();
+                off = lost.Count;
+                offInside = Topology.InsideSolid(ctx, lost, Oblique(profile.Normal)).Count(b => b);
+            }
+            var cv = AdvancedFeatureLogic.StartFace(ca, sa, off, offInside);
+            if (cv.Warning is not null) ctx.Warn(cv.Warning);
+            if (cv.Check is not null) checks.Add(cv.Check);
+            buried = cv.Buried;
+        }
         double? area = dia is double d2 ? Math.PI * d2 * d2 / 4 : cap ?? profile?.Area;
         bool exact = dia is not null || cap is not null || profile?.AreaExact == true;
         double cos = 1;
         if (path.Straight && path.Dir is Vec3 u && profile is not null) cos = Math.Abs(u.Dot(profile.Normal));
-        bool isolated = !q.Cut && (!q.Merge || before.SolidBodies == 0 || after.SolidBodies > before.SolidBodies);
+        bool isolated = !q.Cut && !buried && (!q.Merge || before.SolidBodies == 0 || after.SolidBodies > before.SolidBodies);
         var v = AdvancedFeatureLogic.SweepVolume(after.Volume - before.Volume, area, path.Length, cos, path.Straight, exact, isolated, guides,
             twisted && cos < 1 - 1e-9, offStart);
         if (v.Problem is not null) problems.Add(v.Problem);
@@ -318,26 +334,41 @@ public sealed class AdvancedFeatureService(SwSession session)
         return problems;
     }
 
-    /// <summary>A closed 2D profile sketch: its plane, points on its contours (model space) and, when computable, its area (holes subtracted).</summary>
-    private sealed record ProfileInfo(IFeature Feature, ISketch Sketch, Vec3 Origin, Vec3 Normal, IReadOnlyList<Vec3> Points, double? Area, bool AreaExact);
+    /// <summary>
+    /// A closed 2D profile sketch: its plane, points on its contours (model space), when computable its area (holes
+    /// subtracted), and its chains in sketch space with the transform to model space (for <see cref="Interior"/>).
+    /// </summary>
+    private sealed record ProfileInfo(IFeature Feature, ISketch Sketch, Vec3 Origin, Vec3 Normal, IReadOnlyList<Vec3> Points, double? Area, bool AreaExact,
+        AdvancedFeatureLogic.ChainSet Set, Xform ToModel)
+    {
+        /// <summary>Points of the profile's region away from its contours, in model space.</summary>
+        public List<Vec3> Interior() => AdvancedFeatureLogic.InteriorPoints(Set).Select(ToModel.ApplyPoint).ToList();
+    }
+
+    /// <summary>A unit direction oblique to <paramref name="n"/> and to the planes square to it (ray casts from a plane).</summary>
+    private static Vec3 Oblique(Vec3 n)
+    {
+        var a = n.Cross(Math.Abs(n.X) < 0.9 ? Vec3.UnitX : Vec3.UnitY).Normalized();
+        return (n + a * 0.31 + n.Cross(a) * 0.17).Normalized();
+    }
 
     /// <summary>
-    /// The total area of the sweep's planar faces that lie in the profile's plane and touch the profile's contours: the
-    /// start face, i.e. the section SOLIDWORKS actually swept (an end face in the same plane, after whole helix turns, is
-    /// away from the profile). Null when there is none (a closed path has no start face).
+    /// The sweep's planar faces that lie in the profile's plane and touch the profile's contours: the start face, i.e. the
+    /// section SOLIDWORKS actually swept (an end face in the same plane, after whole helix turns, is away from the
+    /// profile). Empty when there is none (a closed path has no start face).
     /// </summary>
-    private static double? StartCapArea(IFeature main, ProfileInfo profile)
+    private static List<IFace2> StartCaps(IFeature main, ProfileInfo profile)
     {
-        if (profile.Points.Count == 0) return null;
-        double area = 0;
+        var caps = new List<IFace2>();
+        if (profile.Points.Count == 0) return caps;
         foreach (var f in FeatureFaces(main))
         {
             var g = Topology.Describe(f);
             if (g.Surface != "plane" || g.Normal is not Vec3 n || !n.IsParallelTo(profile.Normal, 1e-6) || PointOn(f) is not Vec3 p) continue;
             if (Math.Abs((p - profile.Origin).Dot(profile.Normal)) > PosTol) continue;
-            if (profile.Points.Any(x => Topology.DistanceToFace(f, x) < OnFaceTol)) area += f.GetArea();
+            if (profile.Points.Any(x => Topology.DistanceToFace(f, x) < OnFaceTol)) caps.Add(f);
         }
-        return area > 0 ? area : null;
+        return caps.Where(f => f.GetArea() > 0).ToList();
     }
 
     private static ProfileInfo ProfileOf(Resolved r, string arg)
@@ -365,7 +396,7 @@ public sealed class AdvancedFeatureService(SwSession session)
             exact = ex && exactShapes;
         }
         var points = Spread(segs.SelectMany(s => s.Samples).ToList(), 24).Select(s2m.ApplyPoint).ToList();
-        return new ProfileInfo(feat, sk, origin, normal, points, area, exact);
+        return new ProfileInfo(feat, sk, origin, normal, points, area, exact, set, s2m);
     }
 
     /// <summary>A sweep path or guide curve: how to select it, its length, ends and (if straight) direction, in model space.</summary>
@@ -1466,6 +1497,59 @@ internal static class AdvancedFeatureLogic
             area += Math.Abs(loops[i].SignedArea) * (depth % 2 == 0 ? 1 : -1);
         }
         return (area, loops.All(l => l.Exact));
+    }
+
+    /// <summary>
+    /// Points of a profile's region (its sketch's XY plane) on an <paramref name="n"/> x n grid over its loops' box: inside
+    /// an odd number of loops (holes left out) and a quarter cell or more from every contour, so none lies on an edge.
+    /// </summary>
+    public static List<Vec3> InteriorPoints(ChainSet set, int n = 16)
+    {
+        var polys = set.Loops.Select(l => l.Points()).Where(p => p.Count >= 3).ToList();
+        var list = new List<Vec3>();
+        if (polys.Count == 0) return list;
+        double x0 = polys.Min(p => p.Min(v => v.X)), x1 = polys.Max(p => p.Max(v => v.X));
+        double y0 = polys.Min(p => p.Min(v => v.Y)), y1 = polys.Max(p => p.Max(v => v.Y));
+        double cx = (x1 - x0) / n, cy = (y1 - y0) / n, margin = 0.25 * Math.Min(cx, cy), z = polys[0][0].Z;
+        for (int i = 0; i < n; i++)
+            for (int j = 0; j < n; j++)
+            {
+                var p = new Vec3(x0 + (i + 0.5) * cx, y0 + (j + 0.5) * cy, z);
+                if (polys.Count(poly => InsidePolygon(p, poly)) % 2 == 1 && polys.All(poly => DistanceToPolygon(p, poly) >= margin)) list.Add(p);
+            }
+        return list;
+    }
+
+    /// <summary>Distance from a point to a closed polygon's edges in the XY plane.</summary>
+    public static double DistanceToPolygon(Vec3 p, IReadOnlyList<Vec3> poly)
+    {
+        double best = double.MaxValue;
+        for (int i = 0, j = poly.Count - 1; i < poly.Count; j = i++)
+        {
+            double ex = poly[i].X - poly[j].X, ey = poly[i].Y - poly[j].Y, l2 = ex * ex + ey * ey;
+            double t = l2 > 0 ? Math.Clamp(((p.X - poly[j].X) * ex + (p.Y - poly[j].Y) * ey) / l2, 0, 1) : 0;
+            best = Math.Min(best, Math.Sqrt(Math.Pow(p.X - poly[j].X - t * ex, 2) + Math.Pow(p.Y - poly[j].Y - t * ey, 2)));
+        }
+        return best;
+    }
+
+    /// <summary>The sweep's start face against the profile's area: a warning, or a check line when the rest is buried.</summary>
+    internal sealed record CapVerdict(string? Warning, string? Check, bool Buried);
+
+    /// <summary>
+    /// The sweep's start face (<paramref name="cap"/>, m²) against the area the profile sketch encloses. Equal (0.1 %):
+    /// nothing to say. Smaller, with every sampled point of the profile off the start face (<paramref name="off"/>, at
+    /// least one) inside the existing body (<paramref name="offInside"/>): the sweep merged and the rest of its profile is
+    /// buried in the body (S64 g), a check line. Otherwise a warning: SOLIDWORKS may have swept only some contours.
+    /// </summary>
+    public static CapVerdict StartFace(double cap, double area, int off, int offInside)
+    {
+        if (Math.Abs(cap - area) <= 1e-3 * area) return new(null, null, false);
+        string sizes = $"start face is {F(Units.Mm2(cap))} mm², but the profile sketch encloses {F(Units.Mm2(area))} mm²";
+        if (cap < area && off > 0 && offInside == off)
+            return new(null, $"the {sizes}: the rest lies inside the existing body", true);
+        return new($"The sweep's {sizes} (SOLIDWORKS may have used only some of its contours" +
+                   (offInside > 0 ? "; not all the rest lies inside the existing body" : "") + ").", null, false);
     }
 
     /// <summary>Even-odd point-in-polygon test in the XY plane.</summary>

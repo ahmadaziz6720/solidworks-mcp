@@ -342,9 +342,9 @@ the profile (155.295), the difference inside the existing body: a false alarm on
 sweep ("a helical screw part", point 3). Taken into the run of 2026-11-13: (a), (d), (e),
 (f), (g), no choice in them: (a) by S40's rule, the cut passing on its volume; (d) the
 delete's arguments checked before the first removal, so a refusal changes nothing. (b) a
-probe first. (c) offered 2026-11-13 and not chosen; stays open. (e) and (f) fixed in the
-run of 2026-11-13, then (a), then (d); (b) probed and not reproduced, still open with (g); (c)
-not chosen. (e) Cause: the sketch
+probe first. (c) offered 2026-11-13 and not chosen; stays open. **Done in the run of
+2026-11-13: (a), (d), (e), (f) and (g)** (in that order: (e) and (f), then (a), (d), (g)).
+**Left open: (b)**, probed and not reproduced, **and (c)**, not chosen. (e) Cause: the sketch
 tools' resolver did resolve `{name, sketch}` and `{at, sketch}` in the named sketch, but
 then dropped duplicates by label, and a segment's label is its name alone ("sketch
 segment Line1"), so the other sketch's `Line1` was dropped as the open sketch's (a point
@@ -438,6 +438,44 @@ that goes and a feature made from a sketch that goes are now dependents, refused
 `deleteChildren` (before, both went to SOLIDWORKS unchecked); the
 single-feature deletes of those tests are not refused. Local: on `sw2023`, in the commit
 that records (d) here; not yet in a build. Upstream: not yet decided.
+(g) Cause: the start-face check compared the sweep's planar faces in the profile plane with
+the area the profile sketch encloses, merged or not; a merged sweep has no start face where
+its profile lies inside the existing body, so a profile partly buried warned "SOLIDWORKS may
+have used only some of its contours". The same case, with a second contour clear of the
+body, failed `VERIFY_FAILED` on the volume: the body count grew, so the sweep was taken as
+unmerged and its volume compared with profile area x path length. Fix
+(`AdvancedFeatureService.SweepIntent`, `AdvancedFeatureLogic.StartFace`, `InteriorPoints`,
+`Topology.InsideSolid`): on a merged boss sweep whose start face is smaller, the profile's
+region is sampled (a 16 x 16 grid, holes and a quarter cell along the contours left out),
+the points off the start face are ray-cast against the solid bodies after the sweep (a ray
+each way, an odd count of hits on one body both ways is inside), and when every one is inside,
+the result's checks say "the start face is … mm², but the profile sketch encloses … mm²: the
+rest lies inside the existing body" instead of the warning, and the volume is not compared.
+A point outside the bodies, or on a face of one, keeps the warning ("; not all the rest lies
+inside the existing body"), as do an unmerged sweep, a cut, and a start face larger than the
+profile. Decided 2026-11-13 by the run, not the owner: a start face smaller than the profile
+with no sampled point off it (a sliver between grid points) still warns, and a point on a
+body's face counts as not inside, because the check can let a merged sweep off only on
+points it has shown to be inside; and a buried profile also stops the volume comparison when
+the body count grew, because part of that sweep merged, which the count alone did not see. A
+sweep that really dropped a contour was not produced live: SOLIDWORKS 2023 swept both of two
+disjoint circles, and crossing contours are refused before the call; the warning side is
+shown by `Points_inside_a_body_are_told_from_points_outside_and_on_its_faces` (inside, outside
+and on two faces of a block) and the offline `StartFace` test. Before, on the code before the
+fix,
+`Sweep_merged_with_part_of_its_profile_inside_the_body_does_not_warn_of_lost_contours` failed
+on its first sweep (a circle r 5 half in a block) "Assert.DoesNotContain() Failure: Filter
+matched in collection ["The sweep's start face is 39.27 mm², but the profi"···]", and the
+same with a second circle clear of the block failed (probe) "VERIFY_FAILED: … the swept volume
+is 4445.354 mm³ vs profile area 67.544 mm² x path length 60 mm = 4052.655 mm³". After: it
+passes (the circle, a ring r 5 / r 2, and the two circles, each with no warning and its
+volume), with the ray test and the eight other sweep tests of `AdvancedFeatureLiveTests`
+(line, slot, spring, circular profile, cut, twist, refusals, profile off the helix start),
+10 of 10 live; `AdvancedFeatureLogicTests` 26 of 26 (two new: `StartFace`, the ring's
+interior points); unit tests 278 of 278; `check_repo` ok; no description changed. Made
+stricter: none (the warning and the volume comparison are let off for merged boss sweeps
+only, on points shown inside). Local: on `sw2023`, in the commit that records (g) here; not
+yet in a build. Upstream: not yet decided.
 
 **S65. Missing options met while modelling.** On build `20261112-091908`. (a) No body
 mirror: `feature_mirror` of two extrudes made `merge:false` failed "the mirrored copy must
