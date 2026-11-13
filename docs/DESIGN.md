@@ -236,7 +236,8 @@ call. They come back in `warnings[]`.
     - a closed target gives `DOC_CLOSED`;
     - an open user command gives `USER_BUSY`;
     - a target that isn't active is re-activated, with a warning;
-    - an update stamp that changed since the server's last write gives a warning ("modified outside the server").
+    - an update stamp that changed since the server's last write gives a warning ("modified outside the server");
+      a write that failed, and a change a write made through another document, count as the server's.
 - **Close.** It closes by identity: it refuses when two open documents share the title, and it reports any other
   document that disappeared. A dirty document needs `save:true` or `discard:true`. Foreign documents are never
   closed, and the user's documents are never discarded. Nothing is closed at shutdown.

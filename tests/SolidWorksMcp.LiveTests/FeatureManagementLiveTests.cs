@@ -573,6 +573,61 @@ public class FeatureManagementLiveTests(LiveFixture fx) : LiveTest(fx)
         await sk.FinishAsync(b.Doc);
     }
 
+    [Fact]
+    public async Task The_servers_own_failed_kept_and_rolled_back_changes_do_not_read_as_the_users()
+    {
+        // S57: the call after a rolled-back failure, a kept one, a failure that made no feature, or a rollback warned
+        // "'…' was modified outside this server since its last change (by the user?)", though nobody else had touched the
+        // part. A change made outside the server still warns.
+        const string Outside = "modified outside this server";
+        var b = await BlockAsync("fm_outside");
+        var other = await BlockAsync("fm_outside_other");
+        var sk = new SketchService(S);
+        var fs = new FeatureService(S);
+        async Task<IReadOnlyList<string>> Next(string step)
+        {
+            var w = (await M.RebuildAsync(b.Doc)).Warnings ?? [];
+            Assert.False(w.Any(x => x.Contains(Outside)), $"after {step}: {string.Join(" | ", w)}");
+            return w;
+        }
+
+        // A boss inside the block adds nothing: VERIFY_FAILED, rolled back.
+        await sk.StartAsync(b.Doc, new EntityRef { Name = "top" }, false);
+        await sk.AddAsync(b.Doc, [new SketchEntity { Kind = "circle", Center = [0, 0, 20], RadiusMm = 3 }]);
+        var rolled = await Assert.ThrowsAsync<SwException>(() => fs.ExtrudeAsync(new ExtrudeRequest { Doc = b.Doc, DepthMm = 10 }));
+        Assert.Equal(ErrorCodes.VerifyFailed, rolled.Code);
+        await Next("a VERIFY_FAILED rollback");
+
+        // The same boss kept with keepOnFailure.
+        await sk.StartAsync(b.Doc, new EntityRef { Name = "top" }, false);
+        await sk.AddAsync(b.Doc, [new SketchEntity { Kind = "circle", Center = [10, 0, 20], RadiusMm = 3 }]);
+        var kept = await Assert.ThrowsAsync<SwException>(() =>
+            fs.ExtrudeAsync(new ExtrudeRequest { Doc = b.Doc, DepthMm = 10, Name = "Kept", KeepOnFailure = true }));
+        Assert.Contains("keepOnFailure", kept.Message);
+        await Next("a feature kept with keepOnFailure");
+
+        // A cut from a plane 100 mm above the block, away from it, makes no feature.
+        var plane = await new ReferenceService(S).PlaneAsync(new RefPlaneRequest { Doc = b.Doc, Kind = "offset", Base = new EntityRef { Name = "top" }, OffsetMm = 100 });
+        await sk.StartAsync(b.Doc, new EntityRef { Name = plane.Feature.Name }, false);
+        await sk.AddAsync(b.Doc, [new SketchEntity { Kind = "circle", Center = [0, 100, 0], RadiusMm = 3 }]);
+        var none = await Assert.ThrowsAsync<SwException>(() =>
+            fs.ExtrudeAsync(new ExtrudeRequest { Doc = b.Doc, Cut = true, DepthMm = 10, Direction = "normal" }));
+        Assert.True(none.Code is ErrorCodes.FeatureFailed or ErrorCodes.VerifyFailed, none.ToAgentText());
+        await Next($"a failure that made no feature ({none.Code})");
+
+        // feature_rollback, then a call on another part, so the next call re-activates this one.
+        await M.RollbackAsync(b.Doc, b.Extrude);
+        await M.RollbackAsync(b.Doc, "end");
+        await M.RebuildAsync(other.Doc);
+        var w = await Next("feature_rollback and a re-activation");
+        Assert.Contains(w, x => x.StartsWith("Re-activated", StringComparison.Ordinal));
+
+        // A change the server did not make still warns.
+        Assert.Equal(25, (await TestHooks.SetDimensionRawAsync(S, b.Doc, b.Depth, 25, asUser: true)).Mm, 1e-6);
+        var after = (await M.RebuildAsync(b.Doc)).Warnings ?? [];
+        Assert.Contains(after, x => x.Contains(Outside));
+    }
+
     // ------------------------------------------------------------------ doc_undo
 
     [Fact]

@@ -10,10 +10,10 @@ Three sections: **Open**, not yet fixed; **Waiting**, fixed and not yet settled 
 merged, a fix not yet run in a session); **Closed**, merged upstream, run and held, or
 decided against, with the record.
 
-**Open: S4, S5, S7, S10 to S12, S33, S34, S48, S49, S57, S60 to S62, S64, S65.** S48 and
+**Open: S4, S5, S7, S10 to S12, S33, S34, S48, S49, S60 to S62, S64, S65.** S48 and
 S49 are from the scenario test of build `20261112-091908`, S50 to S66 from twenty
 working sessions on that build (findings 2026-11-12 and 13); S47, from that scenario
-test too, S50 to S56, S58, S59, S63 and S66 are fixed and Waiting. Reported `ok` while wrong or
+test too, S50 to S59, S63 and S66 are fixed and Waiting. Reported `ok` while wrong or
 misleading: S60 (a).
 Next: the run planned below, every point of it decided 2026-11-13 by the owner. Not in
 it: S4, S5, S7 and S12 wait on upstream; S10, S11, S33 and S34 are parked until a job
@@ -269,17 +269,6 @@ for the server's rule on foreign documents is not said anywhere, and the result 
 name the other document. Reported success, rightly. Bears on S27. Local: the component in
 the row, the assembly's volume change, and a line naming the part changed and not saved.
 Taken into the run of 2026-11-13 as proposed, no choice in it.
-
-**S57. "modified outside this server … (by the user?)" after the server's own calls.** On
-build `20261112-091908`, six sessions, the owner out of SOLIDWORKS each time (findings
-2026-11-12, "a part's body raised", point 7; "two parts changed mid-tree", point 7;
-2026-11-13, "a groove's overhanging side", point 4; "a revolved part remade", points 3, 8;
-"a plate's two ends", point 4). It came on the call after a `VERIFY_FAILED` rollback, a
-`keepOnFailure`, a `FEATURE_FAILED` with no feature, a `feature_rollback`, and on an
-assembly changed only through documents it loads. A false alarm that reads as the owner
-editing. Local: a rollback, a kept or failed feature and a change through a loaded
-document count as the server's own. Taken into the run of 2026-11-13 as proposed, no
-choice in it.
 
 **S60. What a session cannot tell about the process it runs on.** On build
 `20261112-091908`. (a) `sw_status` and `doc_activate` gave `dirty:false` for a part
@@ -1436,6 +1425,57 @@ sketch) and the 7 `ContractTests`, 36 of 36 live; unit tests 278 of 278; `check_
 no description changed. Made stricter: none.
 Local: on `sw2023`, (a), (c) and (d) in `3ca75cd`, (b) in the commit that moves it here;
 not yet in a build. Upstream: not yet decided.
+
+**S57. "modified outside this server … (by the user?)" after the server's own calls.** On
+build `20261112-091908`, six sessions, the owner out of SOLIDWORKS each time (findings
+2026-11-12, "a part's body raised", point 7; "two parts changed mid-tree", point 7;
+2026-11-13, "a groove's overhanging side", point 4; "a revolved part remade", points 3, 8;
+"a plate's two ends", point 4). It came on the call after a `VERIFY_FAILED` rollback, a
+`keepOnFailure`, a `FEATURE_FAILED` with no feature, a `feature_rollback`, and on an
+assembly changed only through documents it loads. A false alarm that reads as the owner
+editing. Local: a rollback, a kept or failed feature and a change through a loaded
+document count as the server's own. Taken into the run of 2026-11-13 as proposed, no
+choice in it. Fixed in the run of 2026-11-13. Cause: the warning compared the document's update
+stamp with the one recorded after the server's last call that succeeded (`SwSession.RunAsync`
+ran `SwContext.AfterWrite` only then), so what a failed call left (a `VERIFY_FAILED`
+rollback, a feature kept with `keepOnFailure`, a `FEATURE_FAILED` with no feature) read as
+someone else's; and only the bound document's stamp was recorded, so a document a call
+changed through another (a part by `dimension_set` through its assembly, a top assembly by
+`asm_insert` into its subassembly, the subassembly by a change to its part) warned on its
+own next call. Fix: the warning compares with a new `StampSeen` per document
+(`DocumentRegistry.Entry`), set with `StampAfterLastOp` after a completed call and, through
+`SwContext.AfterFailedWrite`, after a failed one when the document matched its record at the
+call's start (a document someone else changed keeps its warning); every other tracked
+document that matched its record at the start and changed during the call takes its new
+stamp; the stamp compared is read before `Bind` re-activates the document. `doc_undo` still
+holds to `StampAfterLastOp`, the last completed change, as strict as before; its refusal now
+names "through another document" among the causes. Decided 2026-11-13 by the run, not the
+owner: (1) a change during a call counts as the server's in every other tracked document
+that matched its record at the call's start, not only in those that load or are loaded by
+the bound one, because what a call reaches (components, subassemblies, parents) cannot be
+listed cheaply and SOLIDWORKS is running the server's call while it changes; (2) after a
+failed call `doc_undo` stays refused as before, because what a rollback left on SOLIDWORKS'
+undo stack is not known; (3) the stamp is compared before the re-activation in `Bind`,
+because a change by the user is in it already and the activation can only add the server's.
+On the code before, both new live tests failed:
+`FeatureManagementLiveTests.The_servers_own_failed_kept_and_rolled_back_changes_do_not_read_as_the_users`
+("after a VERIFY_FAILED rollback: '…' was modified outside this server since its last
+change (by the user?).") and
+`AssemblyLiveTests.A_change_through_a_document_an_assembly_loads_does_not_read_as_the_users`
+("after dimension_set through the subassembly: … '….SLDPRT' was modified outside this
+server since its last change (by the user?)."). A part changed through its own document
+did not make its assembly warn, on the code before too. After: both pass (2/2), each with a
+change made outside the server still warning; the live tests on the changed paths, the three
+`Undo_…`, `Rollback_to_the_extrude_…`, `Rebuild_of_a_clean_part_…`,
+`Dimension_set_restores_the_value_when_a_feature_breaks`, `Units_set_switches_…`,
+`A_blind_cut_that_leaves_the_body_…_a_kept_failure_takes_its_name`, M0's
+`A_boss_buried_in_the_body_is_rolled_back`, `Status_gives_a_failed_call_s_error_code_…`,
+`Foreign_documents_are_read_only`, `Dirty_owned_documents_need_save_or_discard`, and
+`Insert_puts_the_origin_…`, `Subassemblies_are_inserted_…`, `Compare_cannot_open_a_revision_…`
+of `AssemblyLiveTests`, pass (15/15); unit tests 278/278; `check_repo` ok; no description
+changed. Made stricter: none.
+Local: on `sw2023`, in the commit that moves it here; not yet in a build. Upstream: not yet
+decided.
 
 ## Closed
 

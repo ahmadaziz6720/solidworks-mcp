@@ -27,6 +27,8 @@ internal sealed class SwContext
     private IModelDoc2? _doc;
     private int? _stampAtBind; // writes: the document's update stamp when the operation started
     private Dictionary<string, List<string>>? _unboundAtBind; // writes: equations naming no existing dimension (S54)
+    private bool _selfCleanAtBind; // writes: the document's stamp matched the server's record before the call (S57)
+    private List<(DocumentRegistry.Entry Entry, int Stamp)>? _othersCleanAtBind; // writes: other documents likewise (S57)
 
     public SwContext(SwSession session, ISldWorks app, OperationContext op)
     {
@@ -84,6 +86,10 @@ internal sealed class SwContext
                     $"'{entry.Title}' ({entry.Handle}) is a document this server did not create or open, so it won't modify it.",
                     "If the user asked you to edit it, call doc_activate with allowEdit=true first (a backup copy is made). Otherwise create your own with doc_new.");
             CheckUserCommand();
+            // S57: read before the re-activation below, which can bring in changes the server made through another document.
+            int seen = doc.GetUpdateStamp();
+            _selfCleanAtBind = entry.StampSeen is not int s0 || s0 == seen;
+            _othersCleanAtBind = CleanOthers(entry);
             var active = ActiveDocOrNull;
             if (active is null || !DocLocator.SameDoc(active, doc))
             {
@@ -94,9 +100,8 @@ internal sealed class SwContext
                     throw new SwException(ErrorCodes.VerifyFailed, $"Could not re-activate '{entry.Title}' (error {err}).");
                 Warn($"Re-activated '{entry.Title}' (the active document was '{(active is null ? "none" : DocumentRegistry.SafeTitle(active))}').");
             }
-            int stamp = doc.GetUpdateStamp();
-            _stampAtBind = stamp;
-            if (entry.StampAfterLastOp is int last && last != stamp)
+            _stampAtBind = doc.GetUpdateStamp();
+            if (!_selfCleanAtBind)
                 Warn($"'{entry.Title}' was modified outside this server since its last change (by the user?).");
             try { _unboundAtBind = Services.EquationBindings.Unbound(doc); }
             catch (Exception ex) when (!ComArgs.IsDisconnect(ex)) { _unboundAtBind = null; /* a check, not the call's work */ }
@@ -130,6 +135,51 @@ internal sealed class SwContext
             }
         }
         catch { /* the document may have been closed by the operation */ }
+        SeeOthers();
+    }
+
+    /// <summary>
+    /// After a write that failed (S57): what it left (a rollback, a feature kept or made in error) is the server's, so the
+    /// next call does not read it as the user's. A document already changed by someone else at the start keeps its warning.
+    /// doc_undo still holds to <see cref="DocumentRegistry.Entry.StampAfterLastOp"/>, the last completed change.
+    /// </summary>
+    internal void AfterFailedWrite()
+    {
+        if (Access != DocAccess.Write || _doc is null) return;
+        try
+        {
+            if (_selfCleanAtBind && Documents.Find(_doc) is { } e) e.StampSeen = _doc.GetUpdateStamp();
+        }
+        catch { /* the document may have been closed, or SOLIDWORKS lost */ }
+        SeeOthers();
+    }
+
+    /// <summary>The other documents with a stamp on record that nobody changed since: what this call changes in them is the server's.</summary>
+    private List<(DocumentRegistry.Entry Entry, int Stamp)> CleanOthers(DocumentRegistry.Entry self)
+    {
+        var clean = new List<(DocumentRegistry.Entry, int)>();
+        foreach (var e in Documents.Entries)
+        {
+            if (ReferenceEquals(e, self) || e.StampSeen is not int s) continue;
+            try { if (e.Doc.GetUpdateStamp() == s) clean.Add((e, s)); }
+            catch { /* not readable (a stale proxy): left as it is; a check, not the call's work */ }
+        }
+        return clean;
+    }
+
+    /// <summary>S57: a change this call made through the bound document (a component's part, a subassembly's parent) is the server's.</summary>
+    private void SeeOthers()
+    {
+        if (_othersCleanAtBind is null) return;
+        foreach (var (e, s) in _othersCleanAtBind)
+        {
+            try
+            {
+                int now = e.Doc.GetUpdateStamp();
+                if (now != s && e.StampSeen == s) e.StampSeen = now;
+            }
+            catch { /* closed by the operation */ }
+        }
     }
 
     /// <summary>USER_BUSY when the user is in the middle of a SOLIDWORKS command (a PropertyManager is open).</summary>

@@ -35,9 +35,11 @@ internal static class TestHooks
 
     /// <summary>
     /// Sets a length dimension (mm) and rebuilds, without dimension_set's checks: a broken model on purpose. Returns
-    /// SetSystemValue3's status (swSetValueReturnStatus_e) and the value read back (mm).
+    /// SetSystemValue3's status (swSetValueReturnStatus_e) and the value read back (mm). With <paramref name="asUser"/>
+    /// the call is bound as a read, so the server keeps no record of it: a change by the user, as the next write's
+    /// "modified outside this server" check sees it (S57).
     /// </summary>
-    public static Task<(int Status, double Mm)> SetDimensionRawAsync(SwSession s, string doc, string name, double mm) =>
+    public static Task<(int Status, double Mm)> SetDimensionRawAsync(SwSession s, string doc, string name, double mm, bool asUser = false) =>
         s.RunAsync("test_set_dimension_raw", ctx =>
         {
             var dim = (object?)ctx.Doc.Parameter(name) as SolidWorks.Interop.sldworks.IDimension
@@ -49,7 +51,7 @@ internal static class TestHooks
                 ctx.Doc.EditRebuild3();
             }
             return (status, dim.SystemValue * 1000);
-        }, RunOptions.Write(doc));
+        }, asUser ? RunOptions.Read(doc) : RunOptions.Write(doc));
 
     /// <summary>The titles of all open documents.</summary>
     public static Task<List<string>> OpenTitlesAsync(SwSession s) =>

@@ -35,7 +35,18 @@ internal sealed class DocumentRegistry
         public DocClass Class { get; set; }
         public string How { get; set; } = "";
         public DateTime SinceUtc { get; init; } = DateTime.UtcNow;
-        public int? StampAfterLastOp { get; set; }
+        /// <summary>The update stamp after the server's last completed change (doc_undo holds to it); sets <see cref="StampSeen"/> too.</summary>
+        public int? StampAfterLastOp
+        {
+            get => _stampAfterLastOp;
+            set { _stampAfterLastOp = value; StampSeen = value; }
+        }
+        private int? _stampAfterLastOp;
+        /// <summary>
+        /// The update stamp after the server's last call that changed it, a failed call and a change through another
+        /// document included (S57): a write warns "modified outside this server" when the stamp no longer matches.
+        /// </summary>
+        public int? StampSeen { get; set; }
         /// <summary>doc_undo's limit: server writes that changed the document since anyone else last changed it.</summary>
         public int ServerWrites { get; set; }
         /// <summary>The update stamp right after the last counted server write (the count holds only while it matches).</summary>

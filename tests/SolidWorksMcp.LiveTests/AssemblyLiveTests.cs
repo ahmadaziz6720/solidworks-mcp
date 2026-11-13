@@ -1414,4 +1414,39 @@ public class AssemblyLiveTests(LiveFixture fx) : LiveTest(fx)
         Assert.Equal(ErrorCodes.NotSupported, await Refused(new() { Doc = asm, Type = "slot", A = fa, B = fb }));
         Assert.Equal(0, (await Asm.MateListAsync(asm, 100, 0)).Total);
     }
+
+    [Fact]
+    public async Task A_change_through_a_document_an_assembly_loads_does_not_read_as_the_users()
+    {
+        // S57: a document changed only by this server's calls on another one warned on its own next call "'…' was modified
+        // outside this server since its last change (by the user?)": a part after dimension_set through its assembly, a
+        // top assembly after asm_insert into its subassembly, the subassembly after a change to its part. A change made
+        // outside the server still warns.
+        const string Outside = "modified outside this server";
+        var fm = new FeatureManagementService(S);
+        var cube = await CubeAsync("outside");
+        string sub = await NewAssemblyAsync("outside_sub");
+        string comp = (await InsertAsync(sub, cube.Path, [0, 0, 0])).Component.Name;
+        var saved = await Docs.SaveAsync(sub, "as", Path.Combine(_dir, $"outside_sub_{_tag}.sldasm"), overwrite: false);
+        string top = await NewAssemblyAsync("outside_top");
+        await InsertAsync(top, saved.SavedTo!, [0, 0, 100]);
+        async Task Next(string doc, string step)
+        {
+            var w = (await fm.RebuildAsync(doc)).Warnings ?? [];
+            Assert.False(w.Any(x => x.Contains(Outside)), $"after {step}: {string.Join(" | ", w)}");
+        }
+
+        await fm.DimensionSetAsync(sub, [new DimensionValue { Name = $"D1@Boss-Extrude1@{comp}", Value = 30 }]);
+        await Next(cube.Doc, "dimension_set through the subassembly");
+        await InsertAsync(sub, cube.Path, [40, 0, 0]);
+        await Next(top, "asm_insert into the subassembly");
+        await fm.DimensionSetAsync(cube.Doc, [new DimensionValue { Name = "D1@Boss-Extrude1", Value = 25 }]);
+        await Next(sub, "dimension_set on its part");
+        await Next(top, "dimension_set on a part two levels down");
+
+        // The part changed outside the server: its own next call warns.
+        await TestHooks.SetDimensionRawAsync(S, cube.Doc, "D1@Boss-Extrude1", 20, asUser: true);
+        var outside = (await fm.RebuildAsync(cube.Doc)).Warnings ?? [];
+        Assert.Contains(outside, x => x.Contains(Outside));
+    }
 }

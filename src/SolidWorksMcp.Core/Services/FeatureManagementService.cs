@@ -1128,8 +1128,8 @@ public sealed partial class FeatureManagementService(SwSession session)
             int stamp = d.GetUpdateStamp();
             if (entry.StampAfterLastOp is not int last || last != stamp)
                 throw new SwException(ErrorCodes.NotOwned,
-                    $"'{entry.Title}' changed after this server's last completed change (by the user, or by a call that failed and " +
-                    "was rolled back), so undo could revert work that isn't the server's.",
+                    $"'{entry.Title}' changed after this server's last completed change (by the user, by a call that failed and " +
+                    "was rolled back, or through another document), so undo could revert work that isn't the server's.",
                     "Ask the user to undo in SOLIDWORKS (Ctrl+Z), or repair the model with the feature tools (feature_delete, dimension_set).");
             int mine = entry.ServerWritesStamp == stamp ? entry.ServerWrites : 0;
             if (mine == 0)

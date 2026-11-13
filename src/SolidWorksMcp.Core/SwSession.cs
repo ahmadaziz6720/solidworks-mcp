@@ -148,7 +148,13 @@ public sealed class SwSession : IDisposable
                 if (ProcessId is int pid) op.MarkPreExisting(Dialogs.List(pid));
                 var ctx = new SwContext(this, app, op);
                 ctx.Bind(options);
-                var result = work(ctx);
+                T result;
+                try { result = work(ctx); }
+                catch
+                {
+                    ctx.AfterFailedWrite(); // S57: what a failed write left is the server's own
+                    throw;
+                }
                 ctx.AfterWrite();
                 if (result is Model.ToolResult tr)
                 {
