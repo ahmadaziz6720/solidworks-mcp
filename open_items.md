@@ -161,8 +161,8 @@ in full (`--filter-class "SolidWorksMcp.LiveTests.<Class>"`), as passed/failed/s
   run, because no server call opens it; the fixture could assert only dialogs a test
   opened (those open at its start left out), as calls already mark pre-existing ones.
   A session's `dialog_list` or `sw_status` shows that popup for ~10 s after a start.
-- [ ] `ReferenceLiveTests`
-- [ ] `PropertiesLiveTests`
+- [x] `ReferenceLiveTests` 46/0/0
+- [x] `PropertiesLiveTests` 25/0/0
 - [ ] `AssemblyLiveTests`
 - [ ] `DrawingLiveTests`
 - [ ] `BodySheetMetalLiveTests`
@@ -175,6 +175,9 @@ in full (`--filter-class "SolidWorksMcp.LiveTests.<Class>"`), as passed/failed/s
 - [ ] the push of `sw2023`, publish, `--check-catalog`, the tag, the registration in both
   projects, the release page, each Waiting line given its commit and the build, the
   sentence for the scenario test
+From `AssemblyLiveTests` on, the main session runs the remaining classes itself in one
+runner call (a waiting subagent was ended for low memory twice), a subagent only for a
+failure; each class's `CLASS RESULT` line in the runner's summary is its record.
 A class's subagent (Sonnet): `dotnet build` first, then
 `%LOCALAPPDATA%\solidworks-mcp\livetest\runall.ps1 -Classes <Class> -ChunkSize 12
 -RestartEachChunk -FreshStart` (chunks of 12 tests, SOLIDWORKS restarted before each; a
