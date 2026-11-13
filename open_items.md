@@ -14,8 +14,10 @@ decided against, with the record.
 S62, S64 and S65 are from twenty working sessions on build `20261112-091908` (findings
 2026-11-12 and 13), S67 to S71 seen by the run of 2026-11-13 in its own tests; S47 to
 S49, from that build's scenario test, and S50 to S59, S63 and S66, from those sessions,
-are fixed and Waiting. Reported `ok` while wrong or misleading: S60 (a).
-Next: the run planned below, every point of it decided 2026-11-13 by the owner. Not in
+are fixed and Waiting, in build `20261114-024455` (`cfd987e`). Reported `ok` while wrong
+or misleading: S60 (a).
+Next: the scenario test of build `20261114-024455` in the owner's project, then the
+unsorted `findings.md` entry of 2026-11-13. The run below is done. Not in
 it: S4, S5, S7 and S12 wait on upstream; S10, S11, S33 and S34 are parked until a job
 needs them; S61 (a), S62 (b), S64 (c) and S65 (b to d) were offered for this run and not
 chosen (2026-11-13), and stay open. The round before (S37 to S46, S6's wording, S13, S14,
@@ -114,8 +116,13 @@ modelling, the largest first; the release last):
 If the session ends before the last batch, this list and the items' Waiting lines say
 where the next one picks up.
 
-**Where the run stands** (the sixth session, 2026-11-13, finished batch 6 and is in
-batch 7, the release).
+**Where the run stands** (the seventh session, 2026-11-14, finished batch 7, the release;
+the run is done, its scenario test not yet run).
+**The run's report** (2026-11-14): every planned item Waiting with its commit, in build
+`20261114-024455`, but for the parts left open (S60 (a), S61 (a), S62 (b), S64 (b, c),
+S65 (b to d)); none closed for a test that did not fail. New open items from its own
+tests: S67 to S71. The decisions it took are its "Decided 2026-11-13/14 by the run, not
+the owner" lines in each item. Scenario test: not run yet.
 Committed on `sw2023`: batch 1, S47 `f71b034`; batch 2, S66 `657fc23`, S51
 `16699e2`, S53 `59beaae`, S52 `8dff953`, S50 `1bc3cbb`; batch 3, S54 `9939f28`, S58
 `32698d5`, S48 (d) `ffde4db`, S63 `e642451`; batch 4, S56 `0acb318`, S55 `1861854`, S64
@@ -207,9 +214,10 @@ in full (`--filter-class "SolidWorksMcp.LiveTests.<Class>"`), as passed/failed/s
   option into preference 230 when the document it activates has no window; the server
   now holds it for such a document (S49's "Release run 2026-11-14" paragraph), 19/19
   live tests that reach the changed calls
-- [ ] the push of `sw2023`, publish, `--check-catalog`, the tag, the registration in both
-  projects, the release page, each Waiting line given its commit and the build, the
-  sentence for the scenario test
+- [x] the push and the release: pushed (`origin/sw2023` at `cfd987e`), published
+  `0.1.0-sw2023-20261114-024455` (`--check-catalog` ok, 165 tools), registered in both
+  projects that list the server, tag `build-20261114-024455` pushed and read back, release
+  page made, each Waiting line given its commit and the build
 From `AssemblyLiveTests` on, the main session runs the remaining classes itself in one
 runner call (a waiting subagent was ended for low memory twice), a subagent only for a
 failure; each class's `CLASS RESULT` line in the runner's summary is its record.
@@ -361,8 +369,8 @@ attached to, through any call, not a previous server's, because a new process ha
 connection of its own to compare and says "first connection of this server"; (2) the same
 PID with another start time reads as a new process, because Windows reuses PIDs; (3) (a)
 stays open with a usage line rather than a change to how `dirty` is read, because the probe
-found the reading right in every case it tried. Local: (b) to (d) on `sw2023`, in the
-commit that records them here; not yet in a build. Upstream: not yet decided; (d) never.
+found the reading right in every case it tried. Local: (b) to (d) on `sw2023`, `7601276`;
+in build `20261114-024455`. Upstream: not yet decided; (d) never.
 
 **S61. A STEP into an assembly.** On build `20261112-091908` (findings 2026-11-12, "STEP
 parts brought toward an existing assembly"). (a) `asm_insert` refuses a STEP; SOLIDWORKS
@@ -406,7 +414,7 @@ open; (3) `volumeMm3` is given for an assembly import too, from the components' 
 because a part import gives it and a count without it reads as less than `model_mass`
 shows; (4) only part components are counted (subassemblies skipped), because a
 subassembly's bodies are its parts' and would count twice. Local: (b) and (c) on `sw2023`,
-in the commit that records them here; not yet in a build. Upstream: not yet decided.
+`a81f93d`; in build `20261114-024455`. Upstream: not yet decided.
 
 **S62. Assembly reading and options.** On build `20261112-091908`. (a) `asm_mate_list`
 gives each entity `{component, kind: "plane"}` with no name, face id or point, so which
@@ -479,8 +487,8 @@ user's; (4) the owned paths live in the server process, not in the persisted reg
 the finding was within one session and a restarted server re-claims open documents already;
 (5) `count` stays the rows given (after the components filter) and `listed` is added, because
 callers read `count`; (6) a pair overlaps when its volume reads above 0 at 3 decimals, as its
-row shows it. Local: (a), (d) and (e) on `sw2023`, in the commit that records them here; not
-yet in a build. Upstream: not yet decided.
+row shows it. Local: (a), (d) and (e) on `sw2023`, `af3598c`; in
+build `20261114-024455`. Upstream: not yet decided.
 
 **S64. Feature calls refused, failed or counted wrong, with hints that miss.** On build
 `20261112-091908`. (a) A blind cut from a plane inside the body whose end lies outside it
@@ -537,8 +545,8 @@ tests of `SketchEditLiveTests` and two face sketches of `ModellingLiveTests`, 17
 live; unit tests 278 of 278; `check_repo` ok; no description changed. Made stricter:
 none (duplicates are still dropped within one sketch; the regions check reads only when
 the count exceeds the closed contours, and on a plane it kept the one region of a
-hexagon crossed by a line, where SOLIDWORKS reads 0 closed contours). Local: on
-`sw2023`, in the commit that records (e) and (f) here; not yet in a build. Upstream: not
+hexagon crossed by a line, where SOLIDWORKS reads 0 closed contours). Local: (e) and (f) on
+`sw2023`, `9e65c62`; in build `20261114-024455`. Upstream: not
 yet decided.
 (a) Cause: a blind cut from a plane inside the body leaves a planar face on that plane,
 where it starts; S40's rule passed a cut with no floor only when every planar face lay at
@@ -566,8 +574,8 @@ the body: "no faces"; a boss from outside ending inside the body: "no cap face",
 leaves a boss). The fault was not reproduced and its cause is not known, so the hint is
 not changed. Decided 2026-11-13 by the run, not the owner: (b) stays open with no code
 change, because a hint written for a cause no probe showed would miss as the one now
-does; a repro needs the session's own part. Local: on `sw2023`, in the commit that
-records (a) and (b) here; not yet in a build. Upstream: not yet decided.
+does; a repro needs the session's own part. Local: (a) on `sw2023`, `576a1c2` (which
+records (b)'s probe too); (a) in build `20261114-024455`. Upstream: not yet decided.
 (d) Cause: the delete checked only for children outside the list. A plane, the boss
 sketched on it and the boss's mirror, all three named, had none, so the call went to
 SOLIDWORKS without `swDelete_Children`, and SOLIDWORKS then deleted the parent alone (live:
@@ -598,8 +606,8 @@ equations, the user's documents refused), 11 of 11 live; unit tests 278 of 278;
 `check_repo` ok; no description changed. Made stricter: a kept absorbed sketch on a plane
 that goes and a feature made from a sketch that goes are now dependents, refused without
 `deleteChildren` (before, both went to SOLIDWORKS unchecked); the
-single-feature deletes of those tests are not refused. Local: on `sw2023`, in the commit
-that records (d) here; not yet in a build. Upstream: not yet decided.
+single-feature deletes of those tests are not refused. Local: (d) on `sw2023`, `fe1a1af`;
+in build `20261114-024455`. Upstream: not yet decided.
 (g) Cause: the start-face check compared the sweep's planar faces in the profile plane with
 the area the profile sketch encloses, merged or not; a merged sweep has no start face where
 its profile lies inside the existing body, so a profile partly buried warned "SOLIDWORKS may
@@ -636,8 +644,8 @@ volume), with the ray test and the eight other sweep tests of `AdvancedFeatureLi
 10 of 10 live; `AdvancedFeatureLogicTests` 26 of 26 (two new: `StartFace`, the ring's
 interior points); unit tests 278 of 278; `check_repo` ok; no description changed. Made
 stricter: none (the warning and the volume comparison are let off for merged boss sweeps
-only, on points shown inside). Local: on `sw2023`, in the commit that records (g) here; not
-yet in a build. Upstream: not yet decided.
+only, on points shown inside). Local: (g) on `sw2023`, `9a46c32`; in
+build `20261114-024455`. Upstream: not yet decided.
 
 **S65. Missing options met while modelling.** On build `20261112-091908`. (a) No body
 mirror: `feature_mirror` of two extrudes made `merge:false` failed "the mirrored copy must
@@ -682,7 +690,7 @@ mirror tests of `PartFeatureLiveTests` and
 `Feature_delete_of_a_plane_its_boss_and_the_boss_s_mirror_removes_all_three_or_nothing`, and
 `ContractTests.Tool_catalog_follows_the_conventions`, 8 of 8 live; unit tests 278 of 278;
 `--check-catalog` ok; `check_repo` ok. Made stricter: none (the feature path is unchanged but
-for its hint). Local: on `sw2023`, in the commit that records (a) here; not yet in a build.
+for its hint). Local: (a) on `sw2023`, `fd9bd83`; in build `20261114-024455`.
 Upstream: not yet decided.
 
 **S67. `feature_rollback` before the only feature fails its check.** Seen in the run of
@@ -1050,7 +1058,7 @@ live test `The_frame_is_in_sheet_mm_at_a_sheet_scale_other_than_1_1` (an ISO A3 
 2:1, the same frame); it failed on the code before ("Expected [20, 10, 410, 287], Actual
 [40, 20, 820, 574]"). After: it passes, and with the S14 frame tests, `Sheet_setup_…`,
 `Standard_views_…` (both) and `Sheets_are_added_…`, 9/9 on 2023 SP3; unit tests 276/276;
-`check_repo` ok. Local: on `sw2023`, in the commit that moves it here; not yet in a build.
+`check_repo` ok. Local: on `sw2023`, `f71b034`; in build `20261114-024455`.
 Upstream: not yet decided.
 
 **S66. A stale edge id resolves to another edge, reported `ok`.** On build
@@ -1080,7 +1088,7 @@ analytic volume: an untouched edge's reference stays byte-equal across unrelated
 thrown"). After: it passes, with `Point_on_a_corner_…`, `Queries_with_expect_…` and
 `Convex_fillet_…` (4/4), and the two fastener tests that mate by edge ids listed before
 components went in (`Screws_with_washers_…`, `A_screw_in_a_blind_hole_…`, 2/2); unit tests 276/276; `check_repo` ok. Local:
-on `sw2023`, in the commit that moves it here; not yet in a build. Upstream: not yet
+on `sw2023`, `657fc23`; in build `20261114-024455`. Upstream: not yet
 decided.
 
 **S51. `feature_chamfer` takes the distance on whichever face, one `flip` for all edges,
@@ -1143,8 +1151,8 @@ existed). After: those four and the chamfer tests before (`Chamfer_equal_3mm_…
 `Chamfer_two_distances_…`, `Chamfer_rejects_bad_input_…`), with `Linear_pattern_along_a_slanted_edge_…`
 and `Auxiliary_view_looks_square_onto_a_chamfer` that make chamfers, 9/9, and
 `ContractTests` (catalog, EntityRef schemas) 2/2, on 2023 SP3; unit tests 276/276;
-`--check-catalog` ok; `check_repo` ok. Local: on `sw2023`, in the commit that moves it
-here; not yet in a build. Upstream: not yet decided.
+`--check-catalog` ok; `check_repo` ok. Local: on `sw2023`, `16699e2`; in
+build `20261114-024455`. Upstream: not yet decided.
 
 **S53. `feature_extrude` with a `direction` vector off the sketch normal extrudes along the
 normal, reported `ok`.** On build `20261112-091908` (findings 2026-11-12, "a printed part's
@@ -1177,7 +1185,7 @@ volume of the slanted boss reads 4e-5 under π·r²·h (SOLIDWORKS' mass propert
 slanted side); the test allows 0.05 mm³. Decided 2026-11-13 by the run, not the owner: the
 direction reference is a 3D sketch line kept in the tree, not a reference axis, because an
 axis needs two reference points or planes made first (three features, not one). Local: on
-`sw2023`, in the commit that moves it here; not yet in a build. Upstream: not yet decided.
+`sw2023`, `59beaae`; in build `20261114-024455`. Upstream: not yet decided.
 
 **S52. The boxes in results are loose, and say nothing of it.** On build
 `20261112-091908`. (a) `model.box` in feature, `equation_set` and component results is a
@@ -1218,7 +1226,7 @@ top chain rounded R0.5; an elliptic cylinder; `model_info`'s box too) and
 `Circular_pattern_turns_the_seed_…`, `Box_extrude_…`, `Mid_plane_extrude_…` and
 `Cut_from_an_open_sketch_…` (10/10); unit tests 276/276; `--check-catalog` ok (no
 description changed: the `approximate` field speaks for itself); `check_repo` ok. Local:
-on `sw2023`, in the commit that moves it here; not yet in a build. Upstream: not yet
+on `sw2023`, `8dff953`; in build `20261114-024455`. Upstream: not yet
 decided.
 
 **S50. `asm_mate_add` `distance` puts the component on the other side, reported `ok`.**
@@ -1258,8 +1266,8 @@ the live test failed: no `verified` line with the side (`["Distance1 (distance) 
 solved without errors", "planes 75 mm apart"]`). After: it passes, with
 `Plane_mates_coincident_and_distance_…`, `Limit_distance_and_symmetric_mates_…` and
 `New_mate_types_without_their_entities_…` (4/4); unit tests 277/277; `--check-catalog` ok
-(no description changed); `check_repo` ok. Local: on `sw2023`, in the commit that moves it
-here; not yet in a build. Upstream: not yet decided.
+(no description changed); `check_repo` ok. Local: on `sw2023`, `1bc3cbb`; in
+build `20261114-024455`. Upstream: not yet decided.
 
 **S54. Equations outlive the features whose dimensions they drive, and bind by name.** On
 build `20261112-091908`, met in five sessions (findings 2026-11-12, "a feature with
@@ -1319,8 +1327,8 @@ paths, the four `Feature_delete_…`, the two `Rename_…`, `Units_set_switches_
 `Undo_after_a_fillet_removes_it`, `Undo_never_goes_beyond_…`, `Dimension_set_changes_…`,
 `A_global_variable_drives_…`, `Equation_errors_are_typed_…`, `Several_equations_go_in_one_call_…`
 and `A_batch_with_a_row_that_fails_…`, pass (14/14); contract tests 7/7; unit tests
-277/277; `--check-catalog` ok; `check_repo` ok. Local: on `sw2023`, in the commit that
-moves it here; not yet in a build. Upstream: not yet decided.
+277/277; `--check-catalog` ok; `check_repo` ok. Local: on `sw2023`, `9939f28`; in
+build `20261114-024455`. Upstream: not yet decided.
 
 **S58. `equation_set` results that mislead.** On build `20261112-091908`. (a) Three globals
 changed, three features failed (`swSketchErrorExtRefFail` on a boss, the cut on it, a
@@ -1376,8 +1384,8 @@ four pass; the live tests on the changed paths, `A_global_variable_drives_…`,
 `Negative_offset_and_flip_both_…`, `Axis_from_front_and_right_planes_…`,
 `Dimension_set_restores_the_value_when_a_feature_breaks` and
 `Feature_delete_lists_the_equations_…`, pass (14/14 with the four); contract tests 7/7;
-unit tests 277/277; `check_repo` ok. Local: on `sw2023`, in the commit that moves it here;
-not yet in a build. Upstream: not yet decided.
+unit tests 277/277; `check_repo` ok. Local: on `sw2023`, `32698d5`;
+in build `20261114-024455`. Upstream: not yet decided.
 
 **S63. `feature_helix`: where its start is, and its turns in mm.** On build
 `20261112-091908` (findings 2026-11-12, "a helical screw part", points 1, 2). (a)
@@ -1429,8 +1437,8 @@ definition). After: those two pass (2/2); the live tests on the changed paths, t
 `A_global_variable_drives_the_extrude_depth`, `Several_equations_go_in_one_call_…` and
 `A_table_makes_three_sizes_…`, pass (18/18); the offline `FeatureManagementLogicTests` 24/24
 (`Values_convert_by_dimension_type` with the scalar); contract tests 7/7; unit tests 278/278;
-`--check-catalog` ok; `check_repo` ok. Local: on `sw2023`, in the commit that moves it here;
-not yet in a build. Upstream: not yet decided.
+`--check-catalog` ok; `check_repo` ok. Local: on `sw2023`, `e642451`;
+in build `20261114-024455`. Upstream: not yet decided.
 
 **S56. Relations SOLIDWORKS adds while drawing go unreported, and a relation it already
 has reads as refused.** On build `20261112-091908` (findings 2026-11-12, "six printed and
@@ -1488,8 +1496,8 @@ paths: the relation, merge, pierce, origin, `Constrain_…`, mirrored-shape, cen
 offset, `Info_…` and 3D-sketch tests of `SketchEditLiveTests`, `Box_extrude_matches_the_oracle`,
 `Top_plane_sketch_frame_is_x_0_minus_y`, the 3D-sketch weldment frame, the slot sweep and
 the ellipse model box (27/27 with the two); unit tests 278/278; contract tests 7/7;
-`--check-catalog` ok; `check_repo` ok. Local: on `sw2023`, in the commit that moves it here;
-not yet in a build. Upstream: not yet decided.
+`--check-catalog` ok; `check_repo` ok. Local: on `sw2023`, `0acb318`;
+in build `20261114-024455`. Upstream: not yet decided.
 
 **S55. `sketch_constrain` passes the 50 s limit, with `symmetric` steps the suspect.** On
 build `20261112-091908`, five times (findings 2026-11-12, "six printed and stand-in parts",
@@ -1548,8 +1556,8 @@ may still complete — do not simply retry." After: it passes (34.1 s, all 20 st
 steps and 50 s for 3), with every live test of `SketchEditLiveTests` that calls
 `sketch_relation_add`, `sketch_dimension_add` or `sketch_constrain` (31/31 with it); unit
 tests 278/278; `ContractTests.Tool_catalog_follows_the_conventions` 1/1; `--check-catalog`
-ok; `check_repo` ok. Local: on `sw2023`, in the commit that moves it here; not yet in a
-build. Upstream: not yet decided.
+ok; `check_repo` ok. Local: on `sw2023`, `1861854`; in
+build `20261114-024455`. Upstream: not yet decided.
 
 **S59. Reference geometry that cannot be made.** On build `20261112-091908`. (a) No plane
 on a planar face: `ref_plane` `offset` 0 and `angle` 0 are refused (findings 2026-11-12,
@@ -1627,8 +1635,8 @@ puts it, the box part's tree unchanged, the flip refused with nothing changed), 
 tests of `ReferenceLiveTests` (offset, angle, three points, parallel, mid, flip, open
 sketch) and the 7 `ContractTests`, 36 of 36 live; unit tests 278 of 278; `check_repo` ok;
 no description changed. Made stricter: none.
-Local: on `sw2023`, (a), (c) and (d) in `3ca75cd`, (b) in the commit that moves it here;
-not yet in a build. Upstream: not yet decided.
+Local: on `sw2023`, (a), (c) and (d) in `3ca75cd`, (b) in `42589af`;
+in build `20261114-024455`. Upstream: not yet decided.
 
 **S57. "modified outside this server … (by the user?)" after the server's own calls.** On
 build `20261112-091908`, six sessions, the owner out of SOLIDWORKS each time (findings
@@ -1678,7 +1686,7 @@ change made outside the server still warning; the live tests on the changed path
 `Insert_puts_the_origin_…`, `Subassemblies_are_inserted_…`, `Compare_cannot_open_a_revision_…`
 of `AssemblyLiveTests`, pass (15/15); unit tests 278/278; `check_repo` ok; no description
 changed. Made stricter: none.
-Local: on `sw2023`, in the commit that moves it here; not yet in a build. Upstream: not yet
+Local: on `sw2023`, `3a58652`; in build `20261114-024455`. Upstream: not yet
 decided.
 
 **S49. `dimension_set` through an assembly does not say which component, nor the
@@ -1724,7 +1732,7 @@ on a part, `A_change_through_a_document_an_assembly_loads_does_not_read_as_the_u
 the three runs after, alone and in two batches); unit tests 284/284; `check_repo` ok; no
 description changed. Made stricter: none (a batch the old check refused, two components'
 dimensions of one name, now goes through).
-Local: on `sw2023`, in the commit that moves it here; not yet in a build. Upstream: not yet
+Local: on `sw2023`, `2a41e9e`; in build `20261114-024455`. Upstream: not yet
 decided.
 Release run 2026-11-14: `A_part_the_server_owned_comes_back_owned_…` failed every time, alone
 too, after its asserts held: "System preferences changed by this test: Integer230: 0 -> 1".
@@ -1755,8 +1763,8 @@ changed code, 17: `AssemblyLiveTests` `A_change_through_a_document_…`, `Replac
 `RecognitionLiveTests`' `An_imported_step_block_…`; `SketchEditLiveTests`'
 `Edit_reopens_a_finished_sketch_…`; `ConfigurationLiveTests`'
 `A_material_set_in_one_configuration_…`: 19/19 pass. Unit tests 284/284; `check_repo` ok; no
-description changed. Local: on `sw2023`, in the commit that records it here; not yet in a
-build.
+description changed. Local: on `sw2023`, `cfd987e`; in
+build `20261114-024455`.
 
 **S48. Four small result follow-ups from the modelling scenario test of build
 `20261112-091908`** (findings 2026-11-12, first entry, points 2 to 5). (a) From S40: a
@@ -1799,8 +1807,8 @@ it passes, the eleven rows under 900 characters; with
 `A_batch_with_a_row_that_fails_…`, `Equation_delete_takes_a_list_…` and
 `A_feature_result_lists_its_new_faces_short_…` 7 of 7 live; unit tests 278 of 278 (with
 `A_result_with_short_rows_gives_them_in_place_…`); `ContractTests.Tool_catalog_follows_the_conventions`
-and `--check-catalog` ok; `check_repo` ok. Local: on `sw2023`, in the commit that records
-(d) here; not yet in a build. Upstream: not yet decided.
+and `--check-catalog` ok; `check_repo` ok. Local: (d) on `sw2023`, `ffde4db`;
+in build `20261114-024455`. Upstream: not yet decided.
 (a) to (c) fixed in the run of 2026-11-13. (a) Cause: `feature_extrude` wrote the no-floor
 check line while the cut still had SOLIDWORKS' name and applied `name` after it, so the
 dimension in the line kept the old name. Fix: the rename takes the check lines with it, a
@@ -1835,7 +1843,7 @@ single hole keeps its own sentence and several share one naming each as "'<sketc
 <hole>", because the finding is about the repeat and a hole's name holds parentheses
 ("Ø5.0 (5) Diameter Hole1"); (2) in (a), only `feature_extrude`'s rename carries its check
 lines, because it is the one feature tool whose check line names a dimension. Local: (a)
-to (c) on `sw2023`, in the commit that moves it here; not yet in a build. Upstream: not
+to (c) on `sw2023`, `ef358df`; in build `20261114-024455`. Upstream: not
 yet decided.
 
 ## Closed
