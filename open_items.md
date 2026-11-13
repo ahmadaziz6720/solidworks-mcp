@@ -150,7 +150,12 @@ in full (`--filter-class "SolidWorksMcp.LiveTests.<Class>"`), as passed/failed/s
   so the live one, kept ~40-50 MB per test by SOLIDWORKS, was never restarted between
   classes; the heaviest test, S57's `The_servers_own_failed_kept_…`, peaks ~1.5 GB over
   its start with two parts open, no fault in the server)
-- [ ] `SketchEditLiveTests`
+- [x] `SketchEditLiveTests` 73/1/0: `Info_needs_an_open_sketch_or_a_sketch_name` fails
+  every time (alone too, on a fresh SOLIDWORKS), its own asserts held, on the dialog
+  check after it: an untitled #32770 with the texts "Title", "Description", "Button1",
+  "Button2", "Hyperlink Text 1" and "2" left open; the test and `sketch_info`'s path are
+  unchanged since build 091908; a probe (which call opens it, and on the tag's code) is
+  next, under "a failure that is the run's"
 - [ ] `ReferenceLiveTests`
 - [ ] `PropertiesLiveTests`
 - [ ] `AssemblyLiveTests`
