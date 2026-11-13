@@ -163,7 +163,7 @@ in full (`--filter-class "SolidWorksMcp.LiveTests.<Class>"`), as passed/failed/s
   A session's `dialog_list` or `sw_status` shows that popup for ~10 s after a start.
 - [x] `ReferenceLiveTests` 46/0/0
 - [x] `PropertiesLiveTests` 25/0/0
-- [ ] `AssemblyLiveTests` 33/1/0 and 7 stopped by the runner's guard (free memory under
+- [x] `AssemblyLiveTests` 33/1/0 and 7 stopped by the runner's guard (free memory under
   800 MB), 2026-11-13 23.49: failed `A_part_the_server_owned_comes_back_owned_…` (it
   failed once in S49's mixed run too and then passed three times alone: rerun it alone);
   guard-stopped, each to run alone on a fresh SOLIDWORKS with Chrome and VS Code closed:
@@ -179,6 +179,15 @@ in full (`--filter-class "SolidWorksMcp.LiveTests.<Class>"`), as passed/failed/s
   assembly tests need more than the ~2 GB a fresh SOLIDWORKS leaves free with the other
   programs open; Claude Code's own reaping of background commands is turned off by
   starting it with `CLAUDE_CODE_DISABLE_BG_SHELL_PRESSURE_REAP=1`.
+  The seventh session (2026-11-14) ran the eight alone, each on a fresh SOLIDWORKS: six
+  passed; `A_part_the_server_owned_…` failed again alone, every assert holding, on the
+  fixture's check "System preferences changed by this test: Integer230: 0 -> 1"
+  (`RebuildOnActivation`, which `AssemblyService.EnsureLoaded` sets through
+  `PreferenceScope`): a failure of the run's, for its own subagent;
+  `Interference_with_coincident_faces_…` stopped by the guard alone too (free memory
+  749 MB, SOLIDWORKS at 2.4 GB), then passed alone with the guard at 400 MB free (free
+  memory never under ~1.9 GB). Ticked: 40 of 41 pass, the one failure goes to the step
+  for the run's failures below.
 - [ ] `DrawingLiveTests`
 - [ ] `BodySheetMetalLiveTests`
 - [ ] `ExportLiveTests`
