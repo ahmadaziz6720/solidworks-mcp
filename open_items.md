@@ -339,7 +339,41 @@ the profile (155.295), the difference inside the existing body: a false alarm on
 sweep ("a helical screw part", point 3). Taken into the run of 2026-11-13: (a), (d), (e),
 (f), (g), no choice in them: (a) by S40's rule, the cut passing on its volume; (d) the
 delete's arguments checked before the first removal, so a refusal changes nothing. (b) a
-probe first. (c) offered 2026-11-13 and not chosen; stays open.
+probe first. (c) offered 2026-11-13 and not chosen; stays open. (e) and (f) fixed in the
+run of 2026-11-13; (a), (b), (d), (g) still open, (c) not chosen. (e) Cause: the sketch
+tools' resolver did resolve `{name, sketch}` and `{at, sketch}` in the named sketch, but
+then dropped duplicates by label, and a segment's label is its name alone ("sketch
+segment Line1"), so the other sketch's `Line1` was dropped as the open sketch's (a point
+the same way, by its coordinates, which are its own sketch's). Fix
+(`SketchEditService.SameEntity`): two segments are one only when name and owning sketch
+match, two points only in the same sketch; an entity of another sketch is labelled "… of
+<sketch>" in `resolved`. `sketch_constrain`, `sketch_relation_add` and
+`sketch_dimension_add` share that resolver (`Refs`), so all three are fixed. (f) Cause:
+`regions` was `ISketch.GetSketchRegionCount()`, which on a face counts the region the
+face's edges close around the sketch (probed: the second region's edges are the face's 4
+and the hexagon's 6). Fix (`SketchService.Contours`): when the count exceeds the closed
+contours, a region counts only when every edge of it lies on the sketch's own contour
+edges (compared by geometry: the COM objects are never the same). Decided 2026-11-13 by
+the run, not the owner: the edges are read only when `regions` exceeds the closed
+contours, because a region closed by model edges adds to the count past them and every
+`sketch_add` and feature reads the contours, where an edge read costs a few COM calls.
+Before, on the code
+before the fix:
+`Constrain_relates_a_segment_to_the_segment_of_the_same_name_in_another_sketch` failed
+"Step 1 of 1 (collinear relation) failed: 'collinear' needs 2 different entities; some
+references name the same one.",
+`Dimension_and_relation_take_a_point_in_another_sketch_on_a_segment_of_the_same_name`
+failed "'entities' names the same entity twice.", and
+`Regions_count_the_sketchs_own_closed_regions_on_a_face_as_on_a_plane` failed "Expected:
+1, Actual: 2" for the hexagon on the face. After: the three pass, with the pierce,
+merge, relation, constrain, dimension-argument, info, convert-of-a-face and sketch-add
+tests of `SketchEditLiveTests` and two face sketches of `ModellingLiveTests`, 17 of 17
+live; unit tests 278 of 278; `check_repo` ok; no description changed. Made stricter:
+none (duplicates are still dropped within one sketch; the regions check reads only when
+the count exceeds the closed contours, and on a plane it kept the one region of a
+hexagon crossed by a line, where SOLIDWORKS reads 0 closed contours). Local: on
+`sw2023`, in the commit that records (e) and (f) here; not yet in a build. Upstream: not
+yet decided.
 
 **S65. Missing options met while modelling.** On build `20261112-091908`. (a) No body
 mirror: `feature_mirror` of two extrudes made `merge:false` failed "the mirrored copy must

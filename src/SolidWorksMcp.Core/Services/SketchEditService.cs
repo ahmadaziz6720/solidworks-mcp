@@ -2402,7 +2402,7 @@ public sealed class SketchEditService(SwSession session)
         for (int i = 0; i < refs.Count; i++)
             foreach (var r in Ref(ctx, d, sketch, m2s, refs[i], refs.Count == 1 ? arg : $"{arg}[{i}]", allowed))
                 if (!list.Any(x => SameEntity(x, r)))
-                    list.Add(r);
+                    list.Add(OwnedLabel(r, sketch));
         return list;
     }
 
@@ -2494,12 +2494,28 @@ public sealed class SketchEditService(SwSession session)
         return new Resolved { Obj = best.Seg, Kind = EntityKind.SketchSegment, Label = $"sketch segment {best.Seg.GetName()}", Distance = best.Dist };
     }
 
+    /// <summary>
+    /// Whether two references name one entity. A segment's name and a point's coordinates are its own sketch's (S64 e):
+    /// Line1 of another sketch is not the open sketch's Line1.
+    /// </summary>
     private static bool SameEntity(Resolved a, Resolved b)
     {
         if (ReferenceEquals(a.Obj, b.Obj)) return true;
         if (a.Id is not null && a.Id == b.Id) return true;
-        if (a.Obj is ISketchSegment && b.Obj is ISketchSegment && a.Label == b.Label) return true;
-        return a.Obj is ISketchPoint p && b.Obj is ISketchPoint q && Math.Abs(p.X - q.X) < 1e-12 && Math.Abs(p.Y - q.Y) < 1e-12 && Math.Abs(p.Z - q.Z) < 1e-12;
+        if (a.Obj is ISketchSegment s && b.Obj is ISketchSegment t)
+            return string.Equals(s.GetName(), t.GetName(), StringComparison.OrdinalIgnoreCase) && SameOwner(OwnerOf(s), OwnerOf(t));
+        return a.Obj is ISketchPoint p && b.Obj is ISketchPoint q && SameOwner(p.GetSketch(), q.GetSketch()) &&
+               Math.Abs(p.X - q.X) < 1e-12 && Math.Abs(p.Y - q.Y) < 1e-12 && Math.Abs(p.Z - q.Z) < 1e-12;
+    }
+
+    private static bool SameOwner(ISketch? a, ISketch? b) => a is null || b is null ? a is null && b is null : SameSketch(a, b);
+
+    /// <summary>A segment or point of a sketch other than the open one, labelled with its sketch ("sketch segment Line1 of Sketch1").</summary>
+    private static Resolved OwnedLabel(Resolved r, ISketch open)
+    {
+        var owner = r.Obj switch { ISketchSegment s => OwnerOf(s), ISketchPoint p => p.GetSketch(), _ => null };
+        if (owner is null || SameSketch(owner, open)) return r;
+        return new Resolved { Obj = r.Obj, Kind = r.Kind, Label = $"{r.Label} of {((IFeature)owner).Name}", Id = r.Id, Pick = r.Pick, Distance = r.Distance };
     }
 
     private static void SelectAll(IModelDoc2 d, IEnumerable<Resolved> items, int mark)

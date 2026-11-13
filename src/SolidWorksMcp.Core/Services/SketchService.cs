@@ -670,10 +670,55 @@ public sealed class SketchService(SwSession session)
         int status = s.CheckFeatureUse((int)swSketchCheckFeatureProfileUsage_e.swSketchCheckFeature_BASEEXTRUDE, ref open, ref closed);
         int regions = 0;
         try { regions = s.GetSketchRegionCount(); } catch { /* 3D sketch */ }
+        if (regions > closed) regions = OwnRegions(s, regions);
         string st = open == 0 && closed > 0 ? "closed" : closed == 0 && open > 0 ? "open" : open > 0 && closed > 0 ? "mixed" : "invalid";
         string? problem = status == 0 ? null : Enum.IsDefined(typeof(swSketchCheckFeatureStatus_e), status)
             ? ((swSketchCheckFeatureStatus_e)status).ToString().Replace("swSketchCheckFeatureStatus_", "") : $"status {status}";
         return new ContourStatus { Status = st, ClosedContours = closed, OpenContours = open, Regions = regions, Segments = segs, Problem = problem };
+    }
+
+    /// <summary>
+    /// The sketch's own regions (S64 f). SOLIDWORKS also counts a region closed by model edges in the sketch plane: one
+    /// hexagon on a face gives 2, the face around it being the second. A region counts only when every edge of it lies
+    /// on the sketch's own contours. Read only when the count exceeds the closed contours, where such a region can be.
+    /// </summary>
+    private static int OwnRegions(ISketch s, int regions)
+    {
+        try
+        {
+            var own = ComArgs.Objects<ISketchContour>((object?)s.GetSketchContours())
+                .SelectMany(c => ComArgs.Objects<IEdge>((object?)c.GetEdges())).Select(e => (Edge: e, G: Topology.Describe(e))).ToList();
+            int n = 0;
+            foreach (var reg in ComArgs.Objects<ISketchRegion>((object?)s.GetSketchRegions()))
+                if (ComArgs.Objects<IEdge>((object?)reg.GetEdges()).All(e => own.Any(o => OnEdge(o.Edge, o.G, Topology.Describe(e).Mid))))
+                    n++;
+            return n;
+        }
+        catch (System.Runtime.InteropServices.COMException e) when (!ComArgs.IsDisconnect(e)) { return regions; }
+    }
+
+    /// <summary>Whether a model point lies on the edge: lines and circles from their geometry, other curves through SOLIDWORKS.</summary>
+    private static bool OnEdge(IEdge edge, EdgeGeom g, Vec3 p)
+    {
+        const double tol = 1e-7; // m
+        switch (g.Curve)
+        {
+            case "line":
+            {
+                var d = g.End - g.Start;
+                double t = d.Length < 1e-12 ? 0 : Math.Clamp((p - g.Start).Dot(d) / d.Dot(d), 0, 1);
+                return (g.Start + d * t).DistanceTo(p) < tol;
+            }
+            case "circle" when g is { Center: Vec3 c, Axis: Vec3 ax, Radius: double r }:
+            {
+                var v = p - c;
+                double along = v.Dot(ax);
+                return Math.Abs(along) < tol && Math.Abs((v - ax * along).Length - r) < tol;
+            }
+            default:
+                var q = edge.ClosestPoint(p);
+                return q.Length >= 3 && new Vec3(q[0], q[1], q[2]).DistanceTo(p) < tol;
+        }
     }
 
     private static string ConstrainedName(int s) => s switch

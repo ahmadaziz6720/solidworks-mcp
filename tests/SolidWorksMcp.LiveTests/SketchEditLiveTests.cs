@@ -842,6 +842,84 @@ public class SketchEditLiveTests(LiveFixture fx) : LiveTest(fx)
         Assert.Equal(50, SketchEditService.ConstrainTimeout(TimeSpan.FromSeconds(50), 3).TotalSeconds);
     }
 
+    /// <summary>
+    /// A closed sketch on the Front plane with Line1 (0,10)-(40,10) and Line2 (0,0)-(0,-30), and an open one on it with
+    /// Line1 (10,30)-(50,30) and Line2 (60,-10)-(70,-40): each sketch's segments answer to the same names.
+    /// </summary>
+    private async Task<(string Doc, string Other)> TwoSketchesAsync(string name)
+    {
+        string doc = await NewPartAsync(name);
+        await Sk.StartAsync(doc, new EntityRef { Name = "front" }, false);
+        var first = await Sk.AddAsync(doc, [Line([0, 10], [40, 10]), Line([0, 0], [0, -30])]);
+        var other = await Sk.FinishAsync(doc);
+        await Sk.StartAsync(doc, new EntityRef { Name = "front" }, false);
+        var open = await Sk.AddAsync(doc, [Line([10, 30], [50, 30]), Line([60, -10], [70, -40])]);
+        Assert.Equal(Name(first, 0), Name(open, 0));
+        Assert.Equal(Name(first, 1), Name(open, 1));
+        return (doc, other.Sketch);
+    }
+
+    [Fact]
+    public async Task Constrain_relates_a_segment_to_the_segment_of_the_same_name_in_another_sketch()
+    {
+        // S64 (e): collinear between the open sketch's Line1 and {name:'Line1', sketch:<other>} was refused "needs 2
+        // different entities": the two segments, one per sketch, were taken for one.
+        var (doc, other) = await TwoSketchesAsync("s64_other_name");
+        string l2 = "Line2";
+        var r = await Ed.ConstrainAsync(doc, [Rel("collinear", Seg(l2), new EntityRef { Name = l2, Sketch = other, Type = "sketch_segment" })]);
+        Assert.Equal(r.RelationsBefore + 1, r.RelationsAfter);
+        var moved = await SegmentAsync(doc, l2);
+        Assert.Equal(0, moved.StartMm![0], L); // onto the other sketch's Line2, on x = 0
+        Assert.Equal(0, moved.EndMm![0], L);
+        var mine = await SegmentAsync(doc, "Line1");
+        Near([10, 30], mine.StartMm); // the open sketch's Line1 is not touched
+    }
+
+    [Fact]
+    public async Task Dimension_and_relation_take_a_point_in_another_sketch_on_a_segment_of_the_same_name()
+    {
+        // S64 (e), the {at, sketch} form: the other sketch's Line1, found through a point on it, was taken for the open
+        // sketch's Line1.
+        var (doc, other) = await TwoSketchesAsync("s64_other_at");
+        var onOther = new EntityRef { At = [20, 10], Sketch = other };
+        var d = await Ed.DimensionAddAsync(doc, [Seg("Line1"), onOther], "linear", valueMm: 25);
+        Assert.Equal(25, d.Dimension.Value, L);
+        var line = await SegmentAsync(doc, "Line1");
+        Assert.Equal(25, Math.Abs(line.StartMm![1] - 10), L);
+        Assert.Equal(25, Math.Abs(line.EndMm![1] - 10), L);
+
+        var r = await Ed.RelationAddAsync(doc, "parallel", [Seg("Line2"), new EntityRef { At = [0, -15], Sketch = other }]);
+        Assert.Equal(r.RelationsBefore + 1, r.RelationsAfter);
+        var l2 = await SegmentAsync(doc, "Line2");
+        Assert.Equal(l2.StartMm![0], l2.EndMm![0], L); // parallel to the other sketch's vertical Line2
+    }
+
+    [Fact]
+    public async Task Regions_count_the_sketchs_own_closed_regions_on_a_face_as_on_a_plane()
+    {
+        // S64 (f): one hexagon on a planar face reported regions 2, on a plane 1.
+        var (planeDoc, _, onPlane) = await SketchAsync("s64_regions_plane", "front",
+            new SketchEntity { Kind = "polygon", Center = [0, 0], Sides = 6, CircumradiusMm = 10 });
+        Assert.Equal(1, onPlane.Contours.Regions);
+        // A line across it: SOLIDWORKS still counts 1 and reads no closed contour (the sketch's contours cross), so the
+        // edges are checked, and the region, all of whose edges are the hexagon's, is kept.
+        var across = await Sk.AddAsync(planeDoc, [Line([0, -20], [0, 20])]);
+        Assert.Equal(0, across.Contours.ClosedContours);
+        Assert.Equal(1, across.Contours.Regions);
+
+        string doc = await NewPartAsync("s64_regions_face");
+        await Sk.StartAsync(doc, new EntityRef { Name = "top" }, false);
+        await Sk.AddAsync(doc, [Rect(100, 60)]);
+        await new FeatureService(S).ExtrudeAsync(new ExtrudeRequest { Doc = doc, DepthMm = 20 });
+        await Sk.StartAsync(doc, new EntityRef { Type = "face", At = [0, 20, 0] }, false);
+        var hex = await Sk.AddAsync(doc, [new SketchEntity { Kind = "polygon", Center = [0, 0], Sides = 6, CircumradiusMm = 10 }]);
+        Assert.Equal(1, hex.Contours.ClosedContours);
+        Assert.Equal(1, hex.Contours.Regions);
+        var two = await Sk.AddAsync(doc, [Circle([30, 0], 5)]);
+        Assert.Equal(2, two.Contours.Regions);
+        Assert.Equal(2, (await Ed.InfoAsync(doc, null)).Contours.Regions);
+    }
+
     // ------------------------------------------------------------------ sketch_trim
 
     [Fact]

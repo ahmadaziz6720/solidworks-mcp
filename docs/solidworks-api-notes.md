@@ -203,6 +203,11 @@ type libraries and writes `sldworks_api.txt`, `swconst_enums.txt`, `swcommands.t
   the sketch open. After a call that changed nothing it undoes an earlier step; once that closed the sketch. VERIFIED.
 - **Convert entities.** `ISketchManager.SketchUseEdge3(false, false)` with model edges (or a face, for its whole
   outline) selected. VERIFIED (a 120° r30 arc becomes Arc2, 62.832 mm; a 100×60 face gives 4 lines, 320 mm).
+- **Regions.** `ISketch.GetSketchRegionCount()` on a face counts the regions the face's edges close too: one hexagon on
+  a 100×60 face gives 2, the second bounded by the 4 face edges and the hexagon (on a plane, 1). `ISketchRegion.GetEdges()`
+  and `ISketchContour.GetEdges()` are model-space `IEdge`s, never the same COM object for one edge, so compare them by
+  geometry. Crossing contours (a line or circle across the hexagon) still give 1, and `CheckFeatureUse` then returns 0
+  closed and 0 open. VERIFIED on 2023.
 
 ## 4. Features (all VERIFIED by volume unless noted)
 | Feature | Call | Notes |
