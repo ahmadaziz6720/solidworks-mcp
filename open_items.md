@@ -343,7 +343,7 @@ sweep ("a helical screw part", point 3). Taken into the run of 2026-11-13: (a), 
 (f), (g), no choice in them: (a) by S40's rule, the cut passing on its volume; (d) the
 delete's arguments checked before the first removal, so a refusal changes nothing. (b) a
 probe first. (c) offered 2026-11-13 and not chosen; stays open. (e) and (f) fixed in the
-run of 2026-11-13, then (a); (b) probed and not reproduced, still open with (d) and (g); (c)
+run of 2026-11-13, then (a), then (d); (b) probed and not reproduced, still open with (g); (c)
 not chosen. (e) Cause: the sketch
 tools' resolver did resolve `{name, sketch}` and `{at, sketch}` in the named sketch, but
 then dropped duplicates by label, and a segment's label is its name alone ("sketch
@@ -406,6 +406,38 @@ not changed. Decided 2026-11-13 by the run, not the owner: (b) stays open with n
 change, because a hint written for a cause no probe showed would miss as the one now
 does; a repro needs the session's own part. Local: on `sw2023`, in the commit that
 records (a) and (b) here; not yet in a build. Upstream: not yet decided.
+(d) Cause: the delete checked only for children outside the list. A plane, the boss
+sketched on it and the boss's mirror, all three named, had none, so the call went to
+SOLIDWORKS without `swDelete_Children`, and SOLIDWORKS then deleted the parent alone (live:
+the plane went, the boss and the mirror stayed), a `VERIFY_FAILED` that had changed the
+model. A dry run that met dependents listed them and did not say the call would refuse. Fix
+(`FeatureManagementService.DeletePlan`, `Dependents`): when a target is the parent of a
+feature the list removes, every child being planned, the delete passes
+`swDelete_Children`, which then removes no more than the plan; a kept absorbed sketch whose
+parent is another target (the boss's sketch on the plane, without `deleteAbsorbed`) is a
+dependent, as is a feature made from an absorbed sketch that goes (a second extrude from a
+consumed sketch, a body of its own); the refusal is built before anything is removed, and
+the dry run warns with it word for word ("The real call would refuse it and change
+nothing: INVALID_ARGUMENT: …"). Decided 2026-11-13 by the run, not the owner: the option is
+passed only when a target is the parent of a planned feature, not on every delete with no
+outside dependents, because that is the case SOLIDWORKS got wrong and every other delete
+keeps the call it had. Before, on the code before the fix,
+`Feature_delete_of_a_plane_its_boss_and_the_boss_s_mirror_removes_all_three_or_nothing`
+failed first on the dry run's missing warning ("Filter not matched in collection"), and
+with that line left out, "VERIFY_FAILED: 'Boss-Extrude2', 'Mirror1' still exist after the
+delete (removed: 'Plane1')";
+`Feature_delete_of_a_sketch_another_feature_uses_refuses_before_removing_anything` failed
+"Expected: ["Boss-Extrude2"], Actual: null" (the dry run listed no dependent).
+`Feature_delete_of_a_feature_with_its_child_in_the_same_list_removes_both` (an extrude and
+its fillet) passed before too and is kept as the guard on the option. After: the three
+pass, with the eight other delete tests of `FeatureManagementLiveTests` (fillet, parent
+refused, child's sketch, absorbed kept, equations listed and deleted, the name that picks up
+equations, the user's documents refused), 11 of 11 live; unit tests 278 of 278;
+`check_repo` ok; no description changed. Made stricter: a kept absorbed sketch on a plane
+that goes and a feature made from a sketch that goes are now dependents, refused without
+`deleteChildren` (before, both went to SOLIDWORKS unchecked); the
+single-feature deletes of those tests are not refused. Local: on `sw2023`, in the commit
+that records (d) here; not yet in a build. Upstream: not yet decided.
 
 **S65. Missing options met while modelling.** On build `20261112-091908`. (a) No body
 mirror: `feature_mirror` of two extrudes made `merge:false` failed "the mirrored copy must

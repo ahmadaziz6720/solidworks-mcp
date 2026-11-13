@@ -466,10 +466,19 @@ public sealed partial class FeatureManagementService(SwSession session)
             RequireNoOpenSketch(ctx, d, "features can't be deleted while it is open");
             var targets = DistinctById(names.Select(n => Find(d, n, "features")));
             foreach (var t in targets) RefuseSystem(d, t, "deleted");
-            var plan = DeletePlan(targets, deleteChildren, deleteAbsorbed, out var dependents, out var keepAbsorbed);
+            var plan = DeletePlan(targets, deleteChildren, deleteAbsorbed, out var dependents, out var keepAbsorbed, out bool nested);
+            // Checked before anything is removed, and said by the dry run in the same words: a refusal changes nothing (S64 d).
+            SwException? refusal = dependents.Count > 0 && !deleteChildren
+                ? SwException.InvalidArgument(
+                    $"{Quote(targets.Select(t => t.Name))} {(targets.Count == 1 ? "has" : "have")} dependent features: " +
+                    $"{Quote(dependents.Select(x => x.Feature.Name), 10)}. Deleting only the requested feature(s) would leave them broken.",
+                    "Pass deleteChildren=true to delete them too (dryRun=true lists everything first), or delete or suppress them yourself" +
+                    (dependents.Any(x => keepAbsorbed.Any(a => a.Id == x.Id)) ? "; deleteAbsorbed=true deletes the sketches of the features that go." : "."))
+                : null;
 
             if (dryRun)
             {
+                if (refusal is not null) ctx.Warn($"The real call would refuse it and change nothing: {refusal.ToAgentText()}");
                 var onPlan = EquationsOn(ctx, d, plan.Select(p => p.Feature.Name).ToList(), deleteEquations, true);
                 return new FeatureDeleteResult
                 {
@@ -482,11 +491,7 @@ public sealed partial class FeatureManagementService(SwSession session)
                     EquationsDeleted = deleteEquations && onPlan.Count > 0 ? true : null,
                 };
             }
-            if (dependents.Count > 0 && !deleteChildren)
-                throw SwException.InvalidArgument(
-                    $"{Quote(targets.Select(t => t.Name))} {(targets.Count == 1 ? "has" : "have")} dependent features: " +
-                    $"{Quote(dependents.Select(x => x.Feature.Name), 10)}. Deleting only the requested feature(s) would leave them broken.",
-                    "Pass deleteChildren=true to delete them too (dryRun=true lists everything first), or delete or suppress them yourself.");
+            if (refusal is not null) throw refusal;
 
             var reasons = plan.ToDictionary(p => p.Id, p => p.Why);
             var requested = targets.Select(SafeId).ToHashSet();
@@ -503,7 +508,8 @@ public sealed partial class FeatureManagementService(SwSession session)
                 foreach (var t in targets)
                     if (!t.Select2(true, 0))
                         throw new SwException(ErrorCodes.FeatureFailed, $"Could not select '{t.Name}'; nothing was deleted.");
-                int opt = (deleteChildren ? (int)swDeleteSelectionOptions_e.swDelete_Children : 0) |
+                // nested: every child of a target is planned, so the option removes no more than the plan (S64 d).
+                int opt = (deleteChildren || nested ? (int)swDeleteSelectionOptions_e.swDelete_Children : 0) |
                           (deleteAbsorbed ? (int)swDeleteSelectionOptions_e.swDelete_Absorbed : 0);
                 ok = d.Extension.DeleteSelection2(opt);
             }
@@ -598,8 +604,14 @@ public sealed partial class FeatureManagementService(SwSession session)
     /// (profile sketches) of the targets (only with deleteAbsorbed, else they are returned in <paramref name="kept"/>). A
     /// deleted child's absorbed sketches go with it whatever deleteAbsorbed says (VERIFIED, S31), so they are planned.
     /// </summary>
+    /// <remarks>
+    /// <paramref name="nested"/>: a target is the parent of another feature the plan removes (a plane, the boss sketched on
+    /// it and the boss's mirror). Without swDelete_Children SOLIDWORKS then deleted the parent alone and left the rest,
+    /// a failure that had changed the model (S64 d, live on 2023 SP3), so the delete passes that option. A kept absorbed
+    /// sketch that is the child of another target (its plane) is a dependent: it can't stay once its parent goes.
+    /// </remarks>
     private static List<Planned> DeletePlan(IReadOnlyList<IFeature> targets, bool deleteChildren, bool deleteAbsorbed,
-        out List<Dependent> dependents, out List<Planned> kept)
+        out List<Dependent> dependents, out List<Planned> kept, out bool nested)
     {
         var plan = targets.Select(t => new Planned(t, SafeId(t), "requested")).ToList();
         var ids = plan.Select(p => p.Id).ToHashSet();
@@ -610,11 +622,18 @@ public sealed partial class FeatureManagementService(SwSession session)
                 if (SafeId(c) is int id && id >= 0 && ids.Add(id)) into.Add(new Planned(c, id, $"absorbed by {owner.Name}"));
         }
         foreach (var t in targets) AbsorbedOf(t, absorbed);
-        dependents = Dependents(targets, ids);
+        var planned = plan.Select(p => p.Id).Concat(deleteAbsorbed ? absorbed.Select(a => a.Id) : []).ToHashSet();
+        // Absorbed sketches that go are walked too: a second feature made from a consumed sketch is its child.
+        dependents = Dependents(targets, deleteAbsorbed ? absorbed.Select(a => a.Feature).ToList() : [], planned, out nested);
         if (deleteChildren)
         {
+            var depIds = dependents.Select(x => x.Id).ToHashSet();
+            absorbed.RemoveAll(a => depIds.Contains(a.Id)); // a kept sketch whose parent goes goes as its child
             foreach (var x in dependents)
-                if (ids.Add(x.Id)) plan.Add(new Planned(x.Feature, x.Id, $"child of {x.Parent}"));
+            {
+                ids.Add(x.Id);
+                plan.Add(new Planned(x.Feature, x.Id, $"child of {x.Parent}"));
+            }
             // A deleted child's own sketches go with it, deleteAbsorbed or not.
             var childSketches = new List<Planned>();
             foreach (var x in dependents) AbsorbedOf(x.Feature, childSketches);
@@ -625,20 +644,31 @@ public sealed partial class FeatureManagementService(SwSession session)
         return plan;
     }
 
-    /// <summary>Every feature that depends on <paramref name="roots"/>, transitively (IFeature.GetChildren), with its parent.</summary>
-    private static List<Dependent> Dependents(IReadOnlyList<IFeature> roots, IEnumerable<int> exclude)
+    /// <summary>
+    /// Every feature that depends on <paramref name="roots"/> (and on <paramref name="alsoRoots"/>, the absorbed sketches
+    /// that go), transitively (IFeature.GetChildren), with its parent, leaving out the <paramref name="planned"/> ones and
+    /// each root's own sub-features. <paramref name="nested"/>: a root has a planned feature among its children.
+    /// </summary>
+    private static List<Dependent> Dependents(IReadOnlyList<IFeature> roots, IReadOnlyList<IFeature> alsoRoots,
+        IReadOnlySet<int> planned, out bool nested)
     {
-        var seen = new HashSet<int>(exclude);
-        var queue = new Queue<IFeature>(roots);
+        nested = false;
+        var seen = new HashSet<int>(planned);
+        var rootIds = roots.Select(SafeId).ToHashSet();
+        var queue = new Queue<IFeature>(roots.Concat(alsoRoots));
         var list = new List<Dependent>();
         while (queue.Count > 0 && list.Count < 5000)
         {
             var f = queue.Dequeue();
             string parent = f.Name;
+            var own = Tree.Children(f).Select(SafeId).ToHashSet();
+            bool root = rootIds.Contains(SafeId(f));
             foreach (var c in f.ChildFeatures())
             {
                 int id = SafeId(c);
-                if (id < 0 || !seen.Add(id)) continue;
+                if (id < 0 || own.Contains(id)) continue;
+                if (planned.Contains(id)) { if (root) nested = true; continue; }
+                if (!seen.Add(id)) continue;
                 list.Add(new Dependent(c, id, parent));
                 queue.Enqueue(c);
             }

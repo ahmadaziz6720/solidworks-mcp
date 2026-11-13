@@ -278,6 +278,103 @@ public class FeatureManagementLiveTests(LiveFixture fx) : LiveTest(fx)
         Assert.Null(r.Warnings);
         Assert.Equal(new[] { b.Sketch }, r.KeptAbsorbed!); // the requested feature's own sketch stays, as asked
     }
+
+    [Fact]
+    public async Task Feature_delete_of_a_plane_its_boss_and_the_boss_s_mirror_removes_all_three_or_nothing()
+    {
+        // S64 (d): a boss sketched on a plane of its own, mirrored about the right plane. Deleting the boss, its plane and
+        // the mirror in one call failed VERIFY_FAILED, "'<boss>' still exist after the delete (removed: '<plane>',
+        // '<mirror>')": a failure that had changed the model. And the dry run of the boss and the plane listed the mirror
+        // under dependents without saying the real call would refuse.
+        var b = await BlockAsync("fm_delete_plane_boss_mirror");
+        var plane = await new ReferenceService(S).PlaneAsync(new RefPlaneRequest { Doc = b.Doc, Kind = "offset", Base = new EntityRef { Name = "front" }, OffsetMm = 30 });
+        var sk = new SketchService(S);
+        await sk.StartAsync(b.Doc, new EntityRef { Name = plane.Feature.Name }, false);
+        await sk.AddAsync(b.Doc, [new SketchEntity { Kind = "rectangle", Corners = [[20, 0, 30], [40, 20, 30]] }]);
+        var boss = await new FeatureService(S).ExtrudeAsync(new ExtrudeRequest { Doc = b.Doc, DepthMm = 10 });
+        Assert.Equal(4000, boss.Verified.VolumeDeltaMm3, V);
+        var mirror = await new PartFeatureService(S).MirrorAsync(new MirrorRequest { Doc = b.Doc, Features = [boss.Feature.Name], Plane = new EntityRef { Name = "right" } });
+        Assert.Equal(4000, mirror.Verified.VolumeDeltaMm3, V);
+
+        async Task Unchanged()
+        {
+            var names = (await new InspectService(S).FeatureListAsync(b.Doc, false, 500, 0)).Features.Select(f => f.Name).ToList();
+            Assert.Contains(plane.Feature.Name, names);
+            Assert.Contains(boss.Feature.Name, names);
+            Assert.Contains(mirror.Feature.Name, names);
+            Assert.Equal(128000, await VolumeAsync(b.Doc), 1e-3);
+        }
+
+        // Without the mirror: the dry run says the call would refuse, and the call refuses before removing anything.
+        string[] two = [boss.Feature.Name, plane.Feature.Name];
+        var dry = await M.DeleteAsync(b.Doc, two, deleteAbsorbed: true, dryRun: true);
+        Assert.Equal(new[] { mirror.Feature.Name }, dry.Dependents!);
+        Assert.Contains(dry.Warnings ?? [], w => w.Contains("would refuse") && w.Contains("deleteChildren") && w.Contains(mirror.Feature.Name));
+        var refused = await Assert.ThrowsAsync<SwException>(() => M.DeleteAsync(b.Doc, two, deleteAbsorbed: true));
+        Assert.Equal(ErrorCodes.InvalidArgument, refused.Code);
+        await Unchanged();
+
+        // All three but the boss's sketch kept: it can't stay on a plane that goes, so a dependent, refused the same way.
+        string[] three = [boss.Feature.Name, plane.Feature.Name, mirror.Feature.Name];
+        var keep = await M.DeleteAsync(b.Doc, three, dryRun: true);
+        Assert.Contains(keep.Warnings ?? [], w => w.Contains("would refuse") && w.Contains("deleteAbsorbed"));
+        var kept = await Assert.ThrowsAsync<SwException>(() => M.DeleteAsync(b.Doc, three));
+        Assert.Equal(ErrorCodes.InvalidArgument, kept.Code);
+        await Unchanged();
+
+        // All three with their sketch: no deleteChildren needed, every child is in the list; the dry run matches.
+        var dry3 = await M.DeleteAsync(b.Doc, three, deleteAbsorbed: true, dryRun: true);
+        Assert.Null(dry3.Dependents);
+        Assert.Null(dry3.Warnings);
+        var r = await M.DeleteAsync(b.Doc, three, deleteAbsorbed: true);
+        Assert.Equal(dry3.Removed.Select(x => (x.Name, x.Why)).Order(), r.Removed.Select(x => (x.Name, x.Why)).Order());
+        Assert.Equal(4, r.Removed.Count); // the three and the boss's sketch
+        Assert.Null(r.Warnings);
+        Assert.Equal(-8000, r.VolumeDeltaMm3!.Value, V);
+        Assert.Equal(120000, r.Model!.VolumeMm3, 1e-3);
+    }
+
+    [Fact]
+    public async Task Feature_delete_of_a_feature_with_its_child_in_the_same_list_removes_both()
+    {
+        // S64 (d): a parent and its child named together need no deleteChildren; both go, as the dry run says.
+        var b = await BlockAsync("fm_delete_parent_and_child");
+        string fillet = await FilletAsync(b.Doc);
+        var dry = await M.DeleteAsync(b.Doc, [b.Extrude, fillet], dryRun: true);
+        Assert.Null(dry.Warnings);
+        var r = await M.DeleteAsync(b.Doc, [b.Extrude, fillet]);
+        Assert.Equal(dry.Removed.Select(x => (x.Name, x.Why)).Order(), r.Removed.Select(x => (x.Name, x.Why)).Order());
+        Assert.Equal(new[] { b.Extrude, fillet }.Order(), r.Removed.Select(x => x.Name).Order());
+        Assert.Equal(new[] { b.Sketch }, r.KeptAbsorbed!);
+        Assert.Equal(0, r.Model!.Bodies);
+    }
+
+    [Fact]
+    public async Task Feature_delete_of_a_sketch_another_feature_uses_refuses_before_removing_anything()
+    {
+        // S64 (d): with deleteAbsorbed the extrude's sketch goes too, and a second extrude made from that sketch, a body of
+        // its own (not the extrude's child), is the sketch's: a dependent, refused (and said by the dry run) before
+        // anything is removed.
+        var b = await BlockAsync("fm_delete_shared_sketch");
+        var second = await new FeatureService(S).ExtrudeAsync(new ExtrudeRequest { Doc = b.Doc, Sketch = b.Sketch, DepthMm = 5, Direction = "reverse", Merge = false });
+        Assert.Equal(30000, second.Verified.VolumeDeltaMm3, V);
+        var dry = await M.DeleteAsync(b.Doc, [b.Extrude], deleteAbsorbed: true, dryRun: true);
+        Assert.Equal(new[] { second.Feature.Name }, dry.Dependents!);
+        Assert.Contains(dry.Warnings ?? [], w => w.Contains("would refuse"));
+        var ex = await Assert.ThrowsAsync<SwException>(() => M.DeleteAsync(b.Doc, [b.Extrude], deleteAbsorbed: true));
+        Assert.Equal(ErrorCodes.InvalidArgument, ex.Code);
+        Assert.Contains(second.Feature.Name, ex.Message);
+        Assert.Equal(150000, await VolumeAsync(b.Doc), 1e-3);
+        // Both extrudes and their sketch in one call: every child is in the list, so all three go.
+        var both = await M.DeleteAsync(b.Doc, [b.Extrude, second.Feature.Name], deleteAbsorbed: true, dryRun: true);
+        Assert.Null(both.Warnings);
+        var r = await M.DeleteAsync(b.Doc, [b.Extrude, second.Feature.Name], deleteAbsorbed: true);
+        Assert.Equal(both.Removed.Select(x => (x.Name, x.Why)).Order(), r.Removed.Select(x => (x.Name, x.Why)).Order());
+        Assert.Contains(r.Removed, x => x.Name == b.Sketch); // and the sketch's copy the second extrude holds ("Sketch1<2>")
+        Assert.Null(r.Warnings);
+        Assert.Equal(0, r.Model!.Bodies);
+    }
+
     [Fact]
     public async Task Feature_delete_keeps_the_absorbed_sketch_by_default()
     {
