@@ -114,24 +114,40 @@ modelling, the largest first; the release last):
 If the session ends before the last batch, this list and the items' Waiting lines say
 where the next one picks up.
 
-**Where the run stands** (the fourth session, 2026-11-13, handed over in batch 6 after
-S60, on the owner's word, to keep the context small; the next session goes on the same
-way).
+**Where the run stands** (the fifth session, 2026-11-13, stopped in batch 6 after S62,
+on the owner's word: they needed SOLIDWORKS for their own work; the next session goes on
+the same way, on a day the owner names).
 Committed on `sw2023`, not pushed: batch 1, S47 `f71b034`; batch 2, S66 `657fc23`, S51
 `16699e2`, S53 `59beaae`, S52 `8dff953`, S50 `1bc3cbb`; batch 3, S54 `9939f28`, S58
 `32698d5`, S48 (d) `ffde4db`, S63 `e642451`; batch 4, S56 `0acb318`, S55 `1861854`, S64
 (e, f) `9e65c62`; batch 5, S64 (a) `576a1c2` (with (b)'s probe: not reproduced in 17
 cases, stays open), S64 (d) `fe1a1af`, S64 (g) `9a46c32`, S65 (a) `fd9bd83`, S59 (a, c,
 d) `3ca75cd`, S59 (b) `42589af` (S59 Waiting whole); batch 6, S57 `3a58652`, S60 (b, c,
-d) `7601276` ((a) probed, not reproduced, stays Open with a usage line). S64 now holds
-only (b) and (c), S65 (b) to (d), S48 (a) to (c), S60 (a). **Next, batch 6 goes on:**
-S61 (b, c), S62 (a, c as a probe, d, e), S49, S48 (a to c); then batch 7, the release.
-SOLIDWORKS 2023 was restarted by the owner and went away once more during S60's idle
-probe, then ran again (pid 16884 from 17:23); an older `solidworks-mcp` process (pid
-21332, since 07:54, the owner's other session) runs beside it and is never ended. Seen
-in S60's probe and not sorted into an item yet: `feature_rollback {to:<renamed
-extrude>, before:true}` on a one-feature part failed `VERIFY_FAILED` "… unexpected
-state: 'Sketch1'"; the next session decides whether it is an item.
+d) `7601276` ((a) probed, not reproduced, stays Open with a usage line), S61 (b, c)
+`a81f93d` ((a) stays Open), S62 (a, d, e) `af3598c` ((c) probed: SOLIDWORKS itself reads
+a limit-mated component fully constrained, no fault, test kept; (b) stays Open). S64 now
+holds only (b) and (c), S65 (b) to (d), S48 (a) to (c), S60 (a), S61 (a), S62 (b).
+**Next, batch 6 goes on:** S49, S48 (a to c); then batch 7, the release.
+SOLIDWORKS 2023: during S62 it held 8.3 GB on this 7.5 GB machine, showed a "critically
+low on memory" dialog (answered No by the subagent) and `equation_set` refused every
+equation; it was exited and started again, and the batch rerun held. Start batch 7's
+full live runs on a freshly started SOLIDWORKS, and restart it between areas if its
+memory climbs. Never end a `solidworks-mcp` process (the owner's other sessions).
+Seen and not sorted into an item yet; the next session decides whether each is one,
+after its two items and before the release: (1) in S60's probe, `feature_rollback
+{to:<renamed extrude>, before:true}` on a one-feature part failed `VERIFY_FAILED` "…
+unexpected state: 'Sketch1'"; (2) in S62's tests, `asm_mate_add` coincident with an
+origin (the assembly's or a component's) failed "SOLIDWORKS created no coincident mate …
+(unknown error (status 0))"; (3) a named plane of a component inside a subassembly could
+not be selected, "Could not select 'b' (plane 'Top Plane' of sub-1/part-1)"; (4) a
+top-level component whose name matched a nested component's short name seemed to
+resolve to the nested one. Also seen once after a fresh start, on the old code too: a
+test's preference check found Integer230 (rebuild on activation) changed 0 → 1 and
+Double2 (STL deviation) changed; its reruns passed.
+`findings.md` holds an entry of 2026-11-13 from another session ("two printed plates
+…"), not committed and not sorted: this run left it, as the run asks nothing; the next
+session commits it alone at its start when the owner's opening sentence says so, and
+sorts it after the release.
 The opening question was asked and answered in the first session
 and holds for the rest of the run, so the next session asks nothing: the release is
 tagged and registered in both projects that list the server in `~/.claude.json`, and
