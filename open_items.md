@@ -114,11 +114,14 @@ modelling, the largest first; the release last):
 If the session ends before the last batch, this list and the items' Waiting lines say
 where the next one picks up.
 
-**Where the run stands** (the first session, 2026-11-13, handed over on the owner's word
-to go on in a new session the same way). Committed on `sw2023`, not pushed: batch 1, S47
-`f71b034`; batch 2, S66 `657fc23`, S51 `16699e2`, S53 `59beaae`, S52 `8dff953`, S50
-`1bc3cbb`; batch 3, S54 `9939f28`, S58 `32698d5`. **Next: batch 3's S48 (d), then S63**,
-then batches 4 to 7. The opening question was asked and answered in the first session
+**Where the run stands** (the second session, 2026-11-13, handed over on the owner's word
+after batch 4, to go on in a new session the same way). Committed on `sw2023`, not
+pushed: batch 1, S47 `f71b034`; batch 2, S66 `657fc23`, S51 `16699e2`, S53 `59beaae`,
+S52 `8dff953`, S50 `1bc3cbb`; batch 3, S54 `9939f28`, S58 `32698d5`, S48 (d) `ffde4db`,
+S63 `e642451`; batch 4, S56 `0acb318`, S55 `1861854`, S64 (e, f) `9e65c62`. **Next:
+batch 5, S64 (a, b as a probe, d, g)**, then S65 (a), S59, then batches 6 and 7. S48 and
+S64 stay Open for their parts in later batches; each records its done parts in its text.
+The opening question was asked and answered in the first session
 and holds for the rest of the run, so the next session asks nothing: the release is
 tagged and registered in both projects that list the server in `~/.claude.json`, and
 `sw2023` is pushed at the release. Decided 2026-11-13 by the run, not the owner: a
