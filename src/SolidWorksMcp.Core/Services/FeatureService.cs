@@ -143,8 +143,14 @@ public sealed partial class FeatureService(SwSession session)
         }
         // A cut whose far end leaves the body has no floor there (a hole through a plate, a pocket that opens through a
         // slanted underside). With no floor anywhere but where one was asked, that is the cut made as asked: it passes on
-        // the volume it removed, and a check line says it broke out (S40). A floor at another depth still fails.
-        bool brokeOutOnly = cut && offsets.All(x => expect.Any(e => Math.Abs(x - e) < 1e-6));
+        // the volume it removed, and a check line says it broke out (S40). A floor at another depth still fails. A blind cut
+        // from a plane inside the body leaves a face on that plane, where it starts (S64 a): that one counts as no floor,
+        // once every face of the cut lies on the asked side of the plane (a cut gone the other way has its faces behind it).
+        bool AtStart(double x) => cut && end == "blind" && Math.Abs(x) < 1e-6;
+        bool brokeOutOnly = cut && offsets.All(x => AtStart(x) || expect.Any(e => Math.Abs(x - e) < 1e-6));
+        if (brokeOutOnly && offsets.Any(AtStart) && !expect.All(e => offsets.Any(x => Math.Abs(x - e) < 1e-6)))
+            brokeOutOnly = ComArgs.Objects<IFace2>((object?)main.GetFaces())
+                .All(f => (Topology.InteriorPoint(f) - origin).Dot(capNormal) / cos > -1e-6);
         foreach (var e in expect)
         {
             if (offsets.Any(x => Math.Abs(x - e) < 1e-6)) checks.Add($"{(cut ? "floor" : "cap")} at {Units.Mm(e)} mm");

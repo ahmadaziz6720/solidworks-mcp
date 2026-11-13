@@ -23,7 +23,7 @@ public sealed class FeatureTools(SwSession session)
         [Description("blind | through_all | through_all_both | mid_plane")] string end = "blind",
         [Description("Cut material instead of adding it.")] bool cut = false,
         [Description("normal (along the sketch normal) | reverse | auto (cuts: into the material, default) | \"+y\" | \"x,y,z\", along it (depth too).")] string? direction = null,
-        [Description("Sketch to extrude (default: the open sketch, else the last finished one).")] string? sketch = null,
+        [Description("Sketch to extrude, a used one too (default: the open sketch, else the last finished one).")] string? sketch = null,
         [Description("Merge the result with existing bodies (boss).")] bool merge = true,
         [Description("Draft angle in degrees (0 = none).")] double? draftDeg = null,
         [Description("Draft outward instead of inward.")] bool draftOutward = false,

@@ -698,6 +698,34 @@ public class PartFeatureLiveTests(LiveFixture fx) : LiveTest(fx)
         Assert.Contains((await Ins.FeatureListAsync(doc, false, 500, 0)).Features, f => f.Name == "Inner");
     }
 
+    [Fact]
+    public async Task A_blind_cut_from_a_plane_inside_the_body_that_leaves_it_passes_on_its_volume()
+    {
+        // S64 (a): from a plane at y = 10 inside the 20 mm block, a cut 13 deep along +y leaves the top at y = 20. Its only
+        // planar face is where it starts, on the plane: it used to be refused, "no floor face at 13 mm along [0, 1, 0]
+        // (planar faces at 0 mm)", while the cut was the one asked for.
+        string doc = await BlockAsync("cut_from_inside");
+        var plane = await new ReferenceService(S).PlaneAsync(new RefPlaneRequest { Doc = doc, Kind = "offset", Base = new EntityRef { Name = "top" }, OffsetMm = 10 });
+        await Sk.StartAsync(doc, new EntityRef { Name = plane.Feature.Name }, false);
+        await Sk.AddAsync(doc, [new SketchEntity { Kind = "circle", Center = [0, 10, 0], RadiusMm = 3 }]);
+        var up = await Fs.ExtrudeAsync(new ExtrudeRequest { Doc = doc, Cut = true, DepthMm = 13, Direction = "normal" });
+        Assert.Equal(-Math.PI * 9 * 10, up.Verified.VolumeDeltaMm3, Vq);
+        Assert.Contains(up.Verified.Checks!, c => c.Contains("no floor at 13 mm") && c.Contains("broke out of the body"));
+
+        // The sketch it consumed takes a second feature: the same circle cut the other way, out through the bottom.
+        var down = await Fs.ExtrudeAsync(new ExtrudeRequest { Doc = doc, Sketch = up.ConsumedSketch, Cut = true, DepthMm = 13, Direction = "reverse" });
+        Assert.Equal(-Math.PI * 9 * 10, down.Verified.VolumeDeltaMm3, Vq);
+        Assert.Contains(down.Verified.Checks!, c => c.Contains("broke out of the body"));
+
+        // From the same plane, a cut that ends inside the body still shows its floor, and no such line.
+        await Sk.StartAsync(doc, new EntityRef { Name = plane.Feature.Name }, false);
+        await Sk.AddAsync(doc, [new SketchEntity { Kind = "circle", Center = [20, 10, 0], RadiusMm = 3 }]);
+        var pocket = await Fs.ExtrudeAsync(new ExtrudeRequest { Doc = doc, Cut = true, DepthMm = 5, Direction = "normal" });
+        Assert.Equal(-Math.PI * 9 * 5, pocket.Verified.VolumeDeltaMm3, Vq);
+        Assert.Contains(pocket.Verified.Checks!, c => c.Contains("floor at 5 mm"));
+        Assert.DoesNotContain(pocket.Verified.Checks!, c => c.Contains("broke out"));
+    }
+
     // ------------------------------------------------------------------ linear pattern
 
     [Fact]

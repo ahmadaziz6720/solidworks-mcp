@@ -343,7 +343,8 @@ sweep ("a helical screw part", point 3). Taken into the run of 2026-11-13: (a), 
 (f), (g), no choice in them: (a) by S40's rule, the cut passing on its volume; (d) the
 delete's arguments checked before the first removal, so a refusal changes nothing. (b) a
 probe first. (c) offered 2026-11-13 and not chosen; stays open. (e) and (f) fixed in the
-run of 2026-11-13; (a), (b), (d), (g) still open, (c) not chosen. (e) Cause: the sketch
+run of 2026-11-13, then (a); (b) probed and not reproduced, still open with (d) and (g); (c)
+not chosen. (e) Cause: the sketch
 tools' resolver did resolve `{name, sketch}` and `{at, sketch}` in the named sketch, but
 then dropped duplicates by label, and a segment's label is its name alone ("sketch
 segment Line1"), so the other sketch's `Line1` was dropped as the open sketch's (a point
@@ -377,6 +378,34 @@ the count exceeds the closed contours, and on a plane it kept the one region of 
 hexagon crossed by a line, where SOLIDWORKS reads 0 closed contours). Local: on
 `sw2023`, in the commit that records (e) and (f) here; not yet in a build. Upstream: not
 yet decided.
+(a) Cause: a blind cut from a plane inside the body leaves a planar face on that plane,
+where it starts; S40's rule passed a cut with no floor only when every planar face lay at
+the asked depth, so the start face at 0 mm made it a failure. Fix (`ExtrudeIntent`): for
+a blind cut a face at 0 mm counts as no floor, once every face of the cut lies on the
+asked side of the sketch plane (a cut gone the other way has its faces behind it); the
+cut then passes on its volume with S40's line "no floor at 13 mm: the cut broke out …".
+A floor at another depth is still refused, and a cut that ends inside shows its floor.
+The second feature from a consumed sketch: `sketch`'s description now says "a used one
+too". Before, on the code before the fix,
+`A_blind_cut_from_a_plane_inside_the_body_that_leaves_it_passes_on_its_volume` failed
+"no floor face at 13 mm along [0, 1, 0] (planar faces at 0 mm)". After: it passes (the
+cut out through the top, a second cut from the same consumed sketch out through the
+bottom, a 5 mm pocket from the same plane with its floor), with S40's test, the cut, mid
+plane, oblique, buried-boss and box tests of `M0LiveTests` and the engraved text of
+`ModellingLiveTests`, 8 of 8 live; `ContractTests.Tool_catalog_follows_the_conventions`
+and `--check-catalog` ok (247.7 KB); unit tests 278 of 278; `check_repo` ok. Made
+stricter: none (a check made looser, for blind cuts with a face on the sketch plane
+only). (b) Probe, 2026-11-13: a boss along +X from offset planes parallel to Right on a
+100 × 20 × 60 block, 17 cases, `normal`, `+x` and `reverse`: the profile sharing the top
+face, a side face, an edge line or a corner point with the body, straddling or beside a
+face's edge, on the body's ±X faces, clear of the body, `merge` false. None returned
+nothing: each built and verified, or failed a check for its own reason (a profile inside
+the body: "no faces"; a boss from outside ending inside the body: "no cap face", as S40
+leaves a boss). The fault was not reproduced and its cause is not known, so the hint is
+not changed. Decided 2026-11-13 by the run, not the owner: (b) stays open with no code
+change, because a hint written for a cause no probe showed would miss as the one now
+does; a repro needs the session's own part. Local: on `sw2023`, in the commit that
+records (a) and (b) here; not yet in a build. Upstream: not yet decided.
 
 **S65. Missing options met while modelling.** On build `20261112-091908`. (a) No body
 mirror: `feature_mirror` of two extrudes made `merge:false` failed "the mirrored copy must
