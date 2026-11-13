@@ -145,8 +145,7 @@ resolve to the nested one. Also seen once after a fresh start, on the old code t
 test's preference check found Integer230 (rebuild on activation) changed 0 → 1 and
 Double2 (STL deviation) changed; its reruns passed.
 `findings.md` holds an entry of 2026-11-13 from another session ("two printed plates
-…"), not committed and not sorted: this run left it, as the run asks nothing; the next
-session commits it alone at its start when the owner's opening sentence says so, and
+…"), committed on the owner's word (`e40982f`) and not sorted yet: the next session
 sorts it after the release.
 The opening question was asked and answered in the first session
 and holds for the rest of the run, so the next session asks nothing: the release is
