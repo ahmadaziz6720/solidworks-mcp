@@ -48,6 +48,9 @@ public sealed class RefResult : ToolResult
     public required Verified Verified { get; init; }
     public IReadOnlyList<DimensionInfo>? Dimensions { get; init; }
     public IReadOnlyList<ResolvedInfo>? Resolved { get; init; }
+
+    /// <summary>ref_plane edit: the model after the flip and its rebuild.</summary>
+    public ModelState? Model { get; init; }
 }
 
 /// <summary>ref_plane options. Which fields apply depends on <see cref="Kind"/> (see the tool description).</summary>
@@ -68,6 +71,9 @@ public sealed record RefPlaneRequest
     public EntityRef? Second { get; init; }
     public bool Flip { get; init; }
     public string? Name { get; init; }
+
+    /// <summary>An existing offset or angle plane to flip (with <see cref="Flip"/>), instead of a new plane.</summary>
+    public string? Edit { get; init; }
 }
 
 /// <summary>
@@ -109,9 +115,10 @@ public sealed partial class ReferenceService(SwSession session)
     public Task<RefResult> PlaneAsync(RefPlaneRequest q, CancellationToken ct = default) =>
         session.RunAsync("ref_plane", ctx =>
         {
-            string kind = Kind(q.Kind, PlaneKinds);
+            string kind = q.Edit is null ? Kind(q.Kind, PlaneKinds) : "";
             var d = (IModelDoc2)ctx.Part();
             NoOpenSketch(d);
+            if (q.Edit is not null) return FlipPlane(ctx, d, q);
             WarnUnused(ctx, kind, PlaneArgs(kind),
                 ("base", q.Base is not null), ("offsetMm", q.OffsetMm is not null), ("angleDeg", q.AngleDeg is not null),
                 ("axis", q.Axis is not null), ("points", q.Points is not null), ("curve", q.Curve is not null),
@@ -160,8 +167,8 @@ public sealed partial class ReferenceService(SwSession session)
 
     private static string PlaneHint(string kind) => kind switch
     {
-        "offset" => "base: a plane ({name:'top'}) or a planar face ({id:'F3'}); offsetMm non-zero (negative, or flip, for the other side).",
-        "angle" => "base: a plane or planar face; axis: a straight edge or axis lying in it (often an edge of the base face).",
+        "offset" => "base: a plane ({name:'top'}) or a planar face ({id:'F3'}); offsetMm (0: on the base; negative, or flip, for the other side).",
+        "angle" => "base: a plane or planar face; axis: a straight edge, axis or sketch line lying in it (often an edge of the base face).",
         "three_points" => "points: three non-collinear model points [x,y,z] in mm.",
         "parallel_point" => "base: a plane or planar face; point: [x,y,z] model mm the plane must pass through.",
         "mid_plane" => "base and second: two parallel planes/faces (the plane midway) or two crossing ones (their bisector).",
@@ -208,10 +215,28 @@ public sealed partial class ReferenceService(SwSession session)
         {
             case "offset":
             {
-                if (q.OffsetMm is not double off || !double.IsFinite(off) || off == 0)
-                    throw SwException.InvalidArgument("kind 'offset' needs offsetMm (non-zero; negative = the other side of the base).", PlaneHint(kind));
+                if (q.OffsetMm is not double off || !double.IsFinite(off))
+                    throw SwException.InvalidArgument("kind 'offset' needs offsetMm (0 = on the base; negative = the other side of it).", PlaneHint(kind));
                 var b = Ref(q.Base, "base", "a plane or planar face", EntityKind.Plane, EntityKind.Face);
                 var bp = PlaneOf(ctx, b, "base");
+                if (off == 0) // a plane on the base itself, e.g. a named plane on a face for mates
+                {
+                    // VERIFIED on 2023: the flip option leaves a coincident plane's frame as it was, so it is not passed.
+                    if (q.Flip) ctx.Warn("'flip' is ignored for offsetMm 0: the plane lies on its base, and its normal stays the base's.");
+                    return new PlanePlan
+                    {
+                        Picks = [new Pick { Entity = b, Mark = 0 }],
+                        C1 = Coincident,
+                        Expect = (g, checks, _) =>
+                        {
+                            if (!g.Normal.IsParallelTo(bp.Normal, AngTol)) return [$"it is not parallel to {b.Label}"];
+                            double s0 = bp.SignedDistance(g.Origin);
+                            if (Math.Abs(s0) > LinTol) return [$"it lies {Mm(Math.Abs(s0))} mm from {b.Label}, not on it"];
+                            checks.Add($"coincident with {b.Label}");
+                            return [];
+                        },
+                    };
+                }
                 double dist = Units.M(Math.Abs(off));
                 double side = (off < 0) ^ q.Flip ? -1 : 1; // +1: along the base normal (faces: outward, away from the material)
                 return new PlanePlan
@@ -238,11 +263,11 @@ public sealed partial class ReferenceService(SwSession session)
             }
             case "angle":
             {
-                if (q.AngleDeg is not double deg || !double.IsFinite(deg) || deg <= 0 || deg >= 180)
-                    throw SwException.InvalidArgument("kind 'angle' needs angleDeg between 0 and 180 (exclusive).", PlaneHint(kind));
+                if (q.AngleDeg is not double deg || !double.IsFinite(deg) || deg < 0 || deg >= 180)
+                    throw SwException.InvalidArgument("kind 'angle' needs angleDeg from 0 (parallel to the base) up to 180 (exclusive).", PlaneHint(kind));
                 var b = Ref(q.Base, "base", "a plane or planar face", EntityKind.Plane, EntityKind.Face);
                 var bp = PlaneOf(ctx, b, "base");
-                var a = Ref(q.Axis, "axis", "a straight edge or an axis", EntityKind.Edge, EntityKind.Axis);
+                var a = Ref(q.Axis, "axis", "a straight edge, an axis or a sketch line", EntityKind.Edge, EntityKind.Axis, EntityKind.SketchSegment);
                 var al = LineOf(a, "axis");
                 double tilt = Math.Abs(al.Dir.Dot(bp.Normal));
                 if (tilt > 1e-6)
@@ -873,6 +898,15 @@ public sealed partial class ReferenceService(SwSession session)
         }
         if (r.Obj is IFeature f && f.Specific() is IRefAxis ax)
             return AxisLine(ax) ?? throw new SwException(ErrorCodes.Internal, $"{r.Label} reports no axis line.");
+        if (r.Obj is ISketchSegment seg)
+        {
+            if (seg.GetType() != (int)swSketchSegments_e.swSketchLINE || seg is not ISketchLine line || line.SkStart() is not { } sa || line.SkEnd() is not { } sb)
+                throw SwException.InvalidArgument($"'{arg}' resolved to {r.Label}, which is not a straight line; it needs a straight edge, an axis or a sketch line.");
+            var pa = SketchPointModel(sa);
+            var dir = SketchPointModel(sb) - pa;
+            if (dir.Length < 1e-12) throw SwException.InvalidArgument($"'{arg}' resolved to {r.Label}, which has zero length.");
+            return new LineGeom(pa, dir.Normalized());
+        }
         throw SwException.InvalidArgument($"'{arg}' resolved to {r.Label}; it needs a straight edge or an axis.");
     }
 

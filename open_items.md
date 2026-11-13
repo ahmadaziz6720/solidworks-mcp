@@ -271,6 +271,48 @@ on a planar face: `ref_plane` `offset` 0 and `angle` 0 are refused (findings 202
 `two_points` first (findings 2026-11-12, "two parts changed mid-tree", point 8). (d) No
 change of an existing plane's `flip`; a plane made on the wrong side is made again with its
 sketch (same entry, point 6). Missing options. Decided 2026-11-13 by the owner: all four.
+**Done in the run of 2026-11-13: (a), (c) and (d).** **Left open: (b)**, the next item of
+batch 5. (a) Cause: `offsetMm` 0 and `angleDeg` 0 were refused by the argument checks.
+Fix: `offsetMm` 0 makes a plane coincident with the base (constraint 4), checked parallel
+and on it ("coincident with face F…"); `angleDeg` 0 is taken (0 up to 180 exclusive),
+the plane through the axis parallel to the base, checked as any angle plane. (c) Cause:
+`axis` resolved edges and axes only. Fix: a sketch line is taken (`LineOf` reads its ends
+in model space through the sketch's transform), checked as an edge is. (d) Fix: `ref_plane`
+with `edit: "<plane>"` and `flip: true` toggles `IRefPlaneFeatureData.ReversedReferenceDirection`
+of the plane's distance or angle reference (probed: `ReverseDirection` is not the flip) and
+rebuilds; checked: an offset plane lies as far on the other side of its base, an angle
+plane still holds its axis at the same angle the other way, and no feature gained a
+rebuild error; else it is flipped back (`VERIFY_FAILED`, or `REBUILD_ERROR` naming the
+broken features). The result gives the frame, the checks ("flipped: 15 mm along the
+normal … (was 25 mm)", the children rebuilt), the volume change and `model`. Decided
+2026-11-13 by the run, not the owner: (1) the flip is `ref_plane`'s `edit` parameter, not
+a tool of its own (`kind` optional with it), as `feature_chamfer`'s `edit`, because the
+tool list was at its byte budget; (2) a flip that breaks a feature is undone, as
+`dimension_set` does, because a result must not report a broken model as done; (3) only
+offset and angle planes are flipped (a standard, three-point, mid or coincident plane is
+refused), because only their flip moves the plane; (4) `flip` with `offsetMm` 0 is
+ignored with a warning, because SOLIDWORKS's flip option leaves a coincident plane's
+frame as it was (probed), so it would be reported as a flip that did nothing; (5) to
+make room, descriptions trimmed: `ref_plane` "Reference (datum) plane" to "Reference
+plane", its `axis` "straight edge or axis" to "edge, axis or sketch line"; `ref_axis`
+"Verified: its direction and position match the references" to "Verified against the
+references", its `entities` example without "or [{type:'face', at:[x,y,z]}]";
+`ref_point` "the point SOLIDWORKS reports is where requested" to "the point is where
+requested", its `entities` "e.g. [{type:'edge', at:[x,y,z]}]" to "(edges, faces)";
+`ref_coordsys` "frame (origin, x, y and z axes)" to "frame (origin, axes)" (tools/list
+253,593 bytes, 11 under the budget, 7 before). Before, on the code before the fix,
+`Plane_on_a_planar_face_takes_offset_0_and_angle_0` failed "kind 'offset' needs offsetMm
+(non-zero; negative = the other side of the base).", `Angle_plane_turns_about_a_sketch_line`
+failed "'axis' resolved to sketch segment Line1, but this parameter needs edge or axis.";
+`Edit_flips_a_plane_to_the_other_side_and_rebuilds_its_children` is new API (no edit
+existed): an offset plane flipped with a body on it and back (box top 20, then 30), an
+angle plane turned the other way, a flip that leaves a cut in the air undone with
+`REBUILD_ERROR`, and four refusals that change nothing. After: those three and the
+plane, axis-by-edge and coordinate-system tests of `ReferenceLiveTests` (18), with
+`An_equation_on_a_plane_s_offset_gives_where_the_plane_went` and the 7 `ContractTests`, 26 of 26;
+unit tests 278 of 278; `--check-catalog` ok; `check_repo` ok. Made stricter: none.
+Local: on `sw2023`, in the commit that records (a), (c) and (d) here; not yet in a build.
+Upstream: not yet decided.
 
 **S60. What a session cannot tell about the process it runs on.** On build
 `20261112-091908`. (a) `sw_status` and `doc_activate` gave `dirty:false` for a part

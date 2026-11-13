@@ -275,6 +275,12 @@ type libraries and writes `sldworks_api.txt`, `swconst_enums.txt`, `swcommands.t
 - **Plane.** Select the base plane or entity (marks 0/1/2 for multiple constraints), then
   `IFeatureManager.InsertRefPlane(c1, v1, c2, v2, c3, v3)`. VERIFIED for an offset (`8` = distance, `+256` = flip).
   Other constraints: 1 parallel, 2 perpendicular, 4 coincident, 16 angle, 128 mid-plane, 32 tangent, 64 project.
+  VERIFIED on 2023: `4` alone on a planar face gives the face's plane; `16` with value 0 (plus `4` on the axis) gives
+  the plane through the axis parallel to the base; a 2D sketch line (mark 1) is taken as the axis of an angle plane.
+  Flip of an existing plane: `IRefPlaneFeatureData` from `GetDefinition`, `AccessSelections`, toggle
+  `ReversedReferenceDirection(i)` of the reference whose `Constraint(i)` holds 8 or 16, `ModifyDefinition`: an offset
+  plane goes to the other side, an angle plane turns the other way. `ReverseDirection` does not move an offset plane
+  (an angle plane it turns too), so it is not the flip.
 - **Axis.** Select two planes, then `IModelDoc2.InsertAxis2(true)`, which returns a bool; the new feature is the last one.
   VERIFIED. Select it later with type `AXIS`.
 - **Point at XYZ.** Open a 3D sketch, `CreatePoint(x, y, z)`, close it, select `EXTSKETCHPOINT` at XYZ, then

@@ -197,6 +197,106 @@ public class ReferenceLiveTests(LiveFixture fx) : LiveTest(fx)
     }
 
     [Fact]
+    public async Task Plane_on_a_planar_face_takes_offset_0_and_angle_0()
+    {
+        string doc = await BlockAsync("plane_on_face");
+        var on = await Ref.PlaneAsync(new RefPlaneRequest { Doc = doc, Kind = "offset", Base = Face(0, 20, 0), OffsetMm = 0, Name = "TopFace" });
+        Assert.Equal("TopFace", on.Feature.Name);
+        Along([0, 1, 0], on.Frame.Normal);
+        Assert.Equal(0, PlaneDistance(on.Frame, [10, 20, -5]), L);
+        Assert.Contains(on.Verified.Checks!, c => c.Contains("coincident"));
+        var onFlip = await Ref.PlaneAsync(new RefPlaneRequest { Doc = doc, Kind = "offset", Base = Face(0, 20, 0), OffsetMm = 0, Flip = true });
+        Assert.Equal(0, PlaneDistance(onFlip.Frame, [10, 20, -5]), L);
+        Assert.Equal(on.Frame.Normal![1], onFlip.Frame.Normal![1], U); // SOLIDWORKS's flip does not turn a plane on its base
+        Assert.Contains(onFlip.Warnings!, w => w.Contains("'flip' is ignored"));
+        // angle 0 about an edge of the base face: the face's own plane.
+        var a0 = await Ref.PlaneAsync(new RefPlaneRequest { Doc = doc, Kind = "angle", Base = Face(0, 20, 0), Axis = Edge(0, 20, 30), AngleDeg = 0 });
+        Along([0, 1, 0], a0.Frame.Normal);
+        Assert.Equal(0, PlaneDistance(a0.Frame, [10, 20, -5]), L);
+        // angle 0 about an edge parallel to the base (top plane, y = 0): the parallel plane through the edge.
+        var p0 = await Ref.PlaneAsync(new RefPlaneRequest { Doc = doc, Kind = "angle", Base = new EntityRef { Name = "top" }, Axis = Edge(0, 20, 30), AngleDeg = 0 });
+        Along([0, 1, 0], p0.Frame.Normal);
+        Assert.Equal(0, PlaneDistance(p0.Frame, [10, 20, -5]), L);
+    }
+
+    [Fact]
+    public async Task Angle_plane_turns_about_a_sketch_line()
+    {
+        string doc = await BlockAsync("plane_angle_sketch_line");
+        // A line on the front plane (z = 0) at sketch y = 20: model (±40, 20, 0), in the top face's plane.
+        var sk = new SketchService(S);
+        await sk.StartAsync(doc, new EntityRef { Name = "front" }, false);
+        await sk.AddAsync(doc, [new SketchEntity { Kind = "line", From = [-40, 20], To = [40, 20] }]);
+        await sk.FinishAsync(doc);
+        var r = await Ref.PlaneAsync(new RefPlaneRequest
+        {
+            Doc = doc, Kind = "angle", Base = Face(0, 20, 10), AngleDeg = 30,
+            Axis = new EntityRef { Type = "sketch_segment", Name = "Line1", Sketch = "Sketch2" },
+        });
+        Assert.Equal(0, r.Frame.Normal![0], U);
+        Assert.Equal(Math.Cos(Math.PI / 6), Math.Abs(r.Frame.Normal[1]), U);
+        Assert.Equal(0, PlaneDistance(r.Frame, [-40, 20, 0]), L);
+        Assert.Equal(0, PlaneDistance(r.Frame, [40, 20, 0]), L);
+        Assert.Contains(r.Verified.Checks!, c => c.Contains("Line1"));
+    }
+
+    [Fact]
+    public async Task Edit_flips_a_plane_to_the_other_side_and_rebuilds_its_children()
+    {
+        string doc = await BlockAsync("plane_flip");
+        var fs = new FeatureService(S);
+        var sk = new SketchService(S);
+        // Datum 5 mm above the top face (y = 25), a Ø10 boss of its own 5 up from it: y ∈ [25, 30].
+        var p = await Ref.PlaneAsync(new RefPlaneRequest { Doc = doc, Kind = "offset", Base = Face(0, 20, 0), OffsetMm = 5, Name = "Datum" });
+        Assert.Equal(0, PlaneDistance(p.Frame, [0, 25, 0]), L);
+        await sk.StartAsync(doc, new EntityRef { Name = "Datum" }, false);
+        await sk.AddAsync(doc, [new SketchEntity { Kind = "circle", Center = [0, 0], DiameterMm = 10 }]);
+        var boss = await fs.ExtrudeAsync(new ExtrudeRequest { Doc = doc, DepthMm = 5, Merge = false });
+        double cyl = Math.PI * 25 * 5;
+        Assert.Equal(cyl, boss.Verified.VolumeDeltaMm3, 1e-2);
+
+        // Flipped: y = 15, the boss y ∈ [15, 20] inside the block (the box's top at 20); flipped again: back at y = 25.
+        var f = await Ref.PlaneAsync(new RefPlaneRequest { Doc = doc, Edit = "Datum", Flip = true });
+        Assert.Equal("Datum", f.Feature.Name);
+        Along([0, 1, 0], f.Frame.Normal);
+        Assert.Equal(0, PlaneDistance(f.Frame, [7, 15, -3]), L);
+        Assert.Equal(20, f.Model!.Box!.Max[1], L);
+        Assert.Contains(f.Verified.Checks!, c => c.Contains("was 5 mm"));
+        Assert.Contains(f.Verified.Checks!, c => c.Contains(boss.Feature.Name));
+        var back = await Ref.PlaneAsync(new RefPlaneRequest { Doc = doc, Edit = "Datum", Flip = true });
+        Assert.Equal(0, PlaneDistance(back.Frame, [7, 25, -3]), L);
+        Assert.Equal(30, back.Model!.Box!.Max[1], L);
+
+        // An angle plane turns the other way about its edge.
+        var a = await Ref.PlaneAsync(new RefPlaneRequest { Doc = doc, Kind = "angle", Base = Face(-20, 20, 0), Axis = Edge(-20, 20, 30), AngleDeg = 30 });
+        var af = await Ref.PlaneAsync(new RefPlaneRequest { Doc = doc, Edit = a.Feature.Name, Flip = true });
+        Assert.Equal(-a.Frame.Normal![2] * Math.Sign(a.Frame.Normal[1]), af.Frame.Normal![2] * Math.Sign(af.Frame.Normal[1]), U);
+        Assert.Equal(Math.Cos(Math.PI / 6), Math.Abs(af.Frame.Normal[1]), U);
+        Assert.Equal(0, PlaneDistance(af.Frame, [-40, 20, 30]), L);
+        Assert.Equal(0, PlaneDistance(af.Frame, [40, 20, 30]), L);
+
+        // A flip that breaks a child is undone: Inner (y = 15) holds a Ø6 cut mid-plane 4, which flipped would be in the air.
+        await Ref.PlaneAsync(new RefPlaneRequest { Doc = doc, Kind = "offset", Base = Face(-20, 20, 0), OffsetMm = -5, Name = "Inner" });
+        await sk.StartAsync(doc, new EntityRef { Name = "Inner" }, false);
+        await sk.AddAsync(doc, [new SketchEntity { Kind = "circle", Center = [30, 0], DiameterMm = 6 }]);
+        var cut = await fs.ExtrudeAsync(new ExtrudeRequest { Doc = doc, Cut = true, End = "mid_plane", DepthMm = 4 });
+        Assert.Equal(-Math.PI * 9 * 4, cut.Verified.VolumeDeltaMm3, 1e-2);
+        int count = await FeatureCount(doc);
+        var ex = await Fails(ErrorCodes.RebuildError, () => Ref.PlaneAsync(new RefPlaneRequest { Doc = doc, Edit = "Inner", Flip = true }));
+        Assert.Contains(cut.Feature.Name, ex.Message);
+        Assert.Contains("flipped back", ex.Message);
+        Assert.Equal(count, await FeatureCount(doc));
+        Assert.Equal(15, (await Measure.MeasureAsync(doc, new EntityRef { Name = "Inner" }, Face(-20, 0, 0))).DistanceMm!.Value, L);
+
+        // Refused, nothing changed: no flip, other arguments, a standard plane, a feature that is no plane.
+        await Fails(ErrorCodes.InvalidArgument, () => Ref.PlaneAsync(new RefPlaneRequest { Doc = doc, Edit = "Datum" }));
+        await Fails(ErrorCodes.InvalidArgument, () => Ref.PlaneAsync(new RefPlaneRequest { Doc = doc, Edit = "Datum", Flip = true, OffsetMm = 3 }));
+        await Fails(ErrorCodes.InvalidArgument, () => Ref.PlaneAsync(new RefPlaneRequest { Doc = doc, Edit = "Top Plane", Flip = true }));
+        await Fails(ErrorCodes.InvalidArgument, () => Ref.PlaneAsync(new RefPlaneRequest { Doc = doc, Edit = boss.Feature.Name, Flip = true }));
+        Assert.Equal(count, await FeatureCount(doc));
+    }
+
+    [Fact]
     public async Task Plane_arguments_are_validated_before_anything_is_created()
     {
         string doc = await BlockWithHoleAsync("plane_invalid");
