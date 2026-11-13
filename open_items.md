@@ -199,8 +199,9 @@ in full (`--filter-class "SolidWorksMcp.LiveTests.<Class>"`), as passed/failed/s
   0 after the STEP import (S5, failing the same before and after S61);
   Simulation's free-free frequency study, the solver returning 24, the same on build
   `091908`'s code (new item S71).
-- [ ] the live project's offline classes (`…LogicTests` beside the live ones), the
-  project run once without `SWMCP_LIVE_TESTS`
+- [x] the live project's offline classes (`…LogicTests` beside the live ones), the
+  project run once without `SWMCP_LIVE_TESTS`: 119 passed, 0 failed, 526 skipped (the
+  live tests, each with its skip message); unit tests 284/284; `check_repo` ok
 - [ ] a failure that is the run's: fixed by its own subagent, its tests rerun
 - [ ] the push of `sw2023`, publish, `--check-catalog`, the tag, the registration in both
   projects, the release page, each Waiting line given its commit and the build, the
