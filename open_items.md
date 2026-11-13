@@ -10,11 +10,11 @@ Three sections: **Open**, not yet fixed; **Waiting**, fixed and not yet settled 
 merged, a fix not yet run in a session); **Closed**, merged upstream, run and held, or
 decided against, with the record.
 
-**Open: S4, S5, S7, S10 to S12, S33, S34, S60 to S62, S64, S65.** S60 to S62, S64 and
-S65 are from twenty working sessions on build `20261112-091908` (findings 2026-11-12 and
-13); S47 to S49, from that build's scenario test, and S50 to S59, S63 and S66, from those
-sessions, are fixed and Waiting. Reported `ok` while wrong or
-misleading: S60 (a).
+**Open: S4, S5, S7, S10 to S12, S33, S34, S60 to S62, S64, S65, S67 to S70.** S60 to
+S62, S64 and S65 are from twenty working sessions on build `20261112-091908` (findings
+2026-11-12 and 13), S67 to S70 seen by the run of 2026-11-13 in its own tests; S47 to
+S49, from that build's scenario test, and S50 to S59, S63 and S66, from those sessions,
+are fixed and Waiting. Reported `ok` while wrong or misleading: S60 (a).
 Next: the run planned below, every point of it decided 2026-11-13 by the owner. Not in
 it: S4, S5, S7 and S12 wait on upstream; S10, S11, S33 and S34 are parked until a job
 needs them; S61 (a), S62 (b), S64 (c) and S65 (b to d) were offered for this run and not
@@ -114,10 +114,9 @@ modelling, the largest first; the release last):
 If the session ends before the last batch, this list and the items' Waiting lines say
 where the next one picks up.
 
-**Where the run stands** (the fifth session, 2026-11-13, stopped in batch 6 after S62,
-on the owner's word: they needed SOLIDWORKS for their own work; the next session goes on
-the same way, on a day the owner names).
-Committed on `sw2023`, not pushed: batch 1, S47 `f71b034`; batch 2, S66 `657fc23`, S51
+**Where the run stands** (the sixth session, 2026-11-13, finished batch 6 and is in
+batch 7, the release).
+Committed on `sw2023`: batch 1, S47 `f71b034`; batch 2, S66 `657fc23`, S51
 `16699e2`, S53 `59beaae`, S52 `8dff953`, S50 `1bc3cbb`; batch 3, S54 `9939f28`, S58
 `32698d5`, S48 (d) `ffde4db`, S63 `e642451`; batch 4, S56 `0acb318`, S55 `1861854`, S64
 (e, f) `9e65c62`; batch 5, S64 (a) `576a1c2` (with (b)'s probe: not reproduced in 17
@@ -125,25 +124,18 @@ cases, stays open), S64 (d) `fe1a1af`, S64 (g) `9a46c32`, S65 (a) `fd9bd83`, S59
 d) `3ca75cd`, S59 (b) `42589af` (S59 Waiting whole); batch 6, S57 `3a58652`, S60 (b, c,
 d) `7601276` ((a) probed, not reproduced, stays Open with a usage line), S61 (b, c)
 `a81f93d` ((a) stays Open), S62 (a, d, e) `af3598c` ((c) probed: SOLIDWORKS itself reads
-a limit-mated component fully constrained, no fault, test kept; (b) stays Open). S64 now
-holds only (b) and (c), S65 (b) to (d), S48 (a) to (c), S60 (a), S61 (a), S62 (b).
-**Next, batch 6 goes on:** S49, S48 (a to c); then batch 7, the release.
+a limit-mated component fully constrained, no fault, test kept; (b) stays Open), S49
+`2a41e9e`, S48 (a to c) `ef358df` (S48 Waiting whole). S64 now holds only (b) and (c),
+S65 (b) to (d), S60 (a), S61 (a), S62 (b). The four things seen in the run's own tests
+are S67 to S70, open; the preference change seen once is under *Carried, not items*.
+**Next: batch 7, the release.**
 SOLIDWORKS 2023: during S62 it held 8.3 GB on this 7.5 GB machine, showed a "critically
 low on memory" dialog (answered No by the subagent) and `equation_set` refused every
 equation; it was exited and started again, and the batch rerun held. Start batch 7's
 full live runs on a freshly started SOLIDWORKS, and restart it between areas if its
-memory climbs. Never end a `solidworks-mcp` process (the owner's other sessions).
-Seen and not sorted into an item yet; the next session decides whether each is one,
-after its two items and before the release: (1) in S60's probe, `feature_rollback
-{to:<renamed extrude>, before:true}` on a one-feature part failed `VERIFY_FAILED` "…
-unexpected state: 'Sketch1'"; (2) in S62's tests, `asm_mate_add` coincident with an
-origin (the assembly's or a component's) failed "SOLIDWORKS created no coincident mate …
-(unknown error (status 0))"; (3) a named plane of a component inside a subassembly could
-not be selected, "Could not select 'b' (plane 'Top Plane' of sub-1/part-1)"; (4) a
-top-level component whose name matched a nested component's short name seemed to
-resolve to the nested one. Also seen once after a fresh start, on the old code too: a
-test's preference check found Integer230 (rebuild on activation) changed 0 → 1 and
-Double2 (STL deviation) changed; its reruns passed.
+memory climbs. Its Welcome screen, open after a start, kept COM from reaching it until
+it was closed (S49's run). Never end a `solidworks-mcp` process (the owner's other
+sessions).
 `findings.md` holds an entry of 2026-11-13 from another session ("two printed plates
 …"), committed on the owner's word (`e40982f`) and not sorted yet: the next session
 sorts it after the release.
@@ -601,6 +593,32 @@ mirror tests of `PartFeatureLiveTests` and
 `--check-catalog` ok; `check_repo` ok. Made stricter: none (the feature path is unchanged but
 for its hint). Local: on `sw2023`, in the commit that records (a) here; not yet in a build.
 Upstream: not yet decided.
+
+**S67. `feature_rollback` before the only feature fails its check.** Seen in the run of
+2026-11-13, in S60's probe, on that run's code: `feature_rollback {to:<renamed extrude>,
+before:true}` on a part holding one extrude failed `VERIFY_FAILED` "… unexpected state:
+'Sketch1'". A valid call refused, the rollback's state not said. Not probed: whether the
+rename, the single feature or the check's reading of the bar is the cause. Local. Decided
+2026-11-13 by the run, not the owner: an item of its own, open and not fixed in the run,
+because the run's items were the owner's and this one has not been looked at.
+
+**S68. `asm_mate_add` coincident with an origin fails.** Seen in the run of 2026-11-13, in
+S62's tests: a coincident mate with the assembly's origin or a component's origin failed
+"SOLIDWORKS created no coincident mate … (unknown error (status 0))". Not probed: how the
+origin is selected for the mate. Bears on S62. Local. Decided 2026-11-13 by the run, not
+the owner: an item, open, as S67.
+
+**S69. A component's named plane inside a subassembly cannot be selected.** Seen in the
+run of 2026-11-13, in S62's tests: "Could not select 'b' (plane 'Top Plane' of
+sub-1/part-1)". Not probed: whether the select path for a nested component's plane is
+built right. Local. Decided 2026-11-13 by the run, not the owner: an item, open, as S67.
+
+**S70. A top-level component may resolve to a nested one of the same short name.** Seen
+once in the run of 2026-11-13, in S62's tests: a top-level component whose name matched a
+nested component's short name seemed to resolve to the nested one. Not confirmed: a probe
+first (two components, one top-level and one in a subassembly, named alike). Local.
+Decided 2026-11-13 by the run, not the owner: an item, open, as S67, because a reference
+that reaches the wrong component would change the wrong part.
 
 ## Waiting
 
@@ -2395,3 +2413,8 @@ still got `DIRTY`. Closed 2026-11-10 on the owner's word. Upstream: not yet deci
 - **SW 2023 interop patch** (`27e8c25`): `swCustomInfoEquation` case removed,
   `InsertUntrimSurface` instead of `InsertUntrimSurface2`. Not sent upstream (upstream
   supports 2025 and later; ROADMAP T2.3 is theirs). Rebased with `sw2023` each update.
+- **A preference changed once after a fresh start** (the run of 2026-11-13): a live test's
+  preference check found Integer230 (rebuild on activation) 0 → 1 and Double2 (STL
+  deviation) changed, on the code before the run too; its reruns passed. Decided
+  2026-11-13 by the run, not the owner: not an item, because it was seen once, not
+  reproduced and not tied to a call; an item if it is seen again.
