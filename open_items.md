@@ -144,7 +144,7 @@ in full (`--filter-class "SolidWorksMcp.LiveTests.<Class>"`), as passed/failed/s
   and `VisualsLiveTests` 0/1/0 then 1/0/0 each (the fixture refused the document the
   failed study left open). The runner now restarts SOLIDWORKS after a failed class.
 - [x] `PartFeatureLiveTests` 47/0/0
-- [ ] `AdvancedFeatureLiveTests`
+- [x] `AdvancedFeatureLiveTests` 29/0/0
 - [ ] `FeatureManagementLiveTests`
 - [ ] `SketchEditLiveTests`
 - [ ] `ReferenceLiveTests`
@@ -155,6 +155,8 @@ in full (`--filter-class "SolidWorksMcp.LiveTests.<Class>"`), as passed/failed/s
 - [ ] `ExportLiveTests`
 - [ ] `FaceEditLiveTests`, `SurfaceShapeLiveTests`, `WeldmentLiveTests`,
   `SimulationLiveTests`
+- [ ] the live project's offline classes (`…LogicTests` beside the live ones), the
+  project run once without `SWMCP_LIVE_TESTS`
 - [ ] a failure that is the run's: fixed by its own subagent, its tests rerun
 - [ ] the push of `sw2023`, publish, `--check-catalog`, the tag, the registration in both
   projects, the release page, each Waiting line given its commit and the build, the
