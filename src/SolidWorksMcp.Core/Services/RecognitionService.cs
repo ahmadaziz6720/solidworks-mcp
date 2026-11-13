@@ -60,8 +60,7 @@ public sealed class RecognitionService(SwSession session)
             var before = Snapshot.Take(d);
             var names = Tree.WalkAll(d).Select(f => f.Name).ToHashSet(StringComparer.Ordinal);
             // FeatureWorks works on the active document.
-            int err = 0;
-            ctx.App.ActivateDoc3(ctx.Title(d), false, (int)swRebuildOnActivation_e.swDontRebuildActiveDoc, ref err);
+            ctx.ActivateDoc(d, ctx.Title(d));
             d.ClearSelection2(true);
             int n = fw.RecognizeFeatureAutomatic((short)options);
             if (n <= 0)

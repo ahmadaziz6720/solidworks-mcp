@@ -202,7 +202,11 @@ in full (`--filter-class "SolidWorksMcp.LiveTests.<Class>"`), as passed/failed/s
 - [x] the live project's offline classes (`…LogicTests` beside the live ones), the
   project run once without `SWMCP_LIVE_TESTS`: 119 passed, 0 failed, 526 skipped (the
   live tests, each with its skip message); unit tests 284/284; `check_repo` ok
-- [ ] a failure that is the run's: fixed by its own subagent, its tests rerun
+- [x] a failure that is the run's: fixed by its own subagent, its tests rerun.
+  `A_part_the_server_owned_…` (S49's test): SOLIDWORKS writes `ActivateDoc3`'s rebuild
+  option into preference 230 when the document it activates has no window; the server
+  now holds it for such a document (S49's "Release run 2026-11-14" paragraph), 19/19
+  live tests that reach the changed calls
 - [ ] the push of `sw2023`, publish, `--check-catalog`, the tag, the registration in both
   projects, the release page, each Waiting line given its commit and the build, the
   sentence for the scenario test
@@ -1722,6 +1726,37 @@ description changed. Made stricter: none (a batch the old check refused, two com
 dimensions of one name, now goes through).
 Local: on `sw2023`, in the commit that moves it here; not yet in a build. Upstream: not yet
 decided.
+Release run 2026-11-14: `A_part_the_server_owned_comes_back_owned_…` failed every time, alone
+too, after its asserts held: "System preferences changed by this test: Integer230: 0 -> 1".
+Cause, by a probe reading preference 230 after each step: SOLIDWORKS itself writes it.
+`ActivateDoc3(title, false, swDontRebuildActiveDoc)` on a document with no window of its own
+(`Visible` false: the part the reopened assembly loaded, brought forward by `doc_open`'s
+already-open path) sets `RebuildOnActivation` 0 -> 1; on a visible document it stays 0. No
+scope held it there, so nothing restored it (`EnsureLoaded`'s scope was not on this path;
+the test does not depend on S49's code). The same call sits wherever the server brings a
+document forward: a write bound to such a part's handle (S62 d makes it owned) and
+`doc_activate` leak it too. Fix: `SwContext.ActivateDoc`, which holds the preference at that
+value in a `PreferenceScope` when the document is not visible (a visible one is activated as
+before), used at the nine places that bring a target forward (bind, `doc_open`,
+`doc_activate`, export, Pack and Go, view, simulation, recognition, the assembly's
+reactivation); the five that bring back the previously active document are left as they
+were. Noted in `docs/solidworks-api-notes.md` (*Activate*). New test
+`Activating_a_part_an_assembly_loaded_leaves_the_rebuild_preference_as_it_was` (a write bound
+to the loaded part's handle, then `doc_activate` of it) failed on the code before at its
+first step, "Expected: 0, Actual: 1". After, each batch on a freshly restarted SOLIDWORKS: the
+two tests alone 1/1 each; with them the live tests that bring a document forward through the
+changed code, 17: `AssemblyLiveTests` `A_change_through_a_document_…`, `Replace_swaps_…`,
+`Compare_cannot_open_…`, `Pack_and_go_copies_…`, `Configurations_are_chosen_at_insert_…`,
+`Insert_refuses_…`; `ExportLiveTests` `A_file_that_is_already_open_…`,
+`A_saved_part_reopens_…`, `Images_pdf_and_edrawings_are_written`; M0's
+`Dirty_reads_unsaved_changes_…` and `Screenshot_returns_a_png_…`; `VisualsLiveTests`'
+`A_section_cuts_the_image_…`; `FeatureManagementLiveTests`' `The_servers_own_failed_kept_…`;
+`SimulationLiveTests`' `Simulation_refuses_to_change_the_users_documents`;
+`RecognitionLiveTests`' `An_imported_step_block_…`; `SketchEditLiveTests`'
+`Edit_reopens_a_finished_sketch_…`; `ConfigurationLiveTests`'
+`A_material_set_in_one_configuration_…`: 19/19 pass. Unit tests 284/284; `check_repo` ok; no
+description changed. Local: on `sw2023`, in the commit that records it here; not yet in a
+build.
 
 **S48. Four small result follow-ups from the modelling scenario test of build
 `20261112-091908`** (findings 2026-11-12, first entry, points 2 to 5). (a) From S40: a

@@ -1829,8 +1829,7 @@ public sealed partial class SimulationService(SwSession session)
         var active = ctx.ActiveDocOrNull;
         if (active is not null && DocLocator.SameDoc(active, d)) return read();
         string title = ctx.Title(d);
-        int err = 0;
-        ctx.App.ActivateDoc3(title, false, (int)swRebuildOnActivation_e.swDontRebuildActiveDoc, ref err);
+        int err = ctx.ActivateDoc(d, title);
         var now = ctx.ActiveDocOrNull;
         if (now is null || !DocLocator.SameDoc(now, d))
             throw new SwException(ErrorCodes.VerifyFailed, $"Could not activate '{title}' to read its studies (error {err}).",

@@ -27,6 +27,9 @@ type libraries and writes `sldworks_api.txt`, `swconst_enums.txt`, `swcommands.t
   - The linear unit is preference 47 (`swUnitsLinear`): 0 mm, 1 cm, 2 m, 3 in.
   - These are *document* preferences and need no restore.
 - **Activate.** `ISldWorks.ActivateDoc3(title, false, 0, ref errors)` takes the title without an extension. VERIFIED.
+  On 2023 SP3, activating a document with no window of its own (`Visible` false: a part an assembly loaded) writes the
+  rebuild option into the system preference `RebuildOnActivation` (230), 0 -> 1; a visible document leaves it alone
+  (VERIFIED 2026-11-14). `SwContext.ActivateDoc` holds it in a `PreferenceScope` for such a document.
 - **Pack and Go** (VERIFIED 2026-10-31). `IModelDocExtension.GetPackAndGo()` → `IPackAndGo`: as SOLIDWORKS' example does it,
   set `IncludeDrawings`, read `GetDocumentNames` and `GetDocumentSaveToNames`, then `SetSaveToName(true, folder)`,
   `FlattenToSingleFolder`, `AddPrefix`/`AddSuffix`, read the targets again, and `SavePackAndGo(pg)` (0 = success per file).

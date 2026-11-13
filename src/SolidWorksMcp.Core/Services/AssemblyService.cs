@@ -1717,8 +1717,7 @@ public sealed partial class AssemblyService(SwSession session)
     {
         var active = ctx.ActiveDocOrNull;
         if (active is not null && DocLocator.SameDoc(active, d)) return;
-        int err = 0;
-        ctx.App.ActivateDoc3(ctx.Title(d), false, (int)swRebuildOnActivation_e.swDontRebuildActiveDoc, ref err);
+        int err = ctx.ActivateDoc(d, ctx.Title(d));
         var now = ctx.ActiveDocOrNull;
         if (now is null || !DocLocator.SameDoc(now, d))
             throw new SwException(ErrorCodes.VerifyFailed, $"Could not bring '{ctx.Title(d)}' back to the front (error {err}).");

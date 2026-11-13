@@ -977,8 +977,7 @@ public sealed class ExportService(SwSession session)
         bool switched = false;
         if (previous is null || !DocLocator.SameDoc(previous, d))
         {
-            int e = 0;
-            ctx.App.ActivateDoc3(ctx.Title(d), false, (int)swRebuildOnActivation_e.swDontRebuildActiveDoc, ref e);
+            int e = ctx.ActivateDoc(d, ctx.Title(d));
             switched = true;
             var now = ctx.ActiveDocOrNull;
             if (now is null || !DocLocator.SameDoc(now, d)) ctx.Warn($"'{ctx.Title(d)}' could not be activated for the export (error {e}).");

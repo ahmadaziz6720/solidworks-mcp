@@ -131,8 +131,7 @@ public sealed class DocumentService(SwSession session)
                 ctx.Documents.SetClass(target, DocClass.Adopted, "adopted (allowEdit)");
                 entry.BackupPath = backup;
             }
-            int errors = 0;
-            ctx.App.ActivateDoc3(entry.Title, false, (int)swRebuildOnActivation_e.swDontRebuildActiveDoc, ref errors);
+            int errors = ctx.ActivateDoc(target, entry.Title);
             var now = ctx.ActiveDocOrNull;
             if (now is null || !DocLocator.SameDoc(now, target))
                 throw new SwException(ErrorCodes.VerifyFailed, $"'{entry.Title}' did not become active (error {errors}).");

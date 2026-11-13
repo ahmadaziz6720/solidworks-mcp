@@ -68,8 +68,7 @@ public sealed class PackService(SwSession session)
         bool switched = previous is null || !DocLocator.SameDoc(previous, d);
         if (switched)
         {
-            int e = 0;
-            ctx.App.ActivateDoc3(ctx.Title(d), false, (int)swRebuildOnActivation_e.swDontRebuildActiveDoc, ref e);
+            int e = ctx.ActivateDoc(d, ctx.Title(d));
             if (ctx.ActiveDocOrNull is not { } now || !DocLocator.SameDoc(now, d))
                 throw new SwException(ErrorCodes.VerifyFailed, $"'{ctx.Title(d)}' could not be activated for Pack and Go (error {e}).");
         }

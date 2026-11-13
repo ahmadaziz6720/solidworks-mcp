@@ -126,8 +126,7 @@ public sealed class OpenService(SwSession session)
         var active = ctx.ActiveDocOrNull;
         if (active is null || !DocLocator.SameDoc(active, doc))
         {
-            int err = 0;
-            ctx.App.ActivateDoc3(entry.Title, false, (int)swRebuildOnActivation_e.swDontRebuildActiveDoc, ref err);
+            int err = ctx.ActivateDoc(doc, entry.Title);
             var now = ctx.ActiveDocOrNull;
             if (now is null || !DocLocator.SameDoc(now, doc))
                 ctx.Warn($"'{entry.Title}' is open but could not be brought to the front (error {err}); it is the target anyway.");

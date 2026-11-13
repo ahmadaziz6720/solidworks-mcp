@@ -82,8 +82,7 @@ public sealed class ViewService(SwSession session)
             bool switched = false;
             if (previous is null || !DocLocator.SameDoc(previous, d))
             {
-                int err = 0;
-                ctx.App.ActivateDoc3(ctx.Title(d), false, (int)swRebuildOnActivation_e.swDontRebuildActiveDoc, ref err);
+                ctx.ActivateDoc(d, ctx.Title(d));
                 switched = true;
             }
             var mv = d.View() ?? throw new SwException(ErrorCodes.NotSupported, $"'{ctx.Title(d)}' has no graphics view.");

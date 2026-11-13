@@ -93,8 +93,7 @@ internal sealed class SwContext
             var active = ActiveDocOrNull;
             if (active is null || !DocLocator.SameDoc(active, doc))
             {
-                int err = 0;
-                App.ActivateDoc3(entry.Title, false, (int)swRebuildOnActivation_e.swDontRebuildActiveDoc, ref err);
+                int err = ActivateDoc(doc, entry.Title);
                 var now = ActiveDocOrNull;
                 if (now is null || !DocLocator.SameDoc(now, doc))
                     throw new SwException(ErrorCodes.VerifyFailed, $"Could not re-activate '{entry.Title}' (error {err}).");
@@ -230,6 +229,29 @@ internal sealed class SwContext
 
     /// <summary>A preference scope for system options; restore problems become warnings of this operation.</summary>
     public PreferenceScope SystemPrefs() => new(App, Session.Journal, Op.Name, Session.Revision, Op.AddWarning);
+
+    /// <summary>
+    /// Brings <paramref name="doc"/> to the front with ActivateDoc3 and the option not to rebuild; returns its error code.
+    /// SOLIDWORKS 2023 writes that option into the system preference RebuildOnActivation when the document has no window
+    /// of its own (a part an assembly loaded), 0 -> 1, and leaves it alone for a visible one (verified live 2026-11-14).
+    /// For such a document the preference is held in a scope for the call, so the user's value comes back.
+    /// </summary>
+    public int ActivateDoc(IModelDoc2 doc, string title)
+    {
+        int err = 0;
+        bool visible;
+        try { visible = doc.Visible; }
+        catch (System.Runtime.InteropServices.COMException ex) when (!ComArgs.IsDisconnect(ex)) { visible = false; }
+        if (visible)
+        {
+            App.ActivateDoc3(title, false, (int)swRebuildOnActivation_e.swDontRebuildActiveDoc, ref err);
+            return err;
+        }
+        using var prefs = SystemPrefs();
+        prefs.Integer(SystemPrefIds.RebuildOnActivation, (int)swRebuildOnActivation_e.swDontRebuildActiveDoc);
+        App.ActivateDoc3(title, false, (int)swRebuildOnActivation_e.swDontRebuildActiveDoc, ref err);
+        return err;
+    }
 
     public void Warn(string warning) => Op.AddWarning(warning);
 

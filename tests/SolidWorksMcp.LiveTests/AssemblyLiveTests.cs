@@ -1646,6 +1646,50 @@ public class AssemblyLiveTests(LiveFixture fx) : LiveTest(fx)
     }
 
     [Fact]
+    public async Task Activating_a_part_an_assembly_loaded_leaves_the_rebuild_preference_as_it_was()
+    {
+        // SOLIDWORKS 2023 writes ActivateDoc3's rebuild option into RebuildOnActivation (230) when the document it brings
+        // to the front had no window (a part its assembly loaded): doc_open of that part left it 0 -> 1. The other ways a
+        // call brings such a part forward: a write bound to its handle, and doc_activate.
+        var cube = await CubeAsync("hidden");
+        string asm = await NewAssemblyAsync("hidden_asm");
+        await InsertAsync(asm, cube.Path, [0, 0, 0]);
+        string asmPath = (await Docs.SaveAsync(asm, "as", Path.Combine(_dir, $"hidden_asm_{_tag}.sldasm"), overwrite: false)).SavedTo!;
+        await Docs.CloseAsync(asm, save: false, discard: true);
+        await Docs.CloseAsync(cube.Doc, save: false, discard: true);
+        var open = new OpenService(S);
+        string before = (await Fx.PreferencesAsync())["Integer230"];
+
+        // The part comes back owned (S62 d), its window not open.
+        async Task<(string Asm, string Part)> Load()
+        {
+            var a = await open.OpenAsync(asmPath, false, null);
+            _asms.Add(a.Document.Handle);
+            var p = (await Docs.ListAsync()).Documents.Single(d => string.Equals(d.Path, cube.Path, StringComparison.OrdinalIgnoreCase));
+            Assert.False(p.Active);
+            return (a.Document.Handle, p.Handle);
+        }
+
+        var (a1, part) = await Load();
+        await new FeatureManagementService(S).DimensionSetAsync(part, [new DimensionValue { Name = "D1@Boss-Extrude1", Value = 24 }]);
+        Assert.Equal(before, (await Fx.PreferencesAsync())["Integer230"]);
+        await CloseBoth(a1, part);
+
+        var (a2, part2) = await Load();
+        await Docs.ActivateAsync(part2, allowEdit: false);
+        Assert.Equal(before, (await Fx.PreferencesAsync())["Integer230"]);
+        await CloseBoth(a2, part2);
+
+        // The assembly first: brought forward, the part has a window of its own and stays open.
+        async Task CloseBoth(string a, string p)
+        {
+            string t = (await Docs.ListAsync()).Documents.Single(d => d.Handle == p).Title;
+            await Docs.CloseAsync(a, save: false, discard: true);
+            if ((await TestHooks.OpenTitlesAsync(S)).Contains(t)) await Docs.CloseAsync(p, save: false, discard: true);
+        }
+    }
+
+    [Fact]
     public async Task A_limit_angle_mate_reads_fully_constrained_as_SOLIDWORKS_marks_it_in_the_tree()
     {
         // S62 (c), probed: a subassembly held by a concentric, a coincident and a limit angle mate (30..50°) on its child read
