@@ -145,7 +145,9 @@ in full (`--filter-class "SolidWorksMcp.LiveTests.<Class>"`), as passed/failed/s
   failed study left open). The runner now restarts SOLIDWORKS after a failed class.
 - [x] `PartFeatureLiveTests` 47/0/0
 - [x] `AdvancedFeatureLiveTests` 29/0/0
-- [ ] `FeatureManagementLiveTests`
+- [ ] `FeatureManagementLiveTests`: its first run stopped at 21.53: SOLIDWORKS went 1.5 →
+  6.1 GB private within ~2 minutes, free memory ~0.5 GB, and the runner was ended for low
+  system memory; a probe of which test does it, and the class run in chunks, is next
 - [ ] `SketchEditLiveTests`
 - [ ] `ReferenceLiveTests`
 - [ ] `PropertiesLiveTests`
