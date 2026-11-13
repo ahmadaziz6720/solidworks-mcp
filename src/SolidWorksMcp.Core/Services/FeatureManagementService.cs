@@ -950,13 +950,16 @@ public sealed partial class FeatureManagementService(SwSession session)
 
             // Resolve and check everything before changing anything.
             var byEquation = EquationTargets(d);
+            bool part = IsPart(d);
             var plan = new List<PlannedValue>();
             foreach (var (name, value) in items)
             {
                 var dim = d.DimensionNamed(name)
                           ?? throw new SwException(ErrorCodes.EntityNotFound, $"No dimension named '{name}'.",
                               "dimension_list shows the names, e.g. D1@Boss-Extrude1 (feature) or D1@Sketch1 (sketch).");
-                string full = FeatureVerifier.ShortName(dim.FullName);
+                // In an assembly the name as given: a component's dimension (D1@Boss-Extrude1@cube-1) reads back as the part's
+                // own D1@Boss-Extrude1, which names neither the component nor tells two components apart (S49).
+                string full = part ? FeatureVerifier.ShortName(dim.FullName) : name.Trim();
                 if (dim.DrivenState == (int)swDimensionDrivenState_e.swDimensionDriven || Try(() => dim.IsReference()) == true)
                     throw SwException.InvalidArgument($"'{full}' is a driven (reference) dimension: it reports a value but doesn't control the geometry.",
                         "Set the driving dimension instead (dimension_list marks driven ones).");
@@ -972,6 +975,8 @@ public sealed partial class FeatureManagementService(SwSession session)
             }
 
             var before = Snapshot.Take(d);
+            double? asmBefore = part ? null : MassVolume(d);
+            var stampsBefore = part ? null : OtherStamps(ctx, d);
             var errorsBefore = ErrorMap(d);
             using var prefs = ctx.SystemPrefs();
             prefs.Toggle(SystemPrefIds.ShowErrorsEveryRebuild, false);
@@ -1007,7 +1012,8 @@ public sealed partial class FeatureManagementService(SwSession session)
             foreach (var e in newErrors) ctx.Warn($"'{e.Feature}' now has rebuild warning {e.Code} ({e.Error}).");
 
             var after = Snapshot.Take(d);
-            bool part = IsPart(d);
+            double? asmAfter = part ? null : MassVolume(d);
+            if (stampsBefore is not null) WarnChangedOthers(ctx, stampsBefore);
             return new DimensionSetResult
             {
                 Doc = ctx.Title(d),
@@ -1019,10 +1025,55 @@ public sealed partial class FeatureManagementService(SwSession session)
                     Previous = FeatureManagementLogic.FromApi(p.Type, p.Previous),
                     Value = FeatureManagementLogic.FromApi(p.Type, ReadBack(d, p)),
                 }).ToList(),
-                VolumeDeltaMm3 = part ? Units.Mm3(after.Volume - before.Volume) : null,
+                VolumeDeltaMm3 = part ? Units.Mm3(after.Volume - before.Volume)
+                    : asmBefore is double v0 && asmAfter is double v1 ? Units.Mm3(v1 - v0) : null,
                 Model = part ? after.ToState() : null,
             };
         }, RunOptions.Write(doc) with { Timeout = LongTimeout }, ct).ConfigureAwait(false);
+    }
+
+    /// <summary>An assembly's volume from its mass properties (m³), null when SOLIDWORKS gives none.</summary>
+    private static double? MassVolume(IModelDoc2 d)
+    {
+        try
+        {
+            if ((object?)d.Extension.CreateMassProperty2() is not IMassProperty2 mp) return null;
+            mp.UseSystemUnits = true;
+            return mp.Volume;
+        }
+        catch (Exception ex) when (!ComArgs.IsDisconnect(ex)) { return null; }
+    }
+
+    /// <summary>The update stamp of every other open document, to tell which ones a change through this one reached (S49).</summary>
+    private static List<(IModelDoc2 Doc, int Stamp)> OtherStamps(SwContext ctx, IModelDoc2 d)
+    {
+        var list = new List<(IModelDoc2, int)>();
+        foreach (var o in ctx.App.Documents())
+        {
+            if (ReferenceEquals(o, d)) continue;
+            try { list.Add((o, o.GetUpdateStamp())); }
+            catch (Exception ex) when (!ComArgs.IsDisconnect(ex)) { /* a check, not the call's work */ }
+        }
+        return list;
+    }
+
+    /// <summary>
+    /// S49: a component's dimension set through an assembly changes the component's own document (a part, a subassembly),
+    /// which the assembly's result does not otherwise name; each one the call changed and left unsaved is named.
+    /// </summary>
+    private static void WarnChangedOthers(SwContext ctx, List<(IModelDoc2 Doc, int Stamp)> before)
+    {
+        foreach (var (o, stamp) in before)
+        {
+            try
+            {
+                if (o.GetUpdateStamp() == stamp || !o.GetSaveFlag()) continue;
+                var e = ctx.Documents.Find(o);
+                string who = e is null ? "" : $" ({e.Handle}, {e.Class.ToString().ToLowerInvariant()})";
+                ctx.Warn($"Also changed, not saved: '{ctx.Title(o)}'{who}, a component's own document.");
+            }
+            catch (Exception ex) when (!ComArgs.IsDisconnect(ex)) { /* a check, not the call's work */ }
+        }
     }
 
     /// <summary>Sets the previous values back, rebuilds and checks them; returns a sentence for the error message.</summary>

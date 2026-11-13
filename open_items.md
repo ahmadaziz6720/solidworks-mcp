@@ -10,9 +10,9 @@ Three sections: **Open**, not yet fixed; **Waiting**, fixed and not yet settled 
 merged, a fix not yet run in a session); **Closed**, merged upstream, run and held, or
 decided against, with the record.
 
-**Open: S4, S5, S7, S10 to S12, S33, S34, S48, S49, S60 to S62, S64, S65.** S48 and
+**Open: S4, S5, S7, S10 to S12, S33, S34, S48, S60 to S62, S64, S65.** S48 and
 S49 are from the scenario test of build `20261112-091908`, S50 to S66 from twenty
-working sessions on that build (findings 2026-11-12 and 13); S47, from that scenario
+working sessions on that build (findings 2026-11-12 and 13); S47 and S49, from that scenario
 test too, S50 to S59, S63 and S66 are fixed and Waiting. Reported `ok` while wrong or
 misleading: S60 (a).
 Next: the run planned below, every point of it decided 2026-11-13 by the owner. Not in
@@ -262,21 +262,6 @@ it passes, the eleven rows under 900 characters; with
 `A_result_with_short_rows_gives_them_in_place_…`); `ContractTests.Tool_catalog_follows_the_conventions`
 and `--check-catalog` ok; `check_repo` ok. Local: on `sw2023`, in the commit that records
 (d) here; not yet in a build. Upstream: not yet decided.
-
-**S49. `dimension_set` through an assembly does not say which component, nor the
-document it changed.** In the scenario test of build `20261112-091908` (findings
-2026-11-12, second entry, points 3, 4), a two-part assembly mated by hand. (a)
-`dimension_set` with a component's dimension (`D1@Boss-Extrude1@<component>-1`) made the
-change right, but the result named it `D1@Boss-Extrude1`, without the component, and
-carried no volume change, which the description promises and a part's result gives. With
-two components holding a `D1@Boss-Extrude1` the row would not say which changed. (b) The
-change went to a part `doc_list` lists as `foreign` (`loadedBy` the assembly), leaving it
-dirty; closing the assembly with `discard` closed and discarded it too ("SOLIDWORKS also
-closed"), the part's file not touched. Whether a referenced part counts as the assembly's
-for the server's rule on foreign documents is not said anywhere, and the result does not
-name the other document. Reported success, rightly. Bears on S27. Local: the component in
-the row, the assembly's volume change, and a line naming the part changed and not saved.
-Taken into the run of 2026-11-13 as proposed, no choice in it.
 
 **S60. What a session cannot tell about the process it runs on.** On build
 `20261112-091908`. (a) `sw_status` and `doc_activate` gave `dirty:false` for a part
@@ -1614,6 +1599,52 @@ change made outside the server still warning; the live tests on the changed path
 `Insert_puts_the_origin_…`, `Subassemblies_are_inserted_…`, `Compare_cannot_open_a_revision_…`
 of `AssemblyLiveTests`, pass (15/15); unit tests 278/278; `check_repo` ok; no description
 changed. Made stricter: none.
+Local: on `sw2023`, in the commit that moves it here; not yet in a build. Upstream: not yet
+decided.
+
+**S49. `dimension_set` through an assembly does not say which component, nor the
+document it changed.** In the scenario test of build `20261112-091908` (findings
+2026-11-12, second entry, points 3, 4), a two-part assembly mated by hand. (a)
+`dimension_set` with a component's dimension (`D1@Boss-Extrude1@<component>-1`) made the
+change right, but the result named it `D1@Boss-Extrude1`, without the component, and
+carried no volume change, which the description promises and a part's result gives. With
+two components holding a `D1@Boss-Extrude1` the row would not say which changed. (b) The
+change went to a part `doc_list` lists as `foreign` (`loadedBy` the assembly), leaving it
+dirty; closing the assembly with `discard` closed and discarded it too ("SOLIDWORKS also
+closed"), the part's file not touched. Whether a referenced part counts as the assembly's
+for the server's rule on foreign documents is not said anywhere, and the result does not
+name the other document. Reported success, rightly. Bears on S27. Local: the component in
+the row, the assembly's volume change, and a line naming the part changed and not saved.
+Taken into the run of 2026-11-13 as proposed, no choice in it.
+Fixed in the run of 2026-11-13. Cause: `dimension_set` named each row by the dimension's
+own full name with the document's suffix cut (`FeatureVerifier.ShortName`), which for a
+component's dimension is the part's `D1@Boss-Extrude1`; so two components holding one were
+refused "listed twice", and the read-back after the rebuild looked the dimension up again by
+that short name in the assembly. The volume change was read for a part only, and nothing
+looked at the documents a change through the assembly reached. Fix: in an assembly each row
+keeps the name as given (`D1@Boss-Extrude1@<component>-1`), which also keys the "listed
+twice" check and the read-back; the volume change of an assembly is that of its mass
+properties (`CreateMassProperty2().Volume`) before and after; the update stamp of every
+other open document is read before the change, and each one whose stamp moved and that is
+now dirty is named in a warning, "Also changed, not saved: '<title>' (<handle>, <access>), a
+component's own document." Whether a referenced part counts as the assembly's for the
+server's rule on foreign documents is not decided here: the fix does not need it, the change
+goes through as before and is now named, with the part's access. Test before:
+`AssemblyLiveTests.Dimension_set_through_an_assembly_names_the_component_the_volume_and_the_part_it_changed`
+(two cubes in an assembly, both `D1@Boss-Extrude1@…` set in one call) failed on the code
+before, "'D1@Boss-Extrude1' is listed twice." After: it passes, with each row named as given,
+20 → 30 and 20 → 25, the volume change 6 000 mm³ and a line naming each part, and none
+naming the assembly; with it the live tests that call `dimension_set` through an assembly or
+on a part, `A_change_through_a_document_an_assembly_loads_does_not_read_as_the_users`,
+`A_part_the_server_owned_comes_back_owned_when_its_owned_assembly_loads_it`,
+`Compare_cannot_open_a_revision_…`, `Configurations_are_chosen_at_insert_…` of
+`AssemblyLiveTests`, `TopDownLiveTests.An_in_context_cover_…`, the three `Dimension_set_…` and
+`Rename_reads_back_and_renames_the_dimensions` of `FeatureManagementLiveTests`, M0's
+`Dirty_reads_unsaved_changes_made_through_another_process`, pass (11/11; in a first mixed run
+`A_part_the_server_owned_comes_back_owned_…` failed once, its message not kept, and passed in
+the three runs after, alone and in two batches); unit tests 284/284; `check_repo` ok; no
+description changed. Made stricter: none (a batch the old check refused, two components'
+dimensions of one name, now goes through).
 Local: on `sw2023`, in the commit that moves it here; not yet in a build. Upstream: not yet
 decided.
 

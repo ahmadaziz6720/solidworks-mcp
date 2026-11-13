@@ -1576,6 +1576,34 @@ public class AssemblyLiveTests(LiveFixture fx) : LiveTest(fx)
     }
 
     [Fact]
+    public async Task Dimension_set_through_an_assembly_names_the_component_the_volume_and_the_part_it_changed()
+    {
+        // S49: a component's dimension set through its assembly came back as 'D1@Boss-Extrude1', without the component (two
+        // components holding one could not be told apart), with no volume change, and nothing said that the part's own
+        // document had changed and was not saved.
+        var a = await CubeAsync("dimA");
+        var b = await CubeAsync("dimB");
+        string asm = await NewAssemblyAsync("dim_asm");
+        string ca = (await InsertAsync(asm, a.Path, [0, 0, 0])).Component.Name;
+        string cb = (await InsertAsync(asm, b.Path, [100, 0, 0])).Component.Name;
+        string na = $"D1@Boss-Extrude1@{ca}", nb = $"D1@Boss-Extrude1@{cb}";
+
+        var r = await new FeatureManagementService(S).DimensionSetAsync(asm,
+            [new DimensionValue { Name = na, Value = 30 }, new DimensionValue { Name = nb, Value = 25 }]);
+        Assert.Equal([na, nb], r.Changes.Select(c => c.Name).ToArray());
+        Assert.Equal([20.0, 20.0], r.Changes.Select(c => c.Previous).ToArray());
+        Assert.Equal([30.0, 25.0], r.Changes.Select(c => c.Value).ToArray());
+        Assert.NotNull(r.VolumeDeltaMm3);
+        Assert.Equal(20 * 20 * 10 + 20 * 20 * 5, r.VolumeDeltaMm3!.Value, V); // 4 000 + 2 000 mm³
+        var w = r.Warnings ?? [];
+        foreach (var part in new[] { a, b })
+            Assert.True(w.Any(x => x.Contains(part.Name, StringComparison.OrdinalIgnoreCase) && x.Contains("not saved")),
+                $"no line names {part.Name}: {string.Join(" | ", w)}");
+        // The assembly's own documents are named, not the assembly itself.
+        Assert.DoesNotContain(w, x => x.Contains("dim_asm", StringComparison.OrdinalIgnoreCase) && x.Contains("not saved"));
+    }
+
+    [Fact]
     public async Task A_part_the_server_owned_comes_back_owned_when_its_owned_assembly_loads_it()
     {
         // S62 (d): a part the server had saved and closed, loaded again by an assembly doc_open opened, read 'foreign' ("the
