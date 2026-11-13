@@ -10,10 +10,10 @@ Three sections: **Open**, not yet fixed; **Waiting**, fixed and not yet settled 
 merged, a fix not yet run in a session); **Closed**, merged upstream, run and held, or
 decided against, with the record.
 
-**Open: S4, S5, S7, S10 to S12, S33, S34, S48, S49, S55, S57, S59 to S62, S64, S65.** S48 and
+**Open: S4, S5, S7, S10 to S12, S33, S34, S48, S49, S57, S59 to S62, S64, S65.** S48 and
 S49 are from the scenario test of build `20261112-091908`, S50 to S66 from twenty
 working sessions on that build (findings 2026-11-12 and 13); S47, from that scenario
-test too, S50 to S54, S56, S58, S63 and S66 are fixed and Waiting. Reported `ok` while wrong or
+test too, S50 to S56, S58, S63 and S66 are fixed and Waiting. Reported `ok` while wrong or
 misleading: S60 (a).
 Next: the run planned below, every point of it decided 2026-11-13 by the owner. Not in
 it: S4, S5, S7 and S12 wait on upstream; S10, S11, S33 and S34 are parked until a job
@@ -247,19 +247,6 @@ for the server's rule on foreign documents is not said anywhere, and the result 
 name the other document. Reported success, rightly. Bears on S27. Local: the component in
 the row, the assembly's volume change, and a line naming the part changed and not saved.
 Taken into the run of 2026-11-13 as proposed, no choice in it.
-
-**S55. `sketch_constrain` passes the 50 s limit, with `symmetric` steps the suspect.** On
-build `20261112-091908`, five times (findings 2026-11-12, "six printed and stand-in parts",
-point 4; "a part of extrudes", point 1; "a part's body raised", point 1; "a printed part's
-walls", point 2; "a printed part's tree deleted", point 3): 24, 31, 18, 20 and ~20 steps
-returned `TIMEOUT` and completed at 54.6 to 95 s, all steps applied; meanwhile
-`sketch_info` was `BUSY`, and up to ten `sw_status` calls went to waiting. Calls of 14 to 18
-steps with no `symmetric` came back in seconds; those with two or three `symmetric` steps
-took 55 to 95 s. A caller cannot tell beforehand. Bears on S8 (Closed). Local: probe the
-cost of a `symmetric` step; then a limit that scales with the steps, or the cost in the
-description, or the result's time. Decided 2026-11-13 by the owner: a probe of the cost of
-each kind of step first; then a time limit that grows with the steps and their kinds, the
-time in the result, the cost per step in the description.
 
 **S57. "modified outside this server … (by the user?)" after the server's own calls.** On
 build `20261112-091908`, six sessions, the owner out of SOLIDWORKS each time (findings
@@ -1129,6 +1116,66 @@ offset, `Info_…` and 3D-sketch tests of `SketchEditLiveTests`, `Box_extrude_ma
 the ellipse model box (27/27 with the two); unit tests 278/278; contract tests 7/7;
 `--check-catalog` ok; `check_repo` ok. Local: on `sw2023`, in the commit that moves it here;
 not yet in a build. Upstream: not yet decided.
+
+**S55. `sketch_constrain` passes the 50 s limit, with `symmetric` steps the suspect.** On
+build `20261112-091908`, five times (findings 2026-11-12, "six printed and stand-in parts",
+point 4; "a part of extrudes", point 1; "a part's body raised", point 1; "a printed part's
+walls", point 2; "a printed part's tree deleted", point 3): 24, 31, 18, 20 and ~20 steps
+returned `TIMEOUT` and completed at 54.6 to 95 s, all steps applied; meanwhile
+`sketch_info` was `BUSY`, and up to ten `sw_status` calls went to waiting. Calls of 14 to 18
+steps with no `symmetric` came back in seconds; those with two or three `symmetric` steps
+took 55 to 95 s. A caller cannot tell beforehand. Bears on S8 (Closed). Local: probe the
+cost of a `symmetric` step; then a limit that scales with the steps, or the cost in the
+description, or the result's time. Decided 2026-11-13 by the owner: a probe of the cost of
+each kind of step first; then a time limit that grows with the steps and their kinds, the
+time in the result, the cost per step in the description.
+Probe (live, a temporary test with the server's reads timed; a sketch of 23 segments on
+Front: a closed 10-line outline, a centreline, a closed 6-line one, six circles). Each kind
+in a call of its own: every kind cost the same, 3.6 to 4.3 s a step (horizontal 3.6-4.0,
+vertical 3.6-4.1, coincident 3.9-4.0, equal 3.8, parallel 3.9, symmetric of points, of
+circles and of lines 3.9-4.3; linear, diameter and vertical dimensions 3.6-3.8). Of that,
+SOLIDWORKS' `SketchAddConstraints` took 8 to 37 ms (symmetric 10 to 37), a dimension's add
+and value about 40 ms. The rest was the server reading the sketch back (`SkState.Take`):
+every segment's name, construction flag, length, type and end points, one COM call each at
+about 3.6 ms (~13 calls a line, ~1.0 s for the segments, ~0.25 s for the points), and a step
+read it three times: as its start, after the add, and again as the next step's start.
+Resolving the references before the first step added ~0.3 s a point `{at}` and ~0.1 s a
+name. In one call of 20 steps, 11 had run at 57 s. So `symmetric` is not the cause: the
+calls that ran past 50 s were long ones, and the time grows with the steps and the sketch's
+size, whatever the kind; the calls said to come back in seconds were not reproduced. `BUSY`
+follows from it: after the `TIMEOUT` the call keeps the one SOLIDWORKS thread until it
+ends, and a `sketch_info` queued behind it gives up after its 20 s queue wait.
+Cause: three full reads of the sketch a step, each ~50 ms a segment, under a fixed 50 s
+limit. Fix (`SketchEditService`): (1) the state read after a step's add is carried as the
+next step's start (`Carry`), so a step reads the sketch once; a step changes the sketch only
+through its add, so every check reads what it read before; `sketch_relation_add` and
+`sketch_dimension_add` are unchanged; (2) the limit is the default or 30 s + 5 s a step,
+whichever is more (20 steps: 130 s); (3) the result has `durationS`, the seconds the call
+ran in SOLIDWORKS; (4) the tool sends progress every 5 s, as the other long tools do; (5)
+the description says "~2 s a step on 25 segments, growing with size", its other sentences
+shortened to stay within the tool list's byte budget. The same 20 steps now run in 34.1 s
+(1.7 s a step, resolving included). Not cut: the reference resolution (~5 s for 20 steps)
+and the ~13 calls a segment.
+Decided 2026-11-13 by the run, not the owner: (1) one allowance a step whatever its kind,
+not a weight per kind, because the probe found every kind within 15 % of the others: the
+cost is the server's read, which grows with the sketch, not with the kind; (2) 5 s a step
+plus 30 s, which covers a sketch of about 80 segments at the measured rate, because the
+sketch's size is not known before the call starts, and a limit too short reports a running
+call as hung, which is this item's fault; (3) the reads were cut by carrying the state, not
+by reading less a segment (bulk `GetLines2` / `GetArcs2`, no z in 2D), because carrying
+keeps every check on the same values and the bulk calls' order against segment names is
+not verified; (4) the field is `durationS`, the name `sw_status`'s `recentOps` uses.
+On the code before, the new live test
+`Constrain_runs_twenty_steps_on_a_sketch_of_two_dozen_segments_within_its_limit_and_says_how_long`
+(20 steps, three `symmetric`, on 23 segments) failed: `TIMEOUT` "'sketch_constrain' has
+been running for 50 s and exceeded its 50 s limit. SOLIDWORKS is still executing it and it
+may still complete — do not simply retry." After: it passes (34.1 s, all 20 steps, the three
+`points symmetric`, `durationS` within the wall time and under 50 s, the limit 130 s for 20
+steps and 50 s for 3), with every live test of `SketchEditLiveTests` that calls
+`sketch_relation_add`, `sketch_dimension_add` or `sketch_constrain` (31/31 with it); unit
+tests 278/278; `ContractTests.Tool_catalog_follows_the_conventions` 1/1; `--check-catalog`
+ok; `check_repo` ok. Local: on `sw2023`, in the commit that moves it here; not yet in a
+build. Upstream: not yet decided.
 
 ## Closed
 

@@ -117,6 +117,8 @@ public sealed class SketchConstrainResult : ToolResult
     /// <summary>Segments whose geometry the steps changed, as they are at the end.</summary>
     public IReadOnlyList<SketchSegmentInfo>? Changed { get; init; }
     public int? ChangedCount { get; init; }
+    /// <summary>Seconds the call ran in SOLIDWORKS (S55).</summary>
+    public double DurationS { get; init; }
 }
 
 /// <summary>The sketch editing tools (trim, extend, offset, fillet, chamfer, pattern, mirror, convert, construction, delete).</summary>
@@ -360,7 +362,7 @@ public sealed class SketchEditService(SwSession session)
     }
 
     private static SketchDimensionResult AddDimension(SwContext ctx, IModelDoc2 d, ISketch sketch, string kind, List<Resolved> refs,
-        double? target, double[]? textAt, string? step = null)
+        double? target, double[]? textAt, string? step = null, Carry? carry = null)
     {
         var feat = (IFeature)sketch;
         var s2m = SketchService.SketchToModel(sketch);
@@ -369,7 +371,7 @@ public sealed class SketchEditService(SwSession session)
         CheckDimensionTargets(kind, items);
         double? expected = Measure(kind, items);
         var text = textAt is null ? DefaultTextPoint(kind, items) : ToSketch(textAt, m2s, "textAt", ctx);
-        var before = SkState.Take(sketch);
+        var before = carry?.State ?? SkState.Take(sketch);
         var dimsBefore = FeatureVerifier.Dimensions(feat).Select(x => x.Name).ToHashSet(StringComparer.OrdinalIgnoreCase);
         var checks = new List<string>();
         string labels = string.Join(" and ", refs.Select(r => r.Label));
@@ -482,6 +484,7 @@ public sealed class SketchEditService(SwSession session)
         }
 
         var after = SkState.Take(sketch);
+        if (carry is not null) carry.State = after;
         var diff = Diff(before, after);
         bool is3D = false;
         // The lines already made the asked angle across the vertex: the dimension sat on the angle between the rays, and its
@@ -723,7 +726,7 @@ public sealed class SketchEditService(SwSession session)
     }
 
     private static SketchRelationResult AddRelation(SwContext ctx, IModelDoc2 d, ISketch sketch, string rel, RelSpec spec, List<Resolved> refs,
-        string? step = null)
+        string? step = null, Carry? carry = null)
     {
         string name = ((IFeature)sketch).Name;
         bool is3D = sketch.Is3D();
@@ -751,11 +754,12 @@ public sealed class SketchEditService(SwSession session)
             "merge" => ["sgMERGEPOINTS", "sgCOINCIDENT"],
             _ => spec.Ids,
         };
-        var before = SkState.Take(sketch);
+        var before = carry?.State ?? SkState.Take(sketch);
         // A merge disconnects one of the two point objects (verified): find the points again through their segments.
         var locs = points ? items.Select(i => Locate(before, i.P)).ToList() : null;
         string labels = string.Join(", ", refs.Take(6).Select(r => r.Label));
         SkState? after = null;
+        SkState last = before;
         bool merged = false;
         foreach (var id in ids)
         {
@@ -763,7 +767,7 @@ public sealed class SketchEditService(SwSession session)
             SelectAll(d, refs, 0);
             d.SketchAddConstraints(id); // silently ignores ids that don't apply
             d.ClearSelection2(true);
-            var now = SkState.Take(sketch);
+            var now = last = SkState.Take(sketch);
             // Verified: sgCOINCIDENT and sgMERGEPOINTS on two segment end points merge them (one point fewer, no relation).
             merged = points && now.Points < before.Points;
             if (now.Relations > before.Relations || merged) { after = now; break; }
@@ -782,7 +786,9 @@ public sealed class SketchEditService(SwSession session)
                 throw new SwException(ErrorCodes.VerifyFailed,
                     $"SOLIDWORKS ignored the relation '{rel}' for {labels}: no relation was added, and the sketch holds none like it.",
                     "It may not apply to these entity types, or follow from other relations (sketch_info lists them).");
-            return Held(ctx, d, sketch, rel, refs, m2s, before, held, labels);
+            var kept = Held(ctx, d, sketch, rel, refs, m2s, before, held, labels);
+            if (carry is not null) carry.State = last;
+            return kept;
         }
         var checks = new List<string> { merged ? $"points merged ({before.Points} → {after.Points} sketch points)" : $"relations {before.Relations} → {after.Relations}" };
         if (rel == "merge" && !merged) checks.Add("coincident relation instead: SOLIDWORKS merges only segment end points");
@@ -813,6 +819,7 @@ public sealed class SketchEditService(SwSession session)
         }
         var diff = Diff(before, after);
         WarnFlips(ctx, before, after, diff, is3D, $"'{rel}' relation", null, step);
+        if (carry is not null) carry.State = after;
         var related = refs.Where(r => r.Obj is ISketchSegment s && InSketch(s, sketch)).Select(r => ((ISketchSegment)r.Obj).GetName())
             .Where(after.Segs.ContainsKey).Distinct().ToList();
         return new SketchRelationResult
@@ -879,6 +886,30 @@ public sealed class SketchEditService(SwSession session)
     private sealed record Pin(Resolved R, PointLoc? Loc);
 
     /// <summary>
+    /// The sketch as the last step left it (S55). Reading a sketch back costs about 50 ms a segment, and a step read it three
+    /// times (as its start, after the add, and again as the next step's start), so 20 steps on 25 segments ran past 50 s
+    /// while SOLIDWORKS spent about 10 ms on each add. A step changes the sketch only through its add, so the state read
+    /// after it is the next step's start: one read a step.
+    /// </summary>
+    private sealed class Carry
+    {
+        public SkState? State { get; set; }
+    }
+
+    /// <summary>sketch_constrain's time limit: the default, or more when the steps need it (S55).</summary>
+    internal static TimeSpan ConstrainTimeout(TimeSpan @default, int steps) =>
+        TimeSpan.FromSeconds(Math.Max(@default.TotalSeconds, ConstrainBaseS + ConstrainStepS * steps));
+
+    /// <summary>
+    /// Seconds allowed a step, whatever its kind: every kind cost the same in the probe (the read, not the add). A step on
+    /// 25 segments took about 1.7 s, resolving its references included; 5 s covers a sketch of about 80.
+    /// </summary>
+    private const double ConstrainStepS = 5;
+
+    /// <summary>Seconds for the reads before the first step and after the last.</summary>
+    private const double ConstrainBaseS = 30;
+
+    /// <summary>
     /// sketch_constrain: relations and dimensions in one call, in order, each one checked as sketch_relation_add and
     /// sketch_dimension_add check it. All arguments and references are checked before the first step; a step that fails
     /// is undone as those tools undo it, the steps before it are kept and the ones after it are not run.
@@ -921,12 +952,14 @@ public sealed class SketchEditService(SwSession session)
         var options = RunOptions.Write(doc) with
         {
             DialogRules = anyDimension ? [DialogRules.ModifyDimension, DialogRules.OverdefiningDimension] : null,
+            Timeout = ConstrainTimeout(session.Options.DefaultTimeout, plan.Count),
         };
         return session.RunAsync("sketch_constrain", ctx => Constrain(ctx, plan, anyDimension), options, ct);
     }
 
     private static SketchConstrainResult Constrain(SwContext ctx, List<Step> plan, bool twoD)
     {
+        var clock = System.Diagnostics.Stopwatch.StartNew();
         var d = DocOf(ctx);
         var sketch = OpenSketch(ctx, d, "sketch_constrain", twoD);
         var feat = (IFeature)sketch;
@@ -956,22 +989,23 @@ public sealed class SketchEditService(SwSession session)
         }
 
         var done = new List<SketchConstrainStep>();
+        var carry = new Carry { State = start };
         for (int i = 0; i < plan.Count; i++)
         {
             var step = plan[i];
             string what = $"{step.Kind} {(step.Spec is null ? "dimension" : "relation")}";
             try
             {
-                var now = SkState.Take(sketch);
+                var now = carry.State!;
                 var refs = pins[i].Select(p => Unpin(sketch, p, now)).ToList();
                 if (step.Spec is not null)
                 {
-                    var r = AddRelation(ctx, d, sketch, step.Kind, step.Spec, refs, $"Step {i + 1}: ");
+                    var r = AddRelation(ctx, d, sketch, step.Kind, step.Spec, refs, $"Step {i + 1}: ", carry);
                     done.Add(new SketchConstrainStep { Step = i + 1, Relation = step.Kind, Checks = r.Checks });
                 }
                 else
                 {
-                    var r = AddDimension(ctx, d, sketch, step.Kind, refs, step.Target, step.S.TextAt, $"Step {i + 1}: ");
+                    var r = AddDimension(ctx, d, sketch, step.Kind, refs, step.Target, step.S.TextAt, $"Step {i + 1}: ", carry);
                     done.Add(new SketchConstrainStep { Step = i + 1, Dimension = r.Dimension, Kind = step.Kind, Checks = r.Checks });
                 }
             }
@@ -985,7 +1019,7 @@ public sealed class SketchEditService(SwSession session)
             }
         }
 
-        var end = SkState.Take(sketch);
+        var end = carry.State!;
         var diff = Diff(start, end);
         var added = FeatureVerifier.Dimensions(feat).Where(x => !dimsBefore.Contains(x.Name)).ToList();
         return new SketchConstrainResult
@@ -999,6 +1033,7 @@ public sealed class SketchEditService(SwSession session)
             Constrained = ConstrainedName(end.Status),
             Changed = NullIfEmpty(diff.Changed.Take(ListMax).Select(n => Info(n, end.Segs[n], is3D, start.Segs[n].Length)).ToList()),
             ChangedCount = diff.Changed.Count > ListMax ? diff.Changed.Count : null,
+            DurationS = Math.Round(clock.Elapsed.TotalSeconds, 1),
         };
     }
 

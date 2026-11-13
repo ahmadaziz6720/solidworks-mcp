@@ -1,4 +1,5 @@
 using System.ComponentModel;
+using ModelContextProtocol;
 using ModelContextProtocol.Server;
 using SolidWorksMcp.Core;
 using SolidWorksMcp.Core.Model;
@@ -65,16 +66,17 @@ public sealed class SketchEditTools(SwSession session)
         ResultJson.Serialize(await _svc.RelationAddAsync(doc, relation, entities, cancellationToken));
 
     [McpServerTool(Name = "sketch_constrain", Title = "Add sketch relations and dimensions", ReadOnly = false, Destructive = false, Idempotent = false, OpenWorld = false)]
-    [Description("Adds relations and dimensions to the open sketch in one call, in order: each step is what sketch_relation_add or " +
-                 "sketch_dimension_add takes and is verified the same way. References are resolved before the first step, so a point " +
-                 "{at:[x,y]} is where it is now and is followed as later steps move it. A failing step is undone; the steps before it stay, " +
-                 "the rest are not run, and the error says which. Returns each step's checks and dimension name, the relation counts, " +
-                 "constrained status and the segments that moved.")]
-    public async Task<string> SketchConstrain(
+    [Description("Adds relations and dimensions to the open sketch in one call, in order, each step as sketch_relation_add or " +
+                 "sketch_dimension_add takes and verifies it. References resolve before the first step: a point {at:[x,y]} is where it " +
+                 "is now, followed as steps move it. A failing step is undone, the ones before it kept, the rest not run; the error says " +
+                 "which. Returns each step's checks and dimension name, relation counts, constrained status, moved segments and " +
+                 "durationS. ~2 s a step on 25 segments, growing with size.")]
+    public Task<string> SketchConstrain(
+        IProgress<ProgressNotificationValue> progress,
         [Description("Steps, e.g. [{\"relation\":\"horizontal\",\"entities\":[{\"name\":\"Line1\"}]},{\"dimension\":\"linear\",\"entities\":[{\"name\":\"Line1\"}],\"valueMm\":100}].")] SketchConstraint[] steps,
         [Description(DocDescription)] string? doc = null,
         CancellationToken cancellationToken = default) =>
-        ResultJson.Serialize(await _svc.ConstrainAsync(doc, steps, cancellationToken));
+        Output.Json(_svc.ConstrainAsync(doc, steps, cancellationToken), progress, "sketch_constrain");
 
     [McpServerTool(Name = "sketch_trim", Title = "Trim sketch segment", ReadOnly = false, Destructive = true, Idempotent = false, OpenWorld = false)]
     [Description("Trims away the piece of a segment of the open sketch at a point, up to the nearest intersections (trim to closest). " +

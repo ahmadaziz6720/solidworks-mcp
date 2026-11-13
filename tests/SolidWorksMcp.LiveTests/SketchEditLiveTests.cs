@@ -800,6 +800,48 @@ public class SketchEditLiveTests(LiveFixture fx) : LiveTest(fx)
         Assert.DoesNotContain(c.Steps[1].Checks!, x => x.StartsWith("already held"));
     }
 
+    [Fact]
+    public async Task Constrain_runs_twenty_steps_on_a_sketch_of_two_dozen_segments_within_its_limit_and_says_how_long()
+    {
+        // S55: 18 to 31 steps, three symmetric among them, on a closed outline and a centerline returned TIMEOUT at 50 s
+        // and completed at 55-95 s. The time went into reading the sketch back three times a step, not into the solve.
+        var (doc, _, added) = await SketchAsync("s55_steps", "front",
+            new SketchEntity { Kind = "polyline", Closed = true, Points =
+                [[-40, 0], [40, 0], [40, 20], [30, 20], [30, 50], [10, 60], [-10, 60.5], [-30.5, 50], [-30, 20.5], [-40, 20]] },
+            Centerline([0, 0], [0, 70]),
+            new SketchEntity { Kind = "polyline", Closed = true, Points = [[-10, 25], [10, 25], [15, 35], [10, 45], [-10, 45], [-15, 35.5]] },
+            Circle([-20, 10], 3), Circle([20.5, 10], 3.2), Circle([-20, 40], 2), Circle([21, 40], 2), Circle([0.5, 10], 4), Circle([0, 52], 2));
+        var o = added.Entities[0].Segments;
+        string cl = Name(added, 1), inner = Name(added, 2);
+        var steps = new[]
+        {
+            Rel("horizontal", Seg(o[0])), Rel("vertical", Seg(o[1])), Rel("horizontal", Seg(o[2])), Rel("vertical", Seg(o[3])),
+            Rel("vertical", Seg(o[7])), Rel("horizontal", Seg(o[8])), Rel("vertical", Seg(o[9])),
+            Rel("coincident", At(0, 0), new EntityRef { Name = "origin" }),
+            Rel("symmetric", At(40, 20), At(-40, 20), Seg(cl)),
+            Rel("symmetric", At(30, 50), At(-30.5, 50), Seg(cl)),
+            Rel("symmetric", At(10, 60), At(-10, 60.5), Seg(cl)),
+            Dim("linear", 84, Seg(o[0])), Dim("vertical", 22, Seg(o[1])), Dim("linear", 12, Seg(o[2])), Dim("vertical", 28, Seg(o[3])),
+            Dim("linear", 18, Seg(o[5])),
+            Rel("horizontal", Seg(inner)), Rel("equal", Seg(Name(added, 3)), Seg(Name(added, 4))), Dim("diameter", 6, Seg(Name(added, 3))),
+            Rel("coincident", At(0.5, 10), Seg(cl)),
+        };
+        var clock = System.Diagnostics.Stopwatch.StartNew();
+        var r = await Ed.ConstrainAsync(doc, steps);
+        double wall = clock.Elapsed.TotalSeconds;
+        Assert.Equal(20, r.Steps.Count);
+        Assert.InRange(r.DurationS, 0.1, wall + 0.1);
+        // One sketch read a step instead of three: back under the 50 s it ran past (34 s on the 2023 SP3 rig, ~80 s before).
+        Assert.True(r.DurationS < 50, $"20 steps took {r.DurationS} s");
+        Assert.All(r.Steps.Skip(8).Take(3), s => Assert.Contains("points symmetric", s.Checks!));
+        Assert.Equal(84, (await SegmentAsync(doc, o[0])).LengthMm!.Value, L);
+        Assert.Equal(18, (await SegmentAsync(doc, o[5])).LengthMm!.Value, L);
+
+        // The limit grows with the steps, past the default for a long call; a short one keeps the default.
+        Assert.Equal(130, SketchEditService.ConstrainTimeout(TimeSpan.FromSeconds(50), 20).TotalSeconds);
+        Assert.Equal(50, SketchEditService.ConstrainTimeout(TimeSpan.FromSeconds(50), 3).TotalSeconds);
+    }
+
     // ------------------------------------------------------------------ sketch_trim
 
     [Fact]
