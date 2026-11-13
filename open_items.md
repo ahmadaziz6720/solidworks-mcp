@@ -114,13 +114,32 @@ modelling, the largest first; the release last):
 If the session ends before the last batch, this list and the items' Waiting lines say
 where the next one picks up.
 
-**Where the run stands** (the second session, 2026-11-13, handed over on the owner's word
-after batch 4, to go on in a new session the same way). Committed on `sw2023`, not
-pushed: batch 1, S47 `f71b034`; batch 2, S66 `657fc23`, S51 `16699e2`, S53 `59beaae`,
-S52 `8dff953`, S50 `1bc3cbb`; batch 3, S54 `9939f28`, S58 `32698d5`, S48 (d) `ffde4db`,
-S63 `e642451`; batch 4, S56 `0acb318`, S55 `1861854`, S64 (e, f) `9e65c62`. **Next:
-batch 5, S64 (a, b as a probe, d, g)**, then S65 (a), S59, then batches 6 and 7. S48 and
-S64 stay Open for their parts in later batches; each records its done parts in its text.
+**Where the run stands** (the third session, 2026-11-13, stopped in batch 5 by a
+SOLIDWORKS it could not restart, see below; the next session goes on the same way).
+Committed on `sw2023`, not pushed: batch 1, S47 `f71b034`; batch 2, S66 `657fc23`, S51
+`16699e2`, S53 `59beaae`, S52 `8dff953`, S50 `1bc3cbb`; batch 3, S54 `9939f28`, S58
+`32698d5`, S48 (d) `ffde4db`, S63 `e642451`; batch 4, S56 `0acb318`, S55 `1861854`, S64
+(e, f) `9e65c62`; batch 5, S64 (a) `576a1c2` (with (b)'s probe: not reproduced in 17
+cases, stays open), S64 (d) `fe1a1af`, S64 (g) `9a46c32`, S65 (a) `fd9bd83`, S59 (a, c,
+d) `3ca75cd`. S64 now holds only (b) and (c), S65 (b) to (d), S48 (a) to (c). **Next: S59
+(b)**, whose code and live test are written and left uncommitted in the tree, never run
+live: `ReferenceService.cs`, the new `ReferenceService.Assembly.cs`,
+`Geometry/EntityResolver.cs`, `AssemblyService.cs` (`SelectIds` made internal) and
+`AssemblyLiveTests.Ref_plane_and_ref_axis_in_an_assembly_take_component_and_assembly_references`.
+Its next steps: that test on HEAD's `ReferenceService.cs` (expected `WRONG_DOC_TYPE`),
+then on the tree with the `Plane_*`, `Axis_*`, `Point_*`, `Coordinate_system_*` tests of
+`ReferenceLiveTests` and `An_equation_on_a_plane_s_offset_gives_where_the_plane_went`;
+then S59 to Waiting whole and its commit. Its decisions, to write into S59 then: (1)
+`ref_plane` `edit` (the flip) stays part-only, refused `WRONG_DOC_TYPE` in an assembly,
+because the component a flipped plane's base belongs to cannot be read from the plane's
+definition without a probe; (2) `ref_point` and `ref_coordsys` stay part-only, because the
+item names plane and axis only. Then batches 6 and 7. Where it stopped: SOLIDWORKS 2023
+(pid 5148, started 12:41, `Responding`, 43 MB working set) left the COM running object
+table, every live test failing `NOT_CONNECTED: SOLIDWORKS is running (pid 5148) but can't
+be reached over COM`, with another `solidworks-mcp` process (pid 21332, since 07:54)
+running; ending SOLIDWORKS to restart it was refused by the auto mode classifier
+("Interfere With Workloads"), the one thing this brief says the session cannot pass. The
+next session starts with SOLIDWORKS restarted by the owner.
 The opening question was asked and answered in the first session
 and holds for the rest of the run, so the next session asks nothing: the release is
 tagged and registered in both projects that list the server in `~/.claude.json`, and
