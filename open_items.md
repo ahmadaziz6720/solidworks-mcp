@@ -10,9 +10,9 @@ Three sections: **Open**, not yet fixed; **Waiting**, fixed and not yet settled 
 merged, a fix not yet run in a session); **Closed**, merged upstream, run and held, or
 decided against, with the record.
 
-**Open: S4, S5, S7, S10 to S12, S33, S34, S60 to S62, S64, S65, S67 to S70.** S60 to
+**Open: S4, S5, S7, S10 to S12, S33, S34, S60 to S62, S64, S65, S67 to S71.** S60 to
 S62, S64 and S65 are from twenty working sessions on build `20261112-091908` (findings
-2026-11-12 and 13), S67 to S70 seen by the run of 2026-11-13 in its own tests; S47 to
+2026-11-12 and 13), S67 to S71 seen by the run of 2026-11-13 in its own tests; S47 to
 S49, from that build's scenario test, and S50 to S59, S63 and S66, from those sessions,
 are fixed and Waiting. Reported `ok` while wrong or misleading: S60 (a).
 Next: the run planned below, every point of it decided 2026-11-13 by the owner. Not in
@@ -192,8 +192,13 @@ in full (`--filter-class "SolidWorksMcp.LiveTests.<Class>"`), as passed/failed/s
 - [x] `BodySheetMetalLiveTests` 52/0/0 (five chunks, SOLIDWORKS at most 2.8 GB)
 - [x] `ExportLiveTests` 21/0/0 (the file's other three classes are offline ones, run in
   the offline step below)
-- [ ] `FaceEditLiveTests`, `SurfaceShapeLiveTests`, `WeldmentLiveTests`,
-  `SimulationLiveTests`
+- [x] `FaceEditLiveTests` 5/1/0, `SurfaceShapeLiveTests` 8/0/0, `WeldmentLiveTests`
+  10/0/0 (four tests requeued alone after a guard stop at 769 MB free, all passed),
+  `SimulationLiveTests` 16/1/0. Both failures fail alone too and are not the run's:
+  FaceEdit's `Delete_heals_a_hole_in_an_imported_STEP_body_without_history` reads volume
+  0 after the STEP import (S5, failing the same before and after S61);
+  Simulation's free-free frequency study, the solver returning 24, the same on build
+  `091908`'s code (new item S71).
 - [ ] the live project's offline classes (`…LogicTests` beside the live ones), the
   project run once without `SWMCP_LIVE_TESTS`
 - [ ] a failure that is the run's: fixed by its own subagent, its tests rerun
@@ -700,6 +705,20 @@ nested component's short name seemed to resolve to the nested one. Not confirmed
 first (two components, one top-level and one in a subassembly, named alike). Local.
 Decided 2026-11-13 by the run, not the owner: an item, open, as S67, because a reference
 that reaches the wrong component would change the wrong part.
+
+**S71. A frequency study with no fixtures fails in the solver.** Seen in the release runs
+of 2026-11-14: `SimulationLiveTests.Frequency_of_the_cantilever_column_matches_beam_theory_and_a_free_bar_has_six_rigid_body_modes`
+fails at its second study, the free-free column (`sim_run` frequency, 8 modes, no fixed
+faces, default mesh size, mesh quality High), with "The solver did not finish:
+RunAnalysis returned 24 (swsRunAnalysisErrorAnalysisFailed)" after ~40 s; its first study,
+the fixed-foot one (4 modes, 2.5 mm mesh), passes. Four runs of four, two of them on a
+fresh SOLIDWORKS with 1.6-2.0 GB free; the same on build `091908`'s code, and no commit
+since that build touches `SimulationService` or the test. The server picks no solver, so
+SOLIDWORKS 2023 chooses one for a stiffness matrix with six rigid-body modes. Not probed:
+whether a solver choice (FFEPlus, Direct Sparse), a mesh size or the soft-spring option
+lets it finish. Local, upstream's test. Decided 2026-11-14 by the run, not the owner: an
+item, open, as S67, not fixed in the release run, because it fails the same on the code
+before the run.
 
 ## Waiting
 
