@@ -145,9 +145,11 @@ in full (`--filter-class "SolidWorksMcp.LiveTests.<Class>"`), as passed/failed/s
   failed study left open). The runner now restarts SOLIDWORKS after a failed class.
 - [x] `PartFeatureLiveTests` 47/0/0
 - [x] `AdvancedFeatureLiveTests` 29/0/0
-- [ ] `FeatureManagementLiveTests`: its first run stopped at 21.53: SOLIDWORKS went 1.5 →
-  6.1 GB private within ~2 minutes, free memory ~0.5 GB, and the runner was ended for low
-  system memory; a probe of which test does it, and the class run in chunks, is next
+- [x] `FeatureManagementLiveTests` 33/0/0, in three chunks with a restart before each
+  (its first run had stopped on memory: the runner read a stale second SLDWORKS process,
+  so the live one, kept ~40-50 MB per test by SOLIDWORKS, was never restarted between
+  classes; the heaviest test, S57's `The_servers_own_failed_kept_…`, peaks ~1.5 GB over
+  its start with two parts open, no fault in the server)
 - [ ] `SketchEditLiveTests`
 - [ ] `ReferenceLiveTests`
 - [ ] `PropertiesLiveTests`
@@ -163,11 +165,13 @@ in full (`--filter-class "SolidWorksMcp.LiveTests.<Class>"`), as passed/failed/s
 - [ ] the push of `sw2023`, publish, `--check-catalog`, the tag, the registration in both
   projects, the release page, each Waiting line given its commit and the build, the
   sentence for the scenario test
-A class's subagent: `dotnet build` first, then
-`%LOCALAPPDATA%\solidworks-mcp\livetest\runall.ps1 -Classes <Class>[,…]` (one class at a
-time, SOLIDWORKS restarted above 4 GB or when not reachable, a 90-minute hang limit,
-the Welcome screen and a "low on memory" dialog answered; logs beside it); a failure
-rerun alone and diagnosed, no code changed.
+A class's subagent (Sonnet): `dotnet build` first, then
+`%LOCALAPPDATA%\solidworks-mcp\livetest\runall.ps1 -Classes <Class> -ChunkSize 12
+-RestartEachChunk -FreshStart` (chunks of 12 tests, SOLIDWORKS restarted before each; a
+guard stops a run above 4.5 GB or under 800 MB free, the Welcome screen and a "low on
+memory" dialog answered; `CLASS RESULT` lines in `logs\summary.txt`); a failure rerun
+alone and diagnosed, no code changed. On this 7.5 GB machine a fresh SOLIDWORKS leaves
+~2.1 GB free.
 SOLIDWORKS 2023: during S62 it held 8.3 GB on this 7.5 GB machine, showed a "critically
 low on memory" dialog (answered No by the subagent) and `equation_set` refused every
 equation; it was exited and started again, and the batch rerun held. Start batch 7's
