@@ -12,7 +12,7 @@ using SolidWorksMcp.Core.Win32;
 namespace SolidWorksMcp.Core.Services;
 
 /// <summary>What an import (STEP, IGES, …) produced.</summary>
-public sealed class ImportInfo
+public sealed record ImportInfo
 {
     /// <summary>step | iges | parasolid | acis | stl.</summary>
     public required string Format { get; init; }
@@ -27,6 +27,8 @@ public sealed class ImportInfo
     public int? Components { get; init; }
     /// <summary>The features the import created (e.g. Imported1).</summary>
     public IReadOnlyList<string>? Features { get; init; }
+    /// <summary>Other documents the import left open: handle, title, what they hold.</summary>
+    public IReadOnlyList<string>? OtherDocuments { get; init; }
 }
 
 public sealed class OpenResult : ToolResult
@@ -318,6 +320,8 @@ public sealed class OpenService(SwSession session)
         }
 
         var imported = Summarize(doc, format);
+        var others = OtherDocuments(ctx, doc, created, out var empty);
+        if (others.Count > 0) imported = imported with { OtherDocuments = others };
         bool hasGeometry = imported.SolidBodies + imported.SurfaceBodies + (imported.MeshBodies ?? 0) > 0 || imported.Components > 0;
         if (!hasGeometry)
         {
@@ -331,13 +335,16 @@ public sealed class OpenService(SwSession session)
         ctx.Documents.Track(doc).StampAfterLastOp = doc.GetUpdateStamp();
 
         var info = DocumentService.Info(ctx, doc);
-        string bodies = imported.Components is int n ? $"{n} component(s)"
-            : string.Join(", ", new[]
-            {
-                imported.SolidBodies > 0 ? $"{imported.SolidBodies} solid bod{(imported.SolidBodies == 1 ? "y" : "ies")}" : null,
-                imported.SurfaceBodies > 0 ? $"{imported.SurfaceBodies} surface bod{(imported.SurfaceBodies == 1 ? "y" : "ies")}" : null,
-                imported.MeshBodies > 0 ? $"{imported.MeshBodies} mesh bod{(imported.MeshBodies == 1 ? "y" : "ies")}" : null,
-            }.Where(s => s is not null));
+        string bodies = string.Join(", ", new[]
+        {
+            imported.SolidBodies > 0 ? $"{imported.SolidBodies} solid bod{(imported.SolidBodies == 1 ? "y" : "ies")}" : null,
+            imported.SurfaceBodies > 0 ? $"{imported.SurfaceBodies} surface bod{(imported.SurfaceBodies == 1 ? "y" : "ies")}" : null,
+            imported.MeshBodies > 0 ? $"{imported.MeshBodies} mesh bod{(imported.MeshBodies == 1 ? "y" : "ies")}" : null,
+        }.Where(s => s is not null));
+        if (imported.Components is int n) bodies = $"{n} component(s){(bodies.Length > 0 ? $" ({bodies})" : "")}";
+        string left = others.Count == 0 ? ""
+            : $" It also left {string.Join("; ", others)} open (see imported.otherDocuments)" +
+              (empty.Count > 0 ? $"; doc_close {{doc:'{empty[0]}', discard:true}} closes an empty one without touching the import." : ".");
         return new OpenResult
         {
             Doc = info.Title,
@@ -345,8 +352,33 @@ public sealed class OpenService(SwSession session)
             Imported = imported,
             LoadWarnings = notes.Count > 0 ? notes : null,
             Message = $"Imported {kind.Label} '{name}' as a new {SwContext.TypeName(t)} '{info.Title}' ({info.Handle}) with {bodies}, units {info.Units}. " +
-                      "It is the target document, owned by this server and not saved yet: doc_save mode 'as' keeps it as a SOLIDWORKS file.",
+                      "It is the target document, owned by this server and not saved yet: doc_save mode 'as' keeps it as a SOLIDWORKS file." + left,
         };
+    }
+
+    /// <summary>
+    /// The documents an import created besides its result (S61 c: an assembly import leaves an empty part open), each as
+    /// "D3 'Part2' (part, no bodies)"; <paramref name="empty"/> gets the handles of those without bodies.
+    /// </summary>
+    private static List<string> OtherDocuments(SwContext ctx, IModelDoc2 doc, List<IModelDoc2> created, out List<string> empty)
+    {
+        var list = new List<string>();
+        empty = [];
+        foreach (var c in created.Where(c => !ReferenceEquals(c, doc)))
+        {
+            string handle = ctx.Documents.Track(c).Handle;
+            int t = c.GetType();
+            string what = SwContext.TypeName(t);
+            if (t == (int)swDocumentTypes_e.swDocPART)
+            {
+                var part = (IPartDoc)c;
+                int n = CountBodies(part, swBodyType_e.swSolidBody) + CountBodies(part, swBodyType_e.swSheetBody);
+                what += n == 0 ? ", no bodies" : $", {n} bod{(n == 1 ? "y" : "ies")}";
+                if (n == 0) empty.Add(handle);
+            }
+            list.Add($"{handle} '{ctx.Title(c)}' ({what})");
+        }
+        return list;
     }
 
     /// <summary>Bodies, volume and extents of an imported document (no COM types leave this method).</summary>
@@ -374,9 +406,28 @@ public sealed class OpenService(SwSession session)
         }
         if (t == (int)swDocumentTypes_e.swDocASSEMBLY)
         {
+            // The bodies live in the components (S61 b): counted per part component, as Snapshot counts a part's.
             var asm = (IAssemblyDoc)doc;
             var box = asm.AsmBox();
-            return new ImportInfo { Format = format, Components = asm.GetComponentCount(false), Box = BoxMm.FromMeters(box.Length == 6 ? box : null) };
+            int solids = 0, sheets = 0;
+            double volume = 0;
+            foreach (var c in asm.Components(false))
+            {
+                if (c.GetSuppression2() == (int)swComponentSuppressionState_e.swComponentSuppressed || c.AsmChildren().Count > 0) continue;
+                var s = c.Bodies(swBodyType_e.swSolidBody);
+                solids += s.Count;
+                sheets += c.Bodies(swBodyType_e.swSheetBody).Count;
+                volume += s.Sum(b => b.MassOfBody() is { Length: > 3 } mp ? mp[3] : 0);
+            }
+            return new ImportInfo
+            {
+                Format = format,
+                SolidBodies = solids,
+                SurfaceBodies = sheets,
+                VolumeMm3 = solids > 0 ? Units.Mm3(volume) : null,
+                Components = asm.GetComponentCount(false),
+                Box = BoxMm.FromMeters(box.Length == 6 ? box : null),
+            };
         }
         return new ImportInfo { Format = format };
     }

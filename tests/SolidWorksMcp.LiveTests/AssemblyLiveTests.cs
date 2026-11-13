@@ -342,6 +342,50 @@ public class AssemblyLiveTests(LiveFixture fx) : LiveTest(fx)
         Assert.Equal(ErrorCodes.InvalidArgument, ex.Code);
     }
 
+    // ------------------------------------------------------------------ doc_open of a STEP that comes in as an assembly (S61 b, c)
+
+    [Fact]
+    public async Task A_step_imported_as_an_assembly_counts_bodies_through_its_components_and_names_what_it_left_open()
+    {
+        // A STEP with a product structure (here: written from an assembly of one 20 mm cube) comes in as an assembly.
+        var cube = await CubeAsync("stepone");
+        string asm = await NewAssemblyAsync("stepone_asm");
+        await InsertAsync(asm, cube.Path);
+        string step = Path.Combine(_dir, $"stepone_{_tag}.step");
+        await new ExportService(S).ExportAsync(new ExportRequest { Doc = asm, Path = step, StepAp = 214 });
+        await Docs.CloseAsync(asm, save: false, discard: true); // nothing of the source left open under the names the import uses
+        await Docs.CloseAsync(cube.Doc, save: false, discard: true);
+
+        var before = (await Docs.ListAsync()).Documents.Select(d => d.Handle).ToHashSet();
+        var r = await new OpenService(S).OpenAsync(step, false, null);
+        _asms.Add(r.Document.Handle);
+        var after = (await Docs.ListAsync()).Documents;
+        var others = after.Where(d => !before.Contains(d.Handle) && d.Handle != r.Document.Handle).ToList();
+        foreach (var d in others) Track(d.Handle);
+        string dump = System.Text.Json.JsonSerializer.Serialize(r) + " | new documents: " +
+                      string.Join(", ", others.Select(d => $"{d.Handle} '{d.Title}' {d.Type} {d.Access} loadedBy={d.LoadedBy}"));
+
+        Assert.True(r.Document.Type == "assembly", dump);
+        Assert.True(r.Imported!.Components == 1, dump);
+        Assert.True(r.Imported.SolidBodies == 1, dump);   // read 0 before S61 (b)
+        Assert.Equal(0, r.Imported.SurfaceBodies);
+        Assert.Equal(8000, r.Imported.VolumeMm3!.Value, V);
+        Assert.Contains("1 component(s) (1 solid body)", r.Message);
+        // SOLIDWORKS 2023 also leaves an empty part ("Part2") open; the result names every such document (S61 c).
+        Assert.True(others.Count == (r.Imported.OtherDocuments?.Count ?? 0), dump);
+        foreach (var d in others)
+        {
+            Assert.Contains(r.Imported.OtherDocuments!, o => o.StartsWith($"{d.Handle} '{d.Title}'", StringComparison.Ordinal));
+            Assert.Contains(d.Handle, r.Message);
+            Assert.Equal("owned", d.Access);
+        }
+        // Closing the empty part leaves the import whole.
+        foreach (var d in others) await Docs.CloseAsync(d.Handle, save: false, discard: true);
+        var comps = await Asm.ComponentListAsync(r.Document.Handle, false, 100, 0);
+        Assert.Equal(1, comps.Total);
+        AssertBox(comps.Components[0].Box, [-10, -10, -10], [10, 10, 10]);
+    }
+
     // ------------------------------------------------------------------ ref_plane / ref_axis in an assembly (S59 b)
 
     private static double PlaneDist(RefFrame f, double[] p) => p.Select((v, i) => (v - f.OriginMm[i]) * f.Normal![i]).Sum();

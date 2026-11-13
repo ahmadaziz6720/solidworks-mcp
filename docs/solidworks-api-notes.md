@@ -48,6 +48,11 @@ type libraries and writes `sldworks_api.txt`, `swconst_enums.txt`, `swcommands.t
 - **Import STEP/IGES.** `ISldWorks.GetImportFileData(path)` → `LoadFile4(path, "r", importData, ref err)`. VERIFIED: it
   opens a new unsaved part.
   - `OpenDoc6` with type Part on a `.step` file fails with error 2097152 (`swFileRequiresRepairError`).
+  - A STEP with an assembly level in its product structure (one written from an assembly, even of one part) comes in as
+    an **assembly**, with 3D Interconnect off too (VERIFIED 2026-11-13 on 2023 SP3). Its components point to
+    `<step name>_1.sldprt` next to the STEP, not written until saved; the bodies are read through the components
+    (`IComponent2.GetBodies3`), the assembly document has none. The import also leaves an **empty part** ("Part2", no bodies)
+    open, used by nothing: closing it leaves the assembly whole.
 - **Undo.** `IModelDoc2.EditUndo2(steps)`.
 
 ## 2. Selection

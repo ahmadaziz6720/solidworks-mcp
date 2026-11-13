@@ -156,7 +156,8 @@ a STEP round trip gave 16 surface bodies and no solid. Again in `…-235702`,
 `…-010708`, `…-014952`, `…-024431`, `…-034022`, `…-064352`, `…-091645`, `…-115800`,
 `…-134233`, `…-144220`, `20261111-140208` and `20261112-091908` (export `solids: 1`,
 import 16 surface bodies). The usage line misses one case: a STEP that comes in as an
-assembly reads `solidBodies: 0` on a good solid (S61 b); read `model_mass` there.
+assembly reads `solidBodies: 0` on a good solid (S61 b); read `model_mass` there until the
+build with S61 (b), which counts them through the components.
 
 **S7. `dimension_set` accepts a change that splits the body.** Upstream: issue #4. Usage:
 read `bodies` in the result after each `dimension_set`. A model driven by global variables
@@ -333,7 +334,40 @@ S5's usage line ("check `solidBodies`") reads 0 on a good solid. (c) The import 
 empty `Part2` open, unnamed in the result, later closed with another assembly. Bears on
 S5. Not needed by that job. Taken into the run of 2026-11-13: (b) and (c), no choice in
 them: the body counts read through the components for an assembly import, the stray
-document named in the result. (a) offered 2026-11-13 and not chosen; stays open.
+document named in the result. (a) offered 2026-11-13 and not chosen; stays open. (b) and
+(c) fixed in the run of 2026-11-13; (a) still open. What makes it an assembly (live, 2023
+SP3, 3D Interconnect off as `doc_open` sets it): a STEP with an assembly level in its
+product structure, here one written by `model_export` from an assembly of one 20 mm cube
+(the writer of the finding wraps a single solid the same way); a STEP of a single part
+still comes in as a part. The component points to `<step name>_1.sldprt` beside the STEP,
+not written until saved, and SOLIDWORKS leaves an empty part (`Part2`, `Part4`: no bodies,
+used by nothing) open; closing it leaves the assembly and its component whole (noted in
+`docs/solidworks-api-notes.md` §1). (b) Cause: `OpenService.Summarize` read only the
+component count and box of an assembly, so `solidBodies` and `surfaceBodies` kept their
+default 0. Fix: for an assembly import they are counted through the part components
+(`GetBodies3`, suppressed ones and subassemblies skipped), `volumeMm3` summed from those
+solids, and the message says "1 component(s) (1 solid body)". (c) Cause: the import marked
+every document it created as owned ("created by importing …") and named none but the
+result. Fix: `imported.otherDocuments` names each, as "D3 'Part4' (part, no bodies)", and
+the message says it was left open, with `doc_close {doc, discard:true}` for an empty one;
+it is not closed by the server. Before, on the code before the fix: the new
+`AssemblyLiveTests.A_step_imported_as_an_assembly_counts_bodies_through_its_components_and_names_what_it_left_open`
+failed ("… "SolidBodies":0,"SurfaceBodies":0 … "Components":1 … | new documents: D3
+'Part2' part owned"). After: it passes, with `ExportLiveTests.An_exported_step_imports_back_…`,
+`An_exported_stl_imports_back_with_a_body`, `Open_refuses_missing_files_…`,
+`A_file_that_is_already_open_…` and `RecognitionLiveTests.An_imported_step_block_…`, 6/6
+live; `FaceEditLiveTests.Delete_heals_a_hole_in_an_imported_STEP_body_without_history`
+fails the same before and after (the import reads volume 0: S5, not this item); unit tests
+284/284; `ContractTests` 7/7; `check_repo` ok; no description changed. Made stricter:
+none. Decided 2026-11-13 by the run, not the owner: (1) the empty part is named, with the
+close hint, and not closed by `doc_open`, because the decision was to name it and it is a
+document SOLIDWORKS opened; (2) every other document the import created is named, with its
+body count, not only empty parts, because the result then says all that the import left
+open; (3) `volumeMm3` is given for an assembly import too, from the components' solids,
+because a part import gives it and a count without it reads as less than `model_mass`
+shows; (4) only part components are counted (subassemblies skipped), because a
+subassembly's bodies are its parts' and would count twice. Local: (b) and (c) on `sw2023`,
+in the commit that records them here; not yet in a build. Upstream: not yet decided.
 
 **S62. Assembly reading and options.** On build `20261112-091908`. (a) `asm_mate_list`
 gives each entity `{component, kind: "plane"}` with no name, face id or point, so which
