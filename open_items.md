@@ -143,7 +143,7 @@ in full (`--filter-class "SolidWorksMcp.LiveTests.<Class>"`), as passed/failed/s
   once and passed alone; no commit since build 091908 touches it), `TemplateLiveTests`
   and `VisualsLiveTests` 0/1/0 then 1/0/0 each (the fixture refused the document the
   failed study left open). The runner now restarts SOLIDWORKS after a failed class.
-- [ ] `PartFeatureLiveTests`
+- [x] `PartFeatureLiveTests` 47/0/0
 - [ ] `AdvancedFeatureLiveTests`
 - [ ] `FeatureManagementLiveTests`
 - [ ] `SketchEditLiveTests`
