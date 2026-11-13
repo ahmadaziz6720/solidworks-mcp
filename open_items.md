@@ -163,7 +163,22 @@ in full (`--filter-class "SolidWorksMcp.LiveTests.<Class>"`), as passed/failed/s
   A session's `dialog_list` or `sw_status` shows that popup for ~10 s after a start.
 - [x] `ReferenceLiveTests` 46/0/0
 - [x] `PropertiesLiveTests` 25/0/0
-- [ ] `AssemblyLiveTests`
+- [ ] `AssemblyLiveTests` 33/1/0 and 7 stopped by the runner's guard (free memory under
+  800 MB), 2026-11-13 23.49: failed `A_part_the_server_owned_comes_back_owned_…` (it
+  failed once in S49's mixed run too and then passed three times alone: rerun it alone);
+  guard-stopped, each to run alone on a fresh SOLIDWORKS with Chrome and VS Code closed:
+  `A_tilted_component_s_box_is_its_body_s_extremes`,
+  `Insert_refuses_unsaved_missing_and_foreign_files_and_needs_an_assembly`,
+  `Subassemblies_are_inserted_and_listed_with_their_children`,
+  `Ref_plane_and_ref_axis_in_an_assembly_take_component_and_assembly_references`,
+  `Interference_with_coincident_faces_says_what_SOLIDWORKS_listed_overlapping_touching_and_kept`,
+  `Mate_list_names_the_plane_face_edge_or_vertex_each_mate_takes`,
+  `Width_centres_a_cube_between_the_box_ends_and_hinge_seats_a_shaft_in_the_bore`.
+  Then Claude Code ended the runner for low system memory, at the start of
+  `DrawingLiveTests`; the classes below were not run. On this 7.5 GB machine the
+  assembly tests need more than the ~2 GB a fresh SOLIDWORKS leaves free with the other
+  programs open; Claude Code's own reaping of background commands is turned off by
+  starting it with `CLAUDE_CODE_DISABLE_BG_SHELL_PRESSURE_REAP=1`.
 - [ ] `DrawingLiveTests`
 - [ ] `BodySheetMetalLiveTests`
 - [ ] `ExportLiveTests`
