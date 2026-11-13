@@ -136,10 +136,13 @@ on a Debug build; its diff matches the descriptions changed since build 091908),
 tests 284/284, `check_repo` ok, `--check-catalog` ok (165 tools). Live classes, each run
 in full (`--filter-class "SolidWorksMcp.LiveTests.<Class>"`), as passed/failed/skipped:
 - [x] `M0LiveTests` 23/0/0, `ContractTests` 7/0/0
-- [ ] small classes: `ModellingLiveTests`, `ConfigurationLiveTests`,
-  `AssemblyStructureLiveTests`, `TopDownLiveTests`, `HardwareLiveTests`,
-  `MoldingLiveTests`, `RecognitionLiveTests`, `SimulationExtrasLiveTests`,
-  `TemplateLiveTests`, `VisualsLiveTests`
+- [x] small classes: `ModellingLiveTests` 9/0/0, `ConfigurationLiveTests` 7/0/0,
+  `AssemblyStructureLiveTests` 2/0/0, `TopDownLiveTests` 4/0/0, `HardwareLiveTests`
+  3/0/0, `MoldingLiveTests` 4/0/0, `RecognitionLiveTests` 1/0/0,
+  `SimulationExtrasLiveTests` 2/1/0 then 3/0/0 (the nonlinear study's solver returned 14
+  once and passed alone; no commit since build 091908 touches it), `TemplateLiveTests`
+  and `VisualsLiveTests` 0/1/0 then 1/0/0 each (the fixture refused the document the
+  failed study left open). The runner now restarts SOLIDWORKS after a failed class.
 - [ ] `PartFeatureLiveTests`
 - [ ] `AdvancedFeatureLiveTests`
 - [ ] `FeatureManagementLiveTests`
