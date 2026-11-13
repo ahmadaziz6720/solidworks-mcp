@@ -128,7 +128,39 @@ a limit-mated component fully constrained, no fault, test kept; (b) stays Open),
 `2a41e9e`, S48 (a to c) `ef358df` (S48 Waiting whole). S64 now holds only (b) and (c),
 S65 (b) to (d), S60 (a), S61 (a), S62 (b). The four things seen in the run's own tests
 are S67 to S70, open; the preference change seen once is under *Carried, not items*.
-**Next: batch 7, the release.**
+**Batch 7, the release, split so any session can pick it up** (the owner, 2026-11-13:
+one fresh subagent per class or group of small classes, a line here after each, so a
+session that hits its limit can be closed and the next goes on from the first step not
+ticked). Done: `docs/tools.md` regenerated (`solidworks-mcp.exe --tools-md docs/tools.md`
+on a Debug build; its diff matches the descriptions changed since build 091908), unit
+tests 284/284, `check_repo` ok, `--check-catalog` ok (165 tools). Live classes, each run
+in full (`--filter-class "SolidWorksMcp.LiveTests.<Class>"`), as passed/failed/skipped:
+- [x] `M0LiveTests` 23/0/0, `ContractTests` 7/0/0
+- [ ] small classes: `ModellingLiveTests`, `ConfigurationLiveTests`,
+  `AssemblyStructureLiveTests`, `TopDownLiveTests`, `HardwareLiveTests`,
+  `MoldingLiveTests`, `RecognitionLiveTests`, `SimulationExtrasLiveTests`,
+  `TemplateLiveTests`, `VisualsLiveTests`
+- [ ] `PartFeatureLiveTests`
+- [ ] `AdvancedFeatureLiveTests`
+- [ ] `FeatureManagementLiveTests`
+- [ ] `SketchEditLiveTests`
+- [ ] `ReferenceLiveTests`
+- [ ] `PropertiesLiveTests`
+- [ ] `AssemblyLiveTests`
+- [ ] `DrawingLiveTests`
+- [ ] `BodySheetMetalLiveTests`
+- [ ] `ExportLiveTests`
+- [ ] `FaceEditLiveTests`, `SurfaceShapeLiveTests`, `WeldmentLiveTests`,
+  `SimulationLiveTests`
+- [ ] a failure that is the run's: fixed by its own subagent, its tests rerun
+- [ ] the push of `sw2023`, publish, `--check-catalog`, the tag, the registration in both
+  projects, the release page, each Waiting line given its commit and the build, the
+  sentence for the scenario test
+A class's subagent: `dotnet build` first, then
+`%LOCALAPPDATA%\solidworks-mcp\livetest\runall.ps1 -Classes <Class>[,…]` (one class at a
+time, SOLIDWORKS restarted above 4 GB or when not reachable, a 90-minute hang limit,
+the Welcome screen and a "low on memory" dialog answered; logs beside it); a failure
+rerun alone and diagnosed, no code changed.
 SOLIDWORKS 2023: during S62 it held 8.3 GB on this 7.5 GB machine, showed a "critically
 low on memory" dialog (answered No by the subagent) and `equation_set` refused every
 equation; it was exited and started again, and the batch rerun held. Start batch 7's
