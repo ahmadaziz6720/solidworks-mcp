@@ -190,7 +190,8 @@ in full (`--filter-class "SolidWorksMcp.LiveTests.<Class>"`), as passed/failed/s
   for the run's failures below.
 - [x] `DrawingLiveTests` 57/0/0 (five chunks, SOLIDWORKS at most 2.4 GB)
 - [x] `BodySheetMetalLiveTests` 52/0/0 (five chunks, SOLIDWORKS at most 2.8 GB)
-- [ ] `ExportLiveTests`
+- [x] `ExportLiveTests` 21/0/0 (the file's other three classes are offline ones, run in
+  the offline step below)
 - [ ] `FaceEditLiveTests`, `SurfaceShapeLiveTests`, `WeldmentLiveTests`,
   `SimulationLiveTests`
 - [ ] the live project's offline classes (`…LogicTests` beside the live ones), the
