@@ -30,6 +30,9 @@ internal sealed class Resolved
     /// <summary>How far the given point was from the entity (m), for point references.</summary>
     public double? Distance { get; init; }
 
+    /// <summary>In an assembly: the component the entity belongs to (its geometry reads in that part's space), when known.</summary>
+    public IComponent2? Component { get; init; }
+
     /// <summary>Selects the entity with the given mark. Returns false if SOLIDWORKS refused.</summary>
     public bool Select(IModelDoc2 doc, bool append, int mark)
     {
@@ -189,7 +192,7 @@ internal static class EntityResolver
         return items.Select(i =>
         {
             string id = TopoQuery.Id(ctx, doc, i);
-            return new Resolved { Obj = i.Entity, Kind = kind, Id = id, Label = $"{KindName(kind)} {id}", Pick = i.Pick };
+            return new Resolved { Obj = i.Entity, Kind = kind, Id = id, Label = $"{KindName(kind)} {id}", Pick = i.Pick, Component = i.Scope.Component };
         }).ToList();
     }
 
@@ -288,7 +291,7 @@ internal static class EntityResolver
         return new Resolved
         {
             Obj = best.Obj, Kind = kind, Id = id, Label = $"{KindName(kind)} {id}",
-            Pick = best.Scope.ToWorld.ApplyPoint(best.LocalClosest), Distance = best.Dist,
+            Pick = best.Scope.ToWorld.ApplyPoint(best.LocalClosest), Distance = best.Dist, Component = best.Scope.Component,
         };
     }
 
@@ -488,6 +491,6 @@ internal static class EntityResolver
         var inAsm = (object?)comp.FeatureByName(feat.Name) as IFeature
                     ?? throw new SwException(ErrorCodes.EntityNotFound, $"'{name}' could not be mapped into the assembly for '{comp.Name2}'.");
         var fk = FeatureKind(inAsm);
-        return new Resolved { Obj = inAsm, Kind = kind == EntityKind.Feature ? EntityKind.Feature : fk, Label = $"{KindName(fk)} '{feat.Name}' of {comp.Name2}" };
+        return new Resolved { Obj = inAsm, Kind = kind == EntityKind.Feature ? EntityKind.Feature : fk, Label = $"{KindName(fk)} '{feat.Name}' of {comp.Name2}", Component = comp };
     }
 }

@@ -342,6 +342,108 @@ public class AssemblyLiveTests(LiveFixture fx) : LiveTest(fx)
         Assert.Equal(ErrorCodes.InvalidArgument, ex.Code);
     }
 
+    // ------------------------------------------------------------------ ref_plane / ref_axis in an assembly (S59 b)
+
+    private static double PlaneDist(RefFrame f, double[] p) => p.Select((v, i) => (v - f.OriginMm[i]) * f.Normal![i]).Sum();
+
+    private static double LineDist(RefFrame f, double[] p)
+    {
+        var v = p.Select((x, i) => x - f.OriginMm[i]).ToArray();
+        double along = v.Select((x, i) => x * f.Direction![i]).Sum();
+        return Math.Sqrt(v.Select((x, i) => x - along * f.Direction![i]).Sum(x => x * x));
+    }
+
+    private static void AlongAxis(int axis, double[]? unit)
+    {
+        Assert.NotNull(unit);
+        Assert.True(Math.Abs(Math.Abs(unit[axis]) - 1) < 1e-6, $"[{string.Join(", ", unit)}] is not along axis {axis}");
+    }
+
+    [Fact]
+    public async Task Ref_plane_and_ref_axis_in_an_assembly_take_component_and_assembly_references()
+    {
+        // The box (part x 0..40, y 0..10, z 0..20) turned 90° about z and moved to (100, 0, 0): part (x, y, z) is at
+        // (100 − y, x, z), so the box fills x 90..100, y 0..40, z 0..20. Its part face y = 10 is the plane x = 90 (outward
+        // −x), its Top plane x = 100 (normal −x), its Front plane z = 0. An identity mapping would put all of it elsewhere.
+        var box = await BoxAsync("refbox");
+        var shaft = await ShaftAsync("refshaft");
+        string asm = await NewAssemblyAsync("asm_ref");
+        string b = (await InsertAsync(asm, box.Path, [100, 0, 0], Rot([0, 0, 1], 90))).Component.Name;
+        // The shaft (r 5 along part +y) turned 90° about x and moved to (0, 0, −50): its axis is the line x = y = 0 along z.
+        string s = (await InsertAsync(asm, shaft.Path, [0, 0, -50], Rot([1, 0, 0], 90))).Component.Name;
+        var refs = new ReferenceService(S);
+        var inspect = new InspectService(S);
+        int partFeatures = (await inspect.FeatureListAsync(box.Doc, false, 500, 0)).Total;
+
+        // Offset from a component's face, picked in assembly coordinates: 5 mm outward is x = 85.
+        var p1 = await refs.PlaneAsync(new RefPlaneRequest { Doc = asm, Kind = "offset", Base = new EntityRef { Type = "face", At = [90, 20, 10] }, OffsetMm = 5, Name = "OffFace" });
+        Assert.Equal("OffFace", p1.Feature.Name);
+        AlongAxis(0, p1.Frame.Normal);
+        Assert.Equal(0, PlaneDist(p1.Frame, [85, 3, 7]), 1e-6);
+        Assert.Contains(p1.Verified.Checks!, c => c.Contains("assembly"));
+        var tree = await inspect.FeatureListAsync(asm, false, 500, 0);
+        Assert.Contains(tree.Features, f => f.Name == "OffFace" && f.Type == "RefPlane");
+        Assert.Equal(partFeatures, (await inspect.FeatureListAsync(box.Doc, false, 500, 0)).Total); // made in the assembly, not the part
+
+        // Offset from a component's plane: its Top plane (x = 100, normal −x), 10 along its normal is x = 90.
+        var p2 = await refs.PlaneAsync(new RefPlaneRequest { Doc = asm, Kind = "offset", Base = new EntityRef { Component = b, Name = "top" }, OffsetMm = 10 });
+        AlongAxis(0, p2.Frame.Normal);
+        Assert.Equal(0, PlaneDist(p2.Frame, [90, 5, 5]), 1e-6);
+
+        // Offset from the assembly's own Right plane.
+        var p3 = await refs.PlaneAsync(new RefPlaneRequest { Doc = asm, Kind = "offset", Base = new EntityRef { Name = "right" }, OffsetMm = 20 });
+        Assert.Equal(0, PlaneDist(p3.Frame, [20, 1, 2]), 1e-6);
+
+        // 30° about the component's edge x = 90, z = 20 (along y) from its face z = 20.
+        var p4 = await refs.PlaneAsync(new RefPlaneRequest
+        {
+            Doc = asm, Kind = "angle", Base = new EntityRef { Type = "face", At = [95, 20, 20] }, Axis = new EntityRef { Type = "edge", At = [90, 20, 20] }, AngleDeg = 30,
+        });
+        Assert.Equal(0, p4.Frame.Normal![1], 1e-6);
+        Assert.Equal(Math.Cos(Math.PI / 6), Math.Abs(p4.Frame.Normal[2]), 1e-6);
+        Assert.Equal(0, PlaneDist(p4.Frame, [90, 5, 20]), 1e-6);
+        Assert.Equal(0, PlaneDist(p4.Frame, [90, 35, 20]), 1e-6);
+
+        // Midway between the component's faces x = 90 and x = 100; normal to its edge through a point on it.
+        var p5 = await refs.PlaneAsync(new RefPlaneRequest
+        {
+            Doc = asm, Kind = "mid_plane", Base = new EntityRef { Type = "face", At = [90, 20, 10] }, Second = new EntityRef { Type = "face", At = [100, 20, 10] },
+        });
+        Assert.Equal(0, PlaneDist(p5.Frame, [95, 9, 9]), 1e-6);
+        var p6 = await refs.PlaneAsync(new RefPlaneRequest { Doc = asm, Kind = "normal_to_curve", Base = new EntityRef { Type = "edge", At = [90, 20, 20] }, Point = [90, 25, 20] });
+        AlongAxis(1, p6.Frame.Normal);
+        Assert.Equal(0, PlaneDist(p6.Frame, [3, 25, 4]), 1e-6);
+
+        // Three points, kept in an assembly 3D sketch.
+        var p7 = await refs.PlaneAsync(new RefPlaneRequest { Doc = asm, Kind = "three_points", Points = [[0, 0, 100], [10, 0, 100], [0, 10, 100]] });
+        AlongAxis(2, p7.Frame.Normal);
+        Assert.Equal(0, PlaneDist(p7.Frame, [5, 5, 100]), 1e-6);
+
+        // Axes: the component's Top plane with the assembly's Front plane (x = 100, z = 0, along y); the component's
+        // edge x = 90, y = 40 (along z); two of its vertices; the shaft's cylinder.
+        var a1 = await refs.AxisAsync(asm, "two_planes", [new EntityRef { Component = b, Name = "top" }, new EntityRef { Name = "front" }], null, null);
+        AlongAxis(1, a1.Frame.Direction);
+        Assert.Equal(0, LineDist(a1.Frame, [100, 7, 0]), 1e-6);
+        var a2 = await refs.AxisAsync(asm, "edge", [new EntityRef { Type = "edge", At = [90, 40, 10] }], null, null);
+        AlongAxis(2, a2.Frame.Direction);
+        Assert.Equal(0, LineDist(a2.Frame, [90, 40, 3]), 1e-6);
+        var a3 = await refs.AxisAsync(asm, "two_points", [new EntityRef { Type = "vertex", At = [90, 40, 20] }, new EntityRef { Type = "vertex", At = [100, 40, 20] }], null, null);
+        AlongAxis(0, a3.Frame.Direction);
+        Assert.Equal(0, LineDist(a3.Frame, [50, 40, 20]), 1e-6);
+        var a4 = await refs.AxisAsync(asm, "cylinder", [new EntityRef { Type = "face", Component = s, At = [5, 15, 0] }], null, null);
+        AlongAxis(2, a4.Frame.Direction);
+        Assert.Equal(0, LineDist(a4.Frame, [0, 0, -40]), 1e-6);
+
+        Assert.All(new[] { p2, p3, p4, p5, p6, p7, a1, a2, a3, a4 }, r => Assert.Contains(r.Verified.Checks!, c => c.Contains("assembly")));
+        Assert.Equal(partFeatures, (await inspect.FeatureListAsync(box.Doc, false, 500, 0)).Total);
+
+        // The flip of an existing plane stays a part's: refused in an assembly, nothing changed.
+        int count = (await inspect.FeatureListAsync(asm, false, 500, 0)).Total;
+        var ex = await Assert.ThrowsAsync<SwException>(() => refs.PlaneAsync(new RefPlaneRequest { Doc = asm, Edit = "OffFace", Flip = true }));
+        Assert.Equal(ErrorCodes.WrongDocType, ex.Code);
+        Assert.Equal(count, (await inspect.FeatureListAsync(asm, false, 500, 0)).Total);
+    }
+
     // ------------------------------------------------------------------ asm_interference
 
     [Fact]

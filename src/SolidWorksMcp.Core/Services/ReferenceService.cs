@@ -77,7 +77,8 @@ public sealed record RefPlaneRequest
 }
 
 /// <summary>
-/// Reference geometry (DESIGN §4.6): planes, axes, points and coordinate systems in parts. References are selected with
+/// Reference geometry (DESIGN §4.6): planes, axes, points and coordinate systems in parts; planes and axes in assemblies
+/// too (ReferenceService.Assembly.cs). References are selected with
 /// the marks each API expects; points given as coordinates become points of a helper 3D sketch, which stays in the tree
 /// because the new feature references them. Every feature is checked against the requested geometry as SOLIDWORKS
 /// reports it (IRefPlane.Transform and corner points, IRefAxis.GetRefAxisParams, IRefPoint.GetRefPoint, the
@@ -116,9 +117,13 @@ public sealed partial class ReferenceService(SwSession session)
         session.RunAsync("ref_plane", ctx =>
         {
             string kind = q.Edit is null ? Kind(q.Kind, PlaneKinds) : "";
-            var d = (IModelDoc2)ctx.Part();
+            var d = ctx.DocOfType(swDocumentTypes_e.swDocPART, swDocumentTypes_e.swDocASSEMBLY);
+            if (q.Edit is not null && IsAssembly(d))
+                throw new SwException(ErrorCodes.WrongDocType, $"edit (a plane's flip) works in parts; '{ctx.Title(d)}' is an assembly.",
+                    "Make the plane again on the other side (negative offsetMm, or flip), and delete the old one.");
             NoOpenSketch(d);
             if (q.Edit is not null) return FlipPlane(ctx, d, q);
+            string? madeIn = MadeIn(ctx, d);
             WarnUnused(ctx, kind, PlaneArgs(kind),
                 ("base", q.Base is not null), ("offsetMm", q.OffsetMm is not null), ("angleDeg", q.AngleDeg is not null),
                 ("axis", q.Axis is not null), ("points", q.Points is not null), ("curve", q.Curve is not null),
@@ -142,6 +147,7 @@ public sealed partial class ReferenceService(SwSession session)
                             var problems = CheckPlane(ctx, main, plan, state, checks);
                             if (problems.Count == 0 && flipped)
                                 checks.Add("SOLIDWORKS first put the plane on the other side; it was re-created with the flip option");
+                            if (problems.Count == 0 && madeIn is not null) checks.Add(madeIn);
                             return problems;
                         }, false, api);
                     });
@@ -370,14 +376,16 @@ public sealed partial class ReferenceService(SwSession session)
                 if (q.Curve is not null && q.Base is not null) ctx.Warn("'base' is ignored because 'curve' is given.");
                 var c = Ref(q.Curve ?? q.Base, q.Curve is null ? "base" : "curve", "the curve: an edge", EntityKind.Edge);
                 var e = (IEdge)c.Obj;
-                var geom = Topology.Describe(e);
-                Vec3 p;
+                var geom = Topology.Describe(e); // in the edge's own space: a component's part space in an assembly
+                var xf = ToDoc(c);
+                Vec3 p, pl; // the point in the document and in the edge's own space
                 Pick through;
                 if (given is Vec3 want)
                 {
-                    var cp = e.ClosestPoint(want);
+                    var cp = e.ClosestPoint(xf.Inverse().ApplyPoint(want));
                     if (cp.Length < 3) throw new SwException(ErrorCodes.Internal, $"{c.Label} reports no closest point.");
-                    p = Vec3.From(cp);
+                    pl = Vec3.From(cp);
+                    p = xf.ApplyPoint(pl);
                     double off = p.DistanceTo(want);
                     if (off > OnCurveTol)
                         throw SwException.InvalidArgument($"'point' is {Mm(off)} mm from {c.Label}; it must lie on the curve (nearest point [{Fmt(Units.Mm(p))}] mm).",
@@ -386,15 +394,17 @@ public sealed partial class ReferenceService(SwSession session)
                 }
                 else if (e.StartVertex() is IVertex sv)
                 {
-                    p = Vec3.From(sv.Point());
+                    pl = Vec3.From(sv.Point());
+                    p = xf.ApplyPoint(pl);
                     through = new Pick { Entity = new Resolved { Obj = sv, Kind = EntityKind.Vertex, Label = $"the start vertex of {c.Label}" }, Mark = 1 };
                 }
                 else
                 {
-                    p = geom.Start; // closed curve: a point on it
+                    pl = geom.Start; // closed curve: a point on it
+                    p = xf.ApplyPoint(pl);
                     through = new Pick { At = p, Mark = 1 };
                 }
-                var tangent = Tangent(geom, p);
+                var tangent = Tangent(geom, pl) is Vec3 tl ? xf.ApplyVector(tl).Normalized() : (Vec3?)null;
                 return new PlanePlan
                 {
                     Picks = [new Pick { Entity = c, Mark = 0 }, through],
@@ -461,7 +471,7 @@ public sealed partial class ReferenceService(SwSession session)
         session.RunAsync("ref_axis", ctx =>
         {
             string k = Kind(kind, AxisKinds);
-            var d = (IModelDoc2)ctx.Part();
+            var d = ctx.DocOfType(swDocumentTypes_e.swDocPART, swDocumentTypes_e.swDocASSEMBLY);
             NoOpenSketch(d);
             if (k != "two_points" && points is not null) ctx.Warn($"'points' is not used by kind '{k}' (ignored).");
             var resolved = new List<ResolvedInfo>();
@@ -508,7 +518,7 @@ public sealed partial class ReferenceService(SwSession session)
                     var fg = Topology.Describe((IFace2)rs[0].Obj);
                     if (fg.Surface is not ("cylinder" or "cone") || fg.AxisOrigin is not Vec3 o || fg.Axis is not Vec3 ax)
                         throw SwException.InvalidArgument($"{rs[0].Label} is a {fg.Surface} face; kind 'cylinder' needs a cylindrical or conical face.");
-                    want = new LineGeom(o, ax.Normalized());
+                    want = Mapped(new LineGeom(o, ax.Normalized()), ToDoc(rs[0]));
                     what = $"the axis of {rs[0].Label}";
                     picks = [new Pick { Entity = rs[0], Mark = 0 }];
                     break;
@@ -531,6 +541,7 @@ public sealed partial class ReferenceService(SwSession session)
                 {
                     var (problems, f) = CheckAxis(main, want, what, checks);
                     frame = f;
+                    if (problems.Count == 0 && MadeIn(ctx, d) is string madeIn) checks.Add(madeIn);
                     return problems;
                 }, false, api);
             });
@@ -817,7 +828,7 @@ public sealed partial class ReferenceService(SwSession session)
         }
     }
 
-    /// <summary>The plane of a reference plane or planar face (faces: the outward normal).</summary>
+    /// <summary>The plane of a reference plane or planar face (faces: the outward normal), in the document's coordinates.</summary>
     private static PlaneGeom PlaneOf(SwContext ctx, Resolved r, string arg)
     {
         if (r.Obj is IFace2 f)
@@ -826,9 +837,9 @@ public sealed partial class ReferenceService(SwSession session)
                 throw SwException.InvalidArgument($"'{arg}' resolved to {r.Label}, which is not planar.", "Pass a plane ({name:'top'}) or a planar face.");
             var n = f.NormalVec();
             if (n.Length < 3) throw new SwException(ErrorCodes.Internal, $"{r.Label} reports no normal.");
-            return new PlaneGeom(Topology.InteriorPoint(f), new Vec3(n[0], n[1], n[2]).Normalized());
+            return Mapped(new PlaneGeom(Topology.InteriorPoint(f), new Vec3(n[0], n[1], n[2]).Normalized()), ToDoc(r));
         }
-        if (r.Obj is IFeature feat && feat.Specific() is IRefPlane rp) return ReadPlane(ctx, rp, r.Label);
+        if (r.Obj is IFeature feat && OwnFeature(r, feat).Specific() is IRefPlane rp) return Mapped(ReadPlane(ctx, rp, r.Label), ToDoc(r));
         throw SwException.InvalidArgument($"'{arg}' resolved to {r.Label}; it needs a plane or a planar face.");
     }
 
@@ -886,7 +897,7 @@ public sealed partial class ReferenceService(SwSession session)
         return c.All(p => Math.Abs((p - center).Dot(normal)) <= LinTol) ? new PlaneGeom(center, normal) : null;
     }
 
-    /// <summary>The line of a straight edge or a reference axis.</summary>
+    /// <summary>The line of a straight edge, a reference axis or a sketch line, in the document's coordinates.</summary>
     private static LineGeom LineOf(Resolved r, string arg)
     {
         if (r.Obj is IEdge e)
@@ -894,10 +905,10 @@ public sealed partial class ReferenceService(SwSession session)
             var g = Topology.Describe(e);
             if (g.Curve != "line" || g.Direction is not Vec3 dir || dir.Length < 1e-12)
                 throw SwException.InvalidArgument($"'{arg}' resolved to {r.Label}, a {g.Curve} edge; it needs a straight edge or an axis.");
-            return new LineGeom(g.Start, dir.Normalized());
+            return Mapped(new LineGeom(g.Start, dir.Normalized()), ToDoc(r));
         }
-        if (r.Obj is IFeature f && f.Specific() is IRefAxis ax)
-            return AxisLine(ax) ?? throw new SwException(ErrorCodes.Internal, $"{r.Label} reports no axis line.");
+        if (r.Obj is IFeature f && OwnFeature(r, f).Specific() is IRefAxis ax)
+            return Mapped(AxisLine(ax) ?? throw new SwException(ErrorCodes.Internal, $"{r.Label} reports no axis line."), ToDoc(r));
         if (r.Obj is ISketchSegment seg)
         {
             if (seg.GetType() != (int)swSketchSegments_e.swSketchLINE || seg is not ISketchLine line || line.SkStart() is not { } sa || line.SkEnd() is not { } sb)
@@ -928,20 +939,20 @@ public sealed partial class ReferenceService(SwSession session)
         return dir.Length < 1e-12 ? null : new LineGeom(a, dir.Normalized());
     }
 
-    /// <summary>The position of a vertex, reference point, sketch point or the origin.</summary>
+    /// <summary>The position of a vertex, reference point, sketch point or the origin, in the document's coordinates.</summary>
     private static Vec3 PointOf(Resolved r, string arg)
     {
         switch (r.Obj)
         {
             case IVertex v:
-                return Vec3.From(v.Point());
+                return ToDoc(r).ApplyPoint(Vec3.From(v.Point()));
             case ISketchPoint sp:
                 return SketchPointModel(sp);
             case IFeature when r.Kind == EntityKind.Origin:
-                return Vec3.Zero;
-            case IFeature f when f.Specific() is IRefPoint rp:
+                return ToDoc(r).ApplyPoint(Vec3.Zero);
+            case IFeature f when OwnFeature(r, f).Specific() is IRefPoint rp:
                 var loc = rp.RefPointXyz();
-                if (loc.Length >= 3) return Vec3.From(loc);
+                if (loc.Length >= 3) return ToDoc(r).ApplyPoint(Vec3.From(loc));
                 throw new SwException(ErrorCodes.Internal, $"{r.Label} reports no position.");
         }
         throw SwException.InvalidArgument($"'{arg}' resolved to {r.Label}; it needs a vertex, a reference point, a sketch point or the origin.");
@@ -1030,7 +1041,7 @@ public sealed partial class ReferenceService(SwSession session)
         try
         {
             MakeSketchPoints(d, picks);
-            SelectPicks(d, picks);
+            SelectPicks(ctx, d, picks);
             return api();
         }
         catch (Exception ex) when (!ComArgs.IsDisconnect(ex))
@@ -1107,16 +1118,16 @@ public sealed partial class ReferenceService(SwSession session)
     /// Selects every pick with its mark. Sketch points are selected the verified way (SelectByID2 EXTSKETCHPOINT at
     /// their coordinates); if that picks something else, the sketch points are selected directly instead.
     /// </summary>
-    private static void SelectPicks(IModelDoc2 d, IReadOnlyList<Pick> picks)
+    private static void SelectPicks(SwContext ctx, IModelDoc2 d, IReadOnlyList<Pick> picks)
     {
-        string? failed = TrySelect(d, picks, byCoordinates: true);
-        if (failed is not null && picks.Any(p => p.At is not null)) failed = TrySelect(d, picks, byCoordinates: false);
+        string? failed = TrySelect(ctx, d, picks, byCoordinates: true);
+        if (failed is not null && picks.Any(p => p.At is not null)) failed = TrySelect(ctx, d, picks, byCoordinates: false);
         if (failed is not null)
             throw new SwException(ErrorCodes.FeatureFailed, $"Could not select {failed}.", "Check the references (feature_list, face_list, edge_list) and retry.");
     }
 
     /// <returns>Null when every pick is selected with its mark; else the label of the first that failed.</returns>
-    private static string? TrySelect(IModelDoc2 d, IReadOnlyList<Pick> picks, bool byCoordinates)
+    private static string? TrySelect(SwContext ctx, IModelDoc2 d, IReadOnlyList<Pick> picks, bool byCoordinates)
     {
         d.ClearSelection2(true);
         var sel = d.Sel();
@@ -1126,7 +1137,8 @@ public sealed partial class ReferenceService(SwSession session)
             bool ok;
             if (p.Entity is not null)
             {
-                ok = p.Entity.Select(d, true, p.Mark);
+                // A component's plane or axis by its SelectByID2 name (as asm_mate_add); else the entity's own Select.
+                ok = SelectComponentFeature(ctx, d, p.Entity, p.Mark, i) || p.Entity.Select(d, true, p.Mark);
             }
             else if (byCoordinates)
             {

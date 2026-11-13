@@ -1938,7 +1938,7 @@ public sealed partial class AssemblyService(SwSession session)
     }
 
     /// <summary>SelectByID2 names of a component's feature: "Front Plane@part-1@Assem1" (VERIFIED form), then GetSelectByIDString's form.</summary>
-    private static IEnumerable<string> SelectIds(SwContext ctx, IModelDoc2 d, string feature, IComponent2 comp)
+    internal static IEnumerable<string> SelectIds(SwContext ctx, IModelDoc2 d, string feature, IComponent2 comp)
     {
         string asmPath = DocumentRegistry.SafePath(d);
         string asmName = asmPath.Length > 0 ? System.IO.Path.GetFileNameWithoutExtension(asmPath) : StripExtension(ctx.Title(d));

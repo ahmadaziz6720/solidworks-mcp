@@ -10,10 +10,10 @@ Three sections: **Open**, not yet fixed; **Waiting**, fixed and not yet settled 
 merged, a fix not yet run in a session); **Closed**, merged upstream, run and held, or
 decided against, with the record.
 
-**Open: S4, S5, S7, S10 to S12, S33, S34, S48, S49, S57, S59 to S62, S64, S65.** S48 and
+**Open: S4, S5, S7, S10 to S12, S33, S34, S48, S49, S57, S60 to S62, S64, S65.** S48 and
 S49 are from the scenario test of build `20261112-091908`, S50 to S66 from twenty
 working sessions on that build (findings 2026-11-12 and 13); S47, from that scenario
-test too, S50 to S56, S58, S63 and S66 are fixed and Waiting. Reported `ok` while wrong or
+test too, S50 to S56, S58, S59, S63 and S66 are fixed and Waiting. Reported `ok` while wrong or
 misleading: S60 (a).
 Next: the run planned below, every point of it decided 2026-11-13 by the owner. Not in
 it: S4, S5, S7 and S12 wait on upstream; S10, S11, S33 and S34 are parked until a job
@@ -280,58 +280,6 @@ assembly changed only through documents it loads. A false alarm that reads as th
 editing. Local: a rollback, a kept or failed feature and a change through a loaded
 document count as the server's own. Taken into the run of 2026-11-13 as proposed, no
 choice in it.
-
-**S59. Reference geometry that cannot be made.** On build `20261112-091908`. (a) No plane
-on a planar face: `ref_plane` `offset` 0 and `angle` 0 are refused (findings 2026-11-12,
-"six printed and stand-in parts", point 2). (b) `ref_plane` and `ref_axis` in an assembly:
-`WRONG_DOC_TYPE` (same entry, point 3; bears on S36). (c) A sketch line as the axis of an
-`angle` plane is refused, "needs edge or axis", which SOLIDWORKS takes (same entry, point
-2; "a printed part's tree deleted", point 4); way round: `ref_axis` `two_planes` or
-`two_points` first (findings 2026-11-12, "two parts changed mid-tree", point 8). (d) No
-change of an existing plane's `flip`; a plane made on the wrong side is made again with its
-sketch (same entry, point 6). Missing options. Decided 2026-11-13 by the owner: all four.
-**Done in the run of 2026-11-13: (a), (c) and (d).** **Left open: (b)**, the next item of
-batch 5. (a) Cause: `offsetMm` 0 and `angleDeg` 0 were refused by the argument checks.
-Fix: `offsetMm` 0 makes a plane coincident with the base (constraint 4), checked parallel
-and on it ("coincident with face F…"); `angleDeg` 0 is taken (0 up to 180 exclusive),
-the plane through the axis parallel to the base, checked as any angle plane. (c) Cause:
-`axis` resolved edges and axes only. Fix: a sketch line is taken (`LineOf` reads its ends
-in model space through the sketch's transform), checked as an edge is. (d) Fix: `ref_plane`
-with `edit: "<plane>"` and `flip: true` toggles `IRefPlaneFeatureData.ReversedReferenceDirection`
-of the plane's distance or angle reference (probed: `ReverseDirection` is not the flip) and
-rebuilds; checked: an offset plane lies as far on the other side of its base, an angle
-plane still holds its axis at the same angle the other way, and no feature gained a
-rebuild error; else it is flipped back (`VERIFY_FAILED`, or `REBUILD_ERROR` naming the
-broken features). The result gives the frame, the checks ("flipped: 15 mm along the
-normal … (was 25 mm)", the children rebuilt), the volume change and `model`. Decided
-2026-11-13 by the run, not the owner: (1) the flip is `ref_plane`'s `edit` parameter, not
-a tool of its own (`kind` optional with it), as `feature_chamfer`'s `edit`, because the
-tool list was at its byte budget; (2) a flip that breaks a feature is undone, as
-`dimension_set` does, because a result must not report a broken model as done; (3) only
-offset and angle planes are flipped (a standard, three-point, mid or coincident plane is
-refused), because only their flip moves the plane; (4) `flip` with `offsetMm` 0 is
-ignored with a warning, because SOLIDWORKS's flip option leaves a coincident plane's
-frame as it was (probed), so it would be reported as a flip that did nothing; (5) to
-make room, descriptions trimmed: `ref_plane` "Reference (datum) plane" to "Reference
-plane", its `axis` "straight edge or axis" to "edge, axis or sketch line"; `ref_axis`
-"Verified: its direction and position match the references" to "Verified against the
-references", its `entities` example without "or [{type:'face', at:[x,y,z]}]";
-`ref_point` "the point SOLIDWORKS reports is where requested" to "the point is where
-requested", its `entities` "e.g. [{type:'edge', at:[x,y,z]}]" to "(edges, faces)";
-`ref_coordsys` "frame (origin, x, y and z axes)" to "frame (origin, axes)" (tools/list
-253,593 bytes, 11 under the budget, 7 before). Before, on the code before the fix,
-`Plane_on_a_planar_face_takes_offset_0_and_angle_0` failed "kind 'offset' needs offsetMm
-(non-zero; negative = the other side of the base).", `Angle_plane_turns_about_a_sketch_line`
-failed "'axis' resolved to sketch segment Line1, but this parameter needs edge or axis.";
-`Edit_flips_a_plane_to_the_other_side_and_rebuilds_its_children` is new API (no edit
-existed): an offset plane flipped with a body on it and back (box top 20, then 30), an
-angle plane turned the other way, a flip that leaves a cut in the air undone with
-`REBUILD_ERROR`, and four refusals that change nothing. After: those three and the
-plane, axis-by-edge and coordinate-system tests of `ReferenceLiveTests` (18), with
-`An_equation_on_a_plane_s_offset_gives_where_the_plane_went` and the 7 `ContractTests`, 26 of 26;
-unit tests 278 of 278; `--check-catalog` ok; `check_repo` ok. Made stricter: none.
-Local: on `sw2023`, in the commit that records (a), (c) and (d) here; not yet in a build.
-Upstream: not yet decided.
 
 **S60. What a session cannot tell about the process it runs on.** On build
 `20261112-091908`. (a) `sw_status` and `doc_activate` gave `dirty:false` for a part
@@ -1409,6 +1357,85 @@ steps and 50 s for 3), with every live test of `SketchEditLiveTests` that calls
 tests 278/278; `ContractTests.Tool_catalog_follows_the_conventions` 1/1; `--check-catalog`
 ok; `check_repo` ok. Local: on `sw2023`, in the commit that moves it here; not yet in a
 build. Upstream: not yet decided.
+
+**S59. Reference geometry that cannot be made.** On build `20261112-091908`. (a) No plane
+on a planar face: `ref_plane` `offset` 0 and `angle` 0 are refused (findings 2026-11-12,
+"six printed and stand-in parts", point 2). (b) `ref_plane` and `ref_axis` in an assembly:
+`WRONG_DOC_TYPE` (same entry, point 3; bears on S36). (c) A sketch line as the axis of an
+`angle` plane is refused, "needs edge or axis", which SOLIDWORKS takes (same entry, point
+2; "a printed part's tree deleted", point 4); way round: `ref_axis` `two_planes` or
+`two_points` first (findings 2026-11-12, "two parts changed mid-tree", point 8). (d) No
+change of an existing plane's `flip`; a plane made on the wrong side is made again with its
+sketch (same entry, point 6). Missing options. Decided 2026-11-13 by the owner: all four.
+**Done in the run of 2026-11-13, all four.** (a) Cause: `offsetMm` 0 and `angleDeg` 0 were refused by the argument checks.
+Fix: `offsetMm` 0 makes a plane coincident with the base (constraint 4), checked parallel
+and on it ("coincident with face F…"); `angleDeg` 0 is taken (0 up to 180 exclusive),
+the plane through the axis parallel to the base, checked as any angle plane. (c) Cause:
+`axis` resolved edges and axes only. Fix: a sketch line is taken (`LineOf` reads its ends
+in model space through the sketch's transform), checked as an edge is. (d) Fix: `ref_plane`
+with `edit: "<plane>"` and `flip: true` toggles `IRefPlaneFeatureData.ReversedReferenceDirection`
+of the plane's distance or angle reference (probed: `ReverseDirection` is not the flip) and
+rebuilds; checked: an offset plane lies as far on the other side of its base, an angle
+plane still holds its axis at the same angle the other way, and no feature gained a
+rebuild error; else it is flipped back (`VERIFY_FAILED`, or `REBUILD_ERROR` naming the
+broken features). The result gives the frame, the checks ("flipped: 15 mm along the
+normal … (was 25 mm)", the children rebuilt), the volume change and `model`. Decided
+2026-11-13 by the run, not the owner: (1) the flip is `ref_plane`'s `edit` parameter, not
+a tool of its own (`kind` optional with it), as `feature_chamfer`'s `edit`, because the
+tool list was at its byte budget; (2) a flip that breaks a feature is undone, as
+`dimension_set` does, because a result must not report a broken model as done; (3) only
+offset and angle planes are flipped (a standard, three-point, mid or coincident plane is
+refused), because only their flip moves the plane; (4) `flip` with `offsetMm` 0 is
+ignored with a warning, because SOLIDWORKS's flip option leaves a coincident plane's
+frame as it was (probed), so it would be reported as a flip that did nothing; (5) to
+make room, descriptions trimmed: `ref_plane` "Reference (datum) plane" to "Reference
+plane", its `axis` "straight edge or axis" to "edge, axis or sketch line"; `ref_axis`
+"Verified: its direction and position match the references" to "Verified against the
+references", its `entities` example without "or [{type:'face', at:[x,y,z]}]";
+`ref_point` "the point SOLIDWORKS reports is where requested" to "the point is where
+requested", its `entities` "e.g. [{type:'edge', at:[x,y,z]}]" to "(edges, faces)";
+`ref_coordsys` "frame (origin, x, y and z axes)" to "frame (origin, axes)" (tools/list
+253,593 bytes, 11 under the budget, 7 before). Before, on the code before the fix,
+`Plane_on_a_planar_face_takes_offset_0_and_angle_0` failed "kind 'offset' needs offsetMm
+(non-zero; negative = the other side of the base).", `Angle_plane_turns_about_a_sketch_line`
+failed "'axis' resolved to sketch segment Line1, but this parameter needs edge or axis.";
+`Edit_flips_a_plane_to_the_other_side_and_rebuilds_its_children` is new API (no edit
+existed): an offset plane flipped with a body on it and back (box top 20, then 30), an
+angle plane turned the other way, a flip that leaves a cut in the air undone with
+`REBUILD_ERROR`, and four refusals that change nothing. After: those three and the
+plane, axis-by-edge and coordinate-system tests of `ReferenceLiveTests` (18), with
+`An_equation_on_a_plane_s_offset_gives_where_the_plane_went` and the 7 `ContractTests`, 26 of 26;
+unit tests 278 of 278; `--check-catalog` ok; `check_repo` ok. Made stricter: none.
+(b) Cause: `ref_plane` and `ref_axis` took a part only (`ctx.Part()`). Fix: both take a
+part or an assembly. In an assembly the new plane or axis is the assembly's own; its
+references are the assembly's planes or a component's faces, edges, vertices, planes and
+axes (`{component, name}`, or `at:` in assembly coordinates). A component's geometry reads
+in its part's space (`docs/solidworks-api-notes.md` §8), so each reference is mapped
+through the component's transform (`AsmXformData`) before the request is checked against
+it, a component's plane, axis or point read from the feature in its own document; a
+component's plane or axis is selected by its `SelectByID2` name, as `asm_mate_add` does
+(`AssemblyService.SelectIds`, now internal); `EntityResolver`'s results carry the
+component they came from. The checks add "made in the tree of assembly '…'". Decided
+2026-11-13 by the run, not the owner: (1) `ref_plane` `edit` (the flip) stays part-only,
+refused `WRONG_DOC_TYPE` in an assembly, because the component a flipped plane's base
+belongs to cannot be read from the plane's definition without a probe; (2) `ref_point`
+and `ref_coordsys` stay part-only, because the item names plane and axis only. Before, on
+the code before the fix (HEAD's `ReferenceService.cs`), the new
+`AssemblyLiveTests.Ref_plane_and_ref_axis_in_an_assembly_take_component_and_assembly_references`
+failed `WRONG_DOC_TYPE` "This tool needs a part, but 'asm_ref_…' is a assembly." After: it
+passes (a box turned 90° about z and moved, a shaft turned about x: planes offset from a
+component's face, from its Top plane and from the assembly's Right plane, at an angle
+about its edge, midway between two of its faces, normal to its edge, through three points
+in an assembly 3D sketch; axes from its Top plane and the assembly's Front plane, along
+its edge, through two of its vertices, of the shaft's cylinder; each where the transform
+puts it, the box part's tree unchanged, the flip refused with nothing changed), with the
+`Plane_*`, `Axis_*`, `Point_*` and `Coordinate_system_*` tests of `ReferenceLiveTests` and
+`An_equation_on_a_plane_s_offset_gives_where_the_plane_went` (18), the ten other plane
+tests of `ReferenceLiveTests` (offset, angle, three points, parallel, mid, flip, open
+sketch) and the 7 `ContractTests`, 36 of 36 live; unit tests 278 of 278; `check_repo` ok;
+no description changed. Made stricter: none.
+Local: on `sw2023`, (a), (c) and (d) in `3ca75cd`, (b) in the commit that moves it here;
+not yet in a build. Upstream: not yet decided.
 
 ## Closed
 
