@@ -188,7 +188,7 @@ in full (`--filter-class "SolidWorksMcp.LiveTests.<Class>"`), as passed/failed/s
   749 MB, SOLIDWORKS at 2.4 GB), then passed alone with the guard at 400 MB free (free
   memory never under ~1.9 GB). Ticked: 40 of 41 pass, the one failure goes to the step
   for the run's failures below.
-- [ ] `DrawingLiveTests`
+- [x] `DrawingLiveTests` 57/0/0 (five chunks, SOLIDWORKS at most 2.4 GB)
 - [ ] `BodySheetMetalLiveTests`
 - [ ] `ExportLiveTests`
 - [ ] `FaceEditLiveTests`, `SurfaceShapeLiveTests`, `WeldmentLiveTests`,
