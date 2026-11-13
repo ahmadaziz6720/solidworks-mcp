@@ -141,6 +141,10 @@ public sealed record MirrorRequest
 {
     public string? Doc { get; init; }
     public IReadOnlyList<string>? Features { get; init; }
+    /// <summary>Solid bodies to mirror instead of features, by id ("B2") or name (body_list).</summary>
+    public IReadOnlyList<string>? Bodies { get; init; }
+    /// <summary>Bodies only: merge each copy with the bodies it touches.</summary>
+    public bool Merge { get; init; }
     /// <summary>Reference plane or planar face.</summary>
     public EntityRef? Plane { get; init; }
     public string? Name { get; init; }
@@ -1567,6 +1571,15 @@ public sealed partial class PartFeatureService(SwSession session)
             var d = (IModelDoc2)ctx.Part();
             if (q.Plane is null) throw SwException.InvalidArgument("'plane' is required: a plane {name:'right'} or a planar face {at:[x,y,z]}.");
             NoOpenSketch(d);
+            bool byBodies = q.Bodies is { Count: > 0 };
+            if (byBodies && q.Features is { Count: > 0 }) throw SwException.InvalidArgument("Pass 'features' or 'bodies', not both.");
+            if (!byBodies && q.Merge)
+                throw SwException.InvalidArgument("'merge' is for 'bodies'; a feature's copy always joins the body it touches.");
+            if (byBodies)
+            {
+                var plane = EntityResolver.Resolve(ctx, d, q.Plane, "plane", EntityKind.Plane, EntityKind.Face);
+                return MirrorBodies(ctx, d, q, plane, PlaneOf(plane));
+            }
             var seeds = Seeds(d, q.Features, "features");
             var planeRef = EntityResolver.Resolve(ctx, d, q.Plane, "plane", EntityKind.Plane, EntityKind.Face);
             var (q0, m) = PlaneOf(planeRef);
@@ -1594,7 +1607,7 @@ public sealed partial class PartFeatureService(SwSession session)
                 else AreaCheck(ctx, seedArea, resArea, 1);
                 PositionsCheck(ctx, new Hypothesis(1, 1, matched, total), checks, $"reflected about [{Dir(m)}] through [{Pt(q0)}]");
                 return [];
-            }, q.KeepOnFailure, api, "The mirrored copy must touch the body; check the plane.");
+            }, q.KeepOnFailure, api, "The mirrored copy must touch the body; check the plane. A body of its own (merge:false): mirror it with 'bodies'.");
             Rename(ctx, o.Main, q.Name);
             return FeatureVerifier.Result(ctx, d, o, resolved: [planeRef.Info("plane")]);
         }, RunOptions.Write(q.Doc), ct);

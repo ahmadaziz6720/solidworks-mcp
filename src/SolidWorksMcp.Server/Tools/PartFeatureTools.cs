@@ -232,12 +232,13 @@ public sealed class PartFeatureTools(SwSession session)
         }, cancellationToken), progress, "feature_pattern_fill", faceDetail);
 
     [McpServerTool(Name = "feature_mirror", Title = "Mirror features", ReadOnly = false, Destructive = false, Idempotent = false, OpenWorld = false)]
-    [Description("Mirror features about a plane or a planar face. Verified: a MirrorPattern feature without errors, the volume or faces " +
-                 "changed, and the new faces are the reflections of the seed's faces; otherwise rolled back.")]
+    [Description("Mirror features or bodies about a plane. Verified: copies are the seeds reflected; else rolled back.")]
     public Task<string> FeatureMirror(
         IProgress<ProgressNotificationValue> progress,
-        [Description(FeaturesDesc)] string[] features,
-        [Description("Mirror plane: {name:'right'}, a plane's name, or a planar face {at:[x,y,z]}.")] EntityRef plane,
+        [Description("A plane {name:'right'} or planar face {at:[x,y,z]}.")] EntityRef plane,
+        [Description("Features by name (feature_list).")] string[]? features = null,
+        [Description("Or bodies (id or name).")] string[]? bodies = null,
+        [Description("bodies: merge copies.")] bool merge = false,
         [Description(NameDesc)] string? name = null,
         [Description(KeepDesc)] bool keepOnFailure = false,
         [Description("true: newFaces in full.")] bool faceDetail = false,
@@ -245,7 +246,7 @@ public sealed class PartFeatureTools(SwSession session)
         CancellationToken cancellationToken = default) =>
         Output.Json(_svc.MirrorAsync(new MirrorRequest
         {
-            Doc = doc, Features = features, Plane = plane, Name = name, KeepOnFailure = keepOnFailure,
+            Doc = doc, Features = features, Bodies = bodies, Merge = merge, Plane = plane, Name = name, KeepOnFailure = keepOnFailure,
         }, cancellationToken), progress, "feature_mirror", faceDetail);
 
     [McpServerTool(Name = "feature_deform", Title = "Wrap, dome, indent", ReadOnly = false, Destructive = false, Idempotent = false, OpenWorld = false)]

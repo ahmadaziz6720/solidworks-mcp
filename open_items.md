@@ -485,7 +485,43 @@ tool moves it ("a part's body raised", point 4). (c) An arc's centre cannot be n
 reference where another point sits on it ("a part of extrudes", point 2). (d)
 `view_screenshot` fits to reference axes too: a part 8% of the image ("a printed part's
 tree deleted", point 6); proposed `hideAxes` as `hidePlanes`. (a) Decided 2026-11-13 by
-the owner: a body mirror. (b) to (d) offered 2026-11-13 and not chosen; stay open.
+the owner: a body mirror. (b) to (d) offered 2026-11-13 and not chosen; stay open. **Done in
+the run of 2026-11-13: (a).** **Left open: (b) to (d)**, not chosen. (a) Cause: `feature_mirror`
+mirrored features only (`InsertMirrorFeature2` with `mirrorBody` false); the copy of a feature
+whose body stands alone touches no body, and SOLIDWORKS returns nothing. Fix
+(`PartFeatureService.MirrorBodies`, new file `PartFeatureService.Mirror.cs`; `feature_mirror`
+gains `bodies` and `merge`, `features` no longer required): the solid bodies, by id or name,
+on mark 256 with the plane on mark 2, `InsertMirrorFeature2(true, false, merge, false, 0)`, a
+`MirrorSolid` feature. merge off: verified one new solid body per seed, each the seed
+reflected (volume, area, center of mass, 24 sampled vertices), and the volume grown by the
+seeds' volume exactly. merge on: the volume grew by at most the seeds' volume (the overlap
+reported), and each copy that joined a body has faces found at their reflections (planes,
+cylinders, spheres; the faces on the plane join). `features` and `bodies` together, or
+`merge` with `features`, are refused (`INVALID_ARGUMENT`); the feature mirror's failure hint
+now names `bodies` for a body of its own. Probed: with merge on, SOLIDWORKS 2023 makes nothing
+when any copy touches no body (a box on the plane and a cylinder off it, in one call), so
+that call fails `FEATURE_FAILED` with the hint to mirror those with merge:false, and nothing
+is left; the box alone joined its copy. Decided 2026-11-13 by the run, not the owner:
+`bodies` is a list of ids or names (strings, as `features`), not `{id|name|at}` references,
+because the tool list is at its byte budget (an `EntityRef` array's schema alone is ~400
+bytes; with the trims below 7 bytes are left); `merge` defaults to false, because a copy of its
+own is checked exactly and is what the finding wanted; a merge whose copy touches no body is
+refused with the way out rather than split into two calls, because the smaller change keeps
+the result as asked or nothing. The description and the `plane` and `features` texts of
+`feature_mirror` were shortened to fit ("Mirror features or bodies about a plane. Verified:
+copies are the seeds reflected; else rolled back."). Before, on the code before the fix,
+`Mirror_of_two_unmerged_extrudes_as_bodies_adds_their_reflections` (the session's call: the
+two extrudes as `features`) failed "feature_mirror: SOLIDWORKS created no feature (the API
+returned nothing)". After: it passes (the same call refused with the hint, then the two
+bodies mirrored: +4785.398 mm³, 5 bodies, box x -80..80), with the new
+`Mirror_of_a_body_on_the_plane_with_merge_joins_it_to_its_copy` (the refused mixed merge
+rolled back, the box joined, 5/6 faces, `merge` with `features` refused), the four other
+mirror tests of `PartFeatureLiveTests` and
+`Feature_delete_of_a_plane_its_boss_and_the_boss_s_mirror_removes_all_three_or_nothing`, and
+`ContractTests.Tool_catalog_follows_the_conventions`, 8 of 8 live; unit tests 278 of 278;
+`--check-catalog` ok; `check_repo` ok. Made stricter: none (the feature path is unchanged but
+for its hint). Local: on `sw2023`, in the commit that records (a) here; not yet in a build.
+Upstream: not yet decided.
 
 ## Waiting
 

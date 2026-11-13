@@ -1019,6 +1019,77 @@ public class PartFeatureLiveTests(LiveFixture fx) : LiveTest(fx)
     }
 
     [Fact]
+    public async Task Mirror_of_two_unmerged_extrudes_as_bodies_adds_their_reflections()
+    {
+        string doc = await BlockAsync("mirror_bodies");
+        // Two bodies of their own on the +x side, clear of the block (x ≤ 50): a 20 x 10 x 20 box and a cylinder r 5, 10 high.
+        await Sk.StartAsync(doc, new EntityRef { Name = "top" }, false);
+        await Sk.AddAsync(doc, [new SketchEntity { Kind = "rectangle", Corners = [[60, 0, -10], [80, 0, 10]] }]);
+        var box = await Fs.ExtrudeAsync(new ExtrudeRequest { Doc = doc, DepthMm = 10, Merge = false });
+        await Sk.StartAsync(doc, new EntityRef { Name = "top" }, false);
+        await Sk.AddAsync(doc, [new SketchEntity { Kind = "circle", Center = [70, 0, 25], RadiusMm = 5 }]);
+        var pin = await Fs.ExtrudeAsync(new ExtrudeRequest { Doc = doc, DepthMm = 10, Merge = false });
+        Assert.Equal(3, pin.Model.Bodies);
+        double seeds = 4000 + Math.PI * 25 * 10;
+
+        // As features, SOLIDWORKS makes nothing: the copies touch no body.
+        var asFeatures = await Assert.ThrowsAsync<SwException>(() => Pf.MirrorAsync(new MirrorRequest
+        {
+            Doc = doc, Features = [box.Feature.Name, pin.Feature.Name], Plane = new EntityRef { Name = "right" },
+        }));
+        Assert.Contains("'bodies'", asFeatures.Hint);
+        var bodies = (await new MeasureService(S).BodyListAsync(doc)).Bodies.Where(b => b.Box!.Min[0] > 55).Select(b => b.Id).ToArray();
+        Assert.Equal(2, bodies.Length);
+
+        var r = await Pf.MirrorAsync(new MirrorRequest { Doc = doc, Bodies = bodies, Plane = new EntityRef { Name = "right" } });
+        Assert.Equal(seeds, r.Verified.VolumeDeltaMm3, Vq);
+        Assert.Equal(5, r.Model.Bodies);
+        AssertBox(r.Model.Box, [-80, 0, -30], [80, 20, 30]);
+        Assert.Contains(r.Verified.Checks!, c => c.Contains("2 bodies copied as bodies of their own"));
+    }
+
+    [Fact]
+    public async Task Mirror_of_a_body_on_the_plane_with_merge_joins_it_to_its_copy()
+    {
+        string doc = await NewPartAsync("mirror_body_merge");
+        // A 20 x 10 x 20 box with a face on the right plane (x 0..20), and a cylinder r 5 off it at x 40.
+        await Sk.StartAsync(doc, new EntityRef { Name = "top" }, false);
+        await Sk.AddAsync(doc, [new SketchEntity { Kind = "rectangle", Corners = [[0, 0, -10], [20, 0, 10]] }]);
+        var box = await Fs.ExtrudeAsync(new ExtrudeRequest { Doc = doc, DepthMm = 10 });
+        await Sk.StartAsync(doc, new EntityRef { Name = "top" }, false);
+        await Sk.AddAsync(doc, [new SketchEntity { Kind = "circle", Center = [40, 0, 0], RadiusMm = 5 }]);
+        var pin = await Fs.ExtrudeAsync(new ExtrudeRequest { Doc = doc, DepthMm = 10, Merge = false });
+        int features = await FeatureCountAsync(doc);
+
+        // With merge, SOLIDWORKS makes nothing when a copy (the cylinder's) touches no body: refused with the way out.
+        var apart = await Assert.ThrowsAsync<SwException>(() => Pf.MirrorAsync(new MirrorRequest
+        {
+            Doc = doc, Bodies = [box.Feature.Name, pin.Feature.Name], Merge = true, Plane = new EntityRef { Name = "right" },
+        }));
+        AssertFailedAndRolledBack(apart);
+        Assert.Contains("merge:false", apart.Hint);
+        Assert.Equal(features, await FeatureCountAsync(doc));
+
+        // The box alone joins its copy: one body x -20..20, the cylinder untouched.
+        var r = await Pf.MirrorAsync(new MirrorRequest
+        {
+            Doc = doc, Bodies = [box.Feature.Name], Merge = true, Plane = new EntityRef { Name = "right" },
+        });
+        Assert.Equal("MirrorSolid", r.Feature.Type);
+        Assert.Equal(4000, r.Verified.VolumeDeltaMm3, V);
+        Assert.Equal(2, r.Model.Bodies);
+        AssertBox(r.Model.Box, [-20, 0, -10], [45, 10, 10]);
+        Assert.Contains(r.Verified.Checks!, c => c.Contains("merged copies' faces at their reflections") && c.Contains("5/6"));
+        Assert.Contains(r.Verified.Checks!, c => c.Contains("1 body mirrored and merged"));
+
+        var bad = await Assert.ThrowsAsync<SwException>(() => Pf.MirrorAsync(new MirrorRequest
+        {
+            Doc = doc, Features = [box.Feature.Name], Merge = true, Plane = new EntityRef { Name = "right" },
+        }));
+        Assert.Equal(ErrorCodes.InvalidArgument, bad.Code);
+    }
+
+    [Fact]
     public async Task Mirror_into_the_body_or_about_a_curved_face_is_rejected()
     {
         string doc = await BlockAsync("mirror_bad");
