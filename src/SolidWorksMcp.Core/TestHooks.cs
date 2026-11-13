@@ -56,4 +56,32 @@ internal static class TestHooks
     /// <summary>The titles of all open documents.</summary>
     public static Task<List<string>> OpenTitlesAsync(SwSession s) =>
         s.RunAsync("test_titles", ctx => ctx.App.Documents().Select(ctx.Title).ToList());
+
+    /// <summary>Opens a file through the raw API, bypassing the registry, as the user would from File &gt; Open.</summary>
+    public static Task<string> OpenRawAsync(SwSession s, string path) =>
+        s.RunAsync("test_open_raw", ctx =>
+        {
+            int e = 0, w = 0;
+            var d = (object?)ctx.App.OpenDoc6(path, (int)swDocumentTypes_e.swDocPART, (int)swOpenDocOptions_e.swOpenDocOptions_Silent, "", ref e, ref w)
+                        as SolidWorks.Interop.sldworks.IModelDoc2
+                    ?? throw new SwException(ErrorCodes.IoError, $"OpenDoc6 failed ({e}).");
+            return ctx.Title(d);
+        });
+
+    /// <summary>
+    /// The FeatureManager tree's text of each top-level component (e.g. "(-) part&lt;1&gt; (Default)"), by component name:
+    /// SOLIDWORKS' own constrained mark, "(-)" under-defined, "(f)" fixed, none fully defined.
+    /// </summary>
+    public static Task<Dictionary<string, string>> ComponentTreeTextAsync(SwSession s, string doc) =>
+        s.RunAsync("test_tree_text", ctx =>
+        {
+            var texts = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            var root = (object?)ctx.Doc.FeatureManager.GetFeatureTreeRootItem2((int)swFeatMgrPane_e.swFeatMgrPaneBottom)
+                as SolidWorks.Interop.sldworks.ITreeControlItem;
+            for (var it = root?.GetFirstChild(); it is not null; it = it.GetNext())
+                if (it.ObjectType == (int)swTreeControlItemType_e.swFeatureManagerItem_Component &&
+                    (object?)it.Object is SolidWorks.Interop.sldworks.IComponent2 c)
+                    texts[c.Name2] = it.Text;
+            return texts;
+        }, RunOptions.Read(doc));
 }

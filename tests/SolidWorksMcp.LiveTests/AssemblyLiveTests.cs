@@ -522,6 +522,45 @@ public class AssemblyLiveTests(LiveFixture fx) : LiveTest(fx)
         Assert.All(touching.Interferences, i => Assert.Equal(0, i.VolumeMm3, V));
     }
 
+    [Fact]
+    public async Task Interference_with_coincident_faces_says_what_SOLIDWORKS_listed_overlapping_touching_and_kept()
+    {
+        // S62 (e): with includeCoincident the result gave pairs of 0 mm³ beside a warning that SOLIDWORKS "counted 2 but
+        // listed 25", and the numbers did not explain each other. Now it gives what SOLIDWORKS listed, how many of those
+        // overlap and how many only touch (0 mm³: faces in contact), and how many the components filter kept.
+        var a = await CubeAsync("icA");
+        var b = await CubeAsync("icB");
+        var c = await CubeAsync("icC");
+        string asm = await NewAssemblyAsync("asm_intc");
+        string na = (await InsertAsync(asm, a.Path, [0, 0, 0])).Component.Name;
+        string nb = (await InsertAsync(asm, b.Path, [20, 0, 0], fixedState: true)).Component.Name;  // touches A at x = 10
+        string nc = (await InsertAsync(asm, c.Path, [0, 15, 0], fixedState: true)).Component.Name;  // overlaps A by 5 mm in y
+
+        System.Text.Json.JsonElement J(ToolResult r) => System.Text.Json.JsonDocument.Parse(ResultJson.Serialize(r)).RootElement;
+        static int N(System.Text.Json.JsonElement e, string p) => e.TryGetProperty(p, out var v) ? v.GetInt32() : -1;
+        var all = await Asm.InterferenceAsync(asm, null, includeCoincident: true);
+        var j = J(all);
+        int touching = all.Interferences.Count(i => i.VolumeMm3 == 0), overlapping = all.Interferences.Count(i => i.VolumeMm3 > 0);
+        Assert.Equal(1, overlapping);
+        Assert.Equal(2000, all.TotalVolumeMm3, V);
+        Assert.True(all.Warnings is null, string.Join(" | ", all.Warnings ?? []));
+        Assert.True(N(j, "listed") == all.Count && N(j, "overlapping") == overlapping && N(j, "touching") == touching, j.GetRawText());
+        Assert.Contains(all.Checks ?? [], x => x.Contains("0 mm³", StringComparison.Ordinal) && x.Contains("touch", StringComparison.Ordinal));
+
+        // Limited to B: SOLIDWORKS still lists every pair; the result keeps those with B and says so.
+        var onlyB = await Asm.InterferenceAsync(asm, [nb], includeCoincident: true);
+        var jb = J(onlyB);
+        Assert.All(onlyB.Interferences, i => Assert.Contains(nb, i.Components));
+        Assert.True(N(jb, "listed") == all.Count && onlyB.Count < all.Count, jb.GetRawText());
+        Assert.Contains(onlyB.Checks ?? [], x => x.Contains($"{onlyB.Count} of the {all.Count}", StringComparison.Ordinal));
+
+        // Without includeCoincident only the overlap is listed, and nothing is said of touching pairs.
+        var plain = J(await Asm.InterferenceAsync(asm));
+        Assert.True(N(plain, "listed") == 1 && N(plain, "overlapping") == 1 && N(plain, "touching") == -1, plain.GetRawText());
+        Assert.Contains(na, (await Asm.InterferenceAsync(asm)).Interferences.Single().Components);
+        Assert.Contains(nc, (await Asm.InterferenceAsync(asm)).Interferences.Single().Components);
+    }
+
     // ------------------------------------------------------------------ asm_mate_add / asm_mate_list
 
     [Fact]
@@ -601,6 +640,48 @@ public class AssemblyLiveTests(LiveFixture fx) : LiveTest(fx)
         Assert.Equal(10, list.Mates[2].DistanceMm!.Value, P);
         Assert.Equal(3, (await ComponentAsync(asm, nb)).Mates);
         Assert.Single((await Asm.MateListAsync(asm, 1, 2)).Mates);
+    }
+
+    [Fact]
+    public async Task Mate_list_names_the_plane_face_edge_or_vertex_each_mate_takes()
+    {
+        // S62 (a): every entity read {component, kind: "plane"} alone, so a plane of a component and a planar face of it
+        // could not be told apart. Now a plane or other feature gives its name, a face, edge or vertex the id face_list,
+        // edge_list and vertex_list give it on the assembly, and a vertex its point.
+        var a = await CubeAsync("mlA");
+        var b = await CubeAsync("mlB");
+        var c = await CubeAsync("mlC");
+        string asm = await NewAssemblyAsync("asm_matelist");
+        string na = (await InsertAsync(asm, a.Path, [0, 0, 0])).Component.Name;
+        string nb = (await InsertAsync(asm, b.Path, [50, 7, 3])).Component.Name;
+        string nc = (await InsertAsync(asm, c.Path, [0, 80, 0])).Component.Name;
+        await Mate(asm, "coincident", Plane(na, "front"), Plane(nb, "front"));
+        await Mate(asm, "coincident", new EntityRef { Component = na, At = [10, 0, 0] }, new EntityRef { Component = nb, At = [-10, 0, 0] });
+        await Mate(asm, "coincident", new EntityRef { Name = "top" }, new EntityRef { Component = nb, Type = "edge", At = [0, -10, 10] });
+        await Mate(asm, "coincident", Plane(na, "right"), new EntityRef { Component = nc, Type = "vertex", At = [10, 10, 10] });
+
+        var json = System.Text.Json.JsonDocument.Parse(ResultJson.Serialize(await Asm.MateListAsync(asm, 100, 0))).RootElement;
+        var mates = json.GetProperty("mates").EnumerateArray().Select(m => m.GetProperty("entities").EnumerateArray().ToList()).ToList();
+        Assert.Equal(4, mates.Count);
+        static string? Str(System.Text.Json.JsonElement e, string p) => e.TryGetProperty(p, out var v) ? v.GetString() : null;
+        string Row(System.Text.Json.JsonElement e) => e.GetRawText();
+        // Two planes of two components, by name.
+        Assert.All(mates[0], e => Assert.True(Str(e, "name") == "Front Plane" && Str(e, "id") is null, Row(e)));
+        // Two faces, by the ids face_list gives on the assembly (B's -x face lies at assembly x = 10 after the mate).
+        Assert.All(mates[1], e => Assert.True(Str(e, "id") is string id && id.StartsWith('F') && Str(e, "name") is null, Row(e)));
+        var faces = await new InspectService(S).FaceListAsync(asm, new EntityFilter { Component = nb }, 50, 0);
+        string bFace = faces.Faces.Single(f => Math.Abs(f.PickMm[0] - 10) < P).Id;
+        Assert.Equal(bFace, Str(mates[1].Single(e => Str(e, "component") == nb), "id"));
+        // The assembly's own plane (no component) and an edge of B.
+        var top = mates[2].Single(e => Str(e, "component") is null);
+        Assert.True(Str(top, "name") == "Top Plane", Row(top));
+        var edge = mates[2].Single(e => Str(e, "component") == nb);
+        Assert.True(Str(edge, "id") is string eid && eid.StartsWith('E'), Row(edge));
+        // A plane and a vertex, with the vertex's point: C's corner (10, 10, 10) on A's right plane (x = 0).
+        Assert.True(Str(mates[3].Single(e => Str(e, "component") == na), "name") == "Right Plane", Row(mates[3][0]));
+        var vertex = mates[3].Single(e => Str(e, "component") == nc);
+        Assert.True(Str(vertex, "id") is string vid && vid.StartsWith('V'), Row(vertex));
+        Assert.True(vertex.TryGetProperty("pointMm", out var pt) && Math.Abs(pt[0].GetDouble()) < P, Row(vertex));
     }
 
     [Fact]
@@ -1492,5 +1573,78 @@ public class AssemblyLiveTests(LiveFixture fx) : LiveTest(fx)
         await TestHooks.SetDimensionRawAsync(S, cube.Doc, "D1@Boss-Extrude1", 20, asUser: true);
         var outside = (await fm.RebuildAsync(cube.Doc)).Warnings ?? [];
         Assert.Contains(outside, x => x.Contains(Outside));
+    }
+
+    [Fact]
+    public async Task A_part_the_server_owned_comes_back_owned_when_its_owned_assembly_loads_it()
+    {
+        // S62 (d): a part the server had saved and closed, loaded again by an assembly doc_open opened, read 'foreign' ("the
+        // user's document") on doc_open, and equation_set on it failed NOT_OWNED. A part the user opened stays foreign.
+        var cube = await CubeAsync("owned");
+        string asm = await NewAssemblyAsync("owned_asm");
+        await InsertAsync(asm, cube.Path, [0, 0, 0]);
+        string asmPath = (await Docs.SaveAsync(asm, "as", Path.Combine(_dir, $"owned_asm_{_tag}.sldasm"), overwrite: false)).SavedTo!;
+        await Docs.CloseAsync(asm, save: false, discard: true);
+        await Docs.CloseAsync(cube.Doc, save: false, discard: true);
+
+        var open = new OpenService(S);
+        var reopened = await open.OpenAsync(asmPath, false, null);
+        _asms.Add(reopened.Document.Handle);
+        Assert.Equal("owned", reopened.Document.Access);
+        var part = await open.OpenAsync(cube.Path, false, null);
+        Assert.True(part.Document.Access == "owned", $"{part.Document.Access}: {part.Message}");
+        // A write on it goes through (dimension_set binds as a write, as equation_set does).
+        await new FeatureManagementService(S).DimensionSetAsync(part.Document.Handle, [new DimensionValue { Name = "D1@Boss-Extrude1", Value = 24 }]);
+        // The assembly first: SOLIDWORKS keeps a part an open assembly holds.
+        await Docs.CloseAsync(reopened.Document.Handle, save: false, discard: true);
+        if ((await TestHooks.OpenTitlesAsync(S)).Contains(part.Document.Title))
+            await Docs.CloseAsync(part.Document.Handle, save: false, discard: true);
+        Assert.DoesNotContain(part.Document.Title, await TestHooks.OpenTitlesAsync(S));
+
+        // Opened by the user before the server's assembly loads it: the user's, as before.
+        string title = await TestHooks.OpenRawAsync(S, cube.Path);
+        try
+        {
+            var again = await open.OpenAsync(asmPath, false, null);
+            _asms.Add(again.Document.Handle);
+            var users = await open.OpenAsync(cube.Path, false, null);
+            Assert.Equal("foreign", users.Document.Access);
+            await Docs.CloseAsync(again.Document.Handle, save: false, discard: true);
+        }
+        finally
+        {
+            await TestHooks.CloseRawAsync(S, title);
+        }
+    }
+
+    [Fact]
+    public async Task A_limit_angle_mate_reads_fully_constrained_as_SOLIDWORKS_marks_it_in_the_tree()
+    {
+        // S62 (c), probed: a subassembly held by a concentric, a coincident and a limit angle mate (30..50°) on its child read
+        // constrained "fully" and model_review named no floating component. SOLIDWORKS says the same: GetConstrainedStatus
+        // is fully constrained and the tree drops its "(-)", for a subassembly as for a part, though the limit leaves it
+        // 20° to turn. Before the limit mate both read "under" and "(-)".
+        var plate = await PlateAsync("limplate");
+        var shaft = await ShaftAsync("limshaft");
+        string sub = await NewAssemblyAsync("lim_sub");
+        await InsertAsync(sub, plate.Path, [0, 0, 0]);
+        var saved = await Docs.SaveAsync(sub, "as", Path.Combine(_dir, $"lim_sub_{_tag}.sldasm"), overwrite: false);
+        string top = await NewAssemblyAsync("lim_top");
+        string nsh = (await InsertAsync(top, shaft.Path, [0, 0, 0])).Component.Name;
+        string ns = (await InsertAsync(top, saved.SavedTo!, [60, 20, 0], fixedState: false)).Component.Name;
+        string child = $"{ns}/{plate.Name}-1";
+        await Mate(top, "concentric", new EntityRef { Component = nsh, At = [5, 15, 0] }, new EntityRef { Component = child, At = [5, 5, 0] });
+        await Mate(top, "coincident", Plane(nsh, "top"), new EntityRef { Component = child, At = [15, 0, 15] });
+        Assert.Equal("under", (await ComponentAsync(top, ns)).Constrained);
+        Assert.StartsWith("(-)", (await TestHooks.ComponentTreeTextAsync(S, top))[ns], StringComparison.Ordinal);
+
+        await Asm.MateAddAsync(new AsmMateRequest
+        {
+            Doc = top, Type = "angle", A = Plane(nsh, "right"), B = new EntityRef { Component = child, At = [20, 5, 0] }, AngleDeg = 40, MinDeg = 30, MaxDeg = 50,
+        });
+        Assert.Equal("fully", (await ComponentAsync(top, ns)).Constrained);
+        string text = (await TestHooks.ComponentTreeTextAsync(S, top))[ns];
+        Assert.False(text.StartsWith('('), text);
+        Assert.DoesNotContain((await new ReviewService(S).ReviewAsync(top)).Issues, i => i.Kind == "component_floating");
     }
 }

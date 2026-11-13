@@ -1,6 +1,9 @@
+using System.Runtime.InteropServices;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using SolidWorks.Interop.sldworks;
+using SolidWorks.Interop.swconst;
+using SolidWorksMcp.Core.Com;
 
 namespace SolidWorksMcp.Core.Documents;
 
@@ -23,6 +26,8 @@ public enum DocClass
 internal sealed class DocumentRegistry
 {
     private readonly List<Entry> _entries = [];
+    /// <summary>The files of documents this server owned in this session, closed ones included (S62 d).</summary>
+    private readonly HashSet<string> _ownedPaths = new(StringComparer.OrdinalIgnoreCase);
     private int _next;
     private string? _file;
 
@@ -71,14 +76,51 @@ internal sealed class DocumentRegistry
         var e = Find(doc);
         if (e is not null)
         {
+            Remember(e);
             e.Doc = doc;
             e.Title = SafeTitle(doc);
             e.Path = SafePath(doc);
+            Remember(e);
             return e;
         }
         e = new Entry { Doc = doc, Handle = $"D{++_next}", Title = SafeTitle(doc), Path = SafePath(doc), Class = DocClass.Foreign, How = "seen" };
         _entries.Add(e);
+        // S62 (d), decided by the owner: a part an assembly of this server's loaded, from a file this server owned, is the
+        // server's again, not "the user's document".
+        if (OwnedLoaderOf(doc, e.Path) is Entry loader)
+        {
+            e.Class = DocClass.Owned;
+            e.How = $"loaded by {loader.Handle} from a file this server owned";
+            e.LoadedBy = loader.Handle;
+            Persist();
+        }
         return e;
+    }
+
+    private void Remember(Entry e)
+    {
+        if (e.Class == DocClass.Owned && e.Path.Length > 0) _ownedPaths.Add(e.Path);
+    }
+
+    /// <summary>
+    /// The owned assembly that holds <paramref name="doc"/> as a component, when its file is one this server owned and it
+    /// has no window of its own (only loaded as a reference: a document the user opened is visible). Else null.
+    /// </summary>
+    private Entry? OwnedLoaderOf(IModelDoc2 doc, string path)
+    {
+        if (path.Length == 0 || !_ownedPaths.Contains(path)) return null;
+        try
+        {
+            if (doc.Visible) return null;
+            foreach (var a in _entries)
+            {
+                if (a.Class != DocClass.Owned || ReferenceEquals(a.Doc, doc) || a.Doc.GetType() != (int)swDocumentTypes_e.swDocASSEMBLY) continue;
+                if (((IAssemblyDoc)a.Doc).Components(false).Any(c => string.Equals(c.GetPathName(), path, StringComparison.OrdinalIgnoreCase)))
+                    return a;
+            }
+        }
+        catch (COMException) { /* no claim when it cannot be read */ }
+        return null;
     }
 
     public void SetClass(IModelDoc2 doc, DocClass cls, string how)
@@ -87,6 +129,7 @@ internal sealed class DocumentRegistry
         // Never downgrade Owned to Adopted.
         if (!(e.Class == DocClass.Owned && cls == DocClass.Adopted)) e.Class = cls;
         e.How = how;
+        Remember(e);
         Persist();
     }
 
@@ -119,6 +162,7 @@ internal sealed class DocumentRegistry
     {
         var e = Find(doc);
         if (e is null) return;
+        Remember(e);
         _entries.Remove(e);
         if (Target is not null && ReferenceEquals(Target, doc)) Target = null;
         Persist();
@@ -127,6 +171,7 @@ internal sealed class DocumentRegistry
     public void Clear()
     {
         _entries.Clear();
+        _ownedPaths.Clear();
         Target = null;
         _file = null;
     }
@@ -135,6 +180,7 @@ internal sealed class DocumentRegistry
     public void Prune(IReadOnlyCollection<IModelDoc2> openDocs)
     {
         int before = _entries.Count;
+        foreach (var e in _entries) Remember(e);
         _entries.RemoveAll(e => !openDocs.Any(d => ReferenceEquals(d, e.Doc) || Same(d, e)));
         foreach (var e in _entries)
         {

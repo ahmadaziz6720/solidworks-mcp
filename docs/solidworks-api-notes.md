@@ -449,7 +449,18 @@ type libraries and writes `sldworks_api.txt`, `swconst_enums.txt`, `swcommands.t
   it was obtained: after setting `TreatCoincidenceAsInterference = true`, call `GetInterferenceCount()` first (it
   recomputes), then `GetInterferences`. Touching cubes: 0 listed before the count, 1 (volume 0) after it.
 - **Mate entities** (VERIFIED). `IMateEntity2.ReferenceType` is the geometric kind (`swMateEntity2ReferenceType_e`:
-  3 plane, 4 cylinder); `ReferenceType2` is a `swSelectType_e` (4 = datum plane).
+  3 plane, 4 cylinder); `ReferenceType2` is a `swSelectType_e` (4 = datum plane). `Reference` (VERIFIED 2026-11-13, 2023
+  SP3) is the plane's `IFeature` ("Front Plane" of the component, or of the assembly with `ReferenceComponent` the root
+  component), or the `IFace2` / `IEdge` / `IVertex` in the assembly's context: its persistent reference on the assembly
+  is the one a face listed through `IComponent2.GetBodies3` gets, so the ids match. `EntityParams` gives a point and a
+  direction in assembly metres (a vertex: its point).
+- **Limit mates and constrained status** (VERIFIED 2026-11-13). A component held by concentric, coincident and a limit
+  angle mate (30..50°) reads `GetConstrainedStatus` 3 (fully) and loses its "(-)" in the tree, a part as a subassembly,
+  though it can still turn 20°: SOLIDWORKS counts a limit mate as fixing its degree of freedom.
+- **Interference counts** (VERIFIED 2026-11-13). On a fresh manager with `TreatCoincidenceAsInterference = true`, the
+  first `GetInterferenceCount()` can answer 1 (the overlaps only) while `GetInterferences` lists 3 (the overlap and two
+  touching pairs, volume 0); the list is right, and a second `GetInterferenceCount()` after the list matched it in
+  every run since. Touching pairs come back with volume 0 and a face body.
 - **Insert** (VERIFIED). `IAssemblyDoc.AddComponent5(path, 0, "", false, "", x, y, z)` returns `Component2`.
   - **x, y, z place the component's bounding-box center, not its origin.** A plate whose box center was at y = 17.5 had its
     origin placed at y = −17.5. Correct it with `Component2.Transform2` (a `MathTransform` built from a 16-element array:

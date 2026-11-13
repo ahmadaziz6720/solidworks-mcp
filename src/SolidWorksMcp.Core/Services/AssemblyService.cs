@@ -161,6 +161,12 @@ public sealed class AsmMateEntity
     public string? Component { get; init; }
     /// <summary>point | line | circle | plane | cylinder | sphere | cone | … (IMateEntity2.ReferenceType2).</summary>
     public required string Kind { get; init; }
+    /// <summary>The plane, axis, point or other feature it takes (e.g. "Front Plane"), as its component names it.</summary>
+    public string? Name { get; init; }
+    /// <summary>The face, edge or vertex it takes: an id as face_list / edge_list / vertex_list give it.</summary>
+    public string? Id { get; init; }
+    /// <summary>Where it is, assembly mm (SOLIDWORKS' mate entity point): for a vertex or point, and for an entity with neither name nor id.</summary>
+    public double[]? PointMm { get; init; }
 }
 
 public sealed class AsmMateInfo
@@ -246,7 +252,14 @@ public sealed class AsmInterference
 
 public sealed class AsmInterferenceResult : ToolResult
 {
+    /// <summary>The pairs given below: those SOLIDWORKS listed, less those the components filter left out.</summary>
     public int Count { get; init; }
+    /// <summary>The pairs SOLIDWORKS listed (IInterferenceDetectionMgr.GetInterferences), before the components filter.</summary>
+    public int Listed { get; init; }
+    /// <summary>Of those listed: pairs whose bodies overlap (volume above 0).</summary>
+    public int Overlapping { get; init; }
+    /// <summary>Of those listed, with includeCoincident: pairs that only touch (0 mm³, faces in contact).</summary>
+    public int? Touching { get; init; }
     public double TotalVolumeMm3 { get; init; }
     public required IReadOnlyList<AsmInterference> Interferences { get; init; }
     /// <summary>The components the report is limited to (null: the whole assembly).</summary>
@@ -649,7 +662,7 @@ public sealed partial class AssemblyService(SwSession session)
         return new AsmMateAddResult
         {
             Doc = ctx.Title(d),
-            Mate = MateRow(main),
+            Mate = MateRow(ctx, d, main),
             Verified = checks,
             Components = infos,
             Moved = moved.Count > 0 ? moved : null,
@@ -865,7 +878,7 @@ public sealed partial class AssemblyService(SwSession session)
             var d = (IModelDoc2)asm;
             var mates = Mates(d);
             int skip = Math.Max(0, offset), take = Math.Clamp(limit, 1, 500);
-            var rows = mates.Skip(skip).Take(take).Select(MateRow).ToList();
+            var rows = mates.Skip(skip).Take(take).Select(m => MateRow(ctx, d, m)).ToList();
             return new AsmMateListResult
             {
                 Doc = ctx.Title(d),
@@ -1109,6 +1122,7 @@ public sealed partial class AssemblyService(SwSession session)
                   ?? throw new SwException(ErrorCodes.NotSupported, "SOLIDWORKS returned no interference detection manager for this assembly.");
         var rows = new List<AsmInterference>();
         var checks = new List<string>();
+        int listed = 0, overlapping = 0;
         bool oldCoincident = idm.TreatCoincidenceAsInterference;
         bool oldSub = idm.TreatSubAssembliesAsComponents;
         try
@@ -1120,14 +1134,18 @@ public sealed partial class AssemblyService(SwSession session)
             // GetInterferenceCount recomputes with the new ones (touching cubes: 0 interferences, then count 1).
             int expected = idm.GetInterferenceCount();
             var found = idm.AsmInterferences();
-            if (found.Count != expected)
-                ctx.Warn($"SOLIDWORKS counted {expected} interference(s) but listed {found.Count}.");
+            listed = found.Count;
+            int recount = found.Count == expected ? expected : idm.GetInterferenceCount();
+            if (found.Count != recount)
+                ctx.Warn($"SOLIDWORKS counted {expected} interference(s) (GetInterferenceCount, {recount} asked again) but listed {found.Count} " +
+                         "(GetInterferences); the result is built from the pairs listed.");
             int bodiesChecked = 0;
             foreach (var i in found)
             {
+                double v = i.Volume;
+                if (Units.Mm3(v) > 0) overlapping++; // as the row reads it: a sliver that rounds to 0 mm³ touches
                 var names = i.AsmInterferingComponents().Select(c => c.Name2).ToList();
                 if (among is not null && !AsmMath.Involves(names, among)) continue;
-                double v = i.Volume;
                 double[]? center = null;
                 try
                 {
@@ -1166,15 +1184,24 @@ public sealed partial class AssemblyService(SwSession session)
             idm.Done();
         }
         rows = rows.OrderByDescending(r => r.VolumeMm3).ToList();
+        // S62 (e): say how the numbers come about. With includeCoincident SOLIDWORKS lists touching faces as interferences
+        // of volume 0; the components filter keeps only the pairs that involve one of the components named.
+        int touching = listed - overlapping;
+        checks.Insert(0, $"SOLIDWORKS listed {listed} pair(s): {overlapping} overlapping" +
+                         (includeCoincident ? $", {touching} touching (0 mm³: faces in contact, listed because includeCoincident)" : "") +
+                         (among is null ? "" : $"; {rows.Count} of the {listed} involve {string.Join(", ", among)}"));
         return new AsmInterferenceResult
         {
             Doc = ctx.Title(d),
             Count = rows.Count,
+            Listed = listed,
+            Overlapping = overlapping,
+            Touching = includeCoincident ? touching : null,
             TotalVolumeMm3 = Math.Round(rows.Sum(r => r.VolumeMm3), 3),
             Interferences = rows,
             Among = among,
             IncludeCoincident = includeCoincident,
-            Checks = checks.Count > 0 ? checks : null,
+            Checks = checks,
         };
     }
 
@@ -1254,7 +1281,7 @@ public sealed partial class AssemblyService(SwSession session)
         var mates = Mates(d);
         var lost = matesBefore.Where(n => !mates.Any(m => Eq(m.Name, n))).ToList();
         if (lost.Count > 0) ctx.Warn($"The replacement removed {lost.Count} mate(s): {string.Join(", ", lost.Take(10))}.");
-        var inError = mates.Where(m => MateError(m).Error != 0).Select(MateRow).ToList();
+        var inError = mates.Where(m => MateError(m).Error != 0).Select(m => MateRow(ctx, d, m)).ToList();
         checks.Add(inError.Count == 0 ? $"{mates.Count} mate(s), none in error" : $"{inError.Count} of {mates.Count} mate(s) in error or warning");
         ctx.App.GetRunningCommandInfo(out _, out string pm, out _);
         if (!string.IsNullOrWhiteSpace(pm))
@@ -1762,17 +1789,11 @@ public sealed partial class AssemblyService(SwSession session)
     private static List<string> MateNamesOf(IModelDoc2 d, string component) =>
         Mates(d).Where(m => MateComponents(m.Mate).Any(n => Eq(n, component))).Select(m => m.Name).ToList();
 
-    private static AsmMateInfo MateRow(MateFeat mf)
+    private static AsmMateInfo MateRow(SwContext ctx, IModelDoc2 d, MateFeat mf)
     {
         var m = mf.Mate;
         var (err, warn) = MateError(mf);
-        var entities = MateEntities(m).Select(e => new AsmMateEntity
-        {
-            Component = EntityComponent(e)?.Name2,
-            // ReferenceType is the geometric kind (swMateEntity2ReferenceType_e); ReferenceType2 is a swSelectType_e
-            // (live: 4 = swSelDATUMPLANES for a plane mate, which read as "cylinder" when taken for the other enum).
-            Kind = Safe(() => e.ReferenceType, -1) is int rt and >= 0 ? AsmParse.RefTypeName(rt) : AsmParse.SelTypeName(Safe(() => e.ReferenceType2, -1)),
-        }).ToList();
+        var entities = MateEntities(m).Select(e => MateEntityRow(ctx, d, e)).ToList();
         var dims = Safe(() => FeatureVerifier.Dimensions(mf.Feature), new List<DimensionInfo>());
         var dim = dims.FirstOrDefault(x => x.Unit is "mm" or "deg");
         int type = Safe(() => m.Type, -1);
@@ -1791,6 +1812,37 @@ public sealed partial class AssemblyService(SwSession session)
             Warning = err != 0 && warn ? true : null,
             Suppressed = Safe(() => mf.Feature.IsSuppressed(), false) ? true : null,
         };
+    }
+
+    /// <summary>
+    /// One mate entity, named as the other tools name it (S62 a): IMateEntity2.Reference is the feature of a plane, axis or
+    /// point (VERIFIED live: IFeature, "Front Plane" of the component or the assembly), or the face, edge or vertex
+    /// (IFace2 / IEdge / IVertex in the assembly's context, whose ids match face_list's on the assembly).
+    /// </summary>
+    private static AsmMateEntity MateEntityRow(SwContext ctx, IModelDoc2 d, IMateEntity2 e)
+    {
+        // ReferenceType is the geometric kind (swMateEntity2ReferenceType_e); ReferenceType2 is a swSelectType_e
+        // (live: 4 = swSelDATUMPLANES for a plane mate, which read as "cylinder" when taken for the other enum).
+        string kind = Safe(() => e.ReferenceType, -1) is int rt and >= 0 ? AsmParse.RefTypeName(rt) : AsmParse.SelTypeName(Safe(() => e.ReferenceType2, -1));
+        object? r = Safe<object?>(() => e.Reference, null);
+        string? name = r is IFeature f ? Safe<string?>(() => f.Name, null) : null;
+        string? id = name is null ? Safe<string?>(() => r switch
+        {
+            IFace2 face => ctx.Entities.IdFor(d, face, EntityResolver.Prefix(EntityKind.Face), EntityResolver.KindName(EntityKind.Face),
+                Topology.SurfaceKind(face.Surface()), Topology.InteriorPoint(face)),
+            IEdge edge => ctx.Entities.IdFor(d, edge, EntityResolver.Prefix(EntityKind.Edge), EntityResolver.KindName(EntityKind.Edge),
+                Topology.CurveKind(edge.Curve()), Topology.Describe(edge).Mid),
+            IVertex v => ctx.Entities.IdFor(d, v, EntityResolver.Prefix(EntityKind.Vertex), EntityResolver.KindName(EntityKind.Vertex),
+                null, Vec3.From(v.Point())),
+            _ => null,
+        }, null) : null;
+        double[]? point = null;
+        if (kind == "point" || (name is null && id is null))
+        {
+            var p = Safe(() => ComArgs.Doubles((object?)e.EntityParams), []);
+            if (p.Length >= 3) point = Units.Mm(new Vec3(p[0], p[1], p[2]));
+        }
+        return new AsmMateEntity { Component = EntityComponent(e)?.Name2, Kind = kind, Name = name, Id = id, PointMm = point };
     }
 
     /// <summary>A resolved mate entity: what to select, its component (null at the assembly level) and its geometry in its own space.</summary>

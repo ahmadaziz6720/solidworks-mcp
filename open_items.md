@@ -386,7 +386,62 @@ three numbers do not explain each other (findings 2026-11-13, "four small printe
 point 3; "a revolved part remade", point 4). Taken into the run of 2026-11-13: (a) and
 (e), no choice in them; (c) a probe first, against SOLIDWORKS' own tree. (d) Decided
 2026-11-13 by the owner: a part loaded by an assembly the server owns, from a path the
-server owned, counts as owned. (b) offered 2026-11-13 and not chosen; stays open.
+server owned, counts as owned. (b) offered 2026-11-13 and not chosen; stays open. (a), (d)
+and (e) fixed in the run of 2026-11-13, (c) probed and not a fault; (b) still open. (a) Cause:
+the row gave `IMateEntity2.ReferenceType` and the component only; `Reference` was never read.
+Fix: each entity gives `name` for a plane, axis or other feature (`Reference` is its
+`IFeature`, live: "Front Plane" of the component, or of the assembly with no component),
+`id` for a face, edge or vertex (registered as `face_list` registers it: the same id, live),
+and `pointMm` (SOLIDWORKS' `EntityParams`, assembly mm) for a vertex or point and for an
+entity with neither. (c) The probe, live on 2023 SP3: a subassembly held by concentric,
+coincident and a limit angle mate (30..50°) on its child reads `GetConstrainedStatus` fully
+constrained and its tree text loses "(-)"; a part held the same way reads the same. SOLIDWORKS
+counts a limit mate as fixing its freedom, so `constrained: "fully"` and `model_review` agree
+with it; nothing to fix. Kept as
+`AssemblyLiveTests.A_limit_angle_mate_reads_fully_constrained_as_SOLIDWORKS_marks_it_in_the_tree`
+(passes before and after; it reads the tree text through `TestHooks.ComponentTreeTextAsync`).
+(d) Cause: the registry forgets a document's class when it closes, and a reference an owned
+document loads was always tracked foreign. Fix: `DocumentRegistry` keeps the paths of
+documents it owned in this server process, closed ones included; a document first seen with
+such a path, with no window of its own and held as a component by an owned assembly, is owned,
+"loaded by D… from a file this server owned". (e) Cause: the result gave the rows and a bare
+warning; live, the first `GetInterferenceCount` on a fresh manager with coincidence on
+answered 1 (the overlap) while `GetInterferences` listed 3 (the overlap and two touching
+pairs). Fix: the result gives `listed` (what SOLIDWORKS listed, before the components
+filter), `overlapping` and, with `includeCoincident`, `touching` (0 mm³, faces in contact),
+and a check line saying so and how many of the listed involve the components named; the
+count is asked again after the list, and a warning, naming both calls, comes only when they
+still differ. Descriptions: `asm_mate_list` names the entities' plane name or id;
+`includeCoincident` says touching pairs read 0 mm³. Before, on the code before the fix:
+`Mate_list_names_the_plane_face_edge_or_vertex_each_mate_takes` failed ("Assert.All()
+Failure: 2 out of 2 items in the collection did not pass", no name);
+`Interference_with_coincident_faces_says_what_SOLIDWORKS_listed_overlapping_touching_and_kept`
+failed (no `listed`, `overlapping` or `touching`; warning "SOLIDWORKS counted 1
+interference(s) but listed 3."); `A_part_the_server_owned_comes_back_owned_when_its_owned_assembly_loads_it`
+failed ("foreign: 'owned_….SLDPRT' was already open in SOLIDWORKS (the user's document,
+D10) …"). After: those three and the (c) test pass, with `Plane_mates_coincident_and_distance_…`,
+`Interference_of_two_overlapping_cubes_…`, `Parallel_perpendicular_and_angle_mates_…`,
+`Replace_swaps_the_file_…`, `Mates_that_cant_hold_…`, `Concentric_mate_…`,
+`Component_set_floats_…`, `A_change_through_a_document_an_assembly_loads_…`,
+`Insert_refuses_unsaved_missing_and_foreign_files_…`,
+`DrawingLiveTests.Closing_a_drawing_names_what_solidworks_closed_with_it`,
+`ExportLiveTests.A_file_that_is_already_open_…` and `A_saved_part_reopens_as_owned_…`, 16/16
+live; unit tests 284/284; `ContractTests` 7/7; `--check-catalog` ok; `check_repo` ok. Made
+stricter: none; (d) widens ownership, and its test shows a part the user opened before the
+server's assembly loaded it stays foreign. The (d) test writes with `dimension_set`: in that
+SOLIDWORKS session `equation_set` refused every equation, on a new part too, until SOLIDWORKS
+was restarted (its own hint). Decided 2026-11-13 by the run, not the owner: (1) `pointMm` only
+for a vertex or point and for an entity with neither name nor id, because a name or id already
+says which and a point says where a point is; (2) the name is the feature's own ("Front Plane")
+beside `component`, not a select string, as `asm_mate_add` takes it; (3) (d) claims only a
+document with no window of its own, held by an owned assembly, when first seen, not one a
+drawing loads, because the decision names an assembly and a visible document may be the
+user's; (4) the owned paths live in the server process, not in the persisted registry, because
+the finding was within one session and a restarted server re-claims open documents already;
+(5) `count` stays the rows given (after the components filter) and `listed` is added, because
+callers read `count`; (6) a pair overlaps when its volume reads above 0 at 3 decimals, as its
+row shows it. Local: (a), (d) and (e) on `sw2023`, in the commit that records them here; not
+yet in a build. Upstream: not yet decided.
 
 **S64. Feature calls refused, failed or counted wrong, with hints that miss.** On build
 `20261112-091908`. (a) A blind cut from a plane inside the body whose end lies outside it

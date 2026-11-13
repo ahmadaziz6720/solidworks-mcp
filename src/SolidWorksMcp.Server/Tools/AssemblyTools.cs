@@ -74,8 +74,8 @@ public sealed class AssemblyTools(SwSession session)
         }, cancellationToken), progress, "asm_mate_add");
 
     [McpServerTool(Name = "asm_mate_list", Title = "List mates", ReadOnly = true, Destructive = false, Idempotent = true, OpenWorld = false)]
-    [Description("List the assembly's mates: name, type, alignment, entity kinds and components, distance/angle with its dimension " +
-                 "name (dimension_set drives it), error and suppressed state.")]
+    [Description("List mates: name, type, alignment, entities (component, kind, plane name or face/edge/vertex id), distance/angle " +
+                 "and its dimension (dimension_set drives it), error, suppressed.")]
     public Task<string> AsmMateList(
         [Description("Maximum mates to return.")] int limit = 100,
         [Description("Skip this many first.")] int offset = 0,
@@ -135,7 +135,7 @@ public sealed class AssemblyTools(SwSession session)
     public Task<string> AsmInterference(
         IProgress<ProgressNotificationValue> progress,
         [Description("Only interferences involving this component, or among these (default: all).")] string[]? components = null,
-        [Description("Also report touching (coincident) faces.")] bool includeCoincident = false,
+        [Description("Also list touching faces (0 mm³ pairs).")] bool includeCoincident = false,
         [Description(DocDesc)] string? doc = null,
         CancellationToken cancellationToken = default) =>
         Output.Json(_svc.InterferenceAsync(doc, components, includeCoincident, cancellationToken), progress, "asm_interference");
