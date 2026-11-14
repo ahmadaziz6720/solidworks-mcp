@@ -99,4 +99,7 @@ other repos and never commit here (the owner's global `CLAUDE.md`).
 - **Sort the entries into items**, as `findings.md`'s top says: each point to an S-item in
   `open_items.md`, new or existing, and a `Sorted into …` line under the entry.
 - **An item that is fixed** moves to Waiting with its commit; to Closed when the fix ran and
-  held in a session and, if it was sent upstream, the PR is settled.
+  held in a session: Closed means ready to use, whatever upstream does. A PR upstream is
+  optional (the owner, 2026-11-14): an item sent stays in Closed with its PR named, and
+  moves to Merged upstream when that PR is merged. A PR refused or closed unmerged leaves
+  it in Closed, with that recorded.

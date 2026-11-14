@@ -11,10 +11,10 @@ or by Claude shows within two seconds. Standard library only. Like the two
 files it reads, it lives on sw2023 and never goes upstream.
 
 An item is a paragraph that opens with `**S<n>. <title>.**` under `## Open`,
-`## Waiting` or `## Closed`; the section is its state, and the paragraphs
-after it up to the next item are its text. A findings entry opens with
-`**YYYY-MM-DD: <what was done>**`; its `Sorted into ...` line links it to the
-items, `S6 (1, 2)` naming the entry's points. The intro's `**Open: S3 to S5,
+`## Waiting`, `## Closed` or `## Merged upstream`; the section is its state,
+and the paragraphs after it up to the next item are its text. A findings
+entry opens with `**YYYY-MM-DD: <what was done>**`; its `Sorted into ...`
+line links it to the items, `S6 (1, 2)` naming the entry's points. The intro's `**Open: S3 to S5,
 ...**` line is checked against the Open section.
 """
 import argparse
@@ -30,7 +30,7 @@ ROOT = Path(__file__).resolve().parent
 ITEMS = ROOT / "open_items.md"
 FINDINGS = ROOT / "findings.md"
 BRANCH = "sw2023"
-STATES = {"Open": "open", "Waiting": "waiting", "Closed": "closed"}
+STATES = {"Open": "open", "Waiting": "waiting", "Closed": "closed", "Merged upstream": "merged"}
 
 ITEM_RE = re.compile(r"^\*\*(S\d+)\.\s+(.+?)\*\*\s*(.*)$", re.S)
 ITEM_START_RE = re.compile(r"^\*\*S\d+\b")
@@ -115,7 +115,7 @@ def parse_items(problems):
                 problems.append(f"open_items.md:{ln}: {code} is above the first section")
             elif sec["state"] is None:
                 problems.append(f"open_items.md:{ln}: {code} is under '## {sec['title']}', "
-                                "not Open, Waiting or Closed")
+                                "not Open, Waiting, Closed or Merged upstream")
             if code in seen:
                 problems.append(f"open_items.md:{ln}: {code} used twice "
                                 f"(also line {seen[code]})")
@@ -378,7 +378,7 @@ PAGE = r"""<!doctype html>
   --bg: #f5f5f3; --surface: #fcfcfb; --surface-2: #f0efec; --border: #e2e1dc;
   --text: #0b0b0b; --text-2: #52514e; --muted: #7a7974; --accent: #2a78d6;
   --hl: rgba(42, 120, 214, .13);
-  --st-open: #ec835a; --st-waiting: #fab219; --st-closed: #0ca30c; --st-unknown: #d03b3b;
+  --st-open: #ec835a; --st-waiting: #fab219; --st-closed: #0ca30c; --st-merged: #2a78d6; --st-unknown: #d03b3b;
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
@@ -520,8 +520,8 @@ a.ref { font-family: ui-monospace, Consolas, monospace; font-size: 12.5px; white
 <main id="main"></main>
 <div class="tip" id="tip"></div>
 <script>
-const ORDER = ["open", "waiting", "closed"];
-const LABEL = {open: "Open", waiting: "Waiting", closed: "Closed", unknown: "Unreadable"};
+const ORDER = ["open", "waiting", "closed", "merged"];
+const LABEL = {open: "Open", waiting: "Waiting", closed: "Closed", merged: "Merged upstream", unknown: "Unreadable"};
 const S = {data: null, version: null, tab: "overview", focus: null, expanded: new Set(),
   clipOpen: new Set(), q: "", fq: "", hide: pref("hide", []), unsorted: false};
 let ITEM = {}, CODES = new Set(), BYREF = {}, FED = {}, BUILD = {};

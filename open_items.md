@@ -6,9 +6,11 @@ names where it goes: **upstream** (an issue or PR at `soheil-mp/solidworks-mcp`)
 (a fix on `sw2023`, sent upstream as a PR when it is general), **usage** (a note for the
 sessions that use the server), or **not taken**.
 
-Three sections: **Open**, not yet fixed; **Waiting**, fixed and not yet settled (a PR not
-merged, a fix not yet run in a session); **Closed**, merged upstream, run and held, or
-decided against, with the record.
+Four sections: **Open**, not yet fixed; **Waiting**, fixed and not yet run and held in a
+session; **Closed**, run and held, so ready to use, or decided against, with the record;
+**Merged upstream**, Closed and its PR merged at `soheil-mp/solidworks-mcp`. A PR is
+optional (the owner, 2026-11-14): an item with a PR open stays in Closed, its PR named,
+and an open PR no longer holds an item in Waiting.
 
 **Open: S4, S5, S7, S10 to S12, S33, S34, S49, S51, S52, S59 to S62, S64, S65, S67 to
 S72.** The scenario test of build `20261114-024455` (`cfd987e`) ran 2026-11-14 (findings
@@ -1074,13 +1076,17 @@ reads ~1 kg/m³. Bears on S58 (b), S30. Local. Not yet decided.
 **S1. `drw_view_section` / `drw_view_detail` drew in view-sketch coordinates.** Local:
 `1de5067` + `3f43c50` on `sw2023`, run and held 2026-11-09 in build `…-163234`. Upstream:
 PR #1 (branch `fix/section-sheet-coords`, one commit `81475a5`), tested on 2023 SP3 only;
-on 2025 the mapping may be wrong if sheet coordinates work there. Closes when PR #1 is
-merged or refused; if merged, the local commits drop out at the next rebase. Held again
+on 2025 the mapping may be wrong if sheet coordinates work there. Under the rule of 2026-11-14
+(the owner) PR #1 no longer holds it: it closes when `drw_view_detail` and a view at an
+angle have run and held, and moves to Merged upstream if PR #1 is merged (the local
+commits then drop out at the next rebase). Held again
 in builds `…-195750` and `…-204719` (two sections, cut where drawn). Not yet run:
 `drw_view_detail`, views at an angle. Not yet checked: `drw_view_edit broken_out` passes its circle in sheet
 coordinates straight into the active view (its comment says sketch coordinates are the
 sheet's there), which S1 found false for sections and details; its live test only counts
 the cut, so a circle landing elsewhere on the part would pass.
+
+## Closed
 
 **S2. A drawing always showed a sketch open, so `doc_undo` and `doc_rebuild` refused it.**
 Reported as a section leaving the view sketch open. Cause, found live on 2023 SP3: in a
@@ -1101,7 +1107,9 @@ standard view, after each of two sections and in a saved drawing opened read-onl
 `doc_rebuild` runs; in a part a real open sketch is still reported and refused. Undoing
 drawing work still does not work, for other reasons: S19. Upstream: branch
 `fix/drawing-sketch` (one commit `3bde32f`, cherry-picked onto `upstream/main`), PR #7.
-Closes when PR #7 is settled.
+Closed 2026-11-14 under the new rule (the owner: a PR is optional, Closed means ready to
+use): it held in its scenario test. PR #7 stays open; merged, the item moves to
+Merged upstream.
 
 **S19. `doc_undo` did not work in drawings, and removed work while reporting failure.**
 Found while fixing S2, live on 2023 SP3: after `drw_views_standard`, `drw_view_projected`
@@ -1121,11 +1129,14 @@ all passing but S23's, which fails without the fix too. Upstream: branch
 build `…-215810` (tag `build-20261109-215810`). Held in its scenario test: in a drawing,
 refused `NOT_SUPPORTED` after a view and a note and again after a section and a second
 note, with the views and every note kept (`drw_info`); in a part, `doc_undo` still took
-back a boss extrude. Closes when PR #8 is settled. Tracking drawing changes by view and
+back a boss extrude. Tracking drawing changes by view and
 annotation counts stays a later option. A misplaced drawing item is moved or removed with
-S3's tools (Waiting) instead of an undo. Held again in build `…-230924`: refused in a
+S3's tools (Closed) instead of an undo. Held again in build `…-230924`: refused in a
 drawing, the hint naming the three edit tools; in a part an undo took back a boss
 extrude. In a part again in `…-014952`, `…-024431`, `…-034022`, `…-064352`, `…-091645` and `20261111-140208`.
+Closed 2026-11-14 under the new rule (the owner: a PR is optional, Closed means ready to
+use): it held in its scenario test. PR #8 stays open; merged, the item moves to
+Merged upstream.
 
 **S6. `sketch_dimension_add` angular refused the acute angle at a shared vertex.** Local:
 `18cbc57` on `sw2023`. The supplement is kept when `textAt` lies in its sector, and the
@@ -1160,7 +1171,9 @@ at `434d9e8` joins PR #6, after the four angular live tests passed on it on 2023
 interop patch on top, uncommitted); the PR's body has a section on the two commits. In
 build `20261112-091908`. Held in its scenario test (findings 2026-11-12, first entry,
 point 1): the accepted angle's check reads "the angle that was 7.5°, … then 172.5°".
-Closes when PR #6 is merged or refused.
+Closed 2026-11-14 under the new rule (the owner: a PR is optional, Closed means ready to
+use): it held in its scenario test. PR #6 stays open; merged, the item moves to
+Merged upstream.
 
 **S20. `drw_dimension_add` returned some dimensions without a value check, silently.** In the
 scenario test of build `…-204719`, 9 of 23: every one with a circular edge in it (a line to
@@ -1243,7 +1256,7 @@ to use `linear` or the other direction; asserted in the edge-on live test, which
 without it. In build `20261111-140208`. Held in its scenario test (findings 2026-11-11,
 point 7): `FEATURE_FAILED` with the new hint; (c) held again. Upstream: branch `fix/dimension-circles` (one commit
 `5a54b9f`, `8c88427`, `8b0fbbd` and `23bd0d7` squashed onto `upstream/main`), PR #10; Drawing and Contract live tests 46/46 on it on 2023 SP3 (the
-interop patch on top, uncommitted). Closes when PR #10 is settled. Decided 2026-11-14 by
+interop patch on top, uncommitted). Decided 2026-11-14 by
 the owner: (d) joins PR #10. Done 2026-11-14: from `0b21139`, only the `DrawingService`
 hunk and the edge-on test's assertion, as `d801b06` on `fix/dimension-circles` (the
 `EntityResolver` change and its test, S25's, left out); Drawing and Contract live tests in
@@ -1256,6 +1269,9 @@ counts and the auto-dimensions note, and lost the "Not in this PR" line on the o
 read back equal. Offered
 the same day and not chosen: a new PR for S14 with S47 (`8d105c3`, `f71b034`), no longer
 waiting on S47.
+Closed 2026-11-14 under the new rule (the owner: a PR is optional, Closed means ready to
+use): it held in its scenario test. PR #10 stays open; merged, the item moves to
+Merged upstream.
 
 **S3. No tool deleted or moved a drawing view, dimension or note.** Upstream ROADMAP T10.4
 (🟡). Local: `cc685a9` on `sw2023`. `drw_annotation_list` (current sheet or one view: name,
@@ -1310,7 +1326,7 @@ Usage: moving a parent moves every view aligned with it, a section placed beside
 the end of the class so it merges clean with PR #8), PR #9;
 Drawing and Contract live tests 47/47 on it on 2023 SP3. `ddca400` stays local, as it
 stands on PR #8. Editing a dimension's value (T10.4) stays out: a drawing
-dimension's value follows the model. Closes when PR #9 is settled. Decided 2026-11-14 by
+dimension's value follows the model. Decided 2026-11-14 by
 the owner: S24's fix (`479b885`, `othersMoved` on a delete, held in the scenario test of
 build `20261112-091908`) joins PR #9, a fault in a tool the PR adds. Done 2026-11-14:
 cherry-picked onto `feat/drawing-edit` in a worktree as `2c2a98a`; the source merged clean,
@@ -1320,6 +1336,9 @@ in, placed with the PR's annotation tests; Drawing and Contract live tests in fu
 `--check-catalog` ok (164 tools). Pushed on the owner's word, joining #9 (2 commits,
 mergeable); #9's body gained a section on it and the test, and lost the "Not in this PR"
 line on a stacked row's delete, read back equal.
+Closed 2026-11-14 under the new rule (the owner: a PR is optional, Closed means ready to
+use): it held in its scenario test. PR #9 stays open; merged, the item moves to
+Merged upstream.
 
 **S14. A drawing view's axes and the sheet's drawable area are not reported.** Which model
 axis points where on the sheet (in a top view model −Z points up) decides the side for an
@@ -1385,8 +1404,8 @@ for the frame (point 1): on a sheet at 1:2 `drawableMm` and `titleBlockMm` read 
 their values, and the checks built on them were wrong and reported success; that is S47.
 The PR upstream waited on S47, which held in the scenario test of build
 `20261114-024455` and closed 2026-11-14; the PR is not made yet.
-
-## Closed
+Closed 2026-11-14 under the new rule (the owner: a PR is optional, Closed means ready to
+use): it held in its scenario test, with S47. No PR made; one is optional.
 
 **S47. The sheet's frame grows with the sheet's scale, and the checks on it pass wrong,
 reported `ok`.** In the scenario test of build `20261112-091908` (findings 2026-11-12,
@@ -2349,7 +2368,7 @@ away: a circular edge of radius 2.25 mm centred at […]". Closed 2026-11-12 on 
 On a part with fully defined sketches: 25 dimensions, construction ones among them,
 duplicates, overlapping texts, some off the sheet, none for features whose sketches had
 none. Without a delete tool they could not be removed, so the drawing was restarted; with
-S3's `drw_annotation_edit` (Waiting) they can be deleted one by one. Usage: manual
+S3's `drw_annotation_edit` (Closed) they can be deleted one by one. Usage: manual
 `drw_dimension_add` only. Decided 2026-11-11 by the owner: no code change; the
 description says the result needs cleaning and points to `drw_dimension_add`.
 Done in `5bd35ec` on `sw2023` (2026-11-12): `drw_dimensions_auto`'s description says the
@@ -2399,7 +2418,8 @@ mates read and one length changed. Closed 2026-11-12, as decided. Both ran in th
 scenario test of build `20261112-091908` (findings 2026-11-12, both entries) and held; the
 assembly's length change left S49.
 
-Each goes back to Waiting if it is sent upstream, as S3 did.
+Each sent upstream stays here with its PR named, and moves to Merged upstream when the
+PR is merged (the owner, 2026-11-14).
 
 **S9. `sw_help` at session start reads ≈23.5k characters.** Usage: a short note of the tools
 and conventions the sessions here use, read instead. Where the note lives (a skill, the
@@ -2676,6 +2696,11 @@ changes`). In build `…-091645`. Held in its scenario test (findings 2026-11-10
 and `view_screenshot`, and a drawing by `doc_rebuild`, each closed with no flags,
 `discardedChanges: true`, their file dates unchanged; a part opened for editing and changed
 still got `DIRTY`. Closed 2026-11-10 on the owner's word. Upstream: not yet decided.
+
+## Merged upstream
+
+Closed items whose PR was merged at `soheil-mp/solidworks-mcp`, each with the PR and its
+merge commit; their local commits drop out of `sw2023` at the next rebase. None yet.
 
 ## Carried, not items
 
