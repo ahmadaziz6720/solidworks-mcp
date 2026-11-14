@@ -20,7 +20,8 @@ process in a bad state, a material applied at 1 kg/m³, reported `ok`). S60 to S
 and S65 are from twenty working sessions on build `20261112-091908` (findings 2026-11-12
 and 13), S67 to S71 seen by the run of 2026-11-13 in its own tests. Reported `ok` while
 wrong or misleading: S51, S52, S60 (a), S72.
-Next: the owner's decisions on S49, S51, S52, S59 (c) and S72, and the unsorted
+Next: S24's fix into PR #9 and S20 (d) into PR #10, as S3 and S20 say (decided
+2026-11-14); the owner's decisions on S49, S51, S52, S59 (c) and S72; the unsorted
 `findings.md` entry of 2026-11-13. The run below is done. Not in
 it: S4, S5, S7 and S12 wait on upstream; S10, S11, S33 and S34 are parked until a job
 needs them; S61 (a), S62 (b), S64 (c) and S65 (b to d) were offered for this run and not
@@ -1242,7 +1243,14 @@ to use `linear` or the other direction; asserted in the edge-on live test, which
 without it. In build `20261111-140208`. Held in its scenario test (findings 2026-11-11,
 point 7): `FEATURE_FAILED` with the new hint; (c) held again. Upstream: branch `fix/dimension-circles` (one commit
 `5a54b9f`, `8c88427`, `8b0fbbd` and `23bd0d7` squashed onto `upstream/main`), PR #10; Drawing and Contract live tests 46/46 on it on 2023 SP3 (the
-interop patch on top, uncommitted). Closes when PR #10 is settled.
+interop patch on top, uncommitted). Closes when PR #10 is settled. Decided 2026-11-14 by
+the owner: (d) joins PR #10. To do, in a new session: from `0b21139`, only the
+`DrawingService` hunk (the edge-on hint) and its assertion in the edge-on live test onto
+`fix/dimension-circles`, in a worktree; the commit's `EntityResolver` change is S25's and
+stays out. Then the Drawing and Contract live tests in full on it on 2023 SP3, push on the
+owner's word, which joins #10, and #10's body gains a section on it, read back. Offered
+the same day and not chosen: a new PR for S14 with S47 (`8d105c3`, `f71b034`), no longer
+waiting on S47.
 
 **S3. No tool deleted or moved a drawing view, dimension or note.** Upstream ROADMAP T10.4
 (🟡). Local: `cc685a9` on `sw2023`. `drw_annotation_list` (current sheet or one view: name,
@@ -1297,7 +1305,14 @@ Usage: moving a parent moves every view aligned with it, a section placed beside
 the end of the class so it merges clean with PR #8), PR #9;
 Drawing and Contract live tests 47/47 on it on 2023 SP3. `ddca400` stays local, as it
 stands on PR #8. Editing a dimension's value (T10.4) stays out: a drawing
-dimension's value follows the model. Closes when PR #9 is settled.
+dimension's value follows the model. Closes when PR #9 is settled. Decided 2026-11-14 by
+the owner: S24's fix (`479b885`, `othersMoved` on a delete, held in the scenario test of
+build `20261112-091908`) joins PR #9, a fault in a tool the PR adds. To do, in a new
+session: cherry-pick it onto `feat/drawing-edit` in a worktree (the branch's code is
+older than `sw2023`'s, so a conflict is resolved against the PR's text, not `sw2023`'s);
+the Drawing and Contract live tests in full on it on 2023 SP3 (the interop patch on top,
+uncommitted); push on the owner's word, which joins #9; then #9's body gains a section on
+the commit, read back.
 
 **S14. A drawing view's axes and the sheet's drawable area are not reported.** Which model
 axis points where on the sheet (in a top view model −Z points up) decides the side for an
