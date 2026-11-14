@@ -10,14 +10,18 @@ Three sections: **Open**, not yet fixed; **Waiting**, fixed and not yet settled 
 merged, a fix not yet run in a session); **Closed**, merged upstream, run and held, or
 decided against, with the record.
 
-**Open: S4, S5, S7, S10 to S12, S33, S34, S60 to S62, S64, S65, S67 to S71.** S60 to
-S62, S64 and S65 are from twenty working sessions on build `20261112-091908` (findings
-2026-11-12 and 13), S67 to S71 seen by the run of 2026-11-13 in its own tests; S47 to
-S49, from that build's scenario test, and S50 to S59, S63 and S66, from those sessions,
-are fixed and Waiting, in build `20261114-024455` (`cfd987e`). Reported `ok` while wrong
-or misleading: S60 (a).
-Next: the scenario test of build `20261114-024455` in the owner's project, then the
-unsorted `findings.md` entry of 2026-11-13. The run below is done. Not in
+**Open: S4, S5, S7, S10 to S12, S33, S34, S49, S51, S52, S59 to S62, S64, S65, S67 to
+S72.** The scenario test of build `20261114-024455` (`cfd987e`) ran 2026-11-14 (findings
+2026-11-14). Held, and closed on the owner's word: S47, S48, S50, S53 to S58, S63, S66,
+and the fixed parts of S60 to S62, S64 and S65. Back to Open: S51 (`flipEdges` in a
+chamfer's edit flips every edge, reported `ok`), S49 (a line's wording), S52 (the box of a
+STEP's surface bodies) and S59 (c) (the type of a sketch line not inferred). New: S72 (a
+process in a bad state, a material applied at 1 kg/m³, reported `ok`). S60 to S62, S64
+and S65 are from twenty working sessions on build `20261112-091908` (findings 2026-11-12
+and 13), S67 to S71 seen by the run of 2026-11-13 in its own tests. Reported `ok` while
+wrong or misleading: S51, S52, S60 (a), S72.
+Next: the owner's decisions on S49, S51, S52, S59 (c) and S72, and the unsorted
+`findings.md` entry of 2026-11-13. The run below is done. Not in
 it: S4, S5, S7 and S12 wait on upstream; S10, S11, S33 and S34 are parked until a job
 needs them; S61 (a), S62 (b), S64 (c) and S65 (b to d) were offered for this run and not
 chosen (2026-11-13), and stay open. The round before (S37 to S46, S6's wording, S13, S14,
@@ -117,12 +121,12 @@ If the session ends before the last batch, this list and the items' Waiting line
 where the next one picks up.
 
 **Where the run stands** (the seventh session, 2026-11-14, finished batch 7, the release;
-the run is done, its scenario test not yet run).
+the run is done, its scenario test run and sorted 2026-11-14, as the Open line says).
 **The run's report** (2026-11-14): every planned item Waiting with its commit, in build
 `20261114-024455`, but for the parts left open (S60 (a), S61 (a), S62 (b), S64 (b, c),
 S65 (b to d)); none closed for a test that did not fail. New open items from its own
 tests: S67 to S71. The decisions it took are its "Decided 2026-11-13/14 by the run, not
-the owner" lines in each item. Scenario test: not run yet.
+the owner" lines in each item. Scenario test: run 2026-11-14, sorted as the Open line says.
 Committed on `sw2023`: batch 1, S47 `f71b034`; batch 2, S66 `657fc23`, S51
 `16699e2`, S53 `59beaae`, S52 `8dff953`, S50 `1bc3cbb`; batch 3, S54 `9939f28`, S58
 `32698d5`, S48 (d) `ffde4db`, S63 `e642451`; batch 4, S56 `0acb318`, S55 `1861854`, S64
@@ -264,6 +268,10 @@ a STEP round trip gave 16 surface bodies and no solid. Again in `…-235702`,
 import 16 surface bodies). The usage line misses one case: a STEP that comes in as an
 assembly reads `solidBodies: 0` on a good solid (S61 b); read `model_mass` there until the
 build with S61 (b), which counts them through the components.
+Again in `20261114-024455` (findings 2026-11-14, point 5): a STEP that `model_export`
+wrote from an assembly of three 20 mm cubes and a turned cylinder brought the cubes in as
+solids where they were and the cylinder as 3 surface bodies (S52); `model_export` of that
+assembly had reported `solids: 2`, two distinct parts of four components.
 
 **S7. `dimension_set` accepts a change that splits the body.** Upstream: issue #4. Usage:
 read `bodies` in the result after each `dimension_set`. A model driven by global variables
@@ -309,6 +317,298 @@ it, sketch relations and fragile references, in place of `model_info`, `feature_
 `dimension_list` and `equation_list`. (c) Session export as a replayable recipe (T3.15,
 not built), an idea for now. Upstream roadmap items; (a) first if built. Parked 2026-11-11
 by the owner: taken up when a job needs it.
+
+**S49. `dimension_set` through an assembly does not say which component, nor the
+document it changed.** In the scenario test of build `20261112-091908` (findings
+2026-11-12, second entry, points 3, 4), a two-part assembly mated by hand. (a)
+`dimension_set` with a component's dimension (`D1@Boss-Extrude1@<component>-1`) made the
+change right, but the result named it `D1@Boss-Extrude1`, without the component, and
+carried no volume change, which the description promises and a part's result gives. With
+two components holding a `D1@Boss-Extrude1` the row would not say which changed. (b) The
+change went to a part `doc_list` lists as `foreign` (`loadedBy` the assembly), leaving it
+dirty; closing the assembly with `discard` closed and discarded it too ("SOLIDWORKS also
+closed"), the part's file not touched. Whether a referenced part counts as the assembly's
+for the server's rule on foreign documents is not said anywhere, and the result does not
+name the other document. Reported success, rightly. Bears on S27. Local: the component in
+the row, the assembly's volume change, and a line naming the part changed and not saved.
+Taken into the run of 2026-11-13 as proposed, no choice in it.
+Fixed in the run of 2026-11-13. Cause: `dimension_set` named each row by the dimension's
+own full name with the document's suffix cut (`FeatureVerifier.ShortName`), which for a
+component's dimension is the part's `D1@Boss-Extrude1`; so two components holding one were
+refused "listed twice", and the read-back after the rebuild looked the dimension up again by
+that short name in the assembly. The volume change was read for a part only, and nothing
+looked at the documents a change through the assembly reached. Fix: in an assembly each row
+keeps the name as given (`D1@Boss-Extrude1@<component>-1`), which also keys the "listed
+twice" check and the read-back; the volume change of an assembly is that of its mass
+properties (`CreateMassProperty2().Volume`) before and after; the update stamp of every
+other open document is read before the change, and each one whose stamp moved and that is
+now dirty is named in a warning, "Also changed, not saved: '<title>' (<handle>, <access>), a
+component's own document." Whether a referenced part counts as the assembly's for the
+server's rule on foreign documents is not decided here: the fix does not need it, the change
+goes through as before and is now named, with the part's access. Test before:
+`AssemblyLiveTests.Dimension_set_through_an_assembly_names_the_component_the_volume_and_the_part_it_changed`
+(two cubes in an assembly, both `D1@Boss-Extrude1@…` set in one call) failed on the code
+before, "'D1@Boss-Extrude1' is listed twice." After: it passes, with each row named as given,
+20 → 30 and 20 → 25, the volume change 6 000 mm³ and a line naming each part, and none
+naming the assembly; with it the live tests that call `dimension_set` through an assembly or
+on a part, `A_change_through_a_document_an_assembly_loads_does_not_read_as_the_users`,
+`A_part_the_server_owned_comes_back_owned_when_its_owned_assembly_loads_it`,
+`Compare_cannot_open_a_revision_…`, `Configurations_are_chosen_at_insert_…` of
+`AssemblyLiveTests`, `TopDownLiveTests.An_in_context_cover_…`, the three `Dimension_set_…` and
+`Rename_reads_back_and_renames_the_dimensions` of `FeatureManagementLiveTests`, M0's
+`Dirty_reads_unsaved_changes_made_through_another_process`, pass (11/11; in a first mixed run
+`A_part_the_server_owned_comes_back_owned_…` failed once, its message not kept, and passed in
+the three runs after, alone and in two batches); unit tests 284/284; `check_repo` ok; no
+description changed. Made stricter: none (a batch the old check refused, two components'
+dimensions of one name, now goes through).
+Local: on `sw2023`, `2a41e9e`; in build `20261114-024455`. Upstream: not yet
+decided.
+Release run 2026-11-14: `A_part_the_server_owned_comes_back_owned_…` failed every time, alone
+too, after its asserts held: "System preferences changed by this test: Integer230: 0 -> 1".
+Cause, by a probe reading preference 230 after each step: SOLIDWORKS itself writes it.
+`ActivateDoc3(title, false, swDontRebuildActiveDoc)` on a document with no window of its own
+(`Visible` false: the part the reopened assembly loaded, brought forward by `doc_open`'s
+already-open path) sets `RebuildOnActivation` 0 -> 1; on a visible document it stays 0. No
+scope held it there, so nothing restored it (`EnsureLoaded`'s scope was not on this path;
+the test does not depend on S49's code). The same call sits wherever the server brings a
+document forward: a write bound to such a part's handle (S62 d makes it owned) and
+`doc_activate` leak it too. Fix: `SwContext.ActivateDoc`, which holds the preference at that
+value in a `PreferenceScope` when the document is not visible (a visible one is activated as
+before), used at the nine places that bring a target forward (bind, `doc_open`,
+`doc_activate`, export, Pack and Go, view, simulation, recognition, the assembly's
+reactivation); the five that bring back the previously active document are left as they
+were. Noted in `docs/solidworks-api-notes.md` (*Activate*). New test
+`Activating_a_part_an_assembly_loaded_leaves_the_rebuild_preference_as_it_was` (a write bound
+to the loaded part's handle, then `doc_activate` of it) failed on the code before at its
+first step, "Expected: 0, Actual: 1". After, each batch on a freshly restarted SOLIDWORKS: the
+two tests alone 1/1 each; with them the live tests that bring a document forward through the
+changed code, 17: `AssemblyLiveTests` `A_change_through_a_document_…`, `Replace_swaps_…`,
+`Compare_cannot_open_…`, `Pack_and_go_copies_…`, `Configurations_are_chosen_at_insert_…`,
+`Insert_refuses_…`; `ExportLiveTests` `A_file_that_is_already_open_…`,
+`A_saved_part_reopens_…`, `Images_pdf_and_edrawings_are_written`; M0's
+`Dirty_reads_unsaved_changes_…` and `Screenshot_returns_a_png_…`; `VisualsLiveTests`'
+`A_section_cuts_the_image_…`; `FeatureManagementLiveTests`' `The_servers_own_failed_kept_…`;
+`SimulationLiveTests`' `Simulation_refuses_to_change_the_users_documents`;
+`RecognitionLiveTests`' `An_imported_step_block_…`; `SketchEditLiveTests`'
+`Edit_reopens_a_finished_sketch_…`; `ConfigurationLiveTests`'
+`A_material_set_in_one_configuration_…`: 19/19 pass. Unit tests 284/284; `check_repo` ok; no
+description changed. Local: on `sw2023`, `cfd987e`; in
+build `20261114-024455`.
+Held in its scenario test (findings 2026-11-14, points 4, 6): the component in the row and
+the volume, in a hand-mated assembly too. Left, wording (point 4): the line naming the
+part reads "Also changed, not saved: '<part>.SLDPRT', a component's own document.",
+without handle and access, in a new assembly whose parts the server had not listed yet,
+and "'<part>.SLDPRT' (D19, foreign), …" in an assembly opened from file. Back to Open
+2026-11-14 for that. Not yet decided.
+
+**S51. `feature_chamfer` takes the distance on whichever face, one `flip` for all edges,
+and a curved edge's legs are not checked, reported `ok`.** On build `20261112-091908`
+(findings 2026-11-13, "a groove's overhanging side", points 1 to 3; "a revolved part
+remade", points 2, 10; "one chamfer over three edges", points 1, 3). (a) `angle_distance`
+and `distance_distance` do not say which face takes the distance, and `flip` is one switch
+for the call: two edges of one groove, mirrored and patterned, took it on opposite faces.
+The leg check caught it (`VERIFY_FAILED … found legs 1/1.085649 mm`) but named one edge of
+the two; five attempts and four deletes to a right pair. (b) On circular edges the legs
+are not checked ("2 edge(s) not leg-checked (curved edge or non-planar faces)"): a tube's
+two end chamfers in one call, one with its legs swapped, came back `ok`; only the volume
+showed it (-28.07 against -28.32). The cone face's apex and half angle are in the result
+with `faceDetail`, enough to work the legs out, as a session did by hand. (c) A distance
+typed to 4 decimals at a face's width (1.4835 for 1.483537) left a sliver of 0.0003 mm²,
+`ok`. (d) Missing: no edit of a chamfer's edge set, no per-edge distance (a fix took 7
+calls with a rollback); `feature_mirror` of a chamfer failed `FEATURE_FAILED`. Usage
+until then: one chamfer per edge, each with its own `flip`; give the steepness as an angle
+from a face a distance should consume. Local: per edge, the face that took the distance and
+the chamfer face's angle to each neighbour, `flip` per edge, the legs of a curved edge from
+the cone, a warning for a selected edge's face left under ~0.01 mm². Decided 2026-11-13 by
+the owner: all four, `flip` per edge and an edit of an existing chamfer's edges and
+per-edge distances included. Fixed in the run of 2026-11-13, all four points. (a) The leg check now
+reads, per edge, the two faces beside the chamfer face and the cross-section triangle,
+and the checks say "E2: 1 mm along F16 (plane [0, 0, 1]), 2 mm along F17 (plane [0, 1,
+0]); the chamfer face meets the first at 63.435° and the second at 26.565°". A warning when
+one side took the first distance on one edge and the second on another (a plane by its
+normal, a curved face by type, radius and axis). `flip` per edge: `flipEdges`, indexes in
+`edges`, set through `IChamferFeatureData2.SetIsFlipped` and `ModifyDefinition` after the
+insert (the API's flip option is one for all edges). (b) A circular edge's legs are read
+from the cone: its two boundary circles as the change in radius and the shift along the
+axis from the original circle, checked against the expected legs as a line's are; the
+wedge angle is read from the faces' outward normals at the edge, so plane-to-cylinder
+edges are checked too. (c) A face beside a chamfer face left under 0.01 mm² is warned
+("left a sliver of … mm²: a distance just under that face's width"). (d) `feature_chamfer`
+with `edit: "<chamfer>"` changes it through its definition: `edges` (named as before the
+chamfer, resolved while `AccessSelections` has the model rolled back), `distanceMm`,
+`distance2Mm`, `angleDeg`, `flipEdges` (exactly those flipped), and `distancesMm`
+([first, second] per edge): an edge at distances other than the chamfer's moves to a new
+chamfer inserted right after it (the rollback bar moved there and back), as one chamfer
+feature holds one set of distances in the 2023 API (`IChamferFeatureData2` has no per-edge
+distance). Verified as a new chamfer is; on a failure the new chamfers are deleted and the
+chamfer is put back as it was (its old edges, flips and distances re-applied). Not taken:
+`feature_mirror` of a chamfer (`FEATURE_FAILED`), not in the decision. Decided 2026-11-13
+by the run, not the owner: the edit is `feature_chamfer`'s `edit` parameter, not a tool of
+its own, and `flipEdges` and the per-edge distances index `edges` rather than repeat edge
+references, because `tools/list` was at its per-tool byte budget (1536, `--check-catalog`)
+before this item and a tool of its own went 16 bytes per tool over it; to bring the
+additions under it, `faceDetail`'s description is shortened in every feature tool ("true:
+newFaces in full.", 37 tools). Live tests, four new: `Chamfer_says_per_edge_which_face_took_each_distance`
+(and `flipEdges` on one edge with the mixed-sides warning), `Chamfer_measures_the_legs_on_circular_edges`
+(a rod's two end circles, 1/2 mm, volume from the rings), `Chamfer_warns_of_a_sliver_left_by_a_distance_just_under_a_face_s_width`
+(19.99995 on a 20 high face), `Chamfer_edit_changes_edges_flips_and_distances_and_splits_edges_with_their_own`
+(a chamfer with a hole after it: an edge added and flipped, distances changed, a too large
+distance refused and put back, an edge at 3/3 moved to a new chamfer before the hole, the
+last through the tool). On the code before, the first three failed: "Expected: 2, Actual:
+0" (no per-edge line), "Filter not matched … 2 edge(s) not leg-checked (curved edge or
+non-planar faces)", and no warning (`Warnings` null); the fourth is new API (no edit
+existed). After: those four and the chamfer tests before (`Chamfer_equal_3mm_…`,
+`Chamfer_two_distances_…`, `Chamfer_rejects_bad_input_…`), with `Linear_pattern_along_a_slanted_edge_…`
+and `Auxiliary_view_looks_square_onto_a_chamfer` that make chamfers, 9/9, and
+`ContractTests` (catalog, EntityRef schemas) 2/2, on 2023 SP3; unit tests 276/276;
+`--check-catalog` ok; `check_repo` ok. Local: on `sw2023`, `16699e2`; in
+build `20261114-024455`. Upstream: not yet decided.
+Failed in its scenario test (findings 2026-11-14, point 2), reported `ok`:
+`feature_chamfer` `edit` with `flipEdges` flips every edge, not the indexed ones. A
+`distance_distance` 1/2 chamfer on two bottom edges of a block meeting at a corner (one
+along x, one along z) took 1 mm on the bottom face for both; `edit` with the same two
+edges and `flipEdges:[1]` made both take 1 mm on their side faces (the per-edge checks say
+so, and the chamfer faces' normals [0, -0.894, -0.447] and [0.447, -0.894, 0] confirm it),
+with no mixed-sides warning; `flipEdges:[0]` put both back on the bottom. A new chamfer
+with `flipEdges:[1]` on two other edges gave both their first distance on the side faces,
+consistent with each other, so what index 0 got there cannot be told. The per-edge checks
+read the result right; the entry says nothing of (b) and (c). Back to Open 2026-11-14 for
+`flipEdges` in (a) and (d). Not yet decided.
+
+**S52. The boxes in results are loose, and say nothing of it.** On build
+`20261112-091908`. (a) `model.box` in feature, `equation_set` and component results is a
+loose bound over B-spline and torus faces: ±30.63 for a body trimmed to Ø60; Y -16.3 to
+216.3 where the faces were at -4 and 215; 0.09 outside a filleted plate (findings
+2026-11-12, "a helical screw part", point 4; 2026-11-13, "a plate's two ends", point 2).
+After a change of variables the box looked like a failed trim. (b) `asm_component_list`'s
+and `asm_component_move`'s `box` for a rotated component is the part's box rotated and
+re-boxed: 5 mm low at 7.5° about X, 33 mm high in another (findings 2026-11-12, "a part's
+body raised", point 5; "a part placed in an assembly by hand", point 1). A clearance read
+from it is wrong. Workaround: `face_list {extreme}` or `{component, normal}`, or the volume.
+Local: a tight box (`GetPartBox` tight, or the bodies' `GetExtremePoint` in the
+assembly's frame), or the word "approximate" in the result and the descriptions.
+Taken into the run of 2026-11-13, no choice in it: a tight box (the bodies' extreme
+points, in the assembly's frame for a component); where it cannot be read, the box is
+marked approximate. Fixed in the run of 2026-11-13. Cause: `model.box` was the union of the
+bodies' `GetBodyBox`, a loose bound over torus and spline faces, and a component's `box`
+was `IComponent2.GetBox`, the part's box turned and re-boxed. Fix: a new `TightBox` reads
+each body's `GetExtremePoint` along ±x, ±y, ±z of the target frame (for a component, the
+directions taken into its part space and the points mapped back through its transform).
+`model.box` in every result built from a snapshot (feature results, `equation_set`,
+`dimension_set` and the other feature-management results, `model_info`, an import's
+summary, sheet metal) and the `box` of `asm_component_list`, `asm_insert`,
+`asm_component_move` and the pattern results use it. A body whose extremes can't be read
+adds its own box, and a component without bodies (lightweight, or a sub-assembly that
+gives none) keeps SOLIDWORKS' box; either way the box carries `approximate: true`. Not
+covered by a live test: that fallback (no case on hand where `GetExtremePoint` fails).
+New live tests: `The_model_box_after_round_faces_is_the_body_s_extremes` (a disc with its
+top edge rounded; the plate of the finding, quarter-round ends into a 30° face with the
+top chain rounded R0.5; an elliptic cylinder; `model_info`'s box too) and
+`A_tilted_component_s_box_is_its_body_s_extremes` (a shaft r 5 × 30 turned 45° about
+[1, 1, 0], the box from the cylinder's ends and rims). On the code before both failed:
+"box [-56.582209, -5, -5] .. [56.589919, 5, 5.089919], expected [-56.5, -5, -5] .. [56.5,
+5, 5]" (the finding's 0.09) and "box [-6.767767, -3.232233, -6.035534] .. [11.161165,
+28.838835, 21.035534], expected [-4.946093, -2.605027, -4.330127] .. [9.339491,
+28.211629, 19.330127]". After: both pass, with the box assertions of `Insert_puts_the_origin_…`,
+`Insert_with_a_rotation_…`, `Move_translates_and_rotates_…`, `Subassemblies_are_inserted_…`,
+`Circular_pattern_turns_the_seed_…`, `Box_extrude_…`, `Mid_plane_extrude_…` and
+`Cut_from_an_open_sketch_…` (10/10); unit tests 276/276; `--check-catalog` ok (no
+description changed: the `approximate` field speaks for itself); `check_repo` ok. Local:
+on `sw2023`, `8dff953`; in build `20261114-024455`. Upstream: not yet
+decided.
+Held in its scenario test (findings 2026-11-14, point 6): (a) a disc's torus fillet box
+exact, (b) a turned component's box the expected extremes. Not held (point 5): `doc_open`
+of a STEP that `model_export` wrote from an assembly of three 20 mm cubes and a cylinder r
+5 × 30 turned 45° about [1, 1, 0] brought the cylinder in as 3 surface bodies, its
+component at the identity rotation with box [-5.0001, 0, -5] .. [6, 30, 5.427]: neither
+the turned cylinder's box nor a tight one of r 5, and without `approximate`. Bears on S5
+and on the fallback above. Back to Open 2026-11-14 for that. Not yet decided.
+
+**S59. Reference geometry that cannot be made.** On build `20261112-091908`. (a) No plane
+on a planar face: `ref_plane` `offset` 0 and `angle` 0 are refused (findings 2026-11-12,
+"six printed and stand-in parts", point 2). (b) `ref_plane` and `ref_axis` in an assembly:
+`WRONG_DOC_TYPE` (same entry, point 3; bears on S36). (c) A sketch line as the axis of an
+`angle` plane is refused, "needs edge or axis", which SOLIDWORKS takes (same entry, point
+2; "a printed part's tree deleted", point 4); way round: `ref_axis` `two_planes` or
+`two_points` first (findings 2026-11-12, "two parts changed mid-tree", point 8). (d) No
+change of an existing plane's `flip`; a plane made on the wrong side is made again with its
+sketch (same entry, point 6). Missing options. Decided 2026-11-13 by the owner: all four.
+**Done in the run of 2026-11-13, all four.** (a) Cause: `offsetMm` 0 and `angleDeg` 0 were refused by the argument checks.
+Fix: `offsetMm` 0 makes a plane coincident with the base (constraint 4), checked parallel
+and on it ("coincident with face F…"); `angleDeg` 0 is taken (0 up to 180 exclusive),
+the plane through the axis parallel to the base, checked as any angle plane. (c) Cause:
+`axis` resolved edges and axes only. Fix: a sketch line is taken (`LineOf` reads its ends
+in model space through the sketch's transform), checked as an edge is. (d) Fix: `ref_plane`
+with `edit: "<plane>"` and `flip: true` toggles `IRefPlaneFeatureData.ReversedReferenceDirection`
+of the plane's distance or angle reference (probed: `ReverseDirection` is not the flip) and
+rebuilds; checked: an offset plane lies as far on the other side of its base, an angle
+plane still holds its axis at the same angle the other way, and no feature gained a
+rebuild error; else it is flipped back (`VERIFY_FAILED`, or `REBUILD_ERROR` naming the
+broken features). The result gives the frame, the checks ("flipped: 15 mm along the
+normal … (was 25 mm)", the children rebuilt), the volume change and `model`. Decided
+2026-11-13 by the run, not the owner: (1) the flip is `ref_plane`'s `edit` parameter, not
+a tool of its own (`kind` optional with it), as `feature_chamfer`'s `edit`, because the
+tool list was at its byte budget; (2) a flip that breaks a feature is undone, as
+`dimension_set` does, because a result must not report a broken model as done; (3) only
+offset and angle planes are flipped (a standard, three-point, mid or coincident plane is
+refused), because only their flip moves the plane; (4) `flip` with `offsetMm` 0 is
+ignored with a warning, because SOLIDWORKS's flip option leaves a coincident plane's
+frame as it was (probed), so it would be reported as a flip that did nothing; (5) to
+make room, descriptions trimmed: `ref_plane` "Reference (datum) plane" to "Reference
+plane", its `axis` "straight edge or axis" to "edge, axis or sketch line"; `ref_axis`
+"Verified: its direction and position match the references" to "Verified against the
+references", its `entities` example without "or [{type:'face', at:[x,y,z]}]";
+`ref_point` "the point SOLIDWORKS reports is where requested" to "the point is where
+requested", its `entities` "e.g. [{type:'edge', at:[x,y,z]}]" to "(edges, faces)";
+`ref_coordsys` "frame (origin, x, y and z axes)" to "frame (origin, axes)" (tools/list
+253,593 bytes, 11 under the budget, 7 before). Before, on the code before the fix,
+`Plane_on_a_planar_face_takes_offset_0_and_angle_0` failed "kind 'offset' needs offsetMm
+(non-zero; negative = the other side of the base).", `Angle_plane_turns_about_a_sketch_line`
+failed "'axis' resolved to sketch segment Line1, but this parameter needs edge or axis.";
+`Edit_flips_a_plane_to_the_other_side_and_rebuilds_its_children` is new API (no edit
+existed): an offset plane flipped with a body on it and back (box top 20, then 30), an
+angle plane turned the other way, a flip that leaves a cut in the air undone with
+`REBUILD_ERROR`, and four refusals that change nothing. After: those three and the
+plane, axis-by-edge and coordinate-system tests of `ReferenceLiveTests` (18), with
+`An_equation_on_a_plane_s_offset_gives_where_the_plane_went` and the 7 `ContractTests`, 26 of 26;
+unit tests 278 of 278; `--check-catalog` ok; `check_repo` ok. Made stricter: none.
+(b) Cause: `ref_plane` and `ref_axis` took a part only (`ctx.Part()`). Fix: both take a
+part or an assembly. In an assembly the new plane or axis is the assembly's own; its
+references are the assembly's planes or a component's faces, edges, vertices, planes and
+axes (`{component, name}`, or `at:` in assembly coordinates). A component's geometry reads
+in its part's space (`docs/solidworks-api-notes.md` §8), so each reference is mapped
+through the component's transform (`AsmXformData`) before the request is checked against
+it, a component's plane, axis or point read from the feature in its own document; a
+component's plane or axis is selected by its `SelectByID2` name, as `asm_mate_add` does
+(`AssemblyService.SelectIds`, now internal); `EntityResolver`'s results carry the
+component they came from. The checks add "made in the tree of assembly '…'". Decided
+2026-11-13 by the run, not the owner: (1) `ref_plane` `edit` (the flip) stays part-only,
+refused `WRONG_DOC_TYPE` in an assembly, because the component a flipped plane's base
+belongs to cannot be read from the plane's definition without a probe; (2) `ref_point`
+and `ref_coordsys` stay part-only, because the item names plane and axis only. Before, on
+the code before the fix (HEAD's `ReferenceService.cs`), the new
+`AssemblyLiveTests.Ref_plane_and_ref_axis_in_an_assembly_take_component_and_assembly_references`
+failed `WRONG_DOC_TYPE` "This tool needs a part, but 'asm_ref_…' is a assembly." After: it
+passes (a box turned 90° about z and moved, a shaft turned about x: planes offset from a
+component's face, from its Top plane and from the assembly's Right plane, at an angle
+about its edge, midway between two of its faces, normal to its edge, through three points
+in an assembly 3D sketch; axes from its Top plane and the assembly's Front plane, along
+its edge, through two of its vertices, of the shaft's cylinder; each where the transform
+puts it, the box part's tree unchanged, the flip refused with nothing changed), with the
+`Plane_*`, `Axis_*`, `Point_*` and `Coordinate_system_*` tests of `ReferenceLiveTests` and
+`An_equation_on_a_plane_s_offset_gives_where_the_plane_went` (18), the ten other plane
+tests of `ReferenceLiveTests` (offset, angle, three points, parallel, mid, flip, open
+sketch) and the 7 `ContractTests`, 36 of 36 live; unit tests 278 of 278; `check_repo` ok;
+no description changed. Made stricter: none.
+Local: on `sw2023`, (a), (c) and (d) in `3ca75cd`, (b) in `42589af`;
+in build `20261114-024455`. Upstream: not yet decided.
+Held in its scenario test (findings 2026-11-14, points 3, 6): (a), (b) and (d). (c) went
+through only with the type given: `ref_plane` `angle` with `axis: {name:"Line1",
+sketch:"Sketch6"}` failed `ENTITY_NOT_FOUND: No feature named 'Line1'`; with
+`type:"sketch_segment"` added it checked right ("contains sketch segment Line1, 30° to
+plane 'Front Plane'"). With `sketch` given the reference is a sketch segment or point, the
+server's own convention, so the type could be inferred. One call more. Back to Open
+2026-11-14 for that. Not yet decided.
 
 **S60. What a session cannot tell about the process it runs on.** On build
 `20261112-091908`. (a) `sw_status` and `doc_activate` gave `dirty:false` for a part
@@ -371,6 +671,10 @@ PID with another start time reads as a new process, because Windows reuses PIDs;
 stays open with a usage line rather than a change to how `dirty` is read, because the probe
 found the reading right in every case it tried. Local: (b) to (d) on `sw2023`, `7601276`;
 in build `20261114-024455`. Upstream: not yet decided; (d) never.
+Held in the scenario test of build `20261114-024455` (findings 2026-11-14, point 6): (c)
+"same as before" and, after a restart, "a new one (before: pid …)"; (d) no revision
+warning; (b) is not named in the entry. Those parts closed 2026-11-14 on the owner's word;
+the item stays Open for (a).
 
 **S61. A STEP into an assembly.** On build `20261112-091908` (findings 2026-11-12, "STEP
 parts brought toward an existing assembly"). (a) `asm_insert` refuses a STEP; SOLIDWORKS
@@ -415,6 +719,9 @@ because a part import gives it and a count without it reads as less than `model_
 shows; (4) only part components are counted (subassemblies skipped), because a
 subassembly's bodies are its parts' and would count twice. Local: (b) and (c) on `sw2023`,
 `a81f93d`; in build `20261114-024455`. Upstream: not yet decided.
+Held in the scenario test of build `20261114-024455` (findings 2026-11-14, points 5, 6):
+(b)'s message said "3 solid bodies, 3 surface bodies" plainly; (c) the empty part named.
+Those parts closed 2026-11-14 on the owner's word; the item stays Open for (a).
 
 **S62. Assembly reading and options.** On build `20261112-091908`. (a) `asm_mate_list`
 gives each entity `{component, kind: "plane"}` with no name, face id or point, so which
@@ -489,6 +796,10 @@ the finding was within one session and a restarted server re-claims open documen
 callers read `count`; (6) a pair overlaps when its volume reads above 0 at 3 decimals, as its
 row shows it. Local: (a), (d) and (e) on `sw2023`, `af3598c`; in
 build `20261114-024455`. Upstream: not yet decided.
+Held in the scenario test of build `20261114-024455` (findings 2026-11-14, point 6): (a)
+plane names and face ids; (d) a part loaded by the server's assembly owned; (e) listed,
+overlapping and touching. Those parts closed 2026-11-14 on the owner's word; the item
+stays Open for (b).
 
 **S64. Feature calls refused, failed or counted wrong, with hints that miss.** On build
 `20261112-091908`. (a) A blind cut from a plane inside the body whose end lies outside it
@@ -646,6 +957,9 @@ interior points); unit tests 278 of 278; `check_repo` ok; no description changed
 stricter: none (the warning and the volume comparison are let off for merged boss sweeps
 only, on points shown inside). Local: (g) on `sw2023`, `9a46c32`; in
 build `20261114-024455`. Upstream: not yet decided.
+Held in the scenario test of build `20261114-024455` (findings 2026-11-14, point 6): (a);
+(d), the dry run's refusal word for word; (e); (f); (g). Those parts closed 2026-11-14 on
+the owner's word; the item stays Open for (b) and (c).
 
 **S65. Missing options met while modelling.** On build `20261112-091908`. (a) No body
 mirror: `feature_mirror` of two extrudes made `merge:false` failed "the mirrored copy must
@@ -692,6 +1006,8 @@ mirror tests of `PartFeatureLiveTests` and
 `--check-catalog` ok; `check_repo` ok. Made stricter: none (the feature path is unchanged but
 for its hint). Local: (a) on `sw2023`, `fd9bd83`; in build `20261114-024455`.
 Upstream: not yet decided.
+Held in the scenario test of build `20261114-024455` (findings 2026-11-14, point 6): (a).
+That part closed 2026-11-14 on the owner's word; the item stays Open for (b) to (d).
 
 **S67. `feature_rollback` before the only feature fails its check.** Seen in the run of
 2026-11-13, in S60's probe, on that run's code: `feature_rollback {to:<renamed extrude>,
@@ -732,6 +1048,25 @@ whether a solver choice (FFEPlus, Direct Sparse), a mesh size or the soft-spring
 lets it finish. Local, upstream's test. Decided 2026-11-14 by the run, not the owner: an
 item, open, as S67, not fixed in the release run, because it fails the same on the code
 before the run.
+
+**S72. A SOLIDWORKS process in a bad state: a material applied at 1 kg/m³ with a warning
+only, a linked property in metres, every equation refused.** In the scenario test of build
+`20261114-024455` (findings 2026-11-14, point 1), on a SOLIDWORKS process started before
+the session (what ran in it earlier is not known): every equation was refused, a batch of
+ten globals and then `"W" = 60mm` alone in a new part, with S58 (b)'s message as designed.
+In the same process `material_set "AISI 1020"`, with or without a configuration, applied
+the material at 1 kg/m³: `densityKgM3: 1`, `databaseDensityKgM3: 7900`, the check
+"material reads back" and only a warning ("The mass properties give 1 kg/m³, the database
+7900 kg/m³ (bodies with their own material, or an overridden mass?)"), no error, though
+the description says the mass properties are verified to show its density. A user-library
+material at 1270 kg/m³ read right in that process. A property linked to a 3 mm dimension
+(`"D1@<feature>"`) resolved `0,0030000000000000`, metres. After a restart of SOLIDWORKS
+the equations went in at once and a database material read 2700 kg/m³, its database
+density. The same three symptoms were met together once before, in an old SOLIDWORKS
+session (S28's test). Reported `ok` while wrong. Proposed by the session: `material_set`
+refuses (`VERIFY_FAILED`, rolled back) when the density read differs from the database's,
+as it once did, and its message, like S58 (b)'s, names a restart when a database material
+reads ~1 kg/m³. Bears on S58 (b), S30. Local. Not yet decided.
 
 ## Waiting
 
@@ -1026,7 +1361,10 @@ second entry): held for `axes` on all three views (a top view: right +X, up −Z
 dimension '…' (the same value: a duplicate?)" with the first one's name (point 2). Failed
 for the frame (point 1): on a sheet at 1:2 `drawableMm` and `titleBlockMm` read twice
 their values, and the checks built on them were wrong and reported success; that is S47.
-The PR upstream waits on S47.
+The PR upstream waited on S47, which held in the scenario test of build
+`20261114-024455` and closed 2026-11-14; the PR is not made yet.
+
+## Closed
 
 **S47. The sheet's frame grows with the sheet's scale, and the checks on it pass wrong,
 reported `ok`.** In the scenario test of build `20261112-091908` (findings 2026-11-12,
@@ -1060,6 +1398,10 @@ live test `The_frame_is_in_sheet_mm_at_a_sheet_scale_other_than_1_1` (an ISO A3 
 `Standard_views_…` (both) and `Sheets_are_added_…`, 9/9 on 2023 SP3; unit tests 276/276;
 `check_repo` ok. Local: on `sw2023`, `f71b034`; in build `20261114-024455`.
 Upstream: not yet decided.
+Held in its scenario test (findings 2026-11-14, point 6): on a 1:2 sheet `drw_info` and
+`drw_sheet_setup` gave [20, 10, 410, 287] / [230, 10, 410, 65.25]; a note on the title
+block, one across the border, one clear, dimension text at y 292 and a section reaching y
+289.01, each warned or clear as it should be. Closed 2026-11-14 on the owner's word.
 
 **S66. A stale edge id resolves to another edge, reported `ok`.** On build
 `20261112-091908` (findings 2026-11-13, "a plate's two ends", point 3): after a fillet
@@ -1090,69 +1432,8 @@ thrown"). After: it passes, with `Point_on_a_corner_…`, `Queries_with_expect_�
 components went in (`Screws_with_washers_…`, `A_screw_in_a_blind_hole_…`, 2/2); unit tests 276/276; `check_repo` ok. Local:
 on `sw2023`, `657fc23`; in build `20261114-024455`. Upstream: not yet
 decided.
-
-**S51. `feature_chamfer` takes the distance on whichever face, one `flip` for all edges,
-and a curved edge's legs are not checked, reported `ok`.** On build `20261112-091908`
-(findings 2026-11-13, "a groove's overhanging side", points 1 to 3; "a revolved part
-remade", points 2, 10; "one chamfer over three edges", points 1, 3). (a) `angle_distance`
-and `distance_distance` do not say which face takes the distance, and `flip` is one switch
-for the call: two edges of one groove, mirrored and patterned, took it on opposite faces.
-The leg check caught it (`VERIFY_FAILED … found legs 1/1.085649 mm`) but named one edge of
-the two; five attempts and four deletes to a right pair. (b) On circular edges the legs
-are not checked ("2 edge(s) not leg-checked (curved edge or non-planar faces)"): a tube's
-two end chamfers in one call, one with its legs swapped, came back `ok`; only the volume
-showed it (-28.07 against -28.32). The cone face's apex and half angle are in the result
-with `faceDetail`, enough to work the legs out, as a session did by hand. (c) A distance
-typed to 4 decimals at a face's width (1.4835 for 1.483537) left a sliver of 0.0003 mm²,
-`ok`. (d) Missing: no edit of a chamfer's edge set, no per-edge distance (a fix took 7
-calls with a rollback); `feature_mirror` of a chamfer failed `FEATURE_FAILED`. Usage
-until then: one chamfer per edge, each with its own `flip`; give the steepness as an angle
-from a face a distance should consume. Local: per edge, the face that took the distance and
-the chamfer face's angle to each neighbour, `flip` per edge, the legs of a curved edge from
-the cone, a warning for a selected edge's face left under ~0.01 mm². Decided 2026-11-13 by
-the owner: all four, `flip` per edge and an edit of an existing chamfer's edges and
-per-edge distances included. Fixed in the run of 2026-11-13, all four points. (a) The leg check now
-reads, per edge, the two faces beside the chamfer face and the cross-section triangle,
-and the checks say "E2: 1 mm along F16 (plane [0, 0, 1]), 2 mm along F17 (plane [0, 1,
-0]); the chamfer face meets the first at 63.435° and the second at 26.565°". A warning when
-one side took the first distance on one edge and the second on another (a plane by its
-normal, a curved face by type, radius and axis). `flip` per edge: `flipEdges`, indexes in
-`edges`, set through `IChamferFeatureData2.SetIsFlipped` and `ModifyDefinition` after the
-insert (the API's flip option is one for all edges). (b) A circular edge's legs are read
-from the cone: its two boundary circles as the change in radius and the shift along the
-axis from the original circle, checked against the expected legs as a line's are; the
-wedge angle is read from the faces' outward normals at the edge, so plane-to-cylinder
-edges are checked too. (c) A face beside a chamfer face left under 0.01 mm² is warned
-("left a sliver of … mm²: a distance just under that face's width"). (d) `feature_chamfer`
-with `edit: "<chamfer>"` changes it through its definition: `edges` (named as before the
-chamfer, resolved while `AccessSelections` has the model rolled back), `distanceMm`,
-`distance2Mm`, `angleDeg`, `flipEdges` (exactly those flipped), and `distancesMm`
-([first, second] per edge): an edge at distances other than the chamfer's moves to a new
-chamfer inserted right after it (the rollback bar moved there and back), as one chamfer
-feature holds one set of distances in the 2023 API (`IChamferFeatureData2` has no per-edge
-distance). Verified as a new chamfer is; on a failure the new chamfers are deleted and the
-chamfer is put back as it was (its old edges, flips and distances re-applied). Not taken:
-`feature_mirror` of a chamfer (`FEATURE_FAILED`), not in the decision. Decided 2026-11-13
-by the run, not the owner: the edit is `feature_chamfer`'s `edit` parameter, not a tool of
-its own, and `flipEdges` and the per-edge distances index `edges` rather than repeat edge
-references, because `tools/list` was at its per-tool byte budget (1536, `--check-catalog`)
-before this item and a tool of its own went 16 bytes per tool over it; to bring the
-additions under it, `faceDetail`'s description is shortened in every feature tool ("true:
-newFaces in full.", 37 tools). Live tests, four new: `Chamfer_says_per_edge_which_face_took_each_distance`
-(and `flipEdges` on one edge with the mixed-sides warning), `Chamfer_measures_the_legs_on_circular_edges`
-(a rod's two end circles, 1/2 mm, volume from the rings), `Chamfer_warns_of_a_sliver_left_by_a_distance_just_under_a_face_s_width`
-(19.99995 on a 20 high face), `Chamfer_edit_changes_edges_flips_and_distances_and_splits_edges_with_their_own`
-(a chamfer with a hole after it: an edge added and flipped, distances changed, a too large
-distance refused and put back, an edge at 3/3 moved to a new chamfer before the hole, the
-last through the tool). On the code before, the first three failed: "Expected: 2, Actual:
-0" (no per-edge line), "Filter not matched … 2 edge(s) not leg-checked (curved edge or
-non-planar faces)", and no warning (`Warnings` null); the fourth is new API (no edit
-existed). After: those four and the chamfer tests before (`Chamfer_equal_3mm_…`,
-`Chamfer_two_distances_…`, `Chamfer_rejects_bad_input_…`), with `Linear_pattern_along_a_slanted_edge_…`
-and `Auxiliary_view_looks_square_onto_a_chamfer` that make chamfers, 9/9, and
-`ContractTests` (catalog, EntityRef schemas) 2/2, on 2023 SP3; unit tests 276/276;
-`--check-catalog` ok; `check_repo` ok. Local: on `sw2023`, `16699e2`; in
-build `20261114-024455`. Upstream: not yet decided.
+Held in its scenario test (findings 2026-11-14, point 6): an edge id from before a notch
+refused `ENTITY_STALE`, an untouched one used. Closed 2026-11-14 on the owner's word.
 
 **S53. `feature_extrude` with a `direction` vector off the sketch normal extrudes along the
 normal, reported `ok`.** On build `20261112-091908` (findings 2026-11-12, "a printed part's
@@ -1186,48 +1467,8 @@ slanted side); the test allows 0.05 mm³. Decided 2026-11-13 by the run, not the
 direction reference is a 3D sketch line kept in the tree, not a reference axis, because an
 axis needs two reference points or planes made first (three features, not one). Local: on
 `sw2023`, `59beaae`; in build `20261114-024455`. Upstream: not yet decided.
-
-**S52. The boxes in results are loose, and say nothing of it.** On build
-`20261112-091908`. (a) `model.box` in feature, `equation_set` and component results is a
-loose bound over B-spline and torus faces: ±30.63 for a body trimmed to Ø60; Y -16.3 to
-216.3 where the faces were at -4 and 215; 0.09 outside a filleted plate (findings
-2026-11-12, "a helical screw part", point 4; 2026-11-13, "a plate's two ends", point 2).
-After a change of variables the box looked like a failed trim. (b) `asm_component_list`'s
-and `asm_component_move`'s `box` for a rotated component is the part's box rotated and
-re-boxed: 5 mm low at 7.5° about X, 33 mm high in another (findings 2026-11-12, "a part's
-body raised", point 5; "a part placed in an assembly by hand", point 1). A clearance read
-from it is wrong. Workaround: `face_list {extreme}` or `{component, normal}`, or the volume.
-Local: a tight box (`GetPartBox` tight, or the bodies' `GetExtremePoint` in the
-assembly's frame), or the word "approximate" in the result and the descriptions.
-Taken into the run of 2026-11-13, no choice in it: a tight box (the bodies' extreme
-points, in the assembly's frame for a component); where it cannot be read, the box is
-marked approximate. Fixed in the run of 2026-11-13. Cause: `model.box` was the union of the
-bodies' `GetBodyBox`, a loose bound over torus and spline faces, and a component's `box`
-was `IComponent2.GetBox`, the part's box turned and re-boxed. Fix: a new `TightBox` reads
-each body's `GetExtremePoint` along ±x, ±y, ±z of the target frame (for a component, the
-directions taken into its part space and the points mapped back through its transform).
-`model.box` in every result built from a snapshot (feature results, `equation_set`,
-`dimension_set` and the other feature-management results, `model_info`, an import's
-summary, sheet metal) and the `box` of `asm_component_list`, `asm_insert`,
-`asm_component_move` and the pattern results use it. A body whose extremes can't be read
-adds its own box, and a component without bodies (lightweight, or a sub-assembly that
-gives none) keeps SOLIDWORKS' box; either way the box carries `approximate: true`. Not
-covered by a live test: that fallback (no case on hand where `GetExtremePoint` fails).
-New live tests: `The_model_box_after_round_faces_is_the_body_s_extremes` (a disc with its
-top edge rounded; the plate of the finding, quarter-round ends into a 30° face with the
-top chain rounded R0.5; an elliptic cylinder; `model_info`'s box too) and
-`A_tilted_component_s_box_is_its_body_s_extremes` (a shaft r 5 × 30 turned 45° about
-[1, 1, 0], the box from the cylinder's ends and rims). On the code before both failed:
-"box [-56.582209, -5, -5] .. [56.589919, 5, 5.089919], expected [-56.5, -5, -5] .. [56.5,
-5, 5]" (the finding's 0.09) and "box [-6.767767, -3.232233, -6.035534] .. [11.161165,
-28.838835, 21.035534], expected [-4.946093, -2.605027, -4.330127] .. [9.339491,
-28.211629, 19.330127]". After: both pass, with the box assertions of `Insert_puts_the_origin_…`,
-`Insert_with_a_rotation_…`, `Move_translates_and_rotates_…`, `Subassemblies_are_inserted_…`,
-`Circular_pattern_turns_the_seed_…`, `Box_extrude_…`, `Mid_plane_extrude_…` and
-`Cut_from_an_open_sketch_…` (10/10); unit tests 276/276; `--check-catalog` ok (no
-description changed: the `approximate` field speaks for itself); `check_repo` ok. Local:
-on `sw2023`, `8dff953`; in build `20261114-024455`. Upstream: not yet
-decided.
+Held in its scenario test (findings 2026-11-14, point 6): a boss along a vector 40° off
+the normal, volume π·r²·h·cos 40°. Closed 2026-11-14 on the owner's word.
 
 **S50. `asm_mate_add` `distance` puts the component on the other side, reported `ok`.**
 Met five times in four sessions on build `20261112-091908` (findings 2026-11-12, second
@@ -1268,6 +1509,8 @@ solved without errors", "planes 75 mm apart"]`). After: it passes, with
 `New_mate_types_without_their_entities_…` (4/4); unit tests 277/277; `--check-catalog` ok
 (no description changed); `check_repo` ok. Local: on `sw2023`, `1bc3cbb`; in
 build `20261114-024455`. Upstream: not yet decided.
+Held in its scenario test (findings 2026-11-14, point 6): the signed side and the crossing
+warning. Closed 2026-11-14 on the owner's word.
 
 **S54. Equations outlive the features whose dimensions they drive, and bind by name.** On
 build `20261112-091908`, met in five sessions (findings 2026-11-12, "a feature with
@@ -1329,6 +1572,8 @@ paths, the four `Feature_delete_…`, the two `Rename_…`, `Units_set_switches_
 and `A_batch_with_a_row_that_fails_…`, pass (14/14); contract tests 7/7; unit tests
 277/277; `--check-catalog` ok; `check_repo` ok. Local: on `sw2023`, `9939f28`; in
 build `20261114-024455`. Upstream: not yet decided.
+Held in its scenario test (findings 2026-11-14, point 6): (a) to (c), with
+`deleteEquations` and a list delete. Closed 2026-11-14 on the owner's word.
 
 **S58. `equation_set` results that mislead.** On build `20261112-091908`. (a) Three globals
 changed, three features failed (`swSketchErrorExtRefFail` on a boss, the cut on it, a
@@ -1386,6 +1631,11 @@ four pass; the live tests on the changed paths, `A_global_variable_drives_…`,
 `Feature_delete_lists_the_equations_…`, pass (14/14 with the four); contract tests 7/7;
 unit tests 277/277; `check_repo` ok. Local: on `sw2023`, `32698d5`;
 in build `20261114-024455`. Upstream: not yet decided.
+Held in its scenario test (findings 2026-11-14, points 1, 6): (a) features named in
+`featureErrors`; (b) both messages, and in a process that refused every equation, a batch
+of ten globals and then `"W" = 60mm` alone, the restart message came as designed and was
+the right advice: after a restart the equations went in at once; (c) `frame` in a batch
+row. What else that process did wrong is S72. Closed 2026-11-14 on the owner's word.
 
 **S63. `feature_helix`: where its start is, and its turns in mm.** On build
 `20261112-091908` (findings 2026-11-12, "a helical screw part", points 1, 2). (a)
@@ -1439,6 +1689,8 @@ definition). After: those two pass (2/2); the live tests on the changed paths, t
 (`Values_convert_by_dimension_type` with the scalar); contract tests 7/7; unit tests 278/278;
 `--check-catalog` ok; `check_repo` ok. Local: on `sw2023`, `e642451`;
 in build `20261114-024455`. Upstream: not yet decided.
+Held in its scenario test (findings 2026-11-14, point 6): the start at +Z, 90° read back
+at +X, the turns `scalar`. Closed 2026-11-14 on the owner's word.
 
 **S56. Relations SOLIDWORKS adds while drawing go unreported, and a relation it already
 has reads as refused.** On build `20261112-091908` (findings 2026-11-12, "six printed and
@@ -1498,6 +1750,8 @@ offset, `Info_…` and 3D-sketch tests of `SketchEditLiveTests`, `Box_extrude_ma
 the ellipse model box (27/27 with the two); unit tests 278/278; contract tests 7/7;
 `--check-catalog` ok; `check_repo` ok. Local: on `sw2023`, `0acb318`;
 in build `20261114-024455`. Upstream: not yet decided.
+Held in its scenario test (findings 2026-11-14, point 6): (a) "already held", (b) the
+relations listed. Closed 2026-11-14 on the owner's word.
 
 **S55. `sketch_constrain` passes the 50 s limit, with `symmetric` steps the suspect.** On
 build `20261112-091908`, five times (findings 2026-11-12, "six printed and stand-in parts",
@@ -1558,85 +1812,8 @@ steps and 50 s for 3), with every live test of `SketchEditLiveTests` that calls
 tests 278/278; `ContractTests.Tool_catalog_follows_the_conventions` 1/1; `--check-catalog`
 ok; `check_repo` ok. Local: on `sw2023`, `1861854`; in
 build `20261114-024455`. Upstream: not yet decided.
-
-**S59. Reference geometry that cannot be made.** On build `20261112-091908`. (a) No plane
-on a planar face: `ref_plane` `offset` 0 and `angle` 0 are refused (findings 2026-11-12,
-"six printed and stand-in parts", point 2). (b) `ref_plane` and `ref_axis` in an assembly:
-`WRONG_DOC_TYPE` (same entry, point 3; bears on S36). (c) A sketch line as the axis of an
-`angle` plane is refused, "needs edge or axis", which SOLIDWORKS takes (same entry, point
-2; "a printed part's tree deleted", point 4); way round: `ref_axis` `two_planes` or
-`two_points` first (findings 2026-11-12, "two parts changed mid-tree", point 8). (d) No
-change of an existing plane's `flip`; a plane made on the wrong side is made again with its
-sketch (same entry, point 6). Missing options. Decided 2026-11-13 by the owner: all four.
-**Done in the run of 2026-11-13, all four.** (a) Cause: `offsetMm` 0 and `angleDeg` 0 were refused by the argument checks.
-Fix: `offsetMm` 0 makes a plane coincident with the base (constraint 4), checked parallel
-and on it ("coincident with face F…"); `angleDeg` 0 is taken (0 up to 180 exclusive),
-the plane through the axis parallel to the base, checked as any angle plane. (c) Cause:
-`axis` resolved edges and axes only. Fix: a sketch line is taken (`LineOf` reads its ends
-in model space through the sketch's transform), checked as an edge is. (d) Fix: `ref_plane`
-with `edit: "<plane>"` and `flip: true` toggles `IRefPlaneFeatureData.ReversedReferenceDirection`
-of the plane's distance or angle reference (probed: `ReverseDirection` is not the flip) and
-rebuilds; checked: an offset plane lies as far on the other side of its base, an angle
-plane still holds its axis at the same angle the other way, and no feature gained a
-rebuild error; else it is flipped back (`VERIFY_FAILED`, or `REBUILD_ERROR` naming the
-broken features). The result gives the frame, the checks ("flipped: 15 mm along the
-normal … (was 25 mm)", the children rebuilt), the volume change and `model`. Decided
-2026-11-13 by the run, not the owner: (1) the flip is `ref_plane`'s `edit` parameter, not
-a tool of its own (`kind` optional with it), as `feature_chamfer`'s `edit`, because the
-tool list was at its byte budget; (2) a flip that breaks a feature is undone, as
-`dimension_set` does, because a result must not report a broken model as done; (3) only
-offset and angle planes are flipped (a standard, three-point, mid or coincident plane is
-refused), because only their flip moves the plane; (4) `flip` with `offsetMm` 0 is
-ignored with a warning, because SOLIDWORKS's flip option leaves a coincident plane's
-frame as it was (probed), so it would be reported as a flip that did nothing; (5) to
-make room, descriptions trimmed: `ref_plane` "Reference (datum) plane" to "Reference
-plane", its `axis` "straight edge or axis" to "edge, axis or sketch line"; `ref_axis`
-"Verified: its direction and position match the references" to "Verified against the
-references", its `entities` example without "or [{type:'face', at:[x,y,z]}]";
-`ref_point` "the point SOLIDWORKS reports is where requested" to "the point is where
-requested", its `entities` "e.g. [{type:'edge', at:[x,y,z]}]" to "(edges, faces)";
-`ref_coordsys` "frame (origin, x, y and z axes)" to "frame (origin, axes)" (tools/list
-253,593 bytes, 11 under the budget, 7 before). Before, on the code before the fix,
-`Plane_on_a_planar_face_takes_offset_0_and_angle_0` failed "kind 'offset' needs offsetMm
-(non-zero; negative = the other side of the base).", `Angle_plane_turns_about_a_sketch_line`
-failed "'axis' resolved to sketch segment Line1, but this parameter needs edge or axis.";
-`Edit_flips_a_plane_to_the_other_side_and_rebuilds_its_children` is new API (no edit
-existed): an offset plane flipped with a body on it and back (box top 20, then 30), an
-angle plane turned the other way, a flip that leaves a cut in the air undone with
-`REBUILD_ERROR`, and four refusals that change nothing. After: those three and the
-plane, axis-by-edge and coordinate-system tests of `ReferenceLiveTests` (18), with
-`An_equation_on_a_plane_s_offset_gives_where_the_plane_went` and the 7 `ContractTests`, 26 of 26;
-unit tests 278 of 278; `--check-catalog` ok; `check_repo` ok. Made stricter: none.
-(b) Cause: `ref_plane` and `ref_axis` took a part only (`ctx.Part()`). Fix: both take a
-part or an assembly. In an assembly the new plane or axis is the assembly's own; its
-references are the assembly's planes or a component's faces, edges, vertices, planes and
-axes (`{component, name}`, or `at:` in assembly coordinates). A component's geometry reads
-in its part's space (`docs/solidworks-api-notes.md` §8), so each reference is mapped
-through the component's transform (`AsmXformData`) before the request is checked against
-it, a component's plane, axis or point read from the feature in its own document; a
-component's plane or axis is selected by its `SelectByID2` name, as `asm_mate_add` does
-(`AssemblyService.SelectIds`, now internal); `EntityResolver`'s results carry the
-component they came from. The checks add "made in the tree of assembly '…'". Decided
-2026-11-13 by the run, not the owner: (1) `ref_plane` `edit` (the flip) stays part-only,
-refused `WRONG_DOC_TYPE` in an assembly, because the component a flipped plane's base
-belongs to cannot be read from the plane's definition without a probe; (2) `ref_point`
-and `ref_coordsys` stay part-only, because the item names plane and axis only. Before, on
-the code before the fix (HEAD's `ReferenceService.cs`), the new
-`AssemblyLiveTests.Ref_plane_and_ref_axis_in_an_assembly_take_component_and_assembly_references`
-failed `WRONG_DOC_TYPE` "This tool needs a part, but 'asm_ref_…' is a assembly." After: it
-passes (a box turned 90° about z and moved, a shaft turned about x: planes offset from a
-component's face, from its Top plane and from the assembly's Right plane, at an angle
-about its edge, midway between two of its faces, normal to its edge, through three points
-in an assembly 3D sketch; axes from its Top plane and the assembly's Front plane, along
-its edge, through two of its vertices, of the shaft's cylinder; each where the transform
-puts it, the box part's tree unchanged, the flip refused with nothing changed), with the
-`Plane_*`, `Axis_*`, `Point_*` and `Coordinate_system_*` tests of `ReferenceLiveTests` and
-`An_equation_on_a_plane_s_offset_gives_where_the_plane_went` (18), the ten other plane
-tests of `ReferenceLiveTests` (offset, angle, three points, parallel, mid, flip, open
-sketch) and the 7 `ContractTests`, 36 of 36 live; unit tests 278 of 278; `check_repo` ok;
-no description changed. Made stricter: none.
-Local: on `sw2023`, (a), (c) and (d) in `3ca75cd`, (b) in `42589af`;
-in build `20261114-024455`. Upstream: not yet decided.
+Held in its scenario test (findings 2026-11-14, point 6): `durationS` given (10 steps, 9.7
+s). Closed 2026-11-14 on the owner's word.
 
 **S57. "modified outside this server … (by the user?)" after the server's own calls.** On
 build `20261112-091908`, six sessions, the owner out of SOLIDWORKS each time (findings
@@ -1688,83 +1865,9 @@ of `AssemblyLiveTests`, pass (15/15); unit tests 278/278; `check_repo` ok; no de
 changed. Made stricter: none.
 Local: on `sw2023`, `3a58652`; in build `20261114-024455`. Upstream: not yet
 decided.
-
-**S49. `dimension_set` through an assembly does not say which component, nor the
-document it changed.** In the scenario test of build `20261112-091908` (findings
-2026-11-12, second entry, points 3, 4), a two-part assembly mated by hand. (a)
-`dimension_set` with a component's dimension (`D1@Boss-Extrude1@<component>-1`) made the
-change right, but the result named it `D1@Boss-Extrude1`, without the component, and
-carried no volume change, which the description promises and a part's result gives. With
-two components holding a `D1@Boss-Extrude1` the row would not say which changed. (b) The
-change went to a part `doc_list` lists as `foreign` (`loadedBy` the assembly), leaving it
-dirty; closing the assembly with `discard` closed and discarded it too ("SOLIDWORKS also
-closed"), the part's file not touched. Whether a referenced part counts as the assembly's
-for the server's rule on foreign documents is not said anywhere, and the result does not
-name the other document. Reported success, rightly. Bears on S27. Local: the component in
-the row, the assembly's volume change, and a line naming the part changed and not saved.
-Taken into the run of 2026-11-13 as proposed, no choice in it.
-Fixed in the run of 2026-11-13. Cause: `dimension_set` named each row by the dimension's
-own full name with the document's suffix cut (`FeatureVerifier.ShortName`), which for a
-component's dimension is the part's `D1@Boss-Extrude1`; so two components holding one were
-refused "listed twice", and the read-back after the rebuild looked the dimension up again by
-that short name in the assembly. The volume change was read for a part only, and nothing
-looked at the documents a change through the assembly reached. Fix: in an assembly each row
-keeps the name as given (`D1@Boss-Extrude1@<component>-1`), which also keys the "listed
-twice" check and the read-back; the volume change of an assembly is that of its mass
-properties (`CreateMassProperty2().Volume`) before and after; the update stamp of every
-other open document is read before the change, and each one whose stamp moved and that is
-now dirty is named in a warning, "Also changed, not saved: '<title>' (<handle>, <access>), a
-component's own document." Whether a referenced part counts as the assembly's for the
-server's rule on foreign documents is not decided here: the fix does not need it, the change
-goes through as before and is now named, with the part's access. Test before:
-`AssemblyLiveTests.Dimension_set_through_an_assembly_names_the_component_the_volume_and_the_part_it_changed`
-(two cubes in an assembly, both `D1@Boss-Extrude1@…` set in one call) failed on the code
-before, "'D1@Boss-Extrude1' is listed twice." After: it passes, with each row named as given,
-20 → 30 and 20 → 25, the volume change 6 000 mm³ and a line naming each part, and none
-naming the assembly; with it the live tests that call `dimension_set` through an assembly or
-on a part, `A_change_through_a_document_an_assembly_loads_does_not_read_as_the_users`,
-`A_part_the_server_owned_comes_back_owned_when_its_owned_assembly_loads_it`,
-`Compare_cannot_open_a_revision_…`, `Configurations_are_chosen_at_insert_…` of
-`AssemblyLiveTests`, `TopDownLiveTests.An_in_context_cover_…`, the three `Dimension_set_…` and
-`Rename_reads_back_and_renames_the_dimensions` of `FeatureManagementLiveTests`, M0's
-`Dirty_reads_unsaved_changes_made_through_another_process`, pass (11/11; in a first mixed run
-`A_part_the_server_owned_comes_back_owned_…` failed once, its message not kept, and passed in
-the three runs after, alone and in two batches); unit tests 284/284; `check_repo` ok; no
-description changed. Made stricter: none (a batch the old check refused, two components'
-dimensions of one name, now goes through).
-Local: on `sw2023`, `2a41e9e`; in build `20261114-024455`. Upstream: not yet
-decided.
-Release run 2026-11-14: `A_part_the_server_owned_comes_back_owned_…` failed every time, alone
-too, after its asserts held: "System preferences changed by this test: Integer230: 0 -> 1".
-Cause, by a probe reading preference 230 after each step: SOLIDWORKS itself writes it.
-`ActivateDoc3(title, false, swDontRebuildActiveDoc)` on a document with no window of its own
-(`Visible` false: the part the reopened assembly loaded, brought forward by `doc_open`'s
-already-open path) sets `RebuildOnActivation` 0 -> 1; on a visible document it stays 0. No
-scope held it there, so nothing restored it (`EnsureLoaded`'s scope was not on this path;
-the test does not depend on S49's code). The same call sits wherever the server brings a
-document forward: a write bound to such a part's handle (S62 d makes it owned) and
-`doc_activate` leak it too. Fix: `SwContext.ActivateDoc`, which holds the preference at that
-value in a `PreferenceScope` when the document is not visible (a visible one is activated as
-before), used at the nine places that bring a target forward (bind, `doc_open`,
-`doc_activate`, export, Pack and Go, view, simulation, recognition, the assembly's
-reactivation); the five that bring back the previously active document are left as they
-were. Noted in `docs/solidworks-api-notes.md` (*Activate*). New test
-`Activating_a_part_an_assembly_loaded_leaves_the_rebuild_preference_as_it_was` (a write bound
-to the loaded part's handle, then `doc_activate` of it) failed on the code before at its
-first step, "Expected: 0, Actual: 1". After, each batch on a freshly restarted SOLIDWORKS: the
-two tests alone 1/1 each; with them the live tests that bring a document forward through the
-changed code, 17: `AssemblyLiveTests` `A_change_through_a_document_…`, `Replace_swaps_…`,
-`Compare_cannot_open_…`, `Pack_and_go_copies_…`, `Configurations_are_chosen_at_insert_…`,
-`Insert_refuses_…`; `ExportLiveTests` `A_file_that_is_already_open_…`,
-`A_saved_part_reopens_…`, `Images_pdf_and_edrawings_are_written`; M0's
-`Dirty_reads_unsaved_changes_…` and `Screenshot_returns_a_png_…`; `VisualsLiveTests`'
-`A_section_cuts_the_image_…`; `FeatureManagementLiveTests`' `The_servers_own_failed_kept_…`;
-`SimulationLiveTests`' `Simulation_refuses_to_change_the_users_documents`;
-`RecognitionLiveTests`' `An_imported_step_block_…`; `SketchEditLiveTests`'
-`Edit_reopens_a_finished_sketch_…`; `ConfigurationLiveTests`'
-`A_material_set_in_one_configuration_…`: 19/19 pass. Unit tests 284/284; `check_repo` ok; no
-description changed. Local: on `sw2023`, `cfd987e`; in
-build `20261114-024455`.
+Held in its scenario test (findings 2026-11-14, point 6): no warning after a rolled-back
+`VERIFY_FAILED`, nor after a change through an assembly. Closed 2026-11-14 on the owner's
+word.
 
 **S48. Four small result follow-ups from the modelling scenario test of build
 `20261112-091908`** (findings 2026-11-12, first entry, points 2 to 5). (a) From S40: a
@@ -1845,8 +1948,8 @@ single hole keeps its own sentence and several share one naming each as "'<sketc
 lines, because it is the one feature tool whose check line names a dimension. Local: (a)
 to (c) on `sw2023`, `ef358df`; in build `20261114-024455`. Upstream: not
 yet decided.
-
-## Closed
+Held in its scenario test (findings 2026-11-14, point 6): (a) to (d). Closed 2026-11-14 on
+the owner's word.
 
 **S37. `equation_set` took one equation per call and said nothing of the body.** In a
 machined part on build `20261111-140208` (findings 2026-11-11, second entry, points 2, 3).
