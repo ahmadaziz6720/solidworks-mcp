@@ -14,7 +14,10 @@ An item is a paragraph that opens with `**S<n>. <title>.**` under `## Open`,
 `## Waiting`, `## Closed` or `## Merged upstream`; the section is its state,
 and the paragraphs after it up to the next item are its text. A findings
 entry opens with `**YYYY-MM-DD: <what was done>**`; its `Sorted into ...`
-line links it to the items, `S6 (1, 2)` naming the entry's points. The intro's `**Open: S3 to S5,
+line links it to the items, `S6 (1, 2)` naming the entry's points. An item
+sent upstream holds a paragraph `**Upstream: PR #9, open.**` per PR or issue
+(`open`, `merged` or `closed unmerged`; an issue `open` or `closed`), checked
+against its section; a PR named elsewhere in its text is only a link. The intro's `**Open: S3 to S5,
 ...**` line is checked against the Open section.
 """
 import argparse
@@ -39,7 +42,8 @@ CODE_RE = re.compile(r"\bS(\d+)\b")
 SORT_RE = re.compile(r"((?:S\d+, )*S\d+) \(([\d, ]+)\)")
 POINT_RE = re.compile(r"^(\d+)\. (.*)$")
 SUMMARY_RE = re.compile(r"^\*\*Open: (.+?)\.\*\*")
-UPSTREAM_RE = re.compile(r"\b(PRs?|[Ii]ssues?) (#\d+(?:(?:,| and| or|, and) #\d+)*)")
+MARK_RE = re.compile(r"^\*\*Upstream: (PR|issue) #(\d+), (open|merged|closed unmerged|closed)\.\*\*$")
+MARK_START_RE = re.compile(r"^\*\*Upstream:")
 STAMP_RE = re.compile(r"(?:…-|(\d{8})-)(\d{6})\b")
 
 
@@ -142,12 +146,28 @@ def parse_items(problems):
         x["refs"] = sorted((c for c in codes_in(x["title"] + " " + x["body"],
                                                 problems, where, known)
                             if c != x["code"]), key=code_key)
-        up = {}
-        for m in UPSTREAM_RE.finditer(x["body"]):
-            kind = "PR" if m.group(1).startswith("PR") else "issue"
-            for n in re.findall(r"#(\d+)", m.group(2)):
-                up.setdefault(int(n), kind)
-        x["upstream"] = [{"n": n, "kind": k} for n, k in sorted(up.items())]
+        # Only the item's own marker paragraphs, '**Upstream: PR #9, open.**', say what it
+        # sent upstream; a PR named elsewhere in its text is a link, not a marker.
+        up = []
+        for para in x["body"].split("\n\n"):
+            flat = " ".join(para.split())
+            if not MARK_START_RE.match(flat):
+                continue
+            m = MARK_RE.match(flat)
+            if not m:
+                problems.append(f"{where}: an Upstream line that does not read as "
+                                "'**Upstream: PR #<n>, open|merged|closed unmerged.**' or "
+                                "'**Upstream: issue #<n>, open|closed.**'")
+                continue
+            up.append({"n": int(m.group(2)), "kind": m.group(1), "status": m.group(3)})
+        x["upstream"] = sorted(up, key=lambda u: u["n"])
+        merged = [u for u in up if u["kind"] == "PR" and u["status"] == "merged"]
+        if x["state"] == "merged" and not merged:
+            problems.append(f"{where}: under ## Merged upstream with no "
+                            "'**Upstream: PR #<n>, merged.**' line")
+        if merged and x["state"] != "merged":
+            problems.append(f"{where}: PR #{merged[0]['n']} is merged, so the item "
+                            "belongs under ## Merged upstream")
     if items:
         nums = {code_key(x["code"]) for x in items}
         missing = [f"S{n}" for n in range(1, max(nums) + 1) if n not in nums]
@@ -660,11 +680,11 @@ function overview() {
       `<div class="track"><div class="fill" style="width:${k / max * 80}%;background:${col(x.state)}"></div>${k}</div></div>`).join("") + `</div>`;
   // upstream issues and pull requests
   const up = {};
-  for (const x of all) for (const u of x.upstream) (up[u.n] = up[u.n] || {kind: u.kind, items: []}).items.push(x.code);
+  for (const x of all) for (const u of x.upstream) (up[u.n] = up[u.n] || {kind: u.kind, status: u.status, items: []}).items.push(x.code);
   const nums = Object.keys(up).map(Number).sort((a, b) => a - b);
   h += `<div class="card"><h3>Upstream</h3><p class="sub">Issues and pull requests at <code>soheil-mp/solidworks-mcp</code> ` +
-    `the items name.</p>` + (nums.length ? nums.map(k => `<div class="list-row"><span class="k">` +
-      (d.upstream ? ext(`${d.upstream}/issues/${k}`, `${up[k].kind} #${k}`) : `${up[k].kind} #${k}`) +
+    `the items sent, from their <code>**Upstream: …**</code> lines.</p>` + (nums.length ? nums.map(k => `<div class="list-row"><span class="k">` +
+      (d.upstream ? ext(`${d.upstream}/issues/${k}`, `${up[k].kind} #${k}`) : `${up[k].kind} #${k}`) + ` · ${up[k].status}` +
       `</span><span class="refs">${up[k].items.map(refLink).join("")}</span></div>`).join("")
       : `<p class="empty">No item names one.</p>`) + `</div>`;
   // builds
@@ -706,7 +726,7 @@ function items() {
 }
 function itemRow(x) {
   const id = "items/" + x.code, ctx = {self: x.code}, fed = FED[x.code] || [], by = BYREF[x.code] || [];
-  const meta = x.upstream.map(u => `<span class="pill">${u.kind} #${u.n}</span>`)
+  const meta = x.upstream.map(u => `<span class="pill">${u.kind} #${u.n} · ${u.status}</span>`)
     .concat(fed.length ? [`<span class="pill">${fed.length} findings entr${fed.length === 1 ? "y" : "ies"}</span>`] : []);
   return `<div class="row${S.expanded.has(id) ? " open" : ""}" id="r-${id}" data-id="${id}">` +
     `<div class="row-head"><span class="code">${esc(x.code)}</span><span class="badge">${dot(x.state)}${LABEL[x.state]}</span>` +

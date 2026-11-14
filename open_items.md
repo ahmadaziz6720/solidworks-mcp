@@ -10,7 +10,9 @@ Four sections: **Open**, not yet fixed; **Waiting**, fixed and not yet run and h
 session; **Closed**, run and held, so ready to use, or decided against, with the record;
 **Merged upstream**, Closed and its PR merged at `soheil-mp/solidworks-mcp`. A PR is
 optional (the owner, 2026-11-14): an item with a PR open stays in Closed, its PR named,
-and an open PR no longer holds an item in Waiting.
+and an open PR no longer holds an item in Waiting. An item sent upstream ends with
+`**Upstream: PR #9, open.**`, one per PR or issue (`merged`, `closed unmerged`; an issue
+`open` or `closed`), kept to its state.
 
 **Open: S4, S5, S7, S10 to S12, S33, S34, S49, S51, S52, S59 to S62, S64, S65, S67 to
 S72.** The scenario test of build `20261114-024455` (`cfd987e`) ran 2026-11-14 (findings
@@ -262,6 +264,8 @@ first shown live not to refuse ids of edges no feature touched).
 **S4. `drw_dimension_add` keeps wrong values** (supplement reported as a match; an angle for
 `vertical`). Upstream: issue #5.
 
+**Upstream: issue #5, open.**
+
 **S5. `doc_open` STEP imports surfaces with 3D Interconnect forced off, reported `ok`.**
 Upstream: issue #2. Usage until fixed: import by File > Open and `doc_activate`, or check
 `solidBodies` after `doc_open`. Still so in builds `…-204719`, `…-215810` and `…-230924`:
@@ -276,10 +280,14 @@ wrote from an assembly of three 20 mm cubes and a turned cylinder brought the cu
 solids where they were and the cylinder as 3 surface bodies (S52); `model_export` of that
 assembly had reported `solids: 2`, two distinct parts of four components.
 
+**Upstream: issue #2, open.**
+
 **S7. `dimension_set` accepts a change that splits the body.** Upstream: issue #4. Usage:
 read `bodies` in the result after each `dimension_set`. A model driven by global variables
 changes through `equation_set`, whose result has no `bodies`: read `model_mass` after it
 until the build with S37 (b), then `model.bodies` in its result.
+
+**Upstream: issue #4, open.**
 
 **S10. Drawing format and title block.** Precision and decimal separator of drawing
 dimensions, parentheses for reference dimensions, `n×` in hole callouts, DWG NO from a
@@ -1086,6 +1094,8 @@ coordinates straight into the active view (its comment says sketch coordinates a
 sheet's there), which S1 found false for sections and details; its live test only counts
 the cut, so a circle landing elsewhere on the part would pass.
 
+**Upstream: PR #1, open.**
+
 ## Closed
 
 **S2. A drawing always showed a sketch open, so `doc_undo` and `doc_rebuild` refused it.**
@@ -1110,6 +1120,8 @@ drawing work still does not work, for other reasons: S19. Upstream: branch
 Closed 2026-11-14 under the new rule (the owner: a PR is optional, Closed means ready to
 use): it held in its scenario test. PR #7 stays open; merged, the item moves to
 Merged upstream.
+
+**Upstream: PR #7, open.**
 
 **S19. `doc_undo` did not work in drawings, and removed work while reporting failure.**
 Found while fixing S2, live on 2023 SP3: after `drw_views_standard`, `drw_view_projected`
@@ -1137,6 +1149,8 @@ extrude. In a part again in `…-014952`, `…-024431`, `…-034022`, `…-06435
 Closed 2026-11-14 under the new rule (the owner: a PR is optional, Closed means ready to
 use): it held in its scenario test. PR #8 stays open; merged, the item moves to
 Merged upstream.
+
+**Upstream: PR #8, open.**
 
 **S6. `sketch_dimension_add` angular refused the acute angle at a shared vertex.** Local:
 `18cbc57` on `sw2023`. The supplement is kept when `textAt` lies in its sector, and the
@@ -1174,6 +1188,10 @@ point 1): the accepted angle's check reads "the angle that was 7.5°, … then 1
 Closed 2026-11-14 under the new rule (the owner: a PR is optional, Closed means ready to
 use): it held in its scenario test. PR #6 stays open; merged, the item moves to
 Merged upstream.
+
+**Upstream: PR #6, open.**
+
+**Upstream: issue #3, open.**
 
 **S20. `drw_dimension_add` returned some dimensions without a value check, silently.** In the
 scenario test of build `…-204719`, 9 of 23: every one with a circular edge in it (a line to
@@ -1273,6 +1291,8 @@ Closed 2026-11-14 under the new rule (the owner: a PR is optional, Closed means 
 use): it held in its scenario test. PR #10 stays open; merged, the item moves to
 Merged upstream.
 
+**Upstream: PR #10, open.**
+
 **S3. No tool deleted or moved a drawing view, dimension or note.** Upstream ROADMAP T10.4
 (🟡). Local: `cc685a9` on `sw2023`. `drw_annotation_list` (current sheet or one view: name,
 kind, view, text or value, position, attachment), `drw_annotation_edit` (move, delete, a
@@ -1339,6 +1359,8 @@ line on a stacked row's delete, read back equal.
 Closed 2026-11-14 under the new rule (the owner: a PR is optional, Closed means ready to
 use): it held in its scenario test. PR #9 stays open; merged, the item moves to
 Merged upstream.
+
+**Upstream: PR #9, open.**
 
 **S14. A drawing view's axes and the sheet's drawable area are not reported.** Which model
 axis points where on the sheet (in a top view model −Z points up) decides the side for an

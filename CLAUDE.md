@@ -102,4 +102,7 @@ other repos and never commit here (the owner's global `CLAUDE.md`).
   held in a session: Closed means ready to use, whatever upstream does. A PR upstream is
   optional (the owner, 2026-11-14): an item sent stays in Closed with its PR named, and
   moves to Merged upstream when that PR is merged. A PR refused or closed unmerged leaves
-  it in Closed, with that recorded.
+  it in Closed, with that recorded. An item sent upstream ends with one paragraph per PR
+  or issue, `**Upstream: PR #9, open.**` (`merged`, `closed unmerged`; an issue `open` or
+  `closed`), changed when its state does; `board.py` reads only these for its upstream
+  view and `--check` matches them with the section.
