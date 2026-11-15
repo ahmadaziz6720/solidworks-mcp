@@ -524,7 +524,7 @@ public sealed partial class PropertiesService
         if (d is not IAssemblyDoc asm) return null;
         string n = name.Trim();
         if (n.EndsWith('>') && n.LastIndexOf('<') is int lt and > 0) n = $"{n[..lt]}-{n[(lt + 1)..^1]}";
-        try { return (object?)asm.GetComponentByName(n) as IComponent2; }
+        try { return EntityResolver.ComponentByName(asm, n); }
         catch (Exception ex) when (!ComArgs.IsDisconnect(ex)) { return null; }
     }
 

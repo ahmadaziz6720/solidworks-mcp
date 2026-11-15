@@ -45,7 +45,7 @@ public sealed partial class AssemblyService
             string kind = (q.Kind ?? "").Trim().ToLowerInvariant();
             if (kind is not ("form" or "dissolve")) throw SwException.InvalidArgument($"kind must be form or dissolve (got '{q.Kind}').");
             if (q.Components is not { Count: > 0 }) throw SwException.InvalidArgument("'components' must name at least one component.");
-            var comps = q.Components.Select(n => (object?)asm.GetComponentByName(n.Trim()) as IComponent2
+            var comps = q.Components.Select(n => Geometry.EntityResolver.ComponentByName(asm, n)
                                                 ?? throw new SwException(ErrorCodes.EntityNotFound, $"No top-level component named '{n}'.",
                                                     "asm_component_list shows the names, e.g. bracket-1.")).ToList();
             if (comps.Any(c => (object?)c.GetParent() is IComponent2))

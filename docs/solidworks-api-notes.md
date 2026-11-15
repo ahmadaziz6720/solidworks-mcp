@@ -513,7 +513,9 @@ type libraries and writes `sldworks_api.txt`, `swconst_enums.txt`, `swcommands.t
 - **Replace.** `ReplaceComponents2(path, config, allInstances, useConfigChoice, reattachMates)`. Plane mates survived a
   replacement.
 - **Components.** `GetComponents(topLevelOnly)`, `Name2`, `GetPathName()`, `GetSuppression2()` (2 resolved,
-  0 suppressed), `Visible` (1 = visible), `IsFixed()`, `Transform2.ArrayData`.
+  0 suppressed), `Visible` (1 = visible), `IsFixed()`, `Transform2.ArrayData`. **`GetComponentByName("part-1")` can
+  return a nested `"sub-1/part-1"`** that comes before the top-level `part-1`: match `Name2` over `GetComponents(false)`
+  first. VERIFIED (2023 SP3).
 - **Component patterns** (VERIFIED 2026-10-23, linear 1 x 3, 2 x 2 and along a component edge; circular about a
   component's cylindrical face). Select first, then make the definition, as SOLIDWORKS' own examples do: direction 1
   (or the circular axis) on **mark 2**, direction 2 on **mark 4**, the seed components on **mark 1**; then

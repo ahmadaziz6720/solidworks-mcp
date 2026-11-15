@@ -695,6 +695,58 @@ public class AssemblyLiveTests(LiveFixture fx) : LiveTest(fx)
     }
 
     [Fact]
+    public async Task A_top_level_component_is_reached_by_its_name_when_a_nested_one_has_the_same_short_name()
+    {
+        // S70: a top-level component reached the nested one of the same short name (GetComponentByName returns the nested
+        // one when it comes first). The same cube is in a subassembly (inserted first, twice) and at the top level:
+        // "twin-1" must reach the top-level one, "sub-1/twin-1" the nested one.
+        var cube = await CubeAsync("twin");
+        string sub = await NewAssemblyAsync("twin_sub");
+        await InsertAsync(sub, cube.Path, [0, 15, 0]);
+        var saved = await Docs.SaveAsync(sub, "as", Path.Combine(_dir, $"twin_sub_{_tag}.sldasm"), overwrite: false);
+
+        string top = await NewAssemblyAsync("twin_top");
+        string ns = (await InsertAsync(top, saved.SavedTo!, [0, 0, 100])).Component.Name;
+        string ns2 = (await InsertAsync(top, saved.SavedTo!, [0, 0, -100])).Component.Name;
+        async Task<AsmComponentInfo> All(string n) => (await Asm.ComponentListAsync(top, allLevels: true, 100, 0)).Components.Single(c => c.Name == n);
+        string inner = (await Asm.ComponentListAsync(top, allLevels: true, 100, 0)).Components.Single(c => c.Parent == ns).Name;
+        string inner2 = (await Asm.ComponentListAsync(top, allLevels: true, 100, 0)).Components.Single(c => c.Parent == ns2).Name;
+
+        // With no top-level one yet, the short name is in both subassemblies: refused, naming both, nothing changed.
+        string shortName = inner[(inner.LastIndexOf('/') + 1)..];
+        var amb = await Assert.ThrowsAsync<SwException>(() => Set(new() { Doc = top, Component = shortName, Visible = false }));
+        Assert.Equal(ErrorCodes.EntityAmbiguous, amb.Code);
+        Assert.Contains(inner, amb.Message);
+        Assert.Contains(inner2, amb.Message);
+        Assert.True((await All(inner)).Visible && (await All(inner2)).Visible);
+
+        string nt = (await InsertAsync(top, cube.Path, [50, 40, 0], fixedState: false)).Component.Name;
+        Assert.Equal(shortName, nt);
+        AssertPoint([0, 15, 100], (await All(inner)).OriginMm);
+
+        // asm_component_move and asm_component_set by the short name act on the top-level one.
+        Assert.Equal(nt, (await Move(new() { Doc = top, Component = nt, TranslateMm = [0, 0, 10] })).Component.Name);
+        AssertPoint([50, 40, 10], (await All(nt)).OriginMm);
+        AssertPoint([0, 15, 100], (await All(inner)).OriginMm);
+        Assert.Equal(nt, (await Set(new() { Doc = top, Component = nt, Visible = false })).Component.Name);
+        Assert.False((await All(nt)).Visible);
+        Assert.True((await All(inner)).Visible);
+        await Set(new() { Doc = top, Component = nt, Visible = true });
+
+        // A plane and a face of the top-level one take a mate against the nested one's planes.
+        var m = await Mate(top, "coincident", Plane(nt, "top"), Plane(inner, "top"));
+        Assert.Contains("planes coincide (0 mm apart)", m.Verified);
+        Assert.Equal(15, (await All(nt)).OriginMm![1], P);
+        Assert.Equal("coincident", (await Mate(top, "coincident", new EntityRef { Component = nt, At = [10, 0, 0] }, Plane(inner, "right"))).Mate.Type);
+        Assert.Equal(10, Math.Abs((await All(nt)).OriginMm![0]), P);
+        AssertPoint([0, 15, 100], (await All(inner)).OriginMm);
+        var mates = (await Asm.MateListAsync(top, 100, 0)).Mates;
+        Assert.Equal(2, mates.Count);
+        Assert.All(mates, x => Assert.Contains(x.Entities, e => e.Component == nt));
+        Assert.All(mates, x => Assert.Contains(x.Entities, e => e.Component == inner));
+    }
+
+    [Fact]
     public async Task Mate_list_names_the_plane_face_edge_or_vertex_each_mate_takes()
     {
         // S62 (a): every entity read {component, kind: "plane"} alone, so a plane of a component and a planar face of it

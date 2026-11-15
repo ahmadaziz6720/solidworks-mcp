@@ -17,7 +17,7 @@ Closed all the same, its PR named, and an open PR no longer holds an item in Wai
 item sent upstream ends with `**Upstream: PR #9, open.**`, one per PR or issue
 (`merged`, `closed unmerged`; an issue `open` or `closed`), kept to its state.
 
-**Open: S4, S5, S7, S10 to S12, S33, S34, S49, S52, S59 to S62, S64, S65, S67, S70 to S72, S74, S75.**
+**Open: S4, S5, S7, S10 to S12, S33, S34, S49, S52, S59 to S62, S64, S65, S67, S71, S72, S74, S75.**
 Sorted 2026-11-16, the scenario test of build `20261116-050908` (findings 2026-11-16):
 S51 and S73 held and closed; S75 new, taken into the run's group 2. The scenario test of build `20261114-024455` (`cfd987e`) ran 2026-11-14 (findings
 2026-11-14). Held, and closed on the owner's word: S47, S48, S50, S53 to S58, S63, S66,
@@ -263,8 +263,8 @@ server change since build `20261114-024455`).
   its entry committed and sorted: resumed once after a stop for low memory; S51 and
   S73 held and closed, S75 new (findings 2026-11-16, `4af10cc`)
 - [x] S68: committed (`5bd1037`)
-- [x] S69: committed
-- [ ] S70: committed
+- [x] S69: committed (`3fc6c59`)
+- [x] S70: committed
 - [ ] S62 (b): committed
 - [ ] S75: committed
 - [ ] Group 2: full live tests and release (build: )
@@ -1099,16 +1099,6 @@ rename, the single feature or the check's reading of the bar is the cause. Local
 because the run's items were the owner's and this one has not been looked at.
 Taken into the run of 2026-11-16, group 3, a probe first (`## Run 2026-11-16`).
 
-### S70 - A top-level component may resolve to a nested one of the same short name - OPEN 2026-11-13
-
-Seen
-once in the run of 2026-11-13, in S62's tests: a top-level component whose name matched a
-nested component's short name seemed to resolve to the nested one. Not confirmed: a probe
-first (two components, one top-level and one in a subassembly, named alike). Local.
-Decided 2026-11-13 by the run, not the owner: an item, open, as S67, because a reference
-that reaches the wrong component would change the wrong part.
-Taken into the run of 2026-11-16, group 2, a probe first (`## Run 2026-11-16`).
-
 ### S71 - A frequency study with no fixtures fails in the solver - OPEN 2026-11-14
 
 Seen in the release runs
@@ -1263,6 +1253,55 @@ Decided 2026-11-16 by the run, not the owner: a select try that returns false is
 before the next, for every component plane, axis, point and origin, not only for a
 nested component, because a false result that still selected leaves the selection
 unknown, and the next try's count would then read wrong.
+
+Local: on `sw2023`, in the commit that moves it here; not yet in a build. Upstream: not yet
+decided.
+
+### S70 - A top-level component may resolve to a nested one of the same short name - BUILT 2026-11-16, proof: the scenario test of group 2's build
+
+Seen
+once in the run of 2026-11-13, in S62's tests: a top-level component whose name matched a
+nested component's short name seemed to resolve to the nested one. Not confirmed: a probe
+first (two components, one top-level and one in a subassembly, named alike). Local.
+Decided 2026-11-13 by the run, not the owner: an item, open, as S67, because a reference
+that reaches the wrong component would change the wrong part.
+Taken into the run of 2026-11-16, group 2, a probe first (`## Run 2026-11-16`).
+
+Fixed in the run of 2026-11-16. Probe: a cube saved in a subassembly, that subassembly
+inserted first into a new assembly, then the same cube at the top level; both are
+`<cube>-1`, the nested one `<sub>-1/<cube>-1`. `asm_component_move` with the top-level
+name was refused "'<sub>-1/<cube>-1' is inside subassembly '<sub>-1', which moves as
+one": reproduced. Cause: the resolver (`EntityResolver.Component`, which every
+`component` argument goes through) asked `IAssemblyDoc.GetComponentByName` first, and
+given `part-1` it returns a nested `sub-1/part-1` that comes before the top-level
+`part-1`; `asm_structure`'s and the configuration table's own lookups did the same. Fix:
+the resolver matches the full name (`Name2`) over every component first, then a nested
+component by its short name, then `GetComponentByName`; a short name that two or more
+nested components share, with no component of that full name, is refused
+`ENTITY_AMBIGUOUS` naming them. `asm_structure` and the configuration table take the full
+name first too (`EntityResolver.ComponentByName`). Noted in
+`docs/solidworks-api-notes.md`. Test before:
+`A_top_level_component_is_reached_by_its_name_when_a_nested_one_has_the_same_short_name`
+failed on the code before at its first call: "'twin_sub_…-1/twin_…-1' is inside
+subassembly 'twin_sub_…-1', which moves as one." After (with the refusal of a short name
+two subassemblies share, added with the fix): the top-level one moved by 10 mm in z and
+hidden while the nested one stays at (0, 15, 100) and visible, a mate on its top plane
+and one on a face picked in it each listing it and the nested one; with
+`A_plane_of_a_component_inside_a_subassembly_takes_a_mate`,
+`Component_set_floats_hides_suppresses_and_returns_the_previous_state`,
+`Mates_that_cant_hold_are_refused_rolled_back_and_nothing_moves`,
+`Exploded_view_moves_each_component_by_the_sum_of_its_steps`,
+`Linear_pattern_places_instances_at_the_spacing_along_one_and_two_directions`,
+`A_limit_angle_mate_reads_fully_constrained_as_SOLIDWORKS_marks_it_in_the_tree`,
+`AssemblyStructureLiveTests.Two_components_form_a_subassembly_and_dissolve_back_with_the_same_parts`
+and `ConfigurationLiveTests.An_assembly_table_picks_component_configurations_and_suppresses_components`,
+9/9, on 2023 SP3; unit tests 287/287; `check_repo` ok. No tool description changed.
+Made stricter: a short name that several nested components share, and no component has
+as its full name, is refused instead of taking the first.
+Decided 2026-11-16 by the run, not the owner: that short name is refused
+`ENTITY_AMBIGUOUS` naming the components, not resolved to the first, because the first
+is whichever SOLIDWORKS lists first and a call would change a part the caller did not
+mean.
 
 Local: on `sw2023`, in the commit that moves it here; not yet in a build. Upstream: not yet
 decided.

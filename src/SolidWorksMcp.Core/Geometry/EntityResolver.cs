@@ -318,18 +318,32 @@ internal static class EntityResolver
     private static bool InBox(Vec3 p, double[] b, double pad) =>
         p.X >= b[0] - pad && p.X <= b[3] + pad && p.Y >= b[1] - pad && p.Y <= b[4] + pad && p.Z >= b[2] - pad && p.Z <= b[5] + pad;
 
+    /// <summary>
+    /// A component by its full name ("part-1", "sub-1/part-1"), then a nested one by its short name, refused when several
+    /// share it. Not GetComponentByName first: given "part-1" it returns a nested "sub-1/part-1" that comes before the
+    /// top-level "part-1" (VERIFIED; S70).
+    /// </summary>
     public static IComponent2 Component(IAssemblyDoc asm, string name)
     {
-        string want = name.Trim();
-        IComponent2? c = asm.GetComponentByName(want);
-        if (c is not null) return c;
+        string want = name.Trim(), bare = want.Split('@')[0];
         var all = asm.Components(false);
-        string bare = want.Split('@')[0];
-        c = all.FirstOrDefault(x => string.Equals(x.Name2, bare, StringComparison.OrdinalIgnoreCase))
-            ?? all.FirstOrDefault(x => x.Name2.EndsWith("/" + bare, StringComparison.OrdinalIgnoreCase));
+        var c = ByFullName(all, want) ?? ByFullName(all, bare);
+        if (c is not null) return c;
+        var nested = all.Where(x => x.Name2.EndsWith("/" + bare, StringComparison.OrdinalIgnoreCase)).ToList();
+        if (nested.Count > 1)
+            throw new SwException(ErrorCodes.EntityAmbiguous, $"'{name}' names {nested.Count} components inside subassemblies: " +
+                $"{string.Join(", ", nested.Take(8).Select(x => x.Name2))}{(nested.Count > 8 ? ", …" : "")}.", "Give the full name, e.g. 'sub-1/part-1'.");
+        c = nested.FirstOrDefault() ?? (object?)asm.GetComponentByName(want) as IComponent2;
         return c ?? throw new SwException(ErrorCodes.EntityNotFound, $"No component named '{name}'.",
             $"Components: {string.Join(", ", all.Take(20).Select(x => x.Name2))}{(all.Count > 20 ? ", …" : "")}.");
     }
+
+    /// <summary>The component whose full name (Name2) is <paramref name="name"/>, then GetComponentByName's (S70).</summary>
+    public static IComponent2? ComponentByName(IAssemblyDoc asm, string name) =>
+        ByFullName(asm.Components(false), name.Trim()) ?? (object?)asm.GetComponentByName(name.Trim()) as IComponent2;
+
+    private static IComponent2? ByFullName(List<IComponent2> all, string name) =>
+        all.FirstOrDefault(x => string.Equals(x.Name2, name, StringComparison.OrdinalIgnoreCase));
 
     private static Resolved SketchPointAt(SwContext ctx, IModelDoc2 doc, EntityRef r, string argName)
     {
