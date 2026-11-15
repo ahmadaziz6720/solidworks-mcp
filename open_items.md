@@ -255,7 +255,7 @@ server change since build `20261114-024455`).
 - [x] S64 (h): committed (`86e7042`)
 - [x] S64 (c): committed (`4a70a9b`)
 - [x] Group 1: full live tests and release (build: `20261116-050908`, `dedd986`)
-- [ ] Group 1: scenario test (session id: ), its entry committed and sorted
+- [ ] Group 1: scenario test (session id: `fe1d732c-6c26-4fe6-8249-8c5ce1e03251`), its entry committed and sorted
 - [ ] S68: committed
 - [ ] S69: committed
 - [ ] S70: committed
