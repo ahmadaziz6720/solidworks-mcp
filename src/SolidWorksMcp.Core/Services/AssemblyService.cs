@@ -1970,7 +1970,8 @@ public sealed partial class AssemblyService(SwSession session)
 
     /// <summary>
     /// Selects one mate entity (on mark 1 unless told otherwise). Component planes, axes and points use the VERIFIED SelectByID2 form
-    /// ("Front Plane@part-1@Assem1"); everything else (and the fallback) the resolved entity's own Select (Select2/Select4).
+    /// ("Front Plane@part-1@Assem1"), an origin its point ("Point1@Origin@part-1@Assem1", EXTSKETCHPOINT); everything else
+    /// (and the fallback for planes, axes and points) the resolved entity's own Select (Select2/Select4).
     /// </summary>
     private static void SelectForMate(SwContext ctx, IModelDoc2 d, MateRef m, bool append, string arg, int mark = MateMark)
     {
@@ -1982,6 +1983,16 @@ public sealed partial class AssemblyService(SwSession session)
             string type = m.R.Kind switch { EntityKind.Plane => "PLANE", EntityKind.Axis => "AXIS", _ => "DATUMPOINT" };
             foreach (var id in SelectIds(ctx, d, f.Name, m.Comp))
                 if (d.Extension.SelectByID2(id, type, 0, 0, 0, append, mark, null, 0) && Added()) return;
+        }
+        if (m.R.Obj is IFeature o && m.R.Kind == EntityKind.Origin)
+        {
+            // S68: the origin feature itself selected gives no mate (status 0); its point does (VERIFIED, selection type 25).
+            string point = $"Point1@{o.Name}";
+            var ids = m.Comp is null ? [point] : SelectIds(ctx, d, point, m.Comp).ToList();
+            foreach (var id in ids)
+                if (d.Extension.SelectByID2(id, "EXTSKETCHPOINT", 0, 0, 0, append, mark, null, 0) && Added()) return;
+            throw new SwException(ErrorCodes.FeatureFailed, $"Could not select '{arg}' ({m.Label}) for the mate: SelectByID2 " +
+                $"{string.Join(", ", ids.Select(x => $"'{x}'"))} (EXTSKETCHPOINT) selected nothing.");
         }
         if (m.R.Select(d, append, mark) && Added()) return;
         throw new SwException(ErrorCodes.FeatureFailed, $"Could not select '{arg}' ({m.Label}) for the mate.",

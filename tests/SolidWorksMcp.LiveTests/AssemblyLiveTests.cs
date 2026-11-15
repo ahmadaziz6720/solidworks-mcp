@@ -643,6 +643,33 @@ public class AssemblyLiveTests(LiveFixture fx) : LiveTest(fx)
     }
 
     [Fact]
+    public async Task Coincident_mates_take_the_assembly_s_origin_and_a_component_s_origin()
+    {
+        // S68: a coincident mate with an origin failed "SOLIDWORKS created no coincident mate … (unknown error (status 0))".
+        var a = await CubeAsync("orgA");
+        var b = await CubeAsync("orgB");
+        var c = await CubeAsync("orgC");
+        string asm = await NewAssemblyAsync("asm_origin");
+        string na = (await InsertAsync(asm, a.Path, [37, 23, -15], fixedState: false)).Component.Name;
+        string nb = (await InsertAsync(asm, b.Path, [80, 0, 0])).Component.Name;
+        string nc = (await InsertAsync(asm, c.Path, [0, 80, 0])).Component.Name;
+
+        // A's origin on the assembly's: A's origin lands at (0, 0, 0).
+        var m1 = await Mate(asm, "coincident", new EntityRef { Component = na, Name = "origin" }, new EntityRef { Name = "origin" });
+        Assert.Equal("coincident", m1.Mate.Type);
+        Assert.All(m1.Resolved!, x => Assert.Equal("origin", x.Type));
+        AssertPoint([0, 0, 0], m1.Components.Single(x => x.Name == na).OriginMm);
+        AssertPoint([0, 0, 0], (await ComponentAsync(asm, na)).OriginMm);
+
+        // B's origin on A's corner (10, 10, 10), and C's corner (-10, -10, -10) on B's origin: (10, 10, 10) and (20, 20, 20).
+        var m2 = await Mate(asm, "coincident", new EntityRef { Component = nb, Name = "origin" }, new EntityRef { Component = na, Type = "vertex", At = [10, 10, 10] });
+        AssertPoint([10, 10, 10], m2.Components.Single(x => x.Name == nb).OriginMm);
+        var m3 = await Mate(asm, "coincident", new EntityRef { Component = nc, Type = "vertex", At = [-10, -10, -10] }, new EntityRef { Component = nb, Name = "origin" });
+        AssertPoint([20, 20, 20], m3.Components.Single(x => x.Name == nc).OriginMm);
+        Assert.Equal(3, (await Asm.MateListAsync(asm, 100, 0)).Total);
+    }
+
+    [Fact]
     public async Task Mate_list_names_the_plane_face_edge_or_vertex_each_mate_takes()
     {
         // S62 (a): every entity read {component, kind: "plane"} alone, so a plane of a component and a planar face of it

@@ -156,7 +156,9 @@ type libraries and writes `sldworks_api.txt`, `swconst_enums.txt`, `swcommands.t
     1 distance, 2 angle, 4 horizontal, 5 vertical, 6 tangent, 9 coincident, 11 symmetric (mirror copies), 12 midpoint,
     13 intersection, 47 sketch offset and 57 patterned.
 - **Origin** in a sketch: `SelectByID2("Point1@Origin", "EXTSKETCHPOINT", 0, 0, 0, …)` (selection type 25). Dimensions
-  and coincident relations to it work. VERIFIED.
+  and coincident relations to it work. VERIFIED. For a mate in an assembly the same type takes the assembly's
+  `"Point1@Origin"` and a component's `"Point1@Origin@part-1@Assem1"`; the origin feature itself selected gives no mate
+  (`AddMate5` status 0). VERIFIED (2023 SP3).
 - **Dimensions.** `IModelDoc2.AddDimension2(x, y, z)` returns a `DisplayDimension`; call `.GetDimension2(0)` and
   `.SetSystemValue3(value, swSetValue_InThisConfiguration, null)`.
   - It **opens a modal "Modify" dialog** if the system toggle `swInputDimValOnCreate = 10` is true, which is the user

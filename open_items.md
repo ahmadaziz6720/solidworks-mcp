@@ -17,7 +17,7 @@ Closed all the same, its PR named, and an open PR no longer holds an item in Wai
 item sent upstream ends with `**Upstream: PR #9, open.**`, one per PR or issue
 (`merged`, `closed unmerged`; an issue `open` or `closed`), kept to its state.
 
-**Open: S4, S5, S7, S10 to S12, S33, S34, S49, S52, S59 to S62, S64, S65, S67 to S72, S74, S75.**
+**Open: S4, S5, S7, S10 to S12, S33, S34, S49, S52, S59 to S62, S64, S65, S67, S69 to S72, S74, S75.**
 Sorted 2026-11-16, the scenario test of build `20261116-050908` (findings 2026-11-16):
 S51 and S73 held and closed; S75 new, taken into the run's group 2. The scenario test of build `20261114-024455` (`cfd987e`) ran 2026-11-14 (findings
 2026-11-14). Held, and closed on the owner's word: S47, S48, S50, S53 to S58, S63, S66,
@@ -262,7 +262,7 @@ server change since build `20261114-024455`).
 - [x] Group 1: scenario test (session id: `fe1d732c-6c26-4fe6-8249-8c5ce1e03251`),
   its entry committed and sorted: resumed once after a stop for low memory; S51 and
   S73 held and closed, S75 new (findings 2026-11-16, `4af10cc`)
-- [ ] S68: committed
+- [x] S68: committed
 - [ ] S69: committed
 - [ ] S70: committed
 - [ ] S62 (b): committed
@@ -1099,16 +1099,6 @@ rename, the single feature or the check's reading of the bar is the cause. Local
 because the run's items were the owner's and this one has not been looked at.
 Taken into the run of 2026-11-16, group 3, a probe first (`## Run 2026-11-16`).
 
-### S68 - `asm_mate_add` coincident with an origin fails - OPEN 2026-11-13
-
-Seen in the run of 2026-11-13, in
-S62's tests: a coincident mate with the assembly's origin or a component's origin failed
-"SOLIDWORKS created no coincident mate … (unknown error (status 0))". Not probed: how the
-origin is selected for the mate. Bears on S62. Local. Decided 2026-11-13 by the run, not
-the owner: an item, open, as S67.
-Taken into the run of 2026-11-16, group 2, a probe of the origin's selection first (`##
-Run 2026-11-16`).
-
 ### S69 - A component's named plane inside a subassembly cannot be selected - OPEN 2026-11-13
 
 Seen in the
@@ -1212,3 +1202,38 @@ the cut, so a circle landing elsewhere on the part would pass.
 
 **Upstream: PR #1, open.**
 
+### S68 - `asm_mate_add` coincident with an origin fails - BUILT 2026-11-16, proof: the scenario test of group 2's build
+
+Seen in the run of 2026-11-13, in
+S62's tests: a coincident mate with the assembly's origin or a component's origin failed
+"SOLIDWORKS created no coincident mate … (unknown error (status 0))". Not probed: how the
+origin is selected for the mate. Bears on S62. Local. Decided 2026-11-13 by the run, not
+the owner: an item, open, as S67.
+Taken into the run of 2026-11-16, group 2, a probe of the origin's selection first (`##
+Run 2026-11-16`).
+
+Fixed in the run of 2026-11-16. Probe: the origin of a component selected by
+`SelectByID2("Point1@Origin@<component>@<assembly>", "EXTSKETCHPOINT", …)` and the
+assembly's by `"Point1@Origin"`, the same type, each gave selection type 25 and a mate
+that solved. Cause: the resolver gives an origin as its `OriginProfileFeature`, and the
+mate selected that feature itself (`Select2`), from which `AddMate5` makes no mate and
+reports status 0. Fix: `SelectForMate` selects an origin by its point, `Point1@<origin>`
+as `EXTSKETCHPOINT`, through the same names a component's plane takes (the
+`"…@<component>@<assembly>"` form, then `GetSelectByIDString`'s); an origin that cannot be
+selected so is refused naming the names tried. Test before:
+`Coincident_mates_take_the_assembly_s_origin_and_a_component_s_origin` (three 20 mm cubes
+floating at other places; a component's origin on the assembly's, a component's origin on
+another's corner, a corner on a component's origin) failed on the code before at its first
+mate: "asm_mate_add: SOLIDWORKS created no coincident mate between origin 'Origin' of
+orgA_…-1 and origin 'Origin' (it reported an unknown error (status 0))." After: it (the
+origins at (0, 0, 0), (10, 10, 10) and (20, 20, 20), three mates listed), with
+`Plane_mates_coincident_and_distance_reproduce_the_4000_mm3_overlap` and
+`Mate_list_names_the_plane_face_edge_or_vertex_each_mate_takes`, 3/3, on 2023 SP3; unit
+tests 287/287; `check_repo` ok. No tool description changed.
+Decided 2026-11-16 by the run, not the owner: an origin whose point cannot be selected is
+refused before the mate, not selected as the origin feature as before, because that
+selection makes no mate and the caller would get an unknown error (status 0) instead of
+what failed.
+
+Local: on `sw2023`, in the commit that moves it here; not yet in a build. Upstream: not yet
+decided.
