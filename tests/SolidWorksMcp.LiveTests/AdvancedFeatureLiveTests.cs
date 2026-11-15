@@ -556,6 +556,27 @@ public class AdvancedFeatureLiveTests(LiveFixture fx) : LiveTest(fx)
     }
 
     [Fact]
+    public async Task A_rib_and_its_own_pattern_take_a_second_pattern_for_uneven_spacing()
+    {
+        // S64 (h), probed 2026-11-16: SOLIDWORKS 2023 patterns a feature together with its own pattern. A 2 mm rib at
+        // z = 0 and its copy at z = 4, patterned once more 12 mm toward -z, give ribs at -12, -8, 0 and 4.
+        string doc = await BracketAsync("rib_pattern_of_pattern");
+        string rib = await SketchAsync(doc, Named("front"), Line([10, 40], [40, 10]));
+        var r = await Af.RibAsync(new RibRequest { Doc = doc, Sketch = rib, ThicknessMm = 2 });
+        var pf = new PartFeatureService(S);
+        var first = await pf.LinearPatternAsync(new LinearPatternRequest { Doc = doc, Features = [r.Feature.Name], Direction = "+z", Count = 2, SpacingMm = 4 });
+        Assert.Equal(900, first.Verified.VolumeDeltaMm3, V);
+        var second = await pf.LinearPatternAsync(new LinearPatternRequest
+        {
+            Doc = doc, Features = [r.Feature.Name, first.Feature.Name], Direction = "-z", Count = 2, SpacingMm = 12,
+        });
+        Assert.Equal(1800, second.Verified.VolumeDeltaMm3, V);
+        Assert.Contains(second.Verified.Checks!, c => c.Contains("expected positions: 6/6"));
+        Assert.Null(second.Warnings);
+        AssertBox(second.Model.Box, [0, 0, -20], [60, 60, 20]);
+    }
+
+    [Fact]
     public async Task Rib_rejects_a_zero_thickness_and_rolls_back_a_rib_that_meets_no_wall()
     {
         string doc = await BracketAsync("rib_bad");

@@ -251,8 +251,8 @@ server change since build `20261114-024455`).
 
 - [x] Phase 1: the opening question asked and answered (2026-11-16)
 - [x] S51: committed (`f665a18`)
-- [x] S73: committed
-- [ ] S64 (h): committed
+- [x] S73: committed (`9cd5638`)
+- [x] S64 (h): committed
 - [ ] S64 (c): committed
 - [ ] Group 1: full live tests and release (build: )
 - [ ] Group 1: scenario test (session id: ), its entry committed and sorted
@@ -970,6 +970,27 @@ Decided 2026-11-16 by the owner: (c) taken into the run of 2026-11-16, group 1, 
 tried alone on a failure and the failing ones named; (b) left out of it, probed 2026-11-13
 and not reproduced, taken up when met again. (h) in the same group, a probe first (`## Run
 2026-11-16`).
+**Done in the run of 2026-11-16: (h), not reproduced.** Probe, 2026-11-16, on `9cd5638`,
+`FeatureLinearPattern5` called directly with the seed and its pattern on mark 4: on a block
+with a boss and its linear pattern, and on an L bracket with a rib and its linear pattern,
+SOLIDWORKS 2023 built a pattern of the seed and its pattern together (2 new instances, the
+volume exact), and of the pattern alone (it brings its seed along: the same 2); geometry
+pattern on, the same; a body on mark 256 patterned the whole body as a second body. The
+tool built both too: the boss's `[seed, pattern]` 4/4 positions, the rib's 4/4 and 6/6. So
+a pattern of a feature and its own pattern is not refused by SOLIDWORKS, and the hint "a
+pattern cannot take its own pattern as a seed" would be false. "The API returned nothing
+(tried 2 senses)" came back only where the rib's copies touch the ribs already there (2 mm
+ribs at 0 and 4, patterned 2 mm): the rib alone at that spacing fails word for word the
+same, so that cause is the rib's copies, not the pattern of a pattern. A copy off the walls
+in the requested sense fails `VERIFY_FAILED` "only the opposite direction does", which is
+true. Decided 2026-11-16 by the run, not the owner: (h) done as not reproduced, with no code
+change and the hint not changed, because SOLIDWORKS builds the pattern asked for and the
+tool already passes it on; a hint for the rib's touching copies would rest on one probed
+spacing. Test kept, passing before and after (no fix):
+`A_rib_and_its_own_pattern_take_a_second_pattern_for_uneven_spacing` (ribs at -12, -8, 0
+and 4, 1800 mm³, 6/6 positions, no warning), with `Rib_5mm_fills_the_corner_of_an_L_bracket`,
+2 of 2 live. Made stricter: none. Local: on `sw2023`, in the commit that records it; not
+yet in a build. Upstream: not yet decided. The item stays Open for (b) and (c).
 
 ### S65 - Missing options met while modelling - OPEN 2026-11-12
 
