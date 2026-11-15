@@ -33,12 +33,12 @@ pushed). An entry does not say where the problem was met:
 It describes the geometry in general terms ("a slope rising 7.5° from the end of a flat
 line", "a sheet-metal part with a blind hole"). It gives the tool calls and the numbers
 that show the fault, and nothing that identifies the design. The same holds for the items
-in `open_items.md` and for an issue or PR sent upstream.
+in `open_items.md` and `closed_items.md` and for an issue or PR sent upstream.
 
 **Sorting.** A session in this repo sorts the entries into `open_items.md`, and adds a line
 under each entry it sorted, naming where each point went by the entry's own numbers:
-`Sorted into S6 (1, 3); S2 (2). Not filed (4): one-off.` Nothing here is decided until it
-is an item there. An entry is not edited once its session has ended, and none is deleted.
+`Sorted into S6 (1, 3); S2 (2). Held: S1 (5). Not filed (4): one-off.` (`Held:` names the
+Waiting items a point proves.) Nothing here is decided until it is an item there. An entry is not edited once its session has ended, and none is deleted.
 
 ---
 

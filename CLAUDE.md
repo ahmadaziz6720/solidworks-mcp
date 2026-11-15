@@ -11,10 +11,13 @@ code, its conventions and its tests are upstream's: read `CONTRIBUTING.md`,
 `docs/DESIGN.md` and `ROADMAP.md` before changing it.
 
 **Read [`open_items.md`](open_items.md) before assuming the server works for a task.** What
-sessions found is in [`findings.md`](findings.md). `python board.py` shows both as a page
-(read-only, on `127.0.0.1:8766`); `python board.py --check` lists what does not parse,
-including an `**Open: …**` line that no longer matches the Open section: run it after
-editing either file.
+sessions found is in [`findings.md`](findings.md), the items closed in
+[`closed_items.md`](closed_items.md). The three are in the `backlog` plugin's format (its
+`format.md`, config in `.claude/backlog.json`, since 2026-11-15). The plugin's board shows
+them as a page (read-only, on `127.0.0.1:8768`); `python "<plugin>/scripts/board.py"
+--check`, `<plugin>` the installed copy under `~/.claude/plugins/cache/claude-workflow/backlog/`,
+lists what is out of the format, including an `**Open: …**` line that no longer matches
+the Open section: run it after editing any of the three.
 
 ## Branches and remotes
 
@@ -26,10 +29,9 @@ fork: the owner opens it from the compare link `soheil-mp/solidworks-mcp/compare
 - `origin` = the fork `ahmadaziz6720/solidworks-mcp`, `upstream` = `soheil-mp/solidworks-mcp`.
 - `main` tracks `upstream/main` and carries nothing of ours.
 - `sw2023` is what is built and run here: upstream plus the 2023 interop patch, local fixes,
-  and this file, `findings.md`, `open_items.md` and `board.py`.
+  and this file, `findings.md`, `open_items.md` and `closed_items.md`.
 - **A PR branch starts from `upstream/main`** and holds only the fix (cherry-picked or
-  squashed from `sw2023`). The interop patch, these three files and `board.py` never go
-  upstream.
+  squashed from `sw2023`). The interop patch and these four files never go upstream.
 - Update: `git fetch upstream`, `git rebase upstream/main` on `sw2023`, then build (below).
   A member missing in the 2023 interop shows as a compile error.
 
@@ -93,16 +95,17 @@ Sessions that use the server write into `findings.md` without being asked; they 
 other repos and never commit here (the owner's global `CLAUDE.md`).
 
 - **Commit what they left, at the start of a session here, before any work, asking the
-  owner first.** Read `git status`: a change to `findings.md` or `open_items.md` this
+  owner first.** Read `git status`: a change to `findings.md` or an item file this
   session did not make is such an entry. Read its diff, ask, and on the owner's yes commit
   it alone on `sw2023` with a message that says whose entries they are, then start.
 - **Sort the entries into items**, as `findings.md`'s top says: each point to an S-item in
   `open_items.md`, new or existing, and a `Sorted into …` line under the entry.
-- **An item that is fixed** moves to Waiting with its commit; to Closed when the fix ran and
-  held in a session: Closed means ready to use, whatever upstream does. A PR upstream is
-  optional (the owner, 2026-11-14): an item sent stays in Closed with its PR named, and
-  moves to Merged upstream when that PR is merged. A PR refused or closed unmerged leaves
-  it in Closed, with that recorded. An item sent upstream ends with one paragraph per PR
-  or issue, `**Upstream: PR #9, open.**` (`merged`, `closed unmerged`; an issue `open` or
-  `closed`), changed when its state does; `board.py` reads only these for its upstream
-  view and `--check` matches them with the section.
+- **An item that is fixed** moves to Waiting with its commit, its status `BUILT <date>,
+  proof: <who proves it>`; to `closed_items.md` when the fix ran and held in a session,
+  `CLOSED <date>`: Closed means ready to use, whatever upstream does. An item decided
+  against goes there too, `DECIDED AGAINST <date>`. A PR upstream is optional (the owner,
+  2026-11-14): an item sent stays in Closed with its PR named, and its status gains
+  `, merged upstream` when that PR is merged. A PR refused or closed unmerged leaves it in
+  Closed, with that recorded. An item sent upstream ends with one paragraph per PR or
+  issue, `**Upstream: PR #9, open.**` (`merged`, `closed unmerged`; an issue `open` or
+  `closed`), changed when its state does.
