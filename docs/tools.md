@@ -1424,7 +1424,7 @@ Move / rotate a floating component (its transform): translateMm and/or rotation 
 
 ### `asm_component_set` — Set component state (idempotent)
 
-Fix or float, suppress or unsuppress, resolve or make lightweight, hide or show a component, or switch its configuration. Each change is read back (all reverted if one fails); returns the previous values and the new state.
+Change a component's state. Each change is read back (all reverted if one fails); returns the previous values and the new state.
 
 | Parameter | Type | Required | Description |
 |---|---|---|---|
@@ -1434,6 +1434,7 @@ Fix or float, suppress or unsuppress, resolve or make lightweight, hide or show 
 | `resolved` | boolean |  | true loads a lightweight component fully, false makes it lightweight. |
 | `visible` | boolean |  | false hides, true shows. |
 | `configuration` | string |  | Configuration of the component's file to use. |
+| `flexible` | boolean |  | Subassembly: true solves it flexible, false rigid. |
 | `doc` | string |  | Assembly (handle, title or path); default: the target document. |
 
 ### `asm_explode` — Exploded view

@@ -69,6 +69,20 @@ internal static class TestHooks
         });
 
     /// <summary>
+    /// SOLIDWORKS' own <c>IComponent2.Solving</c> of each top-level component, by component name
+    /// (swComponentSolvingOption_e: 0 rigid, 1 flexible).
+    /// </summary>
+    public static Task<Dictionary<string, int>> ComponentSolvingAsync(SwSession s, string doc) =>
+        s.RunAsync("test_solving", ctx =>
+        {
+            var solving = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+            var comps = (object?)((SolidWorks.Interop.sldworks.IAssemblyDoc)ctx.Doc).GetComponents(true) as object[] ?? [];
+            foreach (var c in comps.OfType<SolidWorks.Interop.sldworks.IComponent2>())
+                solving[c.Name2] = c.Solving;
+            return solving;
+        }, RunOptions.Read(doc));
+
+    /// <summary>
     /// The FeatureManager tree's text of each top-level component (e.g. "(-) part&lt;1&gt; (Default)"), by component name:
     /// SOLIDWORKS' own constrained mark, "(-)" under-defined, "(f)" fixed, none fully defined.
     /// </summary>

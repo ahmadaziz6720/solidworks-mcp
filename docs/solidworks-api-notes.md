@@ -462,6 +462,11 @@ type libraries and writes `sldworks_api.txt`, `swconst_enums.txt`, `swcommands.t
 - **Limit mates and constrained status** (VERIFIED 2026-11-13). A component held by concentric, coincident and a limit
   angle mate (30..50°) reads `GetConstrainedStatus` 3 (fully) and loses its "(-)" in the tree, a part as a subassembly,
   though it can still turn 20°: SOLIDWORKS counts a limit mate as fixing its degree of freedom.
+- **Flexible subassemblies** (VERIFIED 2026-11-16, 2023 SP3). `IComponent2.Solving` (`swComponentSolvingOption_e`: 0
+  rigid, 1 flexible) is read-only in the interop. With the subassembly component selected,
+  `IAssemblyDoc.CompConfigProperties4(suppression, solving, visible, useNamedConfig, configName, excludeFromBom)`, the
+  other values passed as they are, sets it, and `Solving` reads it back after `EditRebuild3`. Flexible, a floating
+  child follows a top-level mate on its plane while the subassembly stays where it is.
 - **Interference counts** (VERIFIED 2026-11-13). On a fresh manager with `TreatCoincidenceAsInterference = true`, the
   first `GetInterferenceCount()` can answer 1 (the overlaps only) while `GetInterferences` lists 3 (the overlap and two
   touching pairs, volume 0); the list is right, and a second `GetInterferenceCount()` after the list matched it in

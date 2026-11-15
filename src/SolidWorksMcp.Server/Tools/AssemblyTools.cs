@@ -95,8 +95,8 @@ public sealed class AssemblyTools(SwSession session)
         Json(_svc.ComponentListAsync(doc, allLevels, limit, offset, cancellationToken));
 
     [McpServerTool(Name = "asm_component_set", Title = "Set component state", ReadOnly = false, Destructive = false, Idempotent = true, OpenWorld = false)]
-    [Description("Fix or float, suppress or unsuppress, resolve or make lightweight, hide or show a component, or switch its " +
-                 "configuration. Each change is read back (all reverted if one fails); returns the previous values and the new state.")]
+    [Description("Change a component's state. Each change is read back (all reverted if one fails); returns the previous values " +
+                 "and the new state.")]
     public Task<string> AsmComponentSet(
         IProgress<ProgressNotificationValue> progress,
         [Description(CompDesc)] string component,
@@ -105,12 +105,13 @@ public sealed class AssemblyTools(SwSession session)
         [Description("true loads a lightweight component fully, false makes it lightweight.")] bool? resolved = null,
         [Description("false hides, true shows.")] bool? visible = null,
         [Description("Configuration of the component's file to use.")] string? configuration = null,
+        [Description("Subassembly: true solves it flexible, false rigid.")] bool? flexible = null,
         [Description(DocDesc)] string? doc = null,
         CancellationToken cancellationToken = default) =>
         Output.Json(_svc.ComponentSetAsync(new AsmComponentSetRequest
         {
             Doc = doc, Component = component, Fixed = @fixed, Suppressed = suppressed, Resolved = resolved, Visible = visible,
-            Configuration = configuration,
+            Configuration = configuration, Flexible = flexible,
         }, cancellationToken), progress, "asm_component_set");
 
     [McpServerTool(Name = "asm_component_move", Title = "Move component", ReadOnly = false, Destructive = false, Idempotent = false, OpenWorld = false)]

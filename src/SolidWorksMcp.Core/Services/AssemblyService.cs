@@ -90,6 +90,8 @@ public sealed record AsmComponentSetRequest
     public bool? Resolved { get; init; }
     public bool? Visible { get; init; }
     public string? Configuration { get; init; }
+    /// <summary>A subassembly: true solves it as flexible (its components move by the top assembly's mates), false rigid.</summary>
+    public bool? Flexible { get; init; }
 }
 
 /// <summary>asm_component_move options.</summary>
@@ -142,6 +144,8 @@ public sealed class AsmComponentInfo
     public int? Children { get; init; }
     /// <summary>Components inside a subassembly: the parent's name.</summary>
     public string? Parent { get; init; }
+    /// <summary>Subassemblies: solved as flexible (true) or rigid (false), IComponent2.Solving; null for a part.</summary>
+    public bool? Flexible { get; init; }
 }
 
 public sealed class AsmInsertResult : ToolResult
@@ -221,6 +225,8 @@ public sealed class AsmComponentState
     public required string Suppression { get; init; }
     public bool Visible { get; init; }
     public string? Configuration { get; init; }
+    /// <summary>Subassemblies only (null for a part).</summary>
+    public bool? Flexible { get; init; }
 }
 
 public sealed class AsmComponentSetResult : ToolResult
@@ -916,8 +922,8 @@ public sealed partial class AssemblyService(SwSession session)
     {
         if (string.IsNullOrWhiteSpace(q.Component))
             throw SwException.InvalidArgument("'component' is required, e.g. \"bracket-1\" (asm_component_list shows the names).");
-        if (q.Fixed is null && q.Suppressed is null && q.Resolved is null && q.Visible is null && Clean(q.Configuration) is null)
-            throw SwException.InvalidArgument("Nothing to set.", "Pass fixed, suppressed, resolved, visible and/or configuration.");
+        if (q.Fixed is null && q.Suppressed is null && q.Resolved is null && q.Visible is null && Clean(q.Configuration) is null && q.Flexible is null)
+            throw SwException.InvalidArgument("Nothing to set.", "Pass fixed, suppressed, resolved, visible, configuration and/or flexible.");
         if (q.Suppressed == true && q.Resolved == true)
             throw SwException.InvalidArgument("suppressed=true and resolved=true contradict each other.");
         return session.RunAsync("asm_component_set", ctx => ComponentSet(ctx, q), RunOptions.Write(q.Doc) with { Timeout = Long(90) }, ct);
@@ -930,6 +936,9 @@ public sealed partial class AssemblyService(SwSession session)
         NoOpenSketch(d);
         var c = EntityResolver.Component(asm, q.Component!);
         string name = c.Name2;
+        if (q.Flexible is not null && !IsSubassembly(c))
+            throw SwException.InvalidArgument($"'{name}' is a part: only a subassembly is solved as flexible or rigid.",
+                "Pass flexible for a subassembly component (asm_component_list shows its children).");
         var previous = State(c);
         string? config = Clean(q.Configuration);
         if (config is not null) config = MatchComponentConfig(ctx, c, config);
@@ -976,6 +985,12 @@ public sealed partial class AssemblyService(SwSession session)
                 SetVisible(d, c, vis);
                 undo.Add(("visible", () => SetVisible(d, c, !vis)));
                 changed.Add(vis ? "shown" : "hidden");
+            }
+            if (q.Flexible is bool flex && IsFlexible(c) != flex)
+            {
+                SetFlexible(d, asm, c, flex);
+                undo.Add(("flexible", () => SetFlexible(d, asm, c, !flex)));
+                changed.Add(flex ? "rigid → flexible" : "flexible → rigid");
             }
             int supp1 = c.GetSuppression2();
             if (q.Resolved == false && IsResolved(supp1))
@@ -1456,6 +1471,7 @@ public sealed partial class AssemblyService(SwSession session)
             Mates = mates is null ? null : mates.TryGetValue(name, out int n) ? n : 0,
             Children = kids > 0 ? kids : null,
             Parent = parent,
+            Flexible = IsSubassembly(c) ? IsFlexible(c) : null,
         };
     }
 
@@ -1465,9 +1481,16 @@ public sealed partial class AssemblyService(SwSession session)
         Suppression = AsmParse.SuppressionName(c.GetSuppression2()),
         Visible = IsVisible(c),
         Configuration = Safe<string?>(() => c.ReferencedConfiguration, null),
+        Flexible = IsSubassembly(c) ? IsFlexible(c) : null,
     };
 
     private static bool IsVisible(IComponent2 c) => Safe(() => c.Visible, 1) == (int)swComponentVisibilityState_e.swComponentVisible;
+
+    /// <summary>A component whose file is an assembly (by its path, which a lightweight or suppressed one keeps).</summary>
+    private static bool IsSubassembly(IComponent2 c) => CompPath(c).EndsWith(".sldasm", StringComparison.OrdinalIgnoreCase);
+
+    private static bool IsFlexible(IComponent2 c) =>
+        Safe(() => c.Solving, (int)swComponentSolvingOption_e.swComponentRigidSolving) == (int)swComponentSolvingOption_e.swComponentFlexibleSolving;
 
     private static bool IsRootComponent(IComponent2 c) => Safe(() => c.IsRoot(), false);
 
@@ -1522,6 +1545,33 @@ public sealed partial class AssemblyService(SwSession session)
         }
         if (c.IsFixed() != fix)
             throw new SwException(ErrorCodes.VerifyFailed, $"'{c.Name2}' is still {(fix ? "floating" : "fixed")} after {(fix ? "FixComponent" : "UnfixComponent")}.");
+    }
+
+    /// <summary>
+    /// Rigid or flexible: <c>IComponent2.Solving</c> is read-only in the interop, so select the component and set it with
+    /// IAssemblyDoc.CompConfigProperties4, passing its suppression, visibility, configuration and BOM exclusion as they are;
+    /// read back with Solving.
+    /// </summary>
+    private static void SetFlexible(IModelDoc2 d, IAssemblyDoc asm, IComponent2 c, bool flexible)
+    {
+        int want = (int)(flexible ? swComponentSolvingOption_e.swComponentFlexibleSolving : swComponentSolvingOption_e.swComponentRigidSolving);
+        bool ok;
+        d.ClearSelection2(true);
+        try
+        {
+            if (!SelectComponent(d, c, false, 0))
+                throw new SwException(ErrorCodes.FeatureFailed, $"Could not select '{c.Name2}' to make it {(flexible ? "flexible" : "rigid")}.");
+            string cfg = Safe<string?>(() => c.ReferencedConfiguration, null) ?? "";
+            ok = asm.CompConfigProperties4(c.GetSuppression2(), want, IsVisible(c), cfg.Length > 0, cfg, Safe(() => c.ExcludeFromBOM, false));
+        }
+        finally
+        {
+            d.ClearSelection2(true);
+        }
+        d.EditRebuild3();
+        if (IsFlexible(c) != flexible)
+            throw new SwException(ErrorCodes.VerifyFailed,
+                $"'{c.Name2}' is still {(flexible ? "rigid" : "flexible")} after CompConfigProperties4 (it returned {ok}).");
     }
 
     /// <summary>IComponent2.SetSuppression2, read back; select + EditSuppress2/EditUnsuppress2 as the fallback.</summary>

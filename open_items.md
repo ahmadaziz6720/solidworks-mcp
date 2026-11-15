@@ -17,7 +17,7 @@ Closed all the same, its PR named, and an open PR no longer holds an item in Wai
 item sent upstream ends with `**Upstream: PR #9, open.**`, one per PR or issue
 (`merged`, `closed unmerged`; an issue `open` or `closed`), kept to its state.
 
-**Open: S4, S5, S7, S10 to S12, S33, S34, S49, S52, S59 to S62, S64, S65, S67, S71, S72, S74, S75.**
+**Open: S4, S5, S7, S10 to S12, S33, S34, S49, S52, S59 to S61, S64, S65, S67, S71, S72, S74, S75.**
 Sorted 2026-11-16, the scenario test of build `20261116-050908` (findings 2026-11-16):
 S51 and S73 held and closed; S75 new, taken into the run's group 2. The scenario test of build `20261114-024455` (`cfd987e`) ran 2026-11-14 (findings
 2026-11-14). Held, and closed on the owner's word: S47, S48, S50, S53 to S58, S63, S66,
@@ -264,8 +264,8 @@ server change since build `20261114-024455`).
   S73 held and closed, S75 new (findings 2026-11-16, `4af10cc`)
 - [x] S68: committed (`5bd1037`)
 - [x] S69: committed (`3fc6c59`)
-- [x] S70: committed
-- [ ] S62 (b): committed
+- [x] S70: committed (`a6a28d6`)
+- [x] S62 (b): committed
 - [ ] S75: committed
 - [ ] Group 2: full live tests and release (build: )
 - [ ] Group 2: scenario test (session id: ), its entry committed and sorted
@@ -724,88 +724,6 @@ Held in the scenario test of build `20261114-024455` (findings 2026-11-14, point
 Those parts closed 2026-11-14 on the owner's word; the item stays Open for (a).
 Decided 2026-11-16 by the owner: (a) taken into the run of 2026-11-16, group 5, a probe of
 the insert through 3D Interconnect first (`## Run 2026-11-16`).
-
-### S62 - Assembly reading and options - OPEN 2026-11-12
-
-On build `20261112-091908`. (a) `asm_mate_list`
-gives each entity `{component, kind: "plane"}` with no name, face id or point, so which
-plane or face a mate takes cannot be told (findings 2026-11-12, "a two-part assembly",
-point 1; bears on S36). (b) No "solve as flexible" for a subassembly in
-`asm_component_set` (findings 2026-11-12, "two parts mated into a subassembly", point 1).
-(c) A subassembly component held by a limit angle mate reads `constrained: "fully"` and
-`model_review` names no floating component; whether SOLIDWORKS says the same is not
-settled (same entry, point 2). To probe live first. (d) `doc_open` of a part the server
-had owned, now loaded by an assembly the server opened, returned it `foreign`, "the user's
-document", and `equation_set` failed `NOT_OWNED`; `doc_activate {allowEdit:true}` got past
-it (findings 2026-11-12, "a part edited while an assembly the server opened held it";
-bears on S27 and S49 b). (e) `asm_interference` with `includeCoincident:true`: 9 or 10
-pairs of 0 mm³ with "SOLIDWORKS counted 2 interference(s) but listed 25" (or 26); the
-three numbers do not explain each other (findings 2026-11-13, "four small printed parts",
-point 3; "a revolved part remade", point 4). Taken into the run of 2026-11-13: (a) and
-(e), no choice in them; (c) a probe first, against SOLIDWORKS' own tree. (d) Decided
-2026-11-13 by the owner: a part loaded by an assembly the server owns, from a path the
-server owned, counts as owned. (b) offered 2026-11-13 and not chosen; stays open. (a), (d)
-and (e) fixed in the run of 2026-11-13, (c) probed and not a fault; (b) still open. (a) Cause:
-the row gave `IMateEntity2.ReferenceType` and the component only; `Reference` was never read.
-Fix: each entity gives `name` for a plane, axis or other feature (`Reference` is its
-`IFeature`, live: "Front Plane" of the component, or of the assembly with no component),
-`id` for a face, edge or vertex (registered as `face_list` registers it: the same id, live),
-and `pointMm` (SOLIDWORKS' `EntityParams`, assembly mm) for a vertex or point and for an
-entity with neither. (c) The probe, live on 2023 SP3: a subassembly held by concentric,
-coincident and a limit angle mate (30..50°) on its child reads `GetConstrainedStatus` fully
-constrained and its tree text loses "(-)"; a part held the same way reads the same. SOLIDWORKS
-counts a limit mate as fixing its freedom, so `constrained: "fully"` and `model_review` agree
-with it; nothing to fix. Kept as
-`AssemblyLiveTests.A_limit_angle_mate_reads_fully_constrained_as_SOLIDWORKS_marks_it_in_the_tree`
-(passes before and after; it reads the tree text through `TestHooks.ComponentTreeTextAsync`).
-(d) Cause: the registry forgets a document's class when it closes, and a reference an owned
-document loads was always tracked foreign. Fix: `DocumentRegistry` keeps the paths of
-documents it owned in this server process, closed ones included; a document first seen with
-such a path, with no window of its own and held as a component by an owned assembly, is owned,
-"loaded by D… from a file this server owned". (e) Cause: the result gave the rows and a bare
-warning; live, the first `GetInterferenceCount` on a fresh manager with coincidence on
-answered 1 (the overlap) while `GetInterferences` listed 3 (the overlap and two touching
-pairs). Fix: the result gives `listed` (what SOLIDWORKS listed, before the components
-filter), `overlapping` and, with `includeCoincident`, `touching` (0 mm³, faces in contact),
-and a check line saying so and how many of the listed involve the components named; the
-count is asked again after the list, and a warning, naming both calls, comes only when they
-still differ. Descriptions: `asm_mate_list` names the entities' plane name or id;
-`includeCoincident` says touching pairs read 0 mm³. Before, on the code before the fix:
-`Mate_list_names_the_plane_face_edge_or_vertex_each_mate_takes` failed ("Assert.All()
-Failure: 2 out of 2 items in the collection did not pass", no name);
-`Interference_with_coincident_faces_says_what_SOLIDWORKS_listed_overlapping_touching_and_kept`
-failed (no `listed`, `overlapping` or `touching`; warning "SOLIDWORKS counted 1
-interference(s) but listed 3."); `A_part_the_server_owned_comes_back_owned_when_its_owned_assembly_loads_it`
-failed ("foreign: 'owned_….SLDPRT' was already open in SOLIDWORKS (the user's document,
-D10) …"). After: those three and the (c) test pass, with `Plane_mates_coincident_and_distance_…`,
-`Interference_of_two_overlapping_cubes_…`, `Parallel_perpendicular_and_angle_mates_…`,
-`Replace_swaps_the_file_…`, `Mates_that_cant_hold_…`, `Concentric_mate_…`,
-`Component_set_floats_…`, `A_change_through_a_document_an_assembly_loads_…`,
-`Insert_refuses_unsaved_missing_and_foreign_files_…`,
-`DrawingLiveTests.Closing_a_drawing_names_what_solidworks_closed_with_it`,
-`ExportLiveTests.A_file_that_is_already_open_…` and `A_saved_part_reopens_as_owned_…`, 16/16
-live; unit tests 284/284; `ContractTests` 7/7; `--check-catalog` ok; `check_repo` ok. Made
-stricter: none; (d) widens ownership, and its test shows a part the user opened before the
-server's assembly loaded it stays foreign. The (d) test writes with `dimension_set`: in that
-SOLIDWORKS session `equation_set` refused every equation, on a new part too, until SOLIDWORKS
-was restarted (its own hint). Decided 2026-11-13 by the run, not the owner: (1) `pointMm` only
-for a vertex or point and for an entity with neither name nor id, because a name or id already
-says which and a point says where a point is; (2) the name is the feature's own ("Front Plane")
-beside `component`, not a select string, as `asm_mate_add` takes it; (3) (d) claims only a
-document with no window of its own, held by an owned assembly, when first seen, not one a
-drawing loads, because the decision names an assembly and a visible document may be the
-user's; (4) the owned paths live in the server process, not in the persisted registry, because
-the finding was within one session and a restarted server re-claims open documents already;
-(5) `count` stays the rows given (after the components filter) and `listed` is added, because
-callers read `count`; (6) a pair overlaps when its volume reads above 0 at 3 decimals, as its
-row shows it. Local: (a), (d) and (e) on `sw2023`, `af3598c`; in
-build `20261114-024455`. Upstream: not yet decided.
-Held in the scenario test of build `20261114-024455` (findings 2026-11-14, point 6): (a)
-plane names and face ids; (d) a part loaded by the server's assembly owned; (e) listed,
-overlapping and touching. Those parts closed 2026-11-14 on the owner's word; the item
-stays Open for (b).
-Decided 2026-11-16 by the owner: (b) taken into the run of 2026-11-16, group 2,
-`asm_component_set` `flexible` for a subassembly component (`## Run 2026-11-16`).
 
 ### S64 - Feature calls refused, failed or counted wrong, with hints that miss - OPEN 2026-11-12
 
@@ -1305,3 +1223,123 @@ mean.
 
 Local: on `sw2023`, in the commit that moves it here; not yet in a build. Upstream: not yet
 decided.
+
+### S62 - Assembly reading and options - BUILT 2026-11-16, proof: the scenario test of group 2's build
+
+On build `20261112-091908`. (a) `asm_mate_list`
+gives each entity `{component, kind: "plane"}` with no name, face id or point, so which
+plane or face a mate takes cannot be told (findings 2026-11-12, "a two-part assembly",
+point 1; bears on S36). (b) No "solve as flexible" for a subassembly in
+`asm_component_set` (findings 2026-11-12, "two parts mated into a subassembly", point 1).
+(c) A subassembly component held by a limit angle mate reads `constrained: "fully"` and
+`model_review` names no floating component; whether SOLIDWORKS says the same is not
+settled (same entry, point 2). To probe live first. (d) `doc_open` of a part the server
+had owned, now loaded by an assembly the server opened, returned it `foreign`, "the user's
+document", and `equation_set` failed `NOT_OWNED`; `doc_activate {allowEdit:true}` got past
+it (findings 2026-11-12, "a part edited while an assembly the server opened held it";
+bears on S27 and S49 b). (e) `asm_interference` with `includeCoincident:true`: 9 or 10
+pairs of 0 mm³ with "SOLIDWORKS counted 2 interference(s) but listed 25" (or 26); the
+three numbers do not explain each other (findings 2026-11-13, "four small printed parts",
+point 3; "a revolved part remade", point 4). Taken into the run of 2026-11-13: (a) and
+(e), no choice in them; (c) a probe first, against SOLIDWORKS' own tree. (d) Decided
+2026-11-13 by the owner: a part loaded by an assembly the server owns, from a path the
+server owned, counts as owned. (b) offered 2026-11-13 and not chosen; stays open. (a), (d)
+and (e) fixed in the run of 2026-11-13, (c) probed and not a fault; (b) still open. (a) Cause:
+the row gave `IMateEntity2.ReferenceType` and the component only; `Reference` was never read.
+Fix: each entity gives `name` for a plane, axis or other feature (`Reference` is its
+`IFeature`, live: "Front Plane" of the component, or of the assembly with no component),
+`id` for a face, edge or vertex (registered as `face_list` registers it: the same id, live),
+and `pointMm` (SOLIDWORKS' `EntityParams`, assembly mm) for a vertex or point and for an
+entity with neither. (c) The probe, live on 2023 SP3: a subassembly held by concentric,
+coincident and a limit angle mate (30..50°) on its child reads `GetConstrainedStatus` fully
+constrained and its tree text loses "(-)"; a part held the same way reads the same. SOLIDWORKS
+counts a limit mate as fixing its freedom, so `constrained: "fully"` and `model_review` agree
+with it; nothing to fix. Kept as
+`AssemblyLiveTests.A_limit_angle_mate_reads_fully_constrained_as_SOLIDWORKS_marks_it_in_the_tree`
+(passes before and after; it reads the tree text through `TestHooks.ComponentTreeTextAsync`).
+(d) Cause: the registry forgets a document's class when it closes, and a reference an owned
+document loads was always tracked foreign. Fix: `DocumentRegistry` keeps the paths of
+documents it owned in this server process, closed ones included; a document first seen with
+such a path, with no window of its own and held as a component by an owned assembly, is owned,
+"loaded by D… from a file this server owned". (e) Cause: the result gave the rows and a bare
+warning; live, the first `GetInterferenceCount` on a fresh manager with coincidence on
+answered 1 (the overlap) while `GetInterferences` listed 3 (the overlap and two touching
+pairs). Fix: the result gives `listed` (what SOLIDWORKS listed, before the components
+filter), `overlapping` and, with `includeCoincident`, `touching` (0 mm³, faces in contact),
+and a check line saying so and how many of the listed involve the components named; the
+count is asked again after the list, and a warning, naming both calls, comes only when they
+still differ. Descriptions: `asm_mate_list` names the entities' plane name or id;
+`includeCoincident` says touching pairs read 0 mm³. Before, on the code before the fix:
+`Mate_list_names_the_plane_face_edge_or_vertex_each_mate_takes` failed ("Assert.All()
+Failure: 2 out of 2 items in the collection did not pass", no name);
+`Interference_with_coincident_faces_says_what_SOLIDWORKS_listed_overlapping_touching_and_kept`
+failed (no `listed`, `overlapping` or `touching`; warning "SOLIDWORKS counted 1
+interference(s) but listed 3."); `A_part_the_server_owned_comes_back_owned_when_its_owned_assembly_loads_it`
+failed ("foreign: 'owned_….SLDPRT' was already open in SOLIDWORKS (the user's document,
+D10) …"). After: those three and the (c) test pass, with `Plane_mates_coincident_and_distance_…`,
+`Interference_of_two_overlapping_cubes_…`, `Parallel_perpendicular_and_angle_mates_…`,
+`Replace_swaps_the_file_…`, `Mates_that_cant_hold_…`, `Concentric_mate_…`,
+`Component_set_floats_…`, `A_change_through_a_document_an_assembly_loads_…`,
+`Insert_refuses_unsaved_missing_and_foreign_files_…`,
+`DrawingLiveTests.Closing_a_drawing_names_what_solidworks_closed_with_it`,
+`ExportLiveTests.A_file_that_is_already_open_…` and `A_saved_part_reopens_as_owned_…`, 16/16
+live; unit tests 284/284; `ContractTests` 7/7; `--check-catalog` ok; `check_repo` ok. Made
+stricter: none; (d) widens ownership, and its test shows a part the user opened before the
+server's assembly loaded it stays foreign. The (d) test writes with `dimension_set`: in that
+SOLIDWORKS session `equation_set` refused every equation, on a new part too, until SOLIDWORKS
+was restarted (its own hint). Decided 2026-11-13 by the run, not the owner: (1) `pointMm` only
+for a vertex or point and for an entity with neither name nor id, because a name or id already
+says which and a point says where a point is; (2) the name is the feature's own ("Front Plane")
+beside `component`, not a select string, as `asm_mate_add` takes it; (3) (d) claims only a
+document with no window of its own, held by an owned assembly, when first seen, not one a
+drawing loads, because the decision names an assembly and a visible document may be the
+user's; (4) the owned paths live in the server process, not in the persisted registry, because
+the finding was within one session and a restarted server re-claims open documents already;
+(5) `count` stays the rows given (after the components filter) and `listed` is added, because
+callers read `count`; (6) a pair overlaps when its volume reads above 0 at 3 decimals, as its
+row shows it. Local: (a), (d) and (e) on `sw2023`, `af3598c`; in
+build `20261114-024455`. Upstream: not yet decided.
+Held in the scenario test of build `20261114-024455` (findings 2026-11-14, point 6): (a)
+plane names and face ids; (d) a part loaded by the server's assembly owned; (e) listed,
+overlapping and touching. Those parts closed 2026-11-14 on the owner's word; the item
+stays Open for (b).
+Decided 2026-11-16 by the owner: (b) taken into the run of 2026-11-16, group 2,
+`asm_component_set` `flexible` for a subassembly component (`## Run 2026-11-16`).
+
+(b) fixed in the run of 2026-11-16, the item's last open point. Cause: `asm_component_set`
+had no option for how a subassembly is solved, and `IComponent2.Solving` is read-only in
+the 2023 interop. Fix: `flexible` (true flexible, false rigid) for a subassembly component,
+set with the component selected through `IAssemblyDoc.CompConfigProperties4`, its
+suppression, visibility, configuration and BOM exclusion passed as they are, then read back
+with `Solving` (`VERIFY_FAILED` if it did not change, the earlier changes of the call
+reverted); refused `INVALID_ARGUMENT` for a part component before anything changes. Each
+subassembly's row (`asm_component_list`, the result and its `previous`) gives `flexible`,
+null for a part. Noted in `docs/solidworks-api-notes.md`. To stay within the tool list's
+byte budget, `asm_component_set`'s first sentence, which listed what its parameters say,
+is now "Change a component's state." (tools/list 253,579 bytes, 25 under the budget, 33
+before). Test before:
+`A_subassembly_is_solved_flexible_and_rigid_again_as_SOLIDWORKS_reads_it` (a subassembly
+of a fixed cube and a floating one, fixed in a top assembly beside a fixed third cube) did
+not compile on the code before: "error CS0117: 'AsmComponentSetRequest' does not contain a
+definition for 'Flexible'". After: it (`Solving` read 0, 1 after `flexible:true`, 0 after
+`flexible:false`, "rigid → flexible" and back, the second call "nothing"; the part refused;
+flexible again, the floating child's top plane mated to the third cube's moved its origin
+to (40, 30, 100) while the subassembly stayed at (0, 0, 100)), with
+`Component_set_floats_hides_suppresses_and_returns_the_previous_state`,
+`Configurations_are_chosen_at_insert_and_switched_by_component_set`,
+`Subassemblies_are_inserted_and_listed_with_their_children`,
+`A_plane_of_a_component_inside_a_subassembly_takes_a_mate` and
+`ContractTests.Tool_catalog_follows_the_conventions`, 6/6 live on 2023 SP3; unit tests
+287/287; `--check-catalog` ok; `check_repo` ok; `docs/tools.md` regenerated. Made
+stricter: none.
+Decided 2026-11-16 by the run, not the owner: (1) set through `CompConfigProperties4` with
+the component's other values passed as read, because `Solving` cannot be written in the
+2023 interop and that call takes it, and the read-back of `Solving` is the check; (2) a
+subassembly is told by its file (`.sldasm`), not by its children, because a lightweight or
+empty subassembly has none to count; (3) `flexible` read back in every subassembly's row,
+because the result has to show it and a caller can then see which are flexible; (4) the
+bytes paid by the description's first sentence, because the parameters already say each
+change it listed.
+
+Local: (b) on `sw2023`, in the commit that moves it here; not yet in a build; proof: the
+scenario test of group 2's build. Upstream: not yet decided.

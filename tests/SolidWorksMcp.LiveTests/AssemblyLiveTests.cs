@@ -966,6 +966,55 @@ public class AssemblyLiveTests(LiveFixture fx) : LiveTest(fx)
     }
 
     [Fact]
+    public async Task A_subassembly_is_solved_flexible_and_rigid_again_as_SOLIDWORKS_reads_it()
+    {
+        // S62 (b): asm_component_set had no "solve as flexible" for a subassembly. Oracles: SOLIDWORKS' own
+        // IComponent2.Solving, and a mate on a floating child that only a flexible subassembly lets move.
+        var a = await CubeAsync("flexA");
+        var b = await CubeAsync("flexB");
+        var c = await CubeAsync("flexC");
+        string sub = await NewAssemblyAsync("flex_sub");
+        await InsertAsync(sub, a.Path, [0, 0, 0]);
+        await InsertAsync(sub, b.Path, [40, 0, 0], fixedState: false);
+        var saved = await Docs.SaveAsync(sub, "as", Path.Combine(_dir, $"flex_sub_{_tag}.sldasm"), overwrite: false);
+
+        string top = await NewAssemblyAsync("flex_top");
+        string ns = (await InsertAsync(top, saved.SavedTo!, [0, 0, 100], fixedState: true)).Component.Name;
+        string nc = (await InsertAsync(top, c.Path, [40, 30, 100], fixedState: true)).Component.Name;
+        string nb = $"{ns}/{b.Name}-1";
+        Assert.False((await ComponentAsync(top, ns)).Flexible);
+        Assert.Equal(0, (await TestHooks.ComponentSolvingAsync(S, top))[ns]);
+
+        var fl = await Set(new() { Doc = top, Component = ns, Flexible = true });
+        Assert.False(fl.Previous.Flexible);
+        Assert.True(fl.Component.Flexible);
+        Assert.Equal(["rigid → flexible"], fl.Changed);
+        Assert.Equal(1, (await TestHooks.ComponentSolvingAsync(S, top))[ns]);
+        Assert.True((await ComponentAsync(top, ns)).Flexible);
+        Assert.Equal(["nothing: it was already as requested"], (await Set(new() { Doc = top, Component = ns, Flexible = true })).Changed);
+
+        var rg = await Set(new() { Doc = top, Component = ns, Flexible = false });
+        Assert.True(rg.Previous.Flexible);
+        Assert.False(rg.Component.Flexible);
+        Assert.Equal(["flexible → rigid"], rg.Changed);
+        Assert.Equal(0, (await TestHooks.ComponentSolvingAsync(S, top))[ns]);
+
+        // A part has no rigid or flexible: refused, nothing changed.
+        var part = await Assert.ThrowsAsync<SwException>(() => Set(new() { Doc = top, Component = nc, Flexible = true }));
+        Assert.Equal(ErrorCodes.InvalidArgument, part.Code);
+        Assert.Contains("subassembly", part.Message);
+        Assert.Null((await ComponentAsync(top, nc)).Flexible);
+
+        // Flexible, B (floating inside the subassembly) follows a mate to C's top plane (y 30) while the subassembly stays.
+        await Set(new() { Doc = top, Component = ns, Flexible = true });
+        var m = await Mate(top, "coincident", Plane(nc, "top"), Plane(nb, "top"));
+        Assert.Contains("planes coincide (0 mm apart)", m.Verified);
+        var all = (await Asm.ComponentListAsync(top, allLevels: true, 100, 0)).Components;
+        AssertPoint([40, 30, 100], all.Single(x => x.Name == nb).OriginMm);
+        AssertPoint([0, 0, 100], all.Single(x => x.Name == ns).OriginMm);
+    }
+
+    [Fact]
     public async Task Configurations_are_chosen_at_insert_and_switched_by_component_set()
     {
         // A 20 mm cube whose configuration "Tall" is 40 mm deep (z -20..20): the component box tells which one is used.
