@@ -17,8 +17,9 @@ Closed all the same, its PR named, and an open PR no longer holds an item in Wai
 item sent upstream ends with `**Upstream: PR #9, open.**`, one per PR or issue
 (`merged`, `closed unmerged`; an issue `open` or `closed`), kept to its state.
 
-**Open: S4, S5, S7, S10 to S12, S33, S34, S49, S52, S59 to S62, S64, S65, S67 to
-S72, S74.** The scenario test of build `20261114-024455` (`cfd987e`) ran 2026-11-14 (findings
+**Open: S4, S5, S7, S10 to S12, S33, S34, S49, S52, S59 to S62, S64, S65, S67 to S72, S74, S75.**
+Sorted 2026-11-16, the scenario test of build `20261116-050908` (findings 2026-11-16):
+S51 and S73 held and closed; S75 new, taken into the run's group 2. The scenario test of build `20261114-024455` (`cfd987e`) ran 2026-11-14 (findings
 2026-11-14). Held, and closed on the owner's word: S47, S48, S50, S53 to S58, S63, S66,
 and the fixed parts of S60 to S62, S64 and S65. Back to Open: S51 (`flipEdges` in a
 chamfer's edit flips every edge, reported `ok`), S49 (a line's wording), S52 (the box of a
@@ -171,6 +172,9 @@ server change since build `20261114-024455`).
     subassembly component (`IComponent2.Solving`), read back, refused for a part
     component. Test: a subassembly set flexible and back, read from SOLIDWORKS (fails
     now: no option).
+  - **S75**, taken in 2026-11-16 from group 1's scenario test: `newFaces` of a chamfer
+    call lists the faces of the chamfer an edge moved to as well. Test: S51's new chamfer
+    with `flipEdges:[1]` on two edges at a corner, `newFaces` two faces (fails now: one).
 - **Group 3, `dimension_set` and feature management** (`FeatureManagementService.cs`,
   `DocumentRegistry.cs`):
   - **S49**, the wording of the line naming a changed part: always "'<title>' (<handle>,
@@ -255,18 +259,14 @@ server change since build `20261114-024455`).
 - [x] S64 (h): committed (`86e7042`)
 - [x] S64 (c): committed (`4a70a9b`)
 - [x] Group 1: full live tests and release (build: `20261116-050908`, `dedd986`)
-- [ ] Group 1: scenario test (session id: `fe1d732c-6c26-4fe6-8249-8c5ce1e03251`)
-  Blocked 2026-11-16: the headless session, started in the background,
-  was stopped by Claude Code because the machine ran low on memory,
-  before it wrote anything (no `findings.md` entry). Not restarted
-  unasked. To go on: memory freed (close what is not needed), then the
-  run again from this step; it resumes this session id with `claude -p
-  --resume <id> "<go on>"` from `claude_solidworks`, or starts it anew
-  with this id if the session holds nothing., its entry committed and sorted
+- [x] Group 1: scenario test (session id: `fe1d732c-6c26-4fe6-8249-8c5ce1e03251`),
+  its entry committed and sorted: resumed once after a stop for low memory; S51 and
+  S73 held and closed, S75 new (findings 2026-11-16, `4af10cc`)
 - [ ] S68: committed
 - [ ] S69: committed
 - [ ] S70: committed
 - [ ] S62 (b): committed
+- [ ] S75: committed
 - [ ] Group 2: full live tests and release (build: )
 - [ ] Group 2: scenario test (session id: ), its entry committed and sorted
 - [ ] S49: committed
@@ -311,6 +311,8 @@ Again in `20261114-024455` (findings 2026-11-14, point 5): a STEP that `model_ex
 wrote from an assembly of three 20 mm cubes and a turned cylinder brought the cubes in as
 solids where they were and the cylinder as 3 surface bodies (S52); `model_export` of that
 assembly had reported `solids: 2`, two distinct parts of four components.
+Again in `20261116-050908` (findings 2026-11-16, point 5): the shelled tray's STEP, 16
+surface bodies.
 
 **Upstream: issue #2, open.**
 
@@ -1179,6 +1181,18 @@ yet decided.
 Taken into the run of 2026-11-16, group 3: the refusal names the equation and its variable
 (`## Run 2026-11-16`).
 
+### S75 - `feature_chamfer` lists in `newFaces` only the named chamfer's faces when an edge moves to a chamfer of its own - OPEN 2026-11-16
+
+Sorted out of the entry of 2026-11-16, point 2. On build `20261116-050908`, with S51's fix:
+a new `distance_distance` chamfer with `flipEdges:[1]` on two edges meeting at a corner
+moved edge 1 to `Chamfer2` (said in a warning, `alsoCreated`), and the result gave
+`faceCountDelta` 2 but `newFaces` one face, the named chamfer's; the split-off chamfer's
+face took a `face_list {feature}`, one call more. Reported `ok`; the count was right.
+
+Proposed: `newFaces` lists the faces of every chamfer the call made, those of
+`alsoCreated` named apart. Local, the S51 code. Taken into the run of 2026-11-16, group 2
+(a small point in group 1's files).
+
 ## Waiting
 
 ### S1 - `drw_view_section` / `drw_view_detail` drew in view-sketch coordinates - BUILT 2026-11-09, proof: a session that runs `drw_view_detail` and a view at an angle
@@ -1198,172 +1212,3 @@ the cut, so a circle landing elsewhere on the part would pass.
 
 **Upstream: PR #1, open.**
 
-### S51 - `feature_chamfer` takes the distance on whichever face, one `flip` for all edges, and a curved edge's legs are not checked, reported `ok` - BUILT 2026-11-16, proof: the scenario test of build 20261116-050908
-
-On build `20261112-091908`
-(findings 2026-11-13, "a groove's overhanging side", points 1 to 3; "a revolved part
-remade", points 2, 10; "one chamfer over three edges", points 1, 3). (a) `angle_distance`
-and `distance_distance` do not say which face takes the distance, and `flip` is one switch
-for the call: two edges of one groove, mirrored and patterned, took it on opposite faces.
-The leg check caught it (`VERIFY_FAILED … found legs 1/1.085649 mm`) but named one edge of
-the two; five attempts and four deletes to a right pair. (b) On circular edges the legs
-are not checked ("2 edge(s) not leg-checked (curved edge or non-planar faces)"): a tube's
-two end chamfers in one call, one with its legs swapped, came back `ok`; only the volume
-showed it (-28.07 against -28.32). The cone face's apex and half angle are in the result
-with `faceDetail`, enough to work the legs out, as a session did by hand. (c) A distance
-typed to 4 decimals at a face's width (1.4835 for 1.483537) left a sliver of 0.0003 mm²,
-`ok`. (d) Missing: no edit of a chamfer's edge set, no per-edge distance (a fix took 7
-calls with a rollback); `feature_mirror` of a chamfer failed `FEATURE_FAILED`. Usage
-until then: one chamfer per edge, each with its own `flip`; give the steepness as an angle
-from a face a distance should consume. Local: per edge, the face that took the distance and
-the chamfer face's angle to each neighbour, `flip` per edge, the legs of a curved edge from
-the cone, a warning for a selected edge's face left under ~0.01 mm². Decided 2026-11-13 by
-the owner: all four, `flip` per edge and an edit of an existing chamfer's edges and
-per-edge distances included. Fixed in the run of 2026-11-13, all four points. (a) The leg check now
-reads, per edge, the two faces beside the chamfer face and the cross-section triangle,
-and the checks say "E2: 1 mm along F16 (plane [0, 0, 1]), 2 mm along F17 (plane [0, 1,
-0]); the chamfer face meets the first at 63.435° and the second at 26.565°". A warning when
-one side took the first distance on one edge and the second on another (a plane by its
-normal, a curved face by type, radius and axis). `flip` per edge: `flipEdges`, indexes in
-`edges`, set through `IChamferFeatureData2.SetIsFlipped` and `ModifyDefinition` after the
-insert (the API's flip option is one for all edges). (b) A circular edge's legs are read
-from the cone: its two boundary circles as the change in radius and the shift along the
-axis from the original circle, checked against the expected legs as a line's are; the
-wedge angle is read from the faces' outward normals at the edge, so plane-to-cylinder
-edges are checked too. (c) A face beside a chamfer face left under 0.01 mm² is warned
-("left a sliver of … mm²: a distance just under that face's width"). (d) `feature_chamfer`
-with `edit: "<chamfer>"` changes it through its definition: `edges` (named as before the
-chamfer, resolved while `AccessSelections` has the model rolled back), `distanceMm`,
-`distance2Mm`, `angleDeg`, `flipEdges` (exactly those flipped), and `distancesMm`
-([first, second] per edge): an edge at distances other than the chamfer's moves to a new
-chamfer inserted right after it (the rollback bar moved there and back), as one chamfer
-feature holds one set of distances in the 2023 API (`IChamferFeatureData2` has no per-edge
-distance). Verified as a new chamfer is; on a failure the new chamfers are deleted and the
-chamfer is put back as it was (its old edges, flips and distances re-applied). Not taken:
-`feature_mirror` of a chamfer (`FEATURE_FAILED`), not in the decision. Decided 2026-11-13
-by the run, not the owner: the edit is `feature_chamfer`'s `edit` parameter, not a tool of
-its own, and `flipEdges` and the per-edge distances index `edges` rather than repeat edge
-references, because `tools/list` was at its per-tool byte budget (1536, `--check-catalog`)
-before this item and a tool of its own went 16 bytes per tool over it; to bring the
-additions under it, `faceDetail`'s description is shortened in every feature tool ("true:
-newFaces in full.", 37 tools). Live tests, four new: `Chamfer_says_per_edge_which_face_took_each_distance`
-(and `flipEdges` on one edge with the mixed-sides warning), `Chamfer_measures_the_legs_on_circular_edges`
-(a rod's two end circles, 1/2 mm, volume from the rings), `Chamfer_warns_of_a_sliver_left_by_a_distance_just_under_a_face_s_width`
-(19.99995 on a 20 high face), `Chamfer_edit_changes_edges_flips_and_distances_and_splits_edges_with_their_own`
-(a chamfer with a hole after it: an edge added and flipped, distances changed, a too large
-distance refused and put back, an edge at 3/3 moved to a new chamfer before the hole, the
-last through the tool). On the code before, the first three failed: "Expected: 2, Actual:
-0" (no per-edge line), "Filter not matched … 2 edge(s) not leg-checked (curved edge or
-non-planar faces)", and no warning (`Warnings` null); the fourth is new API (no edit
-existed). After: those four and the chamfer tests before (`Chamfer_equal_3mm_…`,
-`Chamfer_two_distances_…`, `Chamfer_rejects_bad_input_…`), with `Linear_pattern_along_a_slanted_edge_…`
-and `Auxiliary_view_looks_square_onto_a_chamfer` that make chamfers, 9/9, and
-`ContractTests` (catalog, EntityRef schemas) 2/2, on 2023 SP3; unit tests 276/276;
-`--check-catalog` ok; `check_repo` ok. Local: on `sw2023`, `16699e2`; in
-build `20261114-024455`. Upstream: not yet decided.
-Failed in its scenario test (findings 2026-11-14, point 2), reported `ok`:
-`feature_chamfer` `edit` with `flipEdges` flips every edge, not the indexed ones. A
-`distance_distance` 1/2 chamfer on two bottom edges of a block meeting at a corner (one
-along x, one along z) took 1 mm on the bottom face for both; `edit` with the same two
-edges and `flipEdges:[1]` made both take 1 mm on their side faces (the per-edge checks say
-so, and the chamfer faces' normals [0, -0.894, -0.447] and [0.447, -0.894, 0] confirm it),
-with no mixed-sides warning; `flipEdges:[0]` put both back on the bottom. A new chamfer
-with `flipEdges:[1]` on two other edges gave both their first distance on the side faces,
-consistent with each other, so what index 0 got there cannot be told. The per-edge checks
-read the result right; the entry says nothing of (b) and (c). Back to Open 2026-11-14 for
-`flipEdges` in (a) and (d). Not yet decided.
-Taken into the run of 2026-11-16, group 1: `flipEdges` in `edit` flips exactly the indexed
-edges, read back per edge (`## Run 2026-11-16`).
-
-Fixed in the run of 2026-11-16, `flipEdges` in (a) and (d). Cause: SOLIDWORKS 2023 keeps
-one flip for chamfer edges that meet at a corner: `IChamferFeatureData2.SetIsFlipped` on
-one edge sets the flag on the other at once (read back before `ModifyDefinition`), so the
-last edge set won for both; the probe found the same with tangent propagation off, and the
-flip held per edge only for edges apart (the test of 2026-11-13). Fix: when the flips of a
-chamfer's edges differ, the side each edge is to take is read with none flipped (the face
-that took the first distance, or the other one for an edge in `flipEdges`); the flips are
-then set and each edge's side read back from the chamfer faces; an edge left on the wrong
-side moves to a chamfer of its own right after it (the rollback bar moved there and back),
-flipped there until it takes that side, with a warning naming it ("SOLIDWORKS keeps one flip
-for chamfer edges that meet at a corner: … moved to 'Chamfer2' … Edit each chamfer on its
-own."). An edge that cannot be brought to its side fails `VERIFY_FAILED`, rolled back (an
-edit puts the chamfer back as it was). The same for a new chamfer, an edit, and an edit's
-chamfer for edges at their own distances. The per-edge checks and the mixed-sides warning
-read the faces of both chamfers. Test before: `Chamfer_flipEdges_flips_only_the_indexed_edge_of_two_meeting_at_a_corner`
-(a 1/2 chamfer on the block's bottom edges along x and along z meeting at a corner, `edit`
-with `flipEdges:[1]`, then a new chamfer with `flipEdges:[1]`) failed: "plain (False,
-False), after flipEdges [1] (True, True)", both edges on their side faces. After: it and the
-chamfer tests (`Chamfer_*` in `PartFeatureLiveTests`, 8 with it), with
-`Linear_pattern_along_a_slanted_edge_…` and `Auxiliary_view_looks_square_onto_a_chamfer`,
-10/10, on 2023 SP3; unit tests 284/284; no tool description changed. Made stricter: each
-edge's side is read back from the geometry when the flips differ, not taken from the flag
-set. Decided 2026-11-16 by the run, not the owner: an edge SOLIDWORKS won't flip apart from
-the edge it meets goes to a chamfer of its own (said in a warning), rather than the call
-being refused, because the owner decided a flip per edge and a second chamfer is the one way
-the 2023 API gives to it; one chamfer feature per side, as the per-edge distances already
-are. Left: that second chamfer is a feature of its own, so a later edit naming its edge in
-the first chamfer finds it chamfered by a later feature. Local: on `sw2023`, in the commit
-that moves it here; in build 20261116-050908 (`dedd986`). Upstream: not yet decided.
-
-### S73 - `feature_pattern_circular` turns the instances the sense it picks, reported `ok`, with no option for the other - BUILT 2026-11-16, proof: the scenario test of build 20261116-050908
-
-On build `20261112-091908` (findings 2026-11-13, "two printed plates", point 2): a 10°
-pattern of a cut at 30° about a hole whose cylinder face reads its axis as [0, 0, -1] put
-the instances at 20° and 10°, the other way from what was meant, the result saying
-"instance faces at the expected positions: 10/10 (3 x 10° about [0, 0, -1],
-counter-clockwise)". The check confirms the sense the server chose, about an axis the
-caller did not pick, and the tool has no option for the sense; `totalAngleDeg` 350 was
-refused ("go past 360°"). Workaround: the seed moved to the other end of the range, 4
-calls. On the same part a 270° pattern said "rotation sense flipped (SOLIDWORKS' default
-missed the part)" and landed right. Reported `ok` while not what was asked, though what it
-reported was true. Proposed by the session: a `reverse` option, and the instances' angles
-reported about a model axis the caller names. Bears on S41 (Closed). Local. Not yet
-decided.
-Taken into the run of 2026-11-16, group 1: a `reverse` option, the angles given about the
-axis as the caller named it (`## Run 2026-11-16`).
-
-Fixed in the run of 2026-11-16. Cause: `FeatureCircularPattern5` turns a partial pattern in
-SOLIDWORKS' own sense (its `flip` argument false), which the call cannot predict, and the
-tool had no way to ask for the other; the check named the sense found, counter-clockwise
-about the axis as the face reads it ([0, 0, -1]), which a caller thinking of +z reads the
-wrong way round. Fix: `reverse` on `feature_pattern_circular` passes the flip, so the
-instances turn the other way from the call without it; with it the instances must land
-(no retry the other way, the hint says "or drop reverse"). The positions check now gives
-the sense and the instances' angles from the seed about the axis as read, and when that
-direction points the negative way (along -x, -y or -z, or its largest component negative)
-the same about the axis the other way along it: "3 x 10° about [0, 0, -1] (the axis as
-read), counter-clockwise: the instances at +10°, +20° from the seed; the axis as read
-points the other way from +z: about +z, clockwise, at -10°, -20°" (more than four
-instances: the first two, "…" and the last). Without `reverse`, a pattern whose default
-missed the part is still redone flipped, its check now "rotation sense flipped, as
-reverse:true (…)". The wording is an interop-free function (`CircularPatternSense`) with
-unit tests. To pay for the option within the tool list's byte budget, the pattern tools'
-descriptions lose what their parameters already say: "count includes the seed" in
-`feature_pattern_linear`, `feature_pattern_circular` and `feature_pattern_curve`, the
-curve's "spacingMm apart along the curve, or spread equally over it", and "Rotation axis"
-in the circular one's `axis` (tools/list 253,571 bytes, 33 under the budget). Test before:
-`Circular_pattern_names_its_sense_about_the_axis_as_read_and_turns_the_other_way_with_reverse`
-(a 100 x 100 x 10 plate on the front plane, a Ø10 hole at the origin whose face reads its
-axis [0, 0, -1], a Ø4 hole at 30° on r 30, a 10° pattern of three about the Ø10 face, then
-the same with `reverse`) failed on the code before: the instances at 10° and 20°, and
-"Assert.Contains() Failure: Sub-string not found … 'about [0, 0, -1] (the axis as read),
-counter-clock…'" (the check read "2/2 (3 x 10° about [0, 0, -1], counter-clockwise)"); its
-`reverse` half did not compile ("'CircularPatternRequest' does not contain a definition for
-'Reverse'"). After: it (the instances at 40° and 50° with `reverse`, two volumes of the seed
-each), with the circular pattern tests (`Circular_pattern_*` in `PartFeatureLiveTests`, 4
-with it) and `ContractTests` (7), 11/11, on 2023 SP3; unit tests 287/287 (3 new);
-`--check-catalog` ok; `check_repo` ok. Made stricter: the check names the sense about the
-axis read the other way when the reference's own direction is negative, and a `reverse`
-pattern that misses the part fails rather than being turned back.
-Decided 2026-11-16 by the run, not the owner: `reverse` is the other way from SOLIDWORKS'
-own sense (its flip), not a sense fixed about the axis as read, because the checks name
-the sense found and a fixed sense would need a second feature built whenever SOLIDWORKS'
-default ran the other way; the smaller change.
-Decided 2026-11-16 by the run, not the owner: with `reverse` a pattern that misses the part
-is rolled back instead of tried the other way, because the caller asked for that sense and
-turning it back would report `ok` for what was not asked, as this item was.
-Decided 2026-11-16 by the run, not the owner: the angles are given about the axis read the
-other way only when the direction read points the negative way, because a positive axis
-already reads as a caller expects, and saying it twice costs words in every result.
-Local: on `sw2023`, in the commit that moves it here; in build 20261116-050908 (`dedd986`). Upstream: not
-yet decided.
