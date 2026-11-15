@@ -17,7 +17,7 @@ Closed all the same, its PR named, and an open PR no longer holds an item in Wai
 item sent upstream ends with `**Upstream: PR #9, open.**`, one per PR or issue
 (`merged`, `closed unmerged`; an issue `open` or `closed`), kept to its state.
 
-**Open: S4, S5, S7, S10 to S12, S33, S34, S49, S52, S59 to S62, S64, S65, S67, S69 to S72, S74, S75.**
+**Open: S4, S5, S7, S10 to S12, S33, S34, S49, S52, S59 to S62, S64, S65, S67, S70 to S72, S74, S75.**
 Sorted 2026-11-16, the scenario test of build `20261116-050908` (findings 2026-11-16):
 S51 and S73 held and closed; S75 new, taken into the run's group 2. The scenario test of build `20261114-024455` (`cfd987e`) ran 2026-11-14 (findings
 2026-11-14). Held, and closed on the owner's word: S47, S48, S50, S53 to S58, S63, S66,
@@ -262,8 +262,8 @@ server change since build `20261114-024455`).
 - [x] Group 1: scenario test (session id: `fe1d732c-6c26-4fe6-8249-8c5ce1e03251`),
   its entry committed and sorted: resumed once after a stop for low memory; S51 and
   S73 held and closed, S75 new (findings 2026-11-16, `4af10cc`)
-- [x] S68: committed
-- [ ] S69: committed
+- [x] S68: committed (`5bd1037`)
+- [x] S69: committed
 - [ ] S70: committed
 - [ ] S62 (b): committed
 - [ ] S75: committed
@@ -1099,14 +1099,6 @@ rename, the single feature or the check's reading of the bar is the cause. Local
 because the run's items were the owner's and this one has not been looked at.
 Taken into the run of 2026-11-16, group 3, a probe first (`## Run 2026-11-16`).
 
-### S69 - A component's named plane inside a subassembly cannot be selected - OPEN 2026-11-13
-
-Seen in the
-run of 2026-11-13, in S62's tests: "Could not select 'b' (plane 'Top Plane' of
-sub-1/part-1)". Not probed: whether the select path for a nested component's plane is
-built right. Local. Decided 2026-11-13 by the run, not the owner: an item, open, as S67.
-Taken into the run of 2026-11-16, group 2 (`## Run 2026-11-16`).
-
 ### S70 - A top-level component may resolve to a nested one of the same short name - OPEN 2026-11-13
 
 Seen
@@ -1234,6 +1226,43 @@ Decided 2026-11-16 by the run, not the owner: an origin whose point cannot be se
 refused before the mate, not selected as the origin feature as before, because that
 selection makes no mate and the caller would get an unknown error (status 0) instead of
 what failed.
+
+Local: on `sw2023`, in the commit that moves it here; not yet in a build. Upstream: not yet
+decided.
+
+### S69 - A component's named plane inside a subassembly cannot be selected - BUILT 2026-11-16, proof: the scenario test of group 2's build
+
+Seen in the
+run of 2026-11-13, in S62's tests: "Could not select 'b' (plane 'Top Plane' of
+sub-1/part-1)". Not probed: whether the select path for a nested component's plane is
+built right. Local. Decided 2026-11-13 by the run, not the owner: an item, open, as S67.
+Taken into the run of 2026-11-16, group 2 (`## Run 2026-11-16`).
+
+Fixed in the run of 2026-11-16. Probe: for a nested component `GetSelectByIDString`
+gives `sub-1@top/part-1@sub`, and `SelectByID2("Top Plane@sub-1@top/part-1@sub",
+"PLANE", …)` selects the plane (true, one object); the feature's own `Select2` does too.
+Cause: the first name tried, `"Top Plane@sub-1/part-1@top"` (the component's `Name2`),
+is no name, yet `SelectByID2` returns false *and* selects the plane. The plane stayed
+selected, so each later try (the `GetSelectByIDString` form, then `Select2`) added one
+more and the count check (one object more than before) failed every time. Fix:
+`SelectIds` leaves the `Name2` form out for a nested component (its `GetSelectByIDString`
+form alone); `SelectForMate` drops whatever a failed try left selected before the next,
+as `ref_plane`'s component select already did. The nested name noted in
+`docs/solidworks-api-notes.md`. Test before:
+`A_plane_of_a_component_inside_a_subassembly_takes_a_mate` (a 20 mm cube at y 15 in a
+subassembly placed at z 100, a second cube at (50, 40, 0); its top plane coincident with
+the nested cube's) failed on the code before: "Could not select 'b' (plane 'Top Plane'
+of nest_sub_…-1/nestA_…-1) for the mate." After: it (the second cube's origin at y 15,
+"planes coincide (0 mm apart)", the mate listing the nested component's `Top Plane`),
+with `Coincident_mates_take_the_assembly_s_origin_and_a_component_s_origin`,
+`Plane_mates_coincident_and_distance_reproduce_the_4000_mm3_overlap`,
+`Mate_list_names_the_plane_face_edge_or_vertex_each_mate_takes` and
+`Ref_plane_and_ref_axis_in_an_assembly_take_component_and_assembly_references`, 5/5, on
+2023 SP3; unit tests 287/287; `check_repo` ok. No tool description changed.
+Decided 2026-11-16 by the run, not the owner: a select try that returns false is undone
+before the next, for every component plane, axis, point and origin, not only for a
+nested component, because a false result that still selected leaves the selection
+unknown, and the next try's count would then read wrong.
 
 Local: on `sw2023`, in the commit that moves it here; not yet in a build. Upstream: not yet
 decided.

@@ -670,6 +670,31 @@ public class AssemblyLiveTests(LiveFixture fx) : LiveTest(fx)
     }
 
     [Fact]
+    public async Task A_plane_of_a_component_inside_a_subassembly_takes_a_mate()
+    {
+        // S69: "Could not select 'b' (plane 'Top Plane' of sub-1/part-1)": a nested component's plane was never selected.
+        var cube = await CubeAsync("nestA");
+        var other = await CubeAsync("nestB");
+        string sub = await NewAssemblyAsync("nest_sub");
+        await InsertAsync(sub, cube.Path, [0, 15, 0]);
+        var saved = await Docs.SaveAsync(sub, "as", Path.Combine(_dir, $"nest_sub_{_tag}.sldasm"), overwrite: false);
+
+        string top = await NewAssemblyAsync("nest_top");
+        string ns = (await InsertAsync(top, saved.SavedTo!, [0, 0, 100])).Component.Name;
+        string nb = (await InsertAsync(top, other.Path, [50, 40, 0], fixedState: false)).Component.Name;
+        string inner = (await Asm.ComponentListAsync(top, allLevels: true, 100, 0)).Components.Single(c => c.Parent == ns).Name;
+
+        // B's top plane on the nested cube's (y = 15 in the top assembly): B's origin goes to y 15, x and z kept.
+        var m = await Mate(top, "coincident", Plane(nb, "top"), Plane(inner, "top"));
+        Assert.Equal("coincident", m.Mate.Type);
+        Assert.Contains("planes coincide (0 mm apart)", m.Verified);
+        Assert.Equal(15, m.Components.Single(x => x.Name == nb).OriginMm![1], P);
+        Assert.Equal(15, (await ComponentAsync(top, nb)).OriginMm![1], P);
+        var e = Assert.Single((await Asm.MateListAsync(top, 100, 0)).Mates).Entities;
+        Assert.Contains(e, x => x.Component == inner && x.Name == "Top Plane");
+    }
+
+    [Fact]
     public async Task Mate_list_names_the_plane_face_edge_or_vertex_each_mate_takes()
     {
         // S62 (a): every entity read {component, kind: "plane"} alone, so a plane of a component and a planar face of it

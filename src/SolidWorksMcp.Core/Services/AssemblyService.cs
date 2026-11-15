@@ -1978,11 +1978,16 @@ public sealed partial class AssemblyService(SwSession session)
         var sm = d.Sel();
         int before = sm.GetSelectedObjectCount2(-1);
         bool Added() => sm.GetSelectedObjectCount2(-1) == before + 1;
+        // A try that failed may still have selected something (S69): dropped, so the next try is counted from 'before' again.
+        void Undo() { while (sm.GetSelectedObjectCount2(-1) > before) sm.DeSelect2(sm.GetSelectedObjectCount2(-1), -1); }
         if (m.R.Obj is IFeature f && m.Comp is not null && m.R.Kind is EntityKind.Plane or EntityKind.Axis or EntityKind.Point)
         {
             string type = m.R.Kind switch { EntityKind.Plane => "PLANE", EntityKind.Axis => "AXIS", _ => "DATUMPOINT" };
             foreach (var id in SelectIds(ctx, d, f.Name, m.Comp))
+            {
                 if (d.Extension.SelectByID2(id, type, 0, 0, 0, append, mark, null, 0) && Added()) return;
+                Undo();
+            }
         }
         if (m.R.Obj is IFeature o && m.R.Kind == EntityKind.Origin)
         {
@@ -1990,7 +1995,10 @@ public sealed partial class AssemblyService(SwSession session)
             string point = $"Point1@{o.Name}";
             var ids = m.Comp is null ? [point] : SelectIds(ctx, d, point, m.Comp).ToList();
             foreach (var id in ids)
+            {
                 if (d.Extension.SelectByID2(id, "EXTSKETCHPOINT", 0, 0, 0, append, mark, null, 0) && Added()) return;
+                Undo();
+            }
             throw new SwException(ErrorCodes.FeatureFailed, $"Could not select '{arg}' ({m.Label}) for the mate: SelectByID2 " +
                 $"{string.Join(", ", ids.Select(x => $"'{x}'"))} (EXTSKETCHPOINT) selected nothing.");
         }
@@ -1999,12 +2007,16 @@ public sealed partial class AssemblyService(SwSession session)
             "Use a plane ({component:'part-1', name:'top'}) or a face picked in that part's coordinates ({component:'part-1', at:[x,y,z]}).");
     }
 
-    /// <summary>SelectByID2 names of a component's feature: "Front Plane@part-1@Assem1" (VERIFIED form), then GetSelectByIDString's form.</summary>
+    /// <summary>
+    /// SelectByID2 names of a component's feature: "Front Plane@part-1@Assem1" (VERIFIED form), then GetSelectByIDString's form,
+    /// the only one for a nested component ("Top Plane@sub-1@Assem1/part-1@sub", VERIFIED; S69).
+    /// </summary>
     internal static IEnumerable<string> SelectIds(SwContext ctx, IModelDoc2 d, string feature, IComponent2 comp)
     {
         string asmPath = DocumentRegistry.SafePath(d);
         string asmName = asmPath.Length > 0 ? System.IO.Path.GetFileNameWithoutExtension(asmPath) : StripExtension(ctx.Title(d));
-        var ids = new List<string> { $"{feature}@{comp.Name2}@{asmName}" };
+        // "Top Plane@sub-1/part-1@Assem1" is no name: SelectByID2 returns false and yet selects the plane (S69).
+        var ids = comp.Name2.Contains('/') ? [] : new List<string> { $"{feature}@{comp.Name2}@{asmName}" };
         string byId = Safe(() => comp.GetSelectByIDString(), "") ?? "";
         if (byId.Length > 0) ids.Add($"{feature}@{byId}");
         return ids.Distinct(StringComparer.Ordinal);

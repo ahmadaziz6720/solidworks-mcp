@@ -486,7 +486,9 @@ type libraries and writes `sldworks_api.txt`, `swconst_enums.txt`, `swcommands.t
     8 symmetric, 10 gear, 11 width, 13 rack-pinion, 15 path, 16 lock, 17 screw, 18 linear coupler, 19 universal joint,
     21 slot, 22 hinge, 23 slider, 24 profile center, 25 magnetic.
   - Alignment: 0 aligned, 1 anti-aligned, 2 closest.
-  - Component plane names: `"Front Plane@part-1@Assem1"`.
+  - Component plane names: `"Front Plane@part-1@Assem1"`. A component inside a subassembly: the form
+    `IComponent2.GetSelectByIDString()` gives, `"Top Plane@sub-1@Assem1/part-1@sub"`; `"Top Plane@sub-1/part-1@Assem1"`
+    (its `Name2`) returns false and yet selects the plane. VERIFIED (2023 SP3).
 - **Mate dimensions** (`"D1@Distance1"`) can be driven through `IParameter`.
 - **Advanced and mechanical mates** (VERIFIED 2026-10-23). Select the entities, then `IAssemblyDoc.CreateMateData(type)`,
   put the selected objects into the data and `IAssemblyDoc.CreateMate(data)`:
