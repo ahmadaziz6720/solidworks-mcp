@@ -132,6 +132,8 @@ public sealed record CircularPatternRequest
     /// <summary>With equal spacing: the angle the instances span (360 = full circle); else the angle between instances.</summary>
     public double TotalAngleDeg { get; init; } = 360;
     public bool EqualSpacing { get; init; } = true;
+    /// <summary>Turn the other way from SOLIDWORKS' own sense (its flip); the instances must then land, no retry.</summary>
+    public bool Reverse { get; init; }
     public string? Name { get; init; }
     public bool KeepOnFailure { get; init; }
 }
@@ -1637,10 +1639,11 @@ public sealed partial class PartFeatureService(SwSession session)
             using var prefs = ctx.SystemPrefs();
             prefs.Toggle(SystemPrefIds.ShowErrorsEveryRebuild, false);
             var before = Snapshot.Take(d);
-            // A full circle looks the same both ways round. A partial one goes in SOLIDWORKS' own sense; when that sense
-            // yields nothing usable (the instances miss the part), the other sense is tried once (the result reports it).
+            // A full circle looks the same both ways round. A partial one goes in SOLIDWORKS' own sense, or the other with
+            // reverse; without reverse, when that sense yields nothing usable (the instances miss the part), the other sense
+            // is tried once (the result reports it). The checks name the sense found about the axis as read (S73).
             bool partial = !(q.EqualSpacing && a >= 360 - 1e-9);
-            bool flip = false;
+            bool flip = q.Reverse;
             FeatureOutcome o;
             while (true)
             {
@@ -1668,10 +1671,11 @@ public sealed partial class PartFeatureService(SwSession session)
                         if (best.Matched == 0)
                             return [$"no instance faces at the expected rotations ({q.Count - 1} x {Units.Deg(step)}° about [{Dir(au)}] through [{Pt(ap)}])"];
                         AreaCheck(ctx, seedArea, resArea, q.Count - 1);
-                        string sense = hyps[0].Matched == hyps[1].Matched ? "" : best.S1 > 0 ? ", counter-clockwise" : ", clockwise";
-                        PositionsCheck(ctx, best, checks, $"{q.Count} x {Units.Deg(step)}° about [{Dir(au)}]{sense}");
+                        int sense = hyps[0].Matched == hyps[1].Matched ? 0 : best.S1;
+                        PositionsCheck(ctx, best, checks, CircularPatternSense.Describe(au, q.Count, Units.Deg(step), sense));
                         return [];
-                    }, q.KeepOnFailure, api, "Instances must land on the body; check the axis, the count and the angle.");
+                    }, q.KeepOnFailure, api, "Instances must land on the body; check the axis, the count and the angle" +
+                       (q.Reverse ? ", or drop reverse." : "."));
                     break;
                 }
                 catch (SwException ex) when (partial && !flip && !q.KeepOnFailure && seedSigs.Count > 0 &&
@@ -1681,7 +1685,7 @@ public sealed partial class PartFeatureService(SwSession session)
                     flip = true;
                 }
             }
-            o = o with { Checks = [.. o.Checks, PerInstance(o, q.Count - 1), .. flip ? ["rotation sense flipped (SOLIDWORKS' default missed the part)"] : Array.Empty<string>()] };
+            o = o with { Checks = [.. o.Checks, PerInstance(o, q.Count - 1), .. flip && !q.Reverse ? ["rotation sense flipped, as reverse:true (SOLIDWORKS' default missed the part)"] : Array.Empty<string>()] };
             Rename(ctx, o.Main, q.Name);
             return FeatureVerifier.Result(ctx, d, o, resolved: [axisRef.Info("axis")]);
         }, RunOptions.Write(q.Doc) with { Timeout = TimeSpan.FromSeconds(Math.Max(session.Options.DefaultTimeout.TotalSeconds, 120)) }, ct);

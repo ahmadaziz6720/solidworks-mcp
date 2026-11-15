@@ -18,7 +18,7 @@ item sent upstream ends with `**Upstream: PR #9, open.**`, one per PR or issue
 (`merged`, `closed unmerged`; an issue `open` or `closed`), kept to its state.
 
 **Open: S4, S5, S7, S10 to S12, S33, S34, S49, S52, S59 to S62, S64, S65, S67 to
-S74.** The scenario test of build `20261114-024455` (`cfd987e`) ran 2026-11-14 (findings
+S72, S74.** The scenario test of build `20261114-024455` (`cfd987e`) ran 2026-11-14 (findings
 2026-11-14). Held, and closed on the owner's word: S47, S48, S50, S53 to S58, S63, S66,
 and the fixed parts of S60 to S62, S64 and S65. Back to Open: S51 (`flipEdges` in a
 chamfer's edit flips every edge, reported `ok`), S49 (a line's wording), S52 (the box of a
@@ -250,8 +250,8 @@ server change since build `20261114-024455`).
 ### Where the run stands
 
 - [x] Phase 1: the opening question asked and answered (2026-11-16)
-- [x] S51: committed
-- [ ] S73: committed
+- [x] S51: committed (`f665a18`)
+- [x] S73: committed
 - [ ] S64 (h): committed
 - [ ] S64 (c): committed
 - [ ] Group 1: full live tests and release (build: )
@@ -1119,23 +1119,6 @@ rolled back) when the density read differs from the database's by more than 1 % 
 body material of its own and no mass override, naming a restart at about 1 kg/m³. Taken
 into the run of 2026-11-16, group 5 (`## Run 2026-11-16`).
 
-### S73 - `feature_pattern_circular` turns the instances the sense it picks, reported `ok`, with no option for the other - OPEN 2026-11-16
-
-On build `20261112-091908` (findings 2026-11-13, "two printed plates", point 2): a 10°
-pattern of a cut at 30° about a hole whose cylinder face reads its axis as [0, 0, -1] put
-the instances at 20° and 10°, the other way from what was meant, the result saying
-"instance faces at the expected positions: 10/10 (3 x 10° about [0, 0, -1],
-counter-clockwise)". The check confirms the sense the server chose, about an axis the
-caller did not pick, and the tool has no option for the sense; `totalAngleDeg` 350 was
-refused ("go past 360°"). Workaround: the seed moved to the other end of the range, 4
-calls. On the same part a 270° pattern said "rotation sense flipped (SOLIDWORKS' default
-missed the part)" and landed right. Reported `ok` while not what was asked, though what it
-reported was true. Proposed by the session: a `reverse` option, and the instances' angles
-reported about a model axis the caller names. Bears on S41 (Closed). Local. Not yet
-decided.
-Taken into the run of 2026-11-16, group 1: a `reverse` option, the angles given about the
-axis as the caller named it (`## Run 2026-11-16`).
-
 ### S74 - `dimension_set` on a mate's angle driven by an equation calls it a driven (reference) dimension - OPEN 2026-11-16
 
 On build `20261112-091908` (findings 2026-11-13, "two printed plates", point 7):
@@ -1272,3 +1255,66 @@ the 2023 API gives to it; one chamfer feature per side, as the per-edge distance
 are. Left: that second chamfer is a feature of its own, so a later edit naming its edge in
 the first chamfer finds it chamfered by a later feature. Local: on `sw2023`, in the commit
 that moves it here; not yet in a build. Upstream: not yet decided.
+
+### S73 - `feature_pattern_circular` turns the instances the sense it picks, reported `ok`, with no option for the other - BUILT 2026-11-16, proof: the scenario test of the group 1 build
+
+On build `20261112-091908` (findings 2026-11-13, "two printed plates", point 2): a 10°
+pattern of a cut at 30° about a hole whose cylinder face reads its axis as [0, 0, -1] put
+the instances at 20° and 10°, the other way from what was meant, the result saying
+"instance faces at the expected positions: 10/10 (3 x 10° about [0, 0, -1],
+counter-clockwise)". The check confirms the sense the server chose, about an axis the
+caller did not pick, and the tool has no option for the sense; `totalAngleDeg` 350 was
+refused ("go past 360°"). Workaround: the seed moved to the other end of the range, 4
+calls. On the same part a 270° pattern said "rotation sense flipped (SOLIDWORKS' default
+missed the part)" and landed right. Reported `ok` while not what was asked, though what it
+reported was true. Proposed by the session: a `reverse` option, and the instances' angles
+reported about a model axis the caller names. Bears on S41 (Closed). Local. Not yet
+decided.
+Taken into the run of 2026-11-16, group 1: a `reverse` option, the angles given about the
+axis as the caller named it (`## Run 2026-11-16`).
+
+Fixed in the run of 2026-11-16. Cause: `FeatureCircularPattern5` turns a partial pattern in
+SOLIDWORKS' own sense (its `flip` argument false), which the call cannot predict, and the
+tool had no way to ask for the other; the check named the sense found, counter-clockwise
+about the axis as the face reads it ([0, 0, -1]), which a caller thinking of +z reads the
+wrong way round. Fix: `reverse` on `feature_pattern_circular` passes the flip, so the
+instances turn the other way from the call without it; with it the instances must land
+(no retry the other way, the hint says "or drop reverse"). The positions check now gives
+the sense and the instances' angles from the seed about the axis as read, and when that
+direction points the negative way (along -x, -y or -z, or its largest component negative)
+the same about the axis the other way along it: "3 x 10° about [0, 0, -1] (the axis as
+read), counter-clockwise: the instances at +10°, +20° from the seed; the axis as read
+points the other way from +z: about +z, clockwise, at -10°, -20°" (more than four
+instances: the first two, "…" and the last). Without `reverse`, a pattern whose default
+missed the part is still redone flipped, its check now "rotation sense flipped, as
+reverse:true (…)". The wording is an interop-free function (`CircularPatternSense`) with
+unit tests. To pay for the option within the tool list's byte budget, the pattern tools'
+descriptions lose what their parameters already say: "count includes the seed" in
+`feature_pattern_linear`, `feature_pattern_circular` and `feature_pattern_curve`, the
+curve's "spacingMm apart along the curve, or spread equally over it", and "Rotation axis"
+in the circular one's `axis` (tools/list 253,571 bytes, 33 under the budget). Test before:
+`Circular_pattern_names_its_sense_about_the_axis_as_read_and_turns_the_other_way_with_reverse`
+(a 100 x 100 x 10 plate on the front plane, a Ø10 hole at the origin whose face reads its
+axis [0, 0, -1], a Ø4 hole at 30° on r 30, a 10° pattern of three about the Ø10 face, then
+the same with `reverse`) failed on the code before: the instances at 10° and 20°, and
+"Assert.Contains() Failure: Sub-string not found … 'about [0, 0, -1] (the axis as read),
+counter-clock…'" (the check read "2/2 (3 x 10° about [0, 0, -1], counter-clockwise)"); its
+`reverse` half did not compile ("'CircularPatternRequest' does not contain a definition for
+'Reverse'"). After: it (the instances at 40° and 50° with `reverse`, two volumes of the seed
+each), with the circular pattern tests (`Circular_pattern_*` in `PartFeatureLiveTests`, 4
+with it) and `ContractTests` (7), 11/11, on 2023 SP3; unit tests 287/287 (3 new);
+`--check-catalog` ok; `check_repo` ok. Made stricter: the check names the sense about the
+axis read the other way when the reference's own direction is negative, and a `reverse`
+pattern that misses the part fails rather than being turned back.
+Decided 2026-11-16 by the run, not the owner: `reverse` is the other way from SOLIDWORKS'
+own sense (its flip), not a sense fixed about the axis as read, because the checks name
+the sense found and a fixed sense would need a second feature built whenever SOLIDWORKS'
+default ran the other way; the smaller change.
+Decided 2026-11-16 by the run, not the owner: with `reverse` a pattern that misses the part
+is rolled back instead of tried the other way, because the caller asked for that sense and
+turning it back would report `ok` for what was not asked, as this item was.
+Decided 2026-11-16 by the run, not the owner: the angles are given about the axis read the
+other way only when the direction read points the negative way, because a positive axis
+already reads as a caller expects, and saying it twice costs words in every result.
+Local: on `sw2023`, in the commit that moves it here; not yet in a build. Upstream: not
+yet decided.

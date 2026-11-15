@@ -984,6 +984,61 @@ public class PartFeatureLiveTests(LiveFixture fx) : LiveTest(fx)
         Assert.Equal([0, Math.Round(30 * Math.Cos(Math.PI / 4), 3), 30], xs);
     }
 
+    /// <summary>The polar angles (degrees, about +z) of the Ø4 holes' axes in a plate on the front plane, sorted (a hole's
+    /// cylinder may come in two faces).</summary>
+    private async Task<double[]> HoleAnglesAboutZAsync(string doc)
+    {
+        var faces = await Ins.FaceListAsync(doc, new EntityFilter { Surface = "cylinder", RadiusMm = 2 }, 200, 0);
+        return faces.Faces.Select(f => Math.Round(Math.Atan2(f.AxisOriginMm![1], f.AxisOriginMm[0]) * 180 / Math.PI, 3) + 0.0)
+            .Distinct().OrderBy(v => v).ToArray();
+    }
+
+    [Fact]
+    public async Task Circular_pattern_names_its_sense_about_the_axis_as_read_and_turns_the_other_way_with_reverse()
+    {
+        // A 100 x 100 x 10 plate on the front plane (z 0 to 10), a Ø10 hole at the origin, a Ø4 hole at 30° on r 30
+        // (10° apart on r 30 is 5.2 mm between centres: the holes stay apart).
+        string doc = await NewPartAsync("cpat_sense");
+        await Sk.StartAsync(doc, new EntityRef { Name = "front" }, false);
+        await Sk.AddAsync(doc, [new SketchEntity { Kind = "rectangle", Center = [0, 0], WidthMm = 100, HeightMm = 100 }]);
+        await Fs.ExtrudeAsync(new ExtrudeRequest { Doc = doc, DepthMm = 10 });
+        await Sk.StartAsync(doc, new EntityRef { Name = "front" }, false);
+        await Sk.AddAsync(doc, [new SketchEntity { Kind = "circle", Center = [0, 0, 0], DiameterMm = 10 }]);
+        await Fs.ExtrudeAsync(new ExtrudeRequest { Doc = doc, Cut = true, End = "through_all" });
+        double c30 = 30 * Math.Cos(Math.PI / 6);
+        await Sk.StartAsync(doc, new EntityRef { Name = "front" }, false);
+        await Sk.AddAsync(doc, [new SketchEntity { Kind = "circle", Center = [c30, 15, 0], DiameterMm = 4 }]);
+        var seed = await Fs.ExtrudeAsync(new ExtrudeRequest { Doc = doc, Cut = true, End = "through_all" });
+        var axis = new EntityRef { Type = "face", At = [5, 0, 5] };
+        var hole = (await Ins.FaceListAsync(doc, new EntityFilter { Surface = "cylinder", RadiusMm = 5 }, 10, 0)).Faces.Single();
+        Assert.Equal([0, 0, -1], hole.Axis!.Select(v => Math.Round(v, 6) + 0.0).ToArray()); // the case: the axis reads -z
+
+        // SOLIDWORKS' own sense: 20° and 10°, counter-clockwise about the axis as read, clockwise about +z.
+        var r = await Pf.CircularPatternAsync(new CircularPatternRequest
+        {
+            Doc = doc, Features = [seed.Feature.Name], Axis = axis, Count = 3, TotalAngleDeg = 10, EqualSpacing = false,
+        });
+        double[] plain = await HoleAnglesAboutZAsync(doc);
+        Assert.Equal([10, 20, 30], plain);
+        Assert.Equal(2 * seed.Verified.VolumeDeltaMm3, r.Verified.VolumeDeltaMm3, Vq); // 2 x -125.66 mm³
+        string check = Assert.Single(r.Verified.Checks!, c => c.Contains("expected positions"));
+        Assert.Contains("about [0, 0, -1] (the axis as read), counter-clockwise: the instances at +10°, +20° from the seed", check);
+        Assert.Contains("the axis as read points the other way from +z: about +z, clockwise, at -10°, -20°", check);
+
+        // reverse: the other sense, the instances at 40° and 50°.
+        var rev = await Pf.CircularPatternAsync(new CircularPatternRequest
+        {
+            Doc = doc, Features = [seed.Feature.Name], Axis = axis, Count = 3, TotalAngleDeg = 10, EqualSpacing = false, Reverse = true,
+        });
+        double[] both = await HoleAnglesAboutZAsync(doc);
+        Assert.Equal([10, 20, 30, 40, 50], both);
+        Assert.Equal(2 * seed.Verified.VolumeDeltaMm3, rev.Verified.VolumeDeltaMm3, Vq);
+        check = Assert.Single(rev.Verified.Checks!, c => c.Contains("expected positions"));
+        Assert.Contains("about [0, 0, -1] (the axis as read), clockwise: the instances at -10°, -20° from the seed", check);
+        Assert.Contains("about +z, counter-clockwise, at +10°, +20°", check);
+        Assert.DoesNotContain(rev.Verified.Checks!, c => c.Contains("flipped"));
+    }
+
     [Fact]
     public async Task Circular_pattern_rejects_a_planar_axis_one_instance_and_overlapping_angles()
     {

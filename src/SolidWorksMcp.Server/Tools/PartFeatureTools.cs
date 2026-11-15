@@ -138,7 +138,7 @@ public sealed class PartFeatureTools(SwSession session)
 
     [McpServerTool(Name = "feature_pattern_linear", Title = "Linear pattern", ReadOnly = false, Destructive = false, Idempotent = false, OpenWorld = false)]
     [Description("Linear pattern / array of features along a model axis (\"+x\") or a straight edge, axis or planar face, optionally in a " +
-                 "second direction; counts include the seed. Verified: an LPattern feature without errors, the volume or faces changed, and " +
+                 "second direction. Verified: an LPattern feature without errors, the volume or faces changed, and " +
                  "the instance faces at the requested offsets (a pattern SOLIDWORKS ran backwards is redone flipped); otherwise rolled back.")]
     public Task<string> FeaturePatternLinear(
         IProgress<ProgressNotificationValue> progress,
@@ -162,16 +162,17 @@ public sealed class PartFeatureTools(SwSession session)
         }, cancellationToken), progress, "feature_pattern_linear", faceDetail);
 
     [McpServerTool(Name = "feature_pattern_circular", Title = "Circular pattern", ReadOnly = false, Destructive = false, Idempotent = false, OpenWorld = false)]
-    [Description("Circular / polar pattern of features around an axis: a reference axis, a cylindrical face or a circular or straight edge; " +
-                 "count includes the seed. Verified: a CirPattern feature without errors, the volume or faces changed, and the instance faces " +
-                 "at the expected rotations; otherwise rolled back.")]
+    [Description("Circular / polar pattern of features about an axis: a reference axis, a cylindrical face or a circular or straight edge. " +
+                 "Verified: a CirPattern feature without errors, the volume or faces changed, and the instance faces at the expected " +
+                 "rotations, the sense named; otherwise rolled back.")]
     public Task<string> FeaturePatternCircular(
         IProgress<ProgressNotificationValue> progress,
         [Description(FeaturesDesc)] string[] features,
-        [Description("Rotation axis, e.g. {name:'Axis1'} or a cylindrical face {type:'face',at:[x,y,z]}.")] EntityRef axis,
+        [Description("E.g. {name:'Axis1'} or a cylindrical face {type:'face',at:[x,y,z]}.")] EntityRef axis,
         [Description("Instances, the seed included.")] int count,
         [Description("equalSpacing: the angle the instances span (360 = full circle); otherwise the angle between instances.")] double totalAngleDeg = 360,
         [Description("Spread the instances evenly over totalAngleDeg.")] bool equalSpacing = true,
+        [Description("Turn the other way from SOLIDWORKS' sense.")] bool reverse = false,
         [Description(NameDesc)] string? name = null,
         [Description(KeepDesc)] bool keepOnFailure = false,
         [Description("true: newFaces in full.")] bool faceDetail = false,
@@ -180,12 +181,12 @@ public sealed class PartFeatureTools(SwSession session)
         Output.Json(_svc.CircularPatternAsync(new CircularPatternRequest
         {
             Doc = doc, Features = features, Axis = axis, Count = count, TotalAngleDeg = totalAngleDeg, EqualSpacing = equalSpacing,
-            Name = name, KeepOnFailure = keepOnFailure,
+            Reverse = reverse, Name = name, KeepOnFailure = keepOnFailure,
         }, cancellationToken), progress, "feature_pattern_circular", faceDetail);
 
     [McpServerTool(Name = "feature_pattern_curve", Title = "Curve-driven pattern", ReadOnly = false, Destructive = false, Idempotent = false, OpenWorld = false)]
     [Description("Patterns features along a curve: an edge or a sketch segment, e.g. {type:'sketch_segment', name:'Arc1', sketch:'Sketch3'}. " +
-                 "count includes the seed; spacingMm apart along the curve, or spread equally over it. Verified: no errors, the volume " +
+                 "Verified: no errors, the volume " +
                  "changed and (round seeds) count − 1 new instances; the curve's other sense is tried if the asked one misses the body.")]
     public Task<string> FeaturePatternCurve(
         IProgress<ProgressNotificationValue> progress,

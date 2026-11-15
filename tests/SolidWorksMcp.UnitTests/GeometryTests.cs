@@ -180,3 +180,31 @@ public class AxisSpecTests
         Assert.Equal(-1, sign);
     }
 }
+
+/// <summary>feature_pattern_circular's words for its sense (S73): about the axis as read, and about it the other way along.</summary>
+public class CircularPatternSenseTests
+{
+    [Fact]
+    public void An_axis_along_minus_z_names_the_sense_about_plus_z_too()
+    {
+        string s = SolidWorksMcp.Core.Services.CircularPatternSense.Describe(-Vec3.UnitZ, 3, 10, 1);
+        Assert.Equal("3 x 10° about [0, 0, -1] (the axis as read), counter-clockwise: the instances at +10°, +20° from the seed; " +
+                     "the axis as read points the other way from +z: about +z, clockwise, at -10°, -20°", s);
+    }
+
+    [Fact]
+    public void A_positive_axis_says_its_sense_once_and_a_tie_says_none()
+    {
+        Assert.Equal("4 x 30° about [0, 1, 0] (the axis as read), clockwise: the instances at -30°, -60°, -90° from the seed",
+            SolidWorksMcp.Core.Services.CircularPatternSense.Describe(Vec3.UnitY, 4, 30, -1));
+        Assert.Equal("6 x 60° about [0, 0, -1]", SolidWorksMcp.Core.Services.CircularPatternSense.Describe(-Vec3.UnitZ, 6, 60, 0));
+    }
+
+    [Fact]
+    public void A_slanted_negative_axis_names_the_vector_and_many_instances_are_cut_short()
+    {
+        string s = SolidWorksMcp.Core.Services.CircularPatternSense.Describe(new Vec3(-0.6, 0.8, 0) * -1, 8, 12.5, 1);
+        Assert.Equal("8 x 12.5° about [0.6, -0.8, 0] (the axis as read), counter-clockwise: the instances at +12.5°, +25°, …, +87.5° " +
+                     "from the seed; the axis as read points the other way from [-0.6, 0.8, 0]: about [-0.6, 0.8, 0], clockwise, at -12.5°, -25°, …, -87.5°", s);
+    }
+}

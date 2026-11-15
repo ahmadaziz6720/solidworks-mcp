@@ -44,6 +44,7 @@
     <Compile Include="..\..\src\SolidWorksMcp.Core\Prefs\SystemPrefIds.cs" Link="Core\Prefs\SystemPrefIds.cs" />
     <Compile Include="..\..\src\SolidWorksMcp.Core\Services\AssemblyMath.cs" Link="Core\Services\AssemblyMath.cs" />
     <Compile Include="..\..\src\SolidWorksMcp.Core\Services\AssemblyPatternMath.cs" Link="Core\Services\AssemblyPatternMath.cs" />
+    <Compile Include="..\..\src\SolidWorksMcp.Core\Services\CircularPatternSense.cs" Link="Core\Services\CircularPatternSense.cs" />
     <Compile Include="..\..\src\SolidWorksMcp.Core\Services\DrawingLayout.cs" Link="Core\Services\DrawingLayout.cs" />
     <Compile Include="..\..\src\SolidWorksMcp.Core\Services\DrawingFrame.cs" Link="Core\Services\DrawingFrame.cs" />
     <Compile Include="..\..\src\SolidWorksMcp.Core\Services\DrawingAnnotationSpec.cs" Link="Core\Services\DrawingAnnotationSpec.cs" />
