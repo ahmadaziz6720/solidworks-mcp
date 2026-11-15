@@ -37,6 +37,251 @@ chosen (2026-11-13), and stay open. The round before (S37 to S46, S6's wording, 
 S24, S32) went out in build `20261112-091908` (`276d378`) and its scenario test of
 2026-11-12; the record is in each item.
 
+A run is planned, `## Run 2026-11-16` below: 20 points of 16 items in five groups, each
+its own build and scenario test; S60 parked and S64 (b) left out on the owner's word.
+
+## Run 2026-11-16
+
+The run takes 20 points of 16 open items (S49, S51, S52, S59 (c), S61 (a), S62 (b), S64
+(c) and (h), S65 (b) to (e), S67 to S74) in five groups, each group its own build and its
+own scenario test. Phase 2 (`backlog:run`) goes unattended after the opening answer below,
+across as many sessions as it needs, from the first step not ticked under *Where the run
+stands*.
+
+### How it runs
+
+- **Unattended.** After the opening answer nothing is asked. A decision met mid-run is
+  the run's: the option that keeps the server's checks honest and its results true, the
+  smaller change when two are equal, written into its item as "Decided <date> by the run,
+  not the owner: ..., because ..." and listed in the report. Plugin questions later in the
+  run (`clockify`'s offer after a commit, `git-workflow`'s push notes) are not asked; each
+  is named in one line of the report.
+- **Never stop on one item.** A fix that does not hold after a fair try, or a probe that
+  finds no way, stays Open with what was tried written into it, its partial code in a
+  stash named for it (`git stash push -m run-1116-<S> -- <files>`), and the run goes on.
+  SOLIDWORKS hung or gone: end it and start it again (granted). A permission prompt or a
+  dialog nobody answers is the one thing it cannot pass: it writes where it stood below,
+  and stops.
+- **One SOLIDWORKS, so serial** (`serial: true`): one item at a time, in the main tree on
+  `sw2023`, and never a live test beside the scenario session. **One fresh subagent per
+  item** (the run of 2026-11-13: one resumed agent reached ~450k tokens, a fresh one per
+  item ~160-180k), the main session thin: it hands the item over, reads the ten-line
+  report and the diff, and commits. Models: the default model for every fix and probe
+  below (each needs diagnosis) and for the check; Sonnet for a group's tests and release.
+- **Per item**, as `CONTRIBUTING.md` (*Tests*) and the owner's rules give it: first the
+  live test that shows the fault, run on the current code (a test that does not fail
+  closes the item instead, the test kept when worth keeping); then the fix; then that test
+  and the live tests that call the changed code (`--filter-method`, about 18 s each, never
+  the whole area); unit tests offline; `python tools/check_repo.py`; a description changed
+  means `--check-catalog` and `ContractTests.Tool_catalog_follows_the_conventions` (the
+  tool list is at its byte budget, 11 bytes under: any new option is paid for by trimming,
+  as S51, S59 and S65 (a) did). A probe item is a live probe first, its result written into
+  the item; the fix follows when it shows the cause, else the item stays Open with the
+  probe recorded.
+- **A subagent's brief**: its item as written here and in the item; read `CLAUDE.md`,
+  `CONTRIBUTING.md`, the parts of `docs/solidworks-api-notes.md` it needs, and this
+  section; never switch branches, touch `.claude/worktrees/*`, commit, push, tag or reset;
+  a stash only by name and file. SOLIDWORKS 2023 (`C:\Program Files\SOLIDWORKS
+  Corp\SOLIDWORKS\SLDWORKS.exe`) started if not running; live tests as
+  `$env:SWMCP_LIVE_TESTS=1; dotnet test --project tests/SolidWorksMcp.LiveTests
+  --filter-method "<Class>.<Method>"`. Then the item: moved to the end of Waiting with its
+  cause, fix, the test before (its message), the tests after with counts, "Made stricter:
+  …", its "Decided … by the run" lines, and "Local: on `sw2023`, in the commit that moves it
+  here; not yet in a build. Upstream: not yet decided."; for a lettered item only the
+  point done, the item staying Open for the rest; the `**Open: …**` line from `board.py
+  --open-line` and `board.py --check` clean. `findings.md` is not the subagent's. Report,
+  ten lines: the outcome, the failing test before, the tests after with counts, every file
+  changed, its decisions, a proposed commit subject and body. Nothing that names where a
+  finding came from (`findings.md`'s top).
+- **Commits**: one per item (or per point of a lettered item), its fix and its note, as
+  `git-workflow:pr` gives a commit on `sw2023`: as the owner, no trailer. Pushed at the
+  group's release; no PR upstream (each upstream line stays "not yet decided").
+- **Per group, the release**: the area's live tests in full once, on what is to be built
+  (the owner's global `CLAUDE.md`); `docs/tools.md` regenerated when a description
+  changed; then `CLAUDE.md`'s *Build, release and run*, steps 1 to 5: push `sw2023`,
+  publish from a clean tree at the pushed commit, `--check-catalog`, register
+  `solidworks-mcp` (scope local) on the new exe in both projects `~/.claude.json` lists
+  (`claude_solidworks` and `Upwork/Project/clove sorter`, both on `0.1.0-20261114-024455`
+  at planning), tag `build-<stamp>` pushed alone and read back, the release page with no
+  files and "Scenario test: not run yet". The items of the group move to Waiting naming the
+  build, status `BUILT <date>, proof: the scenario test of build <stamp>`.
+- **Per group, the check**: the scenario test of that build, run headless from
+  `claude_solidworks` so it loads the build just registered there: a session id made
+  first and written on the group's check line, then `claude -p "Uji skenario build
+  …-<stamp> (<S-items>), menurut reports/uji-skenario.md. Tanpa nanya apa-apa."
+  --session-id <uuid> --permission-mode auto --allowedTools mcp__solidworks-mcp
+  --add-dir "C:\Users\Ahmad Aziz\Data\Project\solidworks-mcp"`; cut short, `claude -p
+  --resume <uuid>` from the same folder. It starts with `sw_status` reading the new
+  version (step 6's short check). Its `findings.md` entry is committed here unasked and
+  sorted (`backlog:sort`), the release page's notes updated (step 7). What it finds goes
+  four ways: **held**, the item to `closed_items.md`, `CLOSED <date>`; **a fix of this
+  group not holding**, fixed and its group built and checked again before the next group;
+  **a new point, small and in the group's files**, a later item of this run, a new
+  S-number, taken into the next group; **a new point needing the owner** (a choice, a
+  large change), a new Open item, not in this run. The next group starts only after the
+  check is sorted.
+
+### Items
+
+Order: results reported `ok` while wrong first (S51, S73, S72), then the most met, then
+by files. Each group's test to start from fails on the code at planning (`a869c8a`, no
+server change since build `20261114-024455`).
+
+- **Group 1, feature tools** (`PartFeatureService.cs`, `FeatureService.Fillets.cs`, the
+  linear and circular pattern code):
+  - **S51**, `flipEdges` in `feature_chamfer`'s `edit` (a) and (d): decided by the
+    owner 2026-11-13 (per-edge flip), its fault in the scenario test of 2026-11-14. The
+    edit flips exactly the indexed edges, each edge's side read back; the mixed-sides
+    warning when the sides then differ. Test: the scenario's case, a `distance_distance`
+    1/2 chamfer on two bottom edges of a block meeting at a corner, then `edit` with
+    `flipEdges:[1]`: edge 0 keeps 1 mm on the bottom face, edge 1 takes it on its side
+    face (fails now: both flip); a new chamfer with `flipEdges:[1]` reads edge 0
+    unflipped. Not: `feature_mirror` of a chamfer.
+  - **S73**, circular pattern sense: a `reverse` option on `feature_pattern_circular`,
+    and the checks give the instances' angles about the axis as the caller named it,
+    saying when the reference's own direction runs the other way. Test: a 10° pattern of
+    a cut at 30° about a hole whose cylinder axis reads [0, 0, -1], three instances:
+    without `reverse` as now, its checks naming the sense about the hole's axis as read;
+    with `reverse` the instances at 40° and 50° (fails now: no option). Not: angles over
+    360°.
+  - **S64 (h)**, a pattern of a feature and its own pattern: a probe first, whether
+    SOLIDWORKS takes it by any selection (the pattern feature as a seed, bodies, the
+    pattern's own seed with more instances). A way found: used. None: the hint names it
+    ("a pattern cannot take its own pattern as a seed: …") in place of "the API returned
+    nothing", the test the refusal's text (fails now).
+  - **S64 (c)**, fillet or chamfer over a tangent chain failing `FEATURE_FAILED` with a
+    hint that misses: on that failure of a call of several edges, each edge is tried alone
+    (rolled back after) and the error names the edges that fail alone and the faces beside
+    them; nothing is left built. Test: the plate of S52's test (quarter-round ends into a
+    30° face), a 1 mm fillet over the top chain (fails now: the hint names the radius).
+    Not reproduced at 1 mm: the probe recorded, the item stays Open for (c).
+- **Group 2, assembly selection** (`AssemblyService.cs`, `AssemblyService.Structure.cs`,
+  `EntityResolver.cs`):
+  - **S68**, coincident mate with an origin: a probe of how the origin is selected
+    (its `SelectByID2` name and type, `swSelEXTSKETCHPOINT` "Point1@Origin"), then the
+    fix. Test: a coincident mate between the assembly's origin and a component's origin
+    puts the component's origin at the assembly's (fails now: status 0).
+  - **S69**, a named plane of a component inside a subassembly: the select path built
+    for a nested component. Test: a mate with `Top Plane` of `sub-1/part-1` (fails now:
+    "Could not select").
+  - **S70**, a top-level component resolving to a nested one of the same short name: a
+    probe first, an assembly with `part-1` top level and `sub-1/part-1`; `{component:
+    "part-1"}` must reach the top-level one. Holds already: closed, the test kept.
+  - **S62 (b)**, "solve as flexible": `asm_component_set` takes `flexible` for a
+    subassembly component (`IComponent2.Solving`), read back, refused for a part
+    component. Test: a subassembly set flexible and back, read from SOLIDWORKS (fails
+    now: no option).
+- **Group 3, `dimension_set` and feature management** (`FeatureManagementService.cs`,
+  `DocumentRegistry.cs`):
+  - **S49**, the wording of the line naming a changed part: always "'<title>' (<handle>,
+    <access>)", a part the server has not listed yet registered so it has a handle. Test:
+    a new assembly of parts the server has not listed, `dimension_set` through it, the
+    line with a handle (fails now: no handle).
+  - **S74**, a mate's dimension driven by an equation: refused naming the equation and
+    its variable, with `equation_set`, as for a part's dimension. Test: an angle mate
+    whose dimension an equation drives, `dimension_set` on it (fails now: "driven
+    (reference) dimension").
+  - **S67**, `feature_rollback` before the only feature: a probe of which of the rename,
+    the single feature or the check's reading of the bar causes it, then the fix. Test: a
+    part with one extrude, renamed, `feature_rollback {to, before:true}` (fails now:
+    `VERIFY_FAILED` "unexpected state: 'Sketch1'"); not renamed too.
+- **Group 4, references and sketches** (`ReferenceService.cs`, `EntityResolver.cs`,
+  `SketchEditService.cs`, `SketchService.cs`, `ViewService.cs`):
+  - **S59 (c)**, a reference with `sketch` given and no `type` resolves in that sketch, a
+    segment or a point. Test: `ref_plane` `angle` with `axis: {name:"Line1",
+    sketch:"Sketch1"}` (fails now: `ENTITY_NOT_FOUND`).
+  - **S65 (e)**, decided 2026-11-16 by the owner: `sketch_add` merges segment ends that
+    meet (the same point within the sketch's tolerance) among the segments it adds and
+    the sketch's existing ends, and says how many it merged; no new reference form. Test:
+    a polyline and a separate arc drawn on its two ends close one contour (fails now:
+    "ManyOpen").
+  - **S65 (c)**, `{at}` on a point where several sketch points sit: `resolved` names the
+    point taken (its owner segment), and a warning lists the others there with the
+    `{name, sketch}` that picks each; which point it takes is not changed. Test: three
+    concentric arcs from `sketch_offset` and line ends on their centre, a relation on
+    `{at}` there (fails now: nothing says which).
+  - **S65 (b)**, a sketch text's position: `sketch_info` gives each text's position,
+    height and angle; a move only through a tool that already moves sketch entities, if
+    one takes a text, else read only and (b) stays Open for the move. Test: a text added
+    at a point, read back at it (fails now: no position).
+  - **S65 (d)**, `view_screenshot` with `hideAxes`, as `hidePlanes`. Test: a part with an
+    axis far out, the part's share of the image with `hideAxes` (fails now: no option).
+- **Group 5, import, material, simulation** (`OpenService.cs`, `TightBox.cs`,
+  `AssemblyService.cs` insert, `PropertiesService.cs`, `SimulationService.cs`):
+  - **S52**, the box of a component holding surface bodies only (a STEP import, S5):
+    the tight box reads surface bodies too, else the box is `approximate: true`. Test:
+    the scenario's case, an assembly with a cylinder turned 45° exported to STEP and
+    opened (fails now: a loose box without `approximate`). Not: S5 itself (upstream).
+  - **S61 (a)**, `asm_insert` takes a STEP: a probe of the insert with 3D Interconnect
+    on in a preference scope, the component linked to the file; refused with the way
+    round when the probe finds none. Test: a STEP of a 20 mm cube inserted, one solid of
+    8000 mm³ (fails now: refused).
+  - **S72**, `material_set` at 1 kg/m³. Decided 2026-11-16 in the plan, not by the owner
+    (the opening question held four others), because the description promises the
+    density verified and the session proposed it: refused `VERIFY_FAILED` and rolled back
+    when the density read differs from the database's by more than 1 % and no body has a
+    material of its own and the mass is not overridden; at about 1 kg/m³ the message names
+    a SOLIDWORKS restart, as S58 (b)'s does. The bad state cannot be made live: the rule
+    in an interop-free function with a unit test (fails now: it does not exist), and the
+    live tests of `material_set` passing. Not: the linked property in metres (noted, S30).
+  - **S71**, a frequency study with no fixtures: a probe of the soft-spring option and of
+    the solver (FFEPlus, Direct Sparse); one that finishes is set by `sim_run` for a
+    frequency study with no fixtures and said in its checks. Test: upstream's
+    `Frequency_of_the_cantilever_column_…` (fails now at its free-free study). None
+    finishes: Open with the probe recorded.
+- **For the owner**: nothing to prepare. S1 in Waiting needs a session that runs
+  `drw_view_detail` and a view at an angle, outside this run.
+- **Out of this run**: S4, S5, S7, S12 (wait on upstream); S10, S11, S33, S34 (parked,
+  taken up when a job needs them); S60 (a) (parked 2026-11-16 on the owner's word: probed
+  2026-11-13, not reproduced); S64 (b) (left out on the owner's word, the same).
+
+### Opening answer
+
+2026-11-16, the owner, in one `AskUserQuestion` call:
+
+- Grants: **"Semua (Recommended)"**: "Push sw2023, tag build-<stamp>, halaman release
+  (tanpa file), registrasi exe baru di claude_solidworks DAN clove sorter (keduanya
+  sekarang di build 024455), uji skenario headless (claude -p dari claude_solidworks),
+  commit entry-nya tanpa nanya, restart SOLIDWORKS kalau hang. Tanpa PR upstream."
+- Builds: **"5 build, satu per grup (Recommended)"**.
+- S65 (e): **"sketch_add merge otomatis (Recommended)"**.
+- Extras, all four: park S60 (a) and S64 (b); S61 (a); S62 (b); S64 (c), S65 (b) and (d).
+
+### Where the run stands
+
+- [x] Phase 1: the opening question asked and answered (2026-11-16)
+- [ ] S51: committed
+- [ ] S73: committed
+- [ ] S64 (h): committed
+- [ ] S64 (c): committed
+- [ ] Group 1: full live tests and release (build: )
+- [ ] Group 1: scenario test (session id: ), its entry committed and sorted
+- [ ] S68: committed
+- [ ] S69: committed
+- [ ] S70: committed
+- [ ] S62 (b): committed
+- [ ] Group 2: full live tests and release (build: )
+- [ ] Group 2: scenario test (session id: ), its entry committed and sorted
+- [ ] S49: committed
+- [ ] S74: committed
+- [ ] S67: committed
+- [ ] Group 3: full live tests and release (build: )
+- [ ] Group 3: scenario test (session id: ), its entry committed and sorted
+- [ ] S59 (c): committed
+- [ ] S65 (e): committed
+- [ ] S65 (c): committed
+- [ ] S65 (b): committed
+- [ ] S65 (d): committed
+- [ ] Group 4: full live tests and release (build: )
+- [ ] Group 4: scenario test (session id: ), its entry committed and sorted
+- [ ] S52: committed
+- [ ] S61 (a): committed
+- [ ] S72: committed
+- [ ] S71: committed
+- [ ] Group 5: full live tests and release (build: )
+- [ ] Group 5: scenario test (session id: ), its entry committed and sorted
+- [ ] The report
+
 ## Open
 
 ### S4 - `drw_dimension_add` keeps wrong values: a supplement reported as a match, an angle for `vertical` - OPEN 2026-11-09, parked: waits on upstream
@@ -204,6 +449,8 @@ part reads "Also changed, not saved: '<part>.SLDPRT', a component's own document
 without handle and access, in a new assembly whose parts the server had not listed yet,
 and "'<part>.SLDPRT' (D19, foreign), …" in an assembly opened from file. Back to Open
 2026-11-14 for that. Not yet decided.
+Taken into the run of 2026-11-16, group 3: the line names the part with its handle and
+access always, a part not yet listed registered first (`## Run 2026-11-16`).
 
 ### S51 - `feature_chamfer` takes the distance on whichever face, one `flip` for all edges, and a curved edge's legs are not checked, reported `ok` - OPEN 2026-11-13
 
@@ -279,6 +526,8 @@ with `flipEdges:[1]` on two other edges gave both their first distance on the si
 consistent with each other, so what index 0 got there cannot be told. The per-edge checks
 read the result right; the entry says nothing of (b) and (c). Back to Open 2026-11-14 for
 `flipEdges` in (a) and (d). Not yet decided.
+Taken into the run of 2026-11-16, group 1: `flipEdges` in `edit` flips exactly the indexed
+edges, read back per edge (`## Run 2026-11-16`).
 
 ### S52 - The boxes in results are loose, and say nothing of it - OPEN 2026-11-12
 
@@ -330,6 +579,8 @@ of a STEP that `model_export` wrote from an assembly of three 20 mm cubes and a 
 component at the identity rotation with box [-5.0001, 0, -5] .. [6, 30, 5.427]: neither
 the turned cylinder's box nor a tight one of r 5, and without `approximate`. Bears on S5
 and on the fallback above. Back to Open 2026-11-14 for that. Not yet decided.
+Taken into the run of 2026-11-16, group 5: the tight box reads surface bodies too, else
+`approximate: true` (`## Run 2026-11-16`).
 
 ### S59 - Reference geometry that cannot be made - OPEN 2026-11-12
 
@@ -418,8 +669,10 @@ sketch:"Sketch6"}` failed `ENTITY_NOT_FOUND: No feature named 'Line1'`; with
 plane 'Front Plane'"). With `sketch` given the reference is a sketch segment or point, the
 server's own convention, so the type could be inferred. One call more. Back to Open
 2026-11-14 for that. Not yet decided.
+Taken into the run of 2026-11-16, group 4: (c), with `sketch` given and no `type` the
+reference resolves in that sketch (`## Run 2026-11-16`).
 
-### S60 - What a session cannot tell about the process it runs on - OPEN 2026-11-12
+### S60 - What a session cannot tell about the process it runs on - OPEN 2026-11-12, parked: (a) not reproduced, taken up when met again
 
 On build
 `20261112-091908`. (a) `sw_status` and `doc_activate` gave `dirty:false` for a part
@@ -486,6 +739,8 @@ Held in the scenario test of build `20261114-024455` (findings 2026-11-14, point
 "same as before" and, after a restart, "a new one (before: pid …)"; (d) no revision
 warning; (b) is not named in the entry. Those parts closed 2026-11-14 on the owner's word;
 the item stays Open for (a).
+Parked 2026-11-16 by the owner: (a), probed 2026-11-13 and not reproduced, taken up when
+met again; the usage line above holds.
 
 ### S61 - A STEP into an assembly - OPEN 2026-11-12
 
@@ -535,6 +790,8 @@ subassembly's bodies are its parts' and would count twice. Local: (b) and (c) on
 Held in the scenario test of build `20261114-024455` (findings 2026-11-14, points 5, 6):
 (b)'s message said "3 solid bodies, 3 surface bodies" plainly; (c) the empty part named.
 Those parts closed 2026-11-14 on the owner's word; the item stays Open for (a).
+Decided 2026-11-16 by the owner: (a) taken into the run of 2026-11-16, group 5, a probe of
+the insert through 3D Interconnect first (`## Run 2026-11-16`).
 
 ### S62 - Assembly reading and options - OPEN 2026-11-12
 
@@ -615,6 +872,8 @@ Held in the scenario test of build `20261114-024455` (findings 2026-11-14, point
 plane names and face ids; (d) a part loaded by the server's assembly owned; (e) listed,
 overlapping and touching. Those parts closed 2026-11-14 on the owner's word; the item
 stays Open for (b).
+Decided 2026-11-16 by the owner: (b) taken into the run of 2026-11-16, group 2,
+`asm_component_set` `flexible` for a subassembly component (`## Run 2026-11-16`).
 
 ### S64 - Feature calls refused, failed or counted wrong, with hints that miss - OPEN 2026-11-12
 
@@ -784,6 +1043,10 @@ direction)"; with `direction2` on the same axis as `direction` it is refused. Fo
 uneven spacing along one axis took a pattern and a mirror about a new plane. Not probed:
 whether a pattern of a pattern is refused by SOLIDWORKS itself, so the hint would name it.
 Not yet decided.
+Decided 2026-11-16 by the owner: (c) taken into the run of 2026-11-16, group 1, each edge
+tried alone on a failure and the failing ones named; (b) left out of it, probed 2026-11-13
+and not reproduced, taken up when met again. (h) in the same group, a probe first (`## Run
+2026-11-16`).
 
 ### S65 - Missing options met while modelling - OPEN 2026-11-12
 
@@ -847,6 +1110,9 @@ with a separate arc at its ends leaves them unmerged ("ManyOpen"). Workaround: t
 drawn 0.2 to 0.5 off, then `coincident` on the two points, one call more a joint. Proposed
 by the session: a segment's end named (`{name:'Line1', end:'start'}`), or `sketch_add`
 merging ends that meet. Both not yet decided.
+Decided 2026-11-16 by the owner: (e) `sketch_add` merges segment ends that meet, no new
+reference form; (b) and (d) taken into the run of 2026-11-16, group 4, with (c) and (e):
+(c) `resolved` names the point taken and warns of the others there (`## Run 2026-11-16`).
 
 ### S67 - `feature_rollback` before the only feature fails its check - OPEN 2026-11-13
 
@@ -857,6 +1123,7 @@ before:true}` on a part holding one extrude failed `VERIFY_FAILED` "… unexpect
 rename, the single feature or the check's reading of the bar is the cause. Local. Decided
 2026-11-13 by the run, not the owner: an item of its own, open and not fixed in the run,
 because the run's items were the owner's and this one has not been looked at.
+Taken into the run of 2026-11-16, group 3, a probe first (`## Run 2026-11-16`).
 
 ### S68 - `asm_mate_add` coincident with an origin fails - OPEN 2026-11-13
 
@@ -865,6 +1132,8 @@ S62's tests: a coincident mate with the assembly's origin or a component's origi
 "SOLIDWORKS created no coincident mate … (unknown error (status 0))". Not probed: how the
 origin is selected for the mate. Bears on S62. Local. Decided 2026-11-13 by the run, not
 the owner: an item, open, as S67.
+Taken into the run of 2026-11-16, group 2, a probe of the origin's selection first (`##
+Run 2026-11-16`).
 
 ### S69 - A component's named plane inside a subassembly cannot be selected - OPEN 2026-11-13
 
@@ -872,6 +1141,7 @@ Seen in the
 run of 2026-11-13, in S62's tests: "Could not select 'b' (plane 'Top Plane' of
 sub-1/part-1)". Not probed: whether the select path for a nested component's plane is
 built right. Local. Decided 2026-11-13 by the run, not the owner: an item, open, as S67.
+Taken into the run of 2026-11-16, group 2 (`## Run 2026-11-16`).
 
 ### S70 - A top-level component may resolve to a nested one of the same short name - OPEN 2026-11-13
 
@@ -881,6 +1151,7 @@ nested component's short name seemed to resolve to the nested one. Not confirmed
 first (two components, one top-level and one in a subassembly, named alike). Local.
 Decided 2026-11-13 by the run, not the owner: an item, open, as S67, because a reference
 that reaches the wrong component would change the wrong part.
+Taken into the run of 2026-11-16, group 2, a probe first (`## Run 2026-11-16`).
 
 ### S71 - A frequency study with no fixtures fails in the solver - OPEN 2026-11-14
 
@@ -897,6 +1168,8 @@ whether a solver choice (FFEPlus, Direct Sparse), a mesh size or the soft-spring
 lets it finish. Local, upstream's test. Decided 2026-11-14 by the run, not the owner: an
 item, open, as S67, not fixed in the release run, because it fails the same on the code
 before the run.
+Taken into the run of 2026-11-16, group 5, a probe of soft springs and the solver first
+(`## Run 2026-11-16`).
 
 ### S72 - A SOLIDWORKS process in a bad state: a material applied at 1 kg/m³ with a warning only, a linked property in metres, every equation refused - OPEN 2026-11-14
 
@@ -917,6 +1190,11 @@ session (S28's test). Reported `ok` while wrong. Proposed by the session: `mater
 refuses (`VERIFY_FAILED`, rolled back) when the density read differs from the database's,
 as it once did, and its message, like S58 (b)'s, names a restart when a database material
 reads ~1 kg/m³. Bears on S58 (b), S30. Local. Not yet decided.
+Decided 2026-11-16 in the plan, not by the owner, because the description promises the
+density verified and the session proposed it: `material_set` refuses (`VERIFY_FAILED`,
+rolled back) when the density read differs from the database's by more than 1 % with no
+body material of its own and no mass override, naming a restart at about 1 kg/m³. Taken
+into the run of 2026-11-16, group 5 (`## Run 2026-11-16`).
 
 ### S73 - `feature_pattern_circular` turns the instances the sense it picks, reported `ok`, with no option for the other - OPEN 2026-11-16
 
@@ -932,6 +1210,8 @@ missed the part)" and landed right. Reported `ok` while not what was asked, thou
 reported was true. Proposed by the session: a `reverse` option, and the instances' angles
 reported about a model axis the caller names. Bears on S41 (Closed). Local. Not yet
 decided.
+Taken into the run of 2026-11-16, group 1: a `reverse` option, the angles given about the
+axis as the caller named it (`## Run 2026-11-16`).
 
 ### S74 - `dimension_set` on a mate's angle driven by an equation calls it a driven (reference) dimension - OPEN 2026-11-16
 
@@ -941,6 +1221,8 @@ On build `20261112-091908` (findings 2026-11-13, "two printed plates", point 7):
 driving, through an equation; for a part's dimension the refusal names the equation's
 variable, for a mate's it does not. A hint that misses. Bears on S37 (Closed). Local. Not
 yet decided.
+Taken into the run of 2026-11-16, group 3: the refusal names the equation and its variable
+(`## Run 2026-11-16`).
 
 ## Waiting
 
