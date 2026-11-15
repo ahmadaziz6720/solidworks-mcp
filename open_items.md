@@ -17,7 +17,7 @@ Closed all the same, its PR named, and an open PR no longer holds an item in Wai
 item sent upstream ends with `**Upstream: PR #9, open.**`, one per PR or issue
 (`merged`, `closed unmerged`; an issue `open` or `closed`), kept to its state.
 
-**Open: S4, S5, S7, S10 to S12, S33, S34, S49, S51, S52, S59 to S62, S64, S65, S67 to
+**Open: S4, S5, S7, S10 to S12, S33, S34, S49, S52, S59 to S62, S64, S65, S67 to
 S74.** The scenario test of build `20261114-024455` (`cfd987e`) ran 2026-11-14 (findings
 2026-11-14). Held, and closed on the owner's word: S47, S48, S50, S53 to S58, S63, S66,
 and the fixed parts of S60 to S62, S64 and S65. Back to Open: S51 (`flipEdges` in a
@@ -110,7 +110,7 @@ stands*.
   first and written on the group's check line, then `claude -p "Uji skenario build
   …-<stamp> (<S-items>), menurut reports/uji-skenario.md. Tanpa nanya apa-apa."
   --session-id <uuid> --permission-mode auto --allowedTools mcp__solidworks-mcp
-  --add-dir "C:\Users\Ahmad Aziz\Data\Project\solidworks-mcp"`; cut short, `claude -p
+  --add-dir "<the fork>"`; cut short, `claude -p
   --resume <uuid>` from the same folder. It starts with `sw_status` reading the new
   version (step 6's short check). Its `findings.md` entry is committed here unasked and
   sorted (`backlog:sort`), the release page's notes updated (step 7). What it finds goes
@@ -250,7 +250,7 @@ server change since build `20261114-024455`).
 ### Where the run stands
 
 - [x] Phase 1: the opening question asked and answered (2026-11-16)
-- [ ] S51: committed
+- [x] S51: committed
 - [ ] S73: committed
 - [ ] S64 (h): committed
 - [ ] S64 (c): committed
@@ -451,83 +451,6 @@ and "'<part>.SLDPRT' (D19, foreign), …" in an assembly opened from file. Back 
 2026-11-14 for that. Not yet decided.
 Taken into the run of 2026-11-16, group 3: the line names the part with its handle and
 access always, a part not yet listed registered first (`## Run 2026-11-16`).
-
-### S51 - `feature_chamfer` takes the distance on whichever face, one `flip` for all edges, and a curved edge's legs are not checked, reported `ok` - OPEN 2026-11-13
-
-On build `20261112-091908`
-(findings 2026-11-13, "a groove's overhanging side", points 1 to 3; "a revolved part
-remade", points 2, 10; "one chamfer over three edges", points 1, 3). (a) `angle_distance`
-and `distance_distance` do not say which face takes the distance, and `flip` is one switch
-for the call: two edges of one groove, mirrored and patterned, took it on opposite faces.
-The leg check caught it (`VERIFY_FAILED … found legs 1/1.085649 mm`) but named one edge of
-the two; five attempts and four deletes to a right pair. (b) On circular edges the legs
-are not checked ("2 edge(s) not leg-checked (curved edge or non-planar faces)"): a tube's
-two end chamfers in one call, one with its legs swapped, came back `ok`; only the volume
-showed it (-28.07 against -28.32). The cone face's apex and half angle are in the result
-with `faceDetail`, enough to work the legs out, as a session did by hand. (c) A distance
-typed to 4 decimals at a face's width (1.4835 for 1.483537) left a sliver of 0.0003 mm²,
-`ok`. (d) Missing: no edit of a chamfer's edge set, no per-edge distance (a fix took 7
-calls with a rollback); `feature_mirror` of a chamfer failed `FEATURE_FAILED`. Usage
-until then: one chamfer per edge, each with its own `flip`; give the steepness as an angle
-from a face a distance should consume. Local: per edge, the face that took the distance and
-the chamfer face's angle to each neighbour, `flip` per edge, the legs of a curved edge from
-the cone, a warning for a selected edge's face left under ~0.01 mm². Decided 2026-11-13 by
-the owner: all four, `flip` per edge and an edit of an existing chamfer's edges and
-per-edge distances included. Fixed in the run of 2026-11-13, all four points. (a) The leg check now
-reads, per edge, the two faces beside the chamfer face and the cross-section triangle,
-and the checks say "E2: 1 mm along F16 (plane [0, 0, 1]), 2 mm along F17 (plane [0, 1,
-0]); the chamfer face meets the first at 63.435° and the second at 26.565°". A warning when
-one side took the first distance on one edge and the second on another (a plane by its
-normal, a curved face by type, radius and axis). `flip` per edge: `flipEdges`, indexes in
-`edges`, set through `IChamferFeatureData2.SetIsFlipped` and `ModifyDefinition` after the
-insert (the API's flip option is one for all edges). (b) A circular edge's legs are read
-from the cone: its two boundary circles as the change in radius and the shift along the
-axis from the original circle, checked against the expected legs as a line's are; the
-wedge angle is read from the faces' outward normals at the edge, so plane-to-cylinder
-edges are checked too. (c) A face beside a chamfer face left under 0.01 mm² is warned
-("left a sliver of … mm²: a distance just under that face's width"). (d) `feature_chamfer`
-with `edit: "<chamfer>"` changes it through its definition: `edges` (named as before the
-chamfer, resolved while `AccessSelections` has the model rolled back), `distanceMm`,
-`distance2Mm`, `angleDeg`, `flipEdges` (exactly those flipped), and `distancesMm`
-([first, second] per edge): an edge at distances other than the chamfer's moves to a new
-chamfer inserted right after it (the rollback bar moved there and back), as one chamfer
-feature holds one set of distances in the 2023 API (`IChamferFeatureData2` has no per-edge
-distance). Verified as a new chamfer is; on a failure the new chamfers are deleted and the
-chamfer is put back as it was (its old edges, flips and distances re-applied). Not taken:
-`feature_mirror` of a chamfer (`FEATURE_FAILED`), not in the decision. Decided 2026-11-13
-by the run, not the owner: the edit is `feature_chamfer`'s `edit` parameter, not a tool of
-its own, and `flipEdges` and the per-edge distances index `edges` rather than repeat edge
-references, because `tools/list` was at its per-tool byte budget (1536, `--check-catalog`)
-before this item and a tool of its own went 16 bytes per tool over it; to bring the
-additions under it, `faceDetail`'s description is shortened in every feature tool ("true:
-newFaces in full.", 37 tools). Live tests, four new: `Chamfer_says_per_edge_which_face_took_each_distance`
-(and `flipEdges` on one edge with the mixed-sides warning), `Chamfer_measures_the_legs_on_circular_edges`
-(a rod's two end circles, 1/2 mm, volume from the rings), `Chamfer_warns_of_a_sliver_left_by_a_distance_just_under_a_face_s_width`
-(19.99995 on a 20 high face), `Chamfer_edit_changes_edges_flips_and_distances_and_splits_edges_with_their_own`
-(a chamfer with a hole after it: an edge added and flipped, distances changed, a too large
-distance refused and put back, an edge at 3/3 moved to a new chamfer before the hole, the
-last through the tool). On the code before, the first three failed: "Expected: 2, Actual:
-0" (no per-edge line), "Filter not matched … 2 edge(s) not leg-checked (curved edge or
-non-planar faces)", and no warning (`Warnings` null); the fourth is new API (no edit
-existed). After: those four and the chamfer tests before (`Chamfer_equal_3mm_…`,
-`Chamfer_two_distances_…`, `Chamfer_rejects_bad_input_…`), with `Linear_pattern_along_a_slanted_edge_…`
-and `Auxiliary_view_looks_square_onto_a_chamfer` that make chamfers, 9/9, and
-`ContractTests` (catalog, EntityRef schemas) 2/2, on 2023 SP3; unit tests 276/276;
-`--check-catalog` ok; `check_repo` ok. Local: on `sw2023`, `16699e2`; in
-build `20261114-024455`. Upstream: not yet decided.
-Failed in its scenario test (findings 2026-11-14, point 2), reported `ok`:
-`feature_chamfer` `edit` with `flipEdges` flips every edge, not the indexed ones. A
-`distance_distance` 1/2 chamfer on two bottom edges of a block meeting at a corner (one
-along x, one along z) took 1 mm on the bottom face for both; `edit` with the same two
-edges and `flipEdges:[1]` made both take 1 mm on their side faces (the per-edge checks say
-so, and the chamfer faces' normals [0, -0.894, -0.447] and [0.447, -0.894, 0] confirm it),
-with no mixed-sides warning; `flipEdges:[0]` put both back on the bottom. A new chamfer
-with `flipEdges:[1]` on two other edges gave both their first distance on the side faces,
-consistent with each other, so what index 0 got there cannot be told. The per-edge checks
-read the result right; the entry says nothing of (b) and (c). Back to Open 2026-11-14 for
-`flipEdges` in (a) and (d). Not yet decided.
-Taken into the run of 2026-11-16, group 1: `flipEdges` in `edit` flips exactly the indexed
-edges, read back per edge (`## Run 2026-11-16`).
 
 ### S52 - The boxes in results are loose, and say nothing of it - OPEN 2026-11-12
 
@@ -1242,3 +1165,110 @@ sheet's there), which S1 found false for sections and details; its live test onl
 the cut, so a circle landing elsewhere on the part would pass.
 
 **Upstream: PR #1, open.**
+
+### S51 - `feature_chamfer` takes the distance on whichever face, one `flip` for all edges, and a curved edge's legs are not checked, reported `ok` - BUILT 2026-11-16, proof: the scenario test of the group 1 build
+
+On build `20261112-091908`
+(findings 2026-11-13, "a groove's overhanging side", points 1 to 3; "a revolved part
+remade", points 2, 10; "one chamfer over three edges", points 1, 3). (a) `angle_distance`
+and `distance_distance` do not say which face takes the distance, and `flip` is one switch
+for the call: two edges of one groove, mirrored and patterned, took it on opposite faces.
+The leg check caught it (`VERIFY_FAILED … found legs 1/1.085649 mm`) but named one edge of
+the two; five attempts and four deletes to a right pair. (b) On circular edges the legs
+are not checked ("2 edge(s) not leg-checked (curved edge or non-planar faces)"): a tube's
+two end chamfers in one call, one with its legs swapped, came back `ok`; only the volume
+showed it (-28.07 against -28.32). The cone face's apex and half angle are in the result
+with `faceDetail`, enough to work the legs out, as a session did by hand. (c) A distance
+typed to 4 decimals at a face's width (1.4835 for 1.483537) left a sliver of 0.0003 mm²,
+`ok`. (d) Missing: no edit of a chamfer's edge set, no per-edge distance (a fix took 7
+calls with a rollback); `feature_mirror` of a chamfer failed `FEATURE_FAILED`. Usage
+until then: one chamfer per edge, each with its own `flip`; give the steepness as an angle
+from a face a distance should consume. Local: per edge, the face that took the distance and
+the chamfer face's angle to each neighbour, `flip` per edge, the legs of a curved edge from
+the cone, a warning for a selected edge's face left under ~0.01 mm². Decided 2026-11-13 by
+the owner: all four, `flip` per edge and an edit of an existing chamfer's edges and
+per-edge distances included. Fixed in the run of 2026-11-13, all four points. (a) The leg check now
+reads, per edge, the two faces beside the chamfer face and the cross-section triangle,
+and the checks say "E2: 1 mm along F16 (plane [0, 0, 1]), 2 mm along F17 (plane [0, 1,
+0]); the chamfer face meets the first at 63.435° and the second at 26.565°". A warning when
+one side took the first distance on one edge and the second on another (a plane by its
+normal, a curved face by type, radius and axis). `flip` per edge: `flipEdges`, indexes in
+`edges`, set through `IChamferFeatureData2.SetIsFlipped` and `ModifyDefinition` after the
+insert (the API's flip option is one for all edges). (b) A circular edge's legs are read
+from the cone: its two boundary circles as the change in radius and the shift along the
+axis from the original circle, checked against the expected legs as a line's are; the
+wedge angle is read from the faces' outward normals at the edge, so plane-to-cylinder
+edges are checked too. (c) A face beside a chamfer face left under 0.01 mm² is warned
+("left a sliver of … mm²: a distance just under that face's width"). (d) `feature_chamfer`
+with `edit: "<chamfer>"` changes it through its definition: `edges` (named as before the
+chamfer, resolved while `AccessSelections` has the model rolled back), `distanceMm`,
+`distance2Mm`, `angleDeg`, `flipEdges` (exactly those flipped), and `distancesMm`
+([first, second] per edge): an edge at distances other than the chamfer's moves to a new
+chamfer inserted right after it (the rollback bar moved there and back), as one chamfer
+feature holds one set of distances in the 2023 API (`IChamferFeatureData2` has no per-edge
+distance). Verified as a new chamfer is; on a failure the new chamfers are deleted and the
+chamfer is put back as it was (its old edges, flips and distances re-applied). Not taken:
+`feature_mirror` of a chamfer (`FEATURE_FAILED`), not in the decision. Decided 2026-11-13
+by the run, not the owner: the edit is `feature_chamfer`'s `edit` parameter, not a tool of
+its own, and `flipEdges` and the per-edge distances index `edges` rather than repeat edge
+references, because `tools/list` was at its per-tool byte budget (1536, `--check-catalog`)
+before this item and a tool of its own went 16 bytes per tool over it; to bring the
+additions under it, `faceDetail`'s description is shortened in every feature tool ("true:
+newFaces in full.", 37 tools). Live tests, four new: `Chamfer_says_per_edge_which_face_took_each_distance`
+(and `flipEdges` on one edge with the mixed-sides warning), `Chamfer_measures_the_legs_on_circular_edges`
+(a rod's two end circles, 1/2 mm, volume from the rings), `Chamfer_warns_of_a_sliver_left_by_a_distance_just_under_a_face_s_width`
+(19.99995 on a 20 high face), `Chamfer_edit_changes_edges_flips_and_distances_and_splits_edges_with_their_own`
+(a chamfer with a hole after it: an edge added and flipped, distances changed, a too large
+distance refused and put back, an edge at 3/3 moved to a new chamfer before the hole, the
+last through the tool). On the code before, the first three failed: "Expected: 2, Actual:
+0" (no per-edge line), "Filter not matched … 2 edge(s) not leg-checked (curved edge or
+non-planar faces)", and no warning (`Warnings` null); the fourth is new API (no edit
+existed). After: those four and the chamfer tests before (`Chamfer_equal_3mm_…`,
+`Chamfer_two_distances_…`, `Chamfer_rejects_bad_input_…`), with `Linear_pattern_along_a_slanted_edge_…`
+and `Auxiliary_view_looks_square_onto_a_chamfer` that make chamfers, 9/9, and
+`ContractTests` (catalog, EntityRef schemas) 2/2, on 2023 SP3; unit tests 276/276;
+`--check-catalog` ok; `check_repo` ok. Local: on `sw2023`, `16699e2`; in
+build `20261114-024455`. Upstream: not yet decided.
+Failed in its scenario test (findings 2026-11-14, point 2), reported `ok`:
+`feature_chamfer` `edit` with `flipEdges` flips every edge, not the indexed ones. A
+`distance_distance` 1/2 chamfer on two bottom edges of a block meeting at a corner (one
+along x, one along z) took 1 mm on the bottom face for both; `edit` with the same two
+edges and `flipEdges:[1]` made both take 1 mm on their side faces (the per-edge checks say
+so, and the chamfer faces' normals [0, -0.894, -0.447] and [0.447, -0.894, 0] confirm it),
+with no mixed-sides warning; `flipEdges:[0]` put both back on the bottom. A new chamfer
+with `flipEdges:[1]` on two other edges gave both their first distance on the side faces,
+consistent with each other, so what index 0 got there cannot be told. The per-edge checks
+read the result right; the entry says nothing of (b) and (c). Back to Open 2026-11-14 for
+`flipEdges` in (a) and (d). Not yet decided.
+Taken into the run of 2026-11-16, group 1: `flipEdges` in `edit` flips exactly the indexed
+edges, read back per edge (`## Run 2026-11-16`).
+
+Fixed in the run of 2026-11-16, `flipEdges` in (a) and (d). Cause: SOLIDWORKS 2023 keeps
+one flip for chamfer edges that meet at a corner: `IChamferFeatureData2.SetIsFlipped` on
+one edge sets the flag on the other at once (read back before `ModifyDefinition`), so the
+last edge set won for both; the probe found the same with tangent propagation off, and the
+flip held per edge only for edges apart (the test of 2026-11-13). Fix: when the flips of a
+chamfer's edges differ, the side each edge is to take is read with none flipped (the face
+that took the first distance, or the other one for an edge in `flipEdges`); the flips are
+then set and each edge's side read back from the chamfer faces; an edge left on the wrong
+side moves to a chamfer of its own right after it (the rollback bar moved there and back),
+flipped there until it takes that side, with a warning naming it ("SOLIDWORKS keeps one flip
+for chamfer edges that meet at a corner: … moved to 'Chamfer2' … Edit each chamfer on its
+own."). An edge that cannot be brought to its side fails `VERIFY_FAILED`, rolled back (an
+edit puts the chamfer back as it was). The same for a new chamfer, an edit, and an edit's
+chamfer for edges at their own distances. The per-edge checks and the mixed-sides warning
+read the faces of both chamfers. Test before: `Chamfer_flipEdges_flips_only_the_indexed_edge_of_two_meeting_at_a_corner`
+(a 1/2 chamfer on the block's bottom edges along x and along z meeting at a corner, `edit`
+with `flipEdges:[1]`, then a new chamfer with `flipEdges:[1]`) failed: "plain (False,
+False), after flipEdges [1] (True, True)", both edges on their side faces. After: it and the
+chamfer tests (`Chamfer_*` in `PartFeatureLiveTests`, 8 with it), with
+`Linear_pattern_along_a_slanted_edge_…` and `Auxiliary_view_looks_square_onto_a_chamfer`,
+10/10, on 2023 SP3; unit tests 284/284; no tool description changed. Made stricter: each
+edge's side is read back from the geometry when the flips differ, not taken from the flag
+set. Decided 2026-11-16 by the run, not the owner: an edge SOLIDWORKS won't flip apart from
+the edge it meets goes to a chamfer of its own (said in a warning), rather than the call
+being refused, because the owner decided a flip per edge and a second chamfer is the one way
+the 2023 API gives to it; one chamfer feature per side, as the per-edge distances already
+are. Left: that second chamfer is a feature of its own, so a later edit naming its edge in
+the first chamfer finds it chamfered by a later feature. Local: on `sw2023`, in the commit
+that moves it here; not yet in a build. Upstream: not yet decided.

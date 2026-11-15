@@ -377,6 +377,48 @@ public class PartFeatureLiveTests(LiveFixture fx) : LiveTest(fx)
     }
 
     [Fact]
+    public async Task Chamfer_flipEdges_flips_only_the_indexed_edge_of_two_meeting_at_a_corner()
+    {
+        // S51: two bottom edges meeting at the corner (50, 0, 30), one along x and one along z, 1/2 mm. Which face took the
+        // 1 mm is read from the per-edge checks: the bottom ([0, -1, 0]) or the edge's own side face.
+        var alongX = new EntityRef { At = [0, 0, 30] };
+        var alongZ = new EntityRef { At = [50, 0, 0] };
+        static (bool X, bool Z) OnSide(IReadOnlyList<string> checks)
+        {
+            bool x = checks.Any(c => Regex.IsMatch(c, @": 1 mm along F\d+ \(plane \[0, 0, 1\]\)"));
+            bool z = checks.Any(c => Regex.IsMatch(c, @": 1 mm along F\d+ \(plane \[1, 0, 0\]\)"));
+            Assert.Equal(2 - (x ? 1 : 0) - (z ? 1 : 0), checks.Count(c => Regex.IsMatch(c, @": 1 mm along F\d+ \(plane \[0, -1, 0\]\)")));
+            return (x, z);
+        }
+
+        string doc = await BlockAsync("chamfer_flip_corner");
+        var c = await Pf.ChamferAsync(new ChamferRequest
+        {
+            Doc = doc, Edges = [alongX, alongZ], Type = "distance_distance", DistanceMm = 1, Distance2Mm = 2, Name = "C1",
+        });
+        var plain = OnSide(c.Verified.Checks!);
+        Assert.Equal(plain.X, plain.Z); // both on the bottom, or both on their side faces: one convention for the two
+
+        // The edit flips edge 1 only: edge 0 keeps its side, edge 1 takes the other, and the bottom then holds the 1 on one
+        // edge and the 2 on the other: warned.
+        var e = await Pf.ChamferEditAsync(new ChamferEditRequest { Doc = doc, Feature = "C1", Edges = [alongX, alongZ], FlipEdges = [1] });
+        var edited = OnSide(e.Verified.Checks!);
+        Assert.True(edited == (plain.X, !plain.Z), $"plain {plain}, after flipEdges [1] {edited}: {string.Join(" | ", e.Verified.Checks!)}");
+        Assert.Contains(e.Warnings!, w => w.Contains("first distance"));
+        // SOLIDWORKS keeps one flip for edges that meet at a corner: one of the two goes to a chamfer of its own, said.
+        Assert.Contains(e.Warnings!, w => w.Contains("one flip for chamfer edges that meet"));
+        Assert.Equal("Chamfer", Assert.Single(e.AlsoCreated!).Type);
+
+        // A new chamfer with flipEdges [1]: edge 0 as without a flip.
+        string doc2 = await BlockAsync("chamfer_flip_corner_new");
+        var n = await Pf.ChamferAsync(new ChamferRequest
+        {
+            Doc = doc2, Edges = [alongX, alongZ], FlipEdges = [1], Type = "distance_distance", DistanceMm = 1, Distance2Mm = 2,
+        });
+        Assert.True(OnSide(n.Verified.Checks!) == (plain.X, !plain.Z), string.Join(" | ", n.Verified.Checks!));
+    }
+
+    [Fact]
     public async Task Chamfer_measures_the_legs_on_circular_edges()
     {
         // S51 (b): a rod's two end edges, 1 and 2 mm; the legs are read from the cone, as on straight edges from the plane.
