@@ -253,8 +253,8 @@ server change since build `20261114-024455`).
 - [x] S51: committed (`f665a18`)
 - [x] S73: committed (`9cd5638`)
 - [x] S64 (h): committed (`86e7042`)
-- [x] S64 (c): committed
-- [ ] Group 1: full live tests and release (build: )
+- [x] S64 (c): committed (`4a70a9b`)
+- [x] Group 1: full live tests and release (build: `20261116-050908`, `dedd986`)
 - [ ] Group 1: scenario test (session id: ), its entry committed and sorted
 - [ ] S68: committed
 - [ ] S69: committed
@@ -1191,7 +1191,7 @@ the cut, so a circle landing elsewhere on the part would pass.
 
 **Upstream: PR #1, open.**
 
-### S51 - `feature_chamfer` takes the distance on whichever face, one `flip` for all edges, and a curved edge's legs are not checked, reported `ok` - BUILT 2026-11-16, proof: the scenario test of the group 1 build
+### S51 - `feature_chamfer` takes the distance on whichever face, one `flip` for all edges, and a curved edge's legs are not checked, reported `ok` - BUILT 2026-11-16, proof: the scenario test of build 20261116-050908
 
 On build `20261112-091908`
 (findings 2026-11-13, "a groove's overhanging side", points 1 to 3; "a revolved part
@@ -1296,9 +1296,9 @@ being refused, because the owner decided a flip per edge and a second chamfer is
 the 2023 API gives to it; one chamfer feature per side, as the per-edge distances already
 are. Left: that second chamfer is a feature of its own, so a later edit naming its edge in
 the first chamfer finds it chamfered by a later feature. Local: on `sw2023`, in the commit
-that moves it here; not yet in a build. Upstream: not yet decided.
+that moves it here; in build 20261116-050908 (`dedd986`). Upstream: not yet decided.
 
-### S73 - `feature_pattern_circular` turns the instances the sense it picks, reported `ok`, with no option for the other - BUILT 2026-11-16, proof: the scenario test of the group 1 build
+### S73 - `feature_pattern_circular` turns the instances the sense it picks, reported `ok`, with no option for the other - BUILT 2026-11-16, proof: the scenario test of build 20261116-050908
 
 On build `20261112-091908` (findings 2026-11-13, "two printed plates", point 2): a 10°
 pattern of a cut at 30° about a hole whose cylinder face reads its axis as [0, 0, -1] put
@@ -1358,5 +1358,5 @@ turning it back would report `ok` for what was not asked, as this item was.
 Decided 2026-11-16 by the run, not the owner: the angles are given about the axis read the
 other way only when the direction read points the negative way, because a positive axis
 already reads as a caller expects, and saying it twice costs words in every result.
-Local: on `sw2023`, in the commit that moves it here; not yet in a build. Upstream: not
+Local: on `sw2023`, in the commit that moves it here; in build 20261116-050908 (`dedd986`). Upstream: not
 yet decided.
