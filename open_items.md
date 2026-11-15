@@ -255,7 +255,14 @@ server change since build `20261114-024455`).
 - [x] S64 (h): committed (`86e7042`)
 - [x] S64 (c): committed (`4a70a9b`)
 - [x] Group 1: full live tests and release (build: `20261116-050908`, `dedd986`)
-- [ ] Group 1: scenario test (session id: `fe1d732c-6c26-4fe6-8249-8c5ce1e03251`), its entry committed and sorted
+- [ ] Group 1: scenario test (session id: `fe1d732c-6c26-4fe6-8249-8c5ce1e03251`)
+  Blocked 2026-11-16: the headless session, started in the background,
+  was stopped by Claude Code because the machine ran low on memory,
+  before it wrote anything (no `findings.md` entry). Not restarted
+  unasked. To go on: memory freed (close what is not needed), then the
+  run again from this step; it resumes this session id with `claude -p
+  --resume <id> "<go on>"` from `claude_solidworks`, or starts it anew
+  with this id if the session holds nothing., its entry committed and sorted
 - [ ] S68: committed
 - [ ] S69: committed
 - [ ] S70: committed
