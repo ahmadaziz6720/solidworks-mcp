@@ -422,7 +422,7 @@ public sealed partial class PartFeatureService(SwSession session)
                     break;
             }
             Rename(ctx, o.Main, q.Name);
-            return FeatureVerifier.Result(ctx, d, o, resolved: resolved);
+            return FeatureVerifier.Result(ctx, d, o, resolved: resolved, alsoFaces: true);
         }, RunOptions.Write(q.Doc), ct);
 
     private const string ChamferHint = "A distance larger than the adjacent faces fails; use smaller distances or fewer edges.";
@@ -592,7 +592,7 @@ public sealed partial class PartFeatureService(SwSession session)
                 d.FeatureManager.EditRollback((int)swMoveRollbackBarTo_e.swMoveRollbackBarToEnd, "");
             }
             var outcome = new FeatureOutcome(f, created, before, Snapshot.Take(d), checks);
-            return FeatureVerifier.Result(ctx, d, outcome);
+            return FeatureVerifier.Result(ctx, d, outcome, alsoFaces: true);
         }, RunOptions.Write(q.Doc), ct);
 
     /// <summary>SOLIDWORKS 2023 (revision 31), where the equal-distance chamfer type makes no geometry (S44); other versions untried.</summary>

@@ -76,6 +76,27 @@ public class UnitsTests
         Assert.Equal(full[full.IndexOf("\"newFaceCount\"", StringComparison.Ordinal)..], brief[brief.IndexOf("\"newFaceCount\"", StringComparison.Ordinal)..]);
     }
 
+    [Fact]
+    public void A_short_new_face_of_another_feature_than_the_first_keeps_its_feature()
+    {
+        // S75: a chamfer an edge moved to lists its faces after the named chamfer's.
+        var r = new Core.Model.FeatureResult
+        {
+            Feature = new Core.Model.FeatureRef { Name = "C1", Type = "Chamfer" },
+            Verified = new Core.Model.Verified { Material = "removed" },
+            Model = new Core.Model.ModelState { VolumeMm3 = 1000, Bodies = 1 },
+            NewFaces =
+            [
+                new Core.Model.FaceInfo { Id = "F1", Surface = "plane", PickMm = [0, 0, 0], Feature = "C1" },
+                new Core.Model.FaceInfo { Id = "F2", Surface = "plane", PickMm = [0, 0, 0], Feature = "C1" },
+                new Core.Model.FaceInfo { Id = "F3", Surface = "plane", PickMm = [0, 0, 0], Feature = "Chamfer2" },
+            ],
+            NewFaceCount = 3,
+        };
+        Assert.Contains("\"newFaces\":[{\"id\":\"F1\",\"surface\":\"plane\"},{\"id\":\"F2\",\"surface\":\"plane\"}," +
+                        "{\"id\":\"F3\",\"surface\":\"plane\",\"feature\":\"Chamfer2\"}]", Core.Model.ResultJson.Serialize(r));
+    }
+
     private sealed class RowsResult : Core.Model.ToolResult, Core.Model.IShortRows
     {
         public required string[] Rows { get; init; }

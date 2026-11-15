@@ -168,15 +168,25 @@ internal static class FeatureVerifier
         _ => null,
     };
 
-    /// <summary>Builds the standard result of a feature tool.</summary>
+    /// <summary>
+    /// Builds the standard result of a feature tool. <paramref name="alsoFaces"/>: newFaces lists the faces of the
+    /// features in alsoCreated too, after the main feature's (feature_chamfer: an edge moved to a chamfer of its own, S75).
+    /// </summary>
     public static FeatureResult Result(SwContext ctx, IModelDoc2 doc, FeatureOutcome o, string? consumedSketch = null,
-        Vec3? direction = null, IReadOnlyList<ResolvedInfo>? resolved = null, IReadOnlyList<PlacementSketch>? placementSketches = null)
+        Vec3? direction = null, IReadOnlyList<ResolvedInfo>? resolved = null, IReadOnlyList<PlacementSketch>? placementSketches = null,
+        bool alsoFaces = false)
     {
         double dv = o.After.Volume - o.Before.Volume;
+        var alsoFeats = o.Created.Where(f => !ReferenceEquals(f, o.Main) && !IsSubFeatureOf(f, o.Main)).ToList();
         var faces = Describe.FeatureFaces(ctx, doc, o.Main, 12, out int faceTotal);
+        if (alsoFaces)
+            foreach (var f in alsoFeats)
+            {
+                faces.AddRange(Describe.FeatureFaces(ctx, doc, f, Math.Max(0, 12 - faces.Count), out int n));
+                faceTotal += n;
+            }
         int err = o.Main.GetErrorCode2(out bool warn);
-        var also = o.Created.Where(f => !ReferenceEquals(f, o.Main) && !IsSubFeatureOf(f, o.Main))
-            .Select(f => new FeatureRef { Name = f.Name, Type = f.GetTypeName2() }).ToList();
+        var also = alsoFeats.Select(f => new FeatureRef { Name = f.Name, Type = f.GetTypeName2() }).ToList();
         return new FeatureResult
         {
             Doc = ctx.Title(doc),

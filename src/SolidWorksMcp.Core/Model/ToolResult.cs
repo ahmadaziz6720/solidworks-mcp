@@ -37,14 +37,15 @@ public static class ResultJson
     /// <summary>
     /// The result as compact JSON. A result that lists a feature's new faces gives each one's id and surface only (S45:
     /// up to twelve faces in full were 2 to 4k characters, read for one id or none), and one with <see cref="IShortRows"/>
-    /// its short rows (S48 d); <paramref name="detail"/> (faceDetail, equationDetail) keeps them in full.
+    /// its short rows (S48 d); <paramref name="detail"/> (faceDetail, equationDetail) keeps them in full. A face of another
+    /// feature than the first face's (a chamfer an edge moved to, S75) keeps its feature's name.
     /// </summary>
     public static string Serialize<T>(T value, bool detail = false)
     {
         var brief = detail ? null : value switch
         {
             INewFaces { NewFaces: { Count: > 0 } faces } => ("newFaces", new System.Text.Json.Nodes.JsonArray(
-                [.. faces.Select(f => (System.Text.Json.Nodes.JsonNode)new System.Text.Json.Nodes.JsonObject { ["id"] = f.Id, ["surface"] = f.Surface })])),
+                [.. faces.Select(f => (System.Text.Json.Nodes.JsonNode)ShortFace(f, faces[0].Feature))])),
             IShortRows rows => rows.ShortRows(),
             _ => ((string, System.Text.Json.Nodes.JsonArray)?)null,
         };
@@ -53,6 +54,13 @@ public static class ResultJson
         var node = JsonSerializer.SerializeToNode(value, value!.GetType(), Options)!.AsObject();
         node[property] = items; // in place: the property keeps its position
         return node.ToJsonString(Options);
+    }
+
+    private static System.Text.Json.Nodes.JsonObject ShortFace(FaceInfo f, string? firstFeature)
+    {
+        var o = new System.Text.Json.Nodes.JsonObject { ["id"] = f.Id, ["surface"] = f.Surface };
+        if (f.Feature is not null && f.Feature != firstFeature) o["feature"] = f.Feature;
+        return o;
     }
 }
 

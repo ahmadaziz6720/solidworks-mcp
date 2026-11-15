@@ -416,6 +416,20 @@ public class PartFeatureLiveTests(LiveFixture fx) : LiveTest(fx)
             Doc = doc2, Edges = [alongX, alongZ], FlipEdges = [1], Type = "distance_distance", DistanceMm = 1, Distance2Mm = 2,
         });
         Assert.True(OnSide(n.Verified.Checks!) == (plain.X, !plain.Z), string.Join(" | ", n.Verified.Checks!));
+
+        // S75: newFaces lists the faces of both chamfers, each named by its own, in short too; for the edit as well.
+        static void BothListed(FeatureResult r)
+        {
+            string also = Assert.Single(r.AlsoCreated!).Name;
+            Assert.True(r.NewFaces?.Count == 2 && r.NewFaceCount == 2, $"newFaces {string.Join(", ", r.NewFaces?.Select(f => $"{f.Id} ({f.Feature})") ?? [])}, " +
+                $"newFaceCount {r.NewFaceCount}, faceCountDelta {r.Verified.FaceCountDelta}, alsoCreated {also}");
+            Assert.Equal(new[] { r.Feature.Name, also }, r.NewFaces!.Select(f => f.Feature));
+            var brief = System.Text.Json.JsonDocument.Parse(ResultJson.Serialize(r)).RootElement.GetProperty("newFaces").EnumerateArray().ToList();
+            Assert.False(brief[0].TryGetProperty("feature", out _));
+            Assert.Equal(also, brief[1].GetProperty("feature").GetString());
+        }
+        BothListed(n);
+        BothListed(e);
     }
 
     [Fact]

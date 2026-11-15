@@ -17,7 +17,7 @@ Closed all the same, its PR named, and an open PR no longer holds an item in Wai
 item sent upstream ends with `**Upstream: PR #9, open.**`, one per PR or issue
 (`merged`, `closed unmerged`; an issue `open` or `closed`), kept to its state.
 
-**Open: S4, S5, S7, S10 to S12, S33, S34, S49, S52, S59 to S61, S64, S65, S67, S71, S72, S74, S75.**
+**Open: S4, S5, S7, S10 to S12, S33, S34, S49, S52, S59 to S61, S64, S65, S67, S71, S72, S74.**
 Sorted 2026-11-16, the scenario test of build `20261116-050908` (findings 2026-11-16):
 S51 and S73 held and closed; S75 new, taken into the run's group 2. The scenario test of build `20261114-024455` (`cfd987e`) ran 2026-11-14 (findings
 2026-11-14). Held, and closed on the owner's word: S47, S48, S50, S53 to S58, S63, S66,
@@ -265,8 +265,8 @@ server change since build `20261114-024455`).
 - [x] S68: committed (`5bd1037`)
 - [x] S69: committed (`3fc6c59`)
 - [x] S70: committed (`a6a28d6`)
-- [x] S62 (b): committed
-- [ ] S75: committed
+- [x] S62 (b): committed (`64cb0b0`)
+- [x] S75: committed
 - [ ] Group 2: full live tests and release (build: )
 - [ ] Group 2: scenario test (session id: ), its entry committed and sorted
 - [ ] S49: committed
@@ -1071,18 +1071,6 @@ yet decided.
 Taken into the run of 2026-11-16, group 3: the refusal names the equation and its variable
 (`## Run 2026-11-16`).
 
-### S75 - `feature_chamfer` lists in `newFaces` only the named chamfer's faces when an edge moves to a chamfer of its own - OPEN 2026-11-16
-
-Sorted out of the entry of 2026-11-16, point 2. On build `20261116-050908`, with S51's fix:
-a new `distance_distance` chamfer with `flipEdges:[1]` on two edges meeting at a corner
-moved edge 1 to `Chamfer2` (said in a warning, `alsoCreated`), and the result gave
-`faceCountDelta` 2 but `newFaces` one face, the named chamfer's; the split-off chamfer's
-face took a `face_list {feature}`, one call more. Reported `ok`; the count was right.
-
-Proposed: `newFaces` lists the faces of every chamfer the call made, those of
-`alsoCreated` named apart. Local, the S51 code. Taken into the run of 2026-11-16, group 2
-(a small point in group 1's files).
-
 ## Waiting
 
 ### S1 - `drw_view_section` / `drw_view_detail` drew in view-sketch coordinates - BUILT 2026-11-09, proof: a session that runs `drw_view_detail` and a view at an angle
@@ -1343,3 +1331,38 @@ change it listed.
 
 Local: (b) on `sw2023`, in the commit that moves it here; not yet in a build; proof: the
 scenario test of group 2's build. Upstream: not yet decided.
+
+### S75 - `feature_chamfer` lists in `newFaces` only the named chamfer's faces when an edge moves to a chamfer of its own - BUILT 2026-11-16, proof: the scenario test of group 2's build
+
+Sorted out of the entry of 2026-11-16, point 2. On build `20261116-050908`, with S51's fix:
+a new `distance_distance` chamfer with `flipEdges:[1]` on two edges meeting at a corner
+moved edge 1 to `Chamfer2` (said in a warning, `alsoCreated`), and the result gave
+`faceCountDelta` 2 but `newFaces` one face, the named chamfer's; the split-off chamfer's
+face took a `face_list {feature}`, one call more. Reported `ok`; the count was right.
+
+Proposed: `newFaces` lists the faces of every chamfer the call made, those of
+`alsoCreated` named apart. Local, the S51 code. Taken into the run of 2026-11-16, group 2
+(a small point in group 1's files).
+
+Fixed in the run of 2026-11-16. Cause: the result of a feature tool lists the faces of
+its main feature only (`FeatureVerifier.Result`), and the chamfer an edge moved to (S51)
+is a feature of its own, named in `alsoCreated`. Fix: a chamfer call, new or `edit`, lists
+in `newFaces` the faces of every chamfer in `alsoCreated` after the named chamfer's (up to
+twelve in all), `newFaceCount` counting them all; in the short list (no `faceDetail`) a
+face of another feature than the first face's gives its `feature` too, so the split-off
+chamfer's face is told apart. Test before:
+`Chamfer_flipEdges_flips_only_the_indexed_edge_of_two_meeting_at_a_corner`, with
+assertions added (each call's `newFaces` two faces, the named chamfer's then the
+`alsoCreated` one's, the short list naming the second's feature), failed on the code
+before at the new chamfer: "newFaces F25 (Chamfer1), newFaceCount 1, faceCountDelta 2,
+alsoCreated Chamfer2". After: it and the other chamfer tests (`Chamfer_*` in
+`PartFeatureLiveTests`), 8/8, on 2023 SP3; unit tests 288/288 (one new, the short face's
+`feature`); `check_repo` ok. No tool description changed.
+Decided 2026-11-16 by the run, not the owner: the short list names a face's feature only
+when it is not the first face's, not on every face, because the main chamfer is the
+result's `feature` already and the short list was cut to id and surface to save
+characters (S45); the change is in the serializer, so any feature result whose faces
+come from more than one feature gives it, which only a chamfer's does now.
+
+Local: on `sw2023`, in the commit that moves it here; not yet in a build. Upstream: not yet
+decided.
