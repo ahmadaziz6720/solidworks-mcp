@@ -18,7 +18,7 @@ item sent upstream ends with `**Upstream: PR #9, open.**`, one per PR or issue
 (`merged`, `closed unmerged`; an issue `open` or `closed`), kept to its state.
 
 **Open: S4, S5, S7, S10 to S12, S33, S34, S49, S51, S52, S59 to S62, S64, S65, S67 to
-S72.** The scenario test of build `20261114-024455` (`cfd987e`) ran 2026-11-14 (findings
+S74.** The scenario test of build `20261114-024455` (`cfd987e`) ran 2026-11-14 (findings
 2026-11-14). Held, and closed on the owner's word: S47, S48, S50, S53 to S58, S63, S66,
 and the fixed parts of S60 to S62, S64 and S65. Back to Open: S51 (`flipEdges` in a
 chamfer's edit flips every edge, reported `ok`), S49 (a line's wording), S52 (the box of a
@@ -28,8 +28,9 @@ and S65 are from twenty working sessions on build `20261112-091908` (findings 20
 and 13), S67 to S71 seen by the run of 2026-11-13 in its own tests. Reported `ok` while
 wrong or misleading: S51, S52, S60 (a), S72.
 S24's fix joined PR #9 (`2c2a98a`) and S20 (d) PR #10 (`d801b06`) on 2026-11-14, as S3
-and S20 say. Next: the owner's decisions on S49, S51, S52, S59 (c) and S72; the unsorted
-`findings.md` entry of 2026-11-13. The run of 2026-11-13 is done, its section in
+and S20 say. Next: the owner's decisions on S49, S51, S52, S59 (c), S72, and on what the
+`findings.md` entry of 2026-11-13 added, sorted 2026-11-16: S73 and S74, new, S64 (h) and
+S65 (e). The run of 2026-11-13 is done, its section in
 `closed_items.md`. Not in it: S4, S5, S7 and S12 wait on upstream; S10, S11, S33 and S34 are parked until a job
 needs them; S61 (a), S62 (b), S64 (c) and S65 (b to d) were offered for this run and not
 chosen (2026-11-13), and stay open. The round before (S37 to S46, S6's wording, S13, S14,
@@ -776,6 +777,13 @@ build `20261114-024455`. Upstream: not yet decided.
 Held in the scenario test of build `20261114-024455` (findings 2026-11-14, point 6): (a);
 (d), the dry run's refusal word for word; (e); (f); (g). Those parts closed 2026-11-14 on
 the owner's word; the item stays Open for (b) and (c).
+(h) Added 2026-11-16, on build `20261112-091908` (findings 2026-11-13, "two printed
+plates", point 3): `feature_pattern_linear` of a rib and its own linear pattern together
+failed "SOLIDWORKS created no feature (the API returned nothing). (tried 2 senses of the
+direction)"; with `direction2` on the same axis as `direction` it is refused. Four ribs at
+uneven spacing along one axis took a pattern and a mirror about a new plane. Not probed:
+whether a pattern of a pattern is refused by SOLIDWORKS itself, so the hint would name it.
+Not yet decided.
 
 ### S65 - Missing options met while modelling - OPEN 2026-11-12
 
@@ -826,6 +834,19 @@ for its hint). Local: (a) on `sw2023`, `fd9bd83`; in build `20261114-024455`.
 Upstream: not yet decided.
 Held in the scenario test of build `20261114-024455` (findings 2026-11-14, point 6): (a).
 That part closed 2026-11-14 on the owner's word; the item stays Open for (b) to (d).
+Sorted 2026-11-16 from findings 2026-11-13, "two printed plates", on build `20261112-091908`.
+(c) met again (point 4): a `vertical` relation between `{at}` on an arc centre and the
+origin failed "'vertical' conflicts with existing relations or dimensions (the sketch
+became no_solution)" where three concentric arcs from `sketch_offset` and three line ends
+sat on that point; the same relation worked with one circle there. Likely resolved to an
+offset arc's centre, which the offset relation holds, and the result does not say which
+point it took. Workaround: `concentric` with the model's hole edge. (e) New (point 5): no
+way to merge two segment ends drawn at the same coordinates: `{at}` twice is refused
+"'merge' needs 2 different entities; some references name the same one", and a polyline
+with a separate arc at its ends leaves them unmerged ("ManyOpen"). Workaround: the arc
+drawn 0.2 to 0.5 off, then `coincident` on the two points, one call more a joint. Proposed
+by the session: a segment's end named (`{name:'Line1', end:'start'}`), or `sketch_add`
+merging ends that meet. Both not yet decided.
 
 ### S67 - `feature_rollback` before the only feature fails its check - OPEN 2026-11-13
 
@@ -896,6 +917,30 @@ session (S28's test). Reported `ok` while wrong. Proposed by the session: `mater
 refuses (`VERIFY_FAILED`, rolled back) when the density read differs from the database's,
 as it once did, and its message, like S58 (b)'s, names a restart when a database material
 reads ~1 kg/m³. Bears on S58 (b), S30. Local. Not yet decided.
+
+### S73 - `feature_pattern_circular` turns the instances the sense it picks, reported `ok`, with no option for the other - OPEN 2026-11-16
+
+On build `20261112-091908` (findings 2026-11-13, "two printed plates", point 2): a 10°
+pattern of a cut at 30° about a hole whose cylinder face reads its axis as [0, 0, -1] put
+the instances at 20° and 10°, the other way from what was meant, the result saying
+"instance faces at the expected positions: 10/10 (3 x 10° about [0, 0, -1],
+counter-clockwise)". The check confirms the sense the server chose, about an axis the
+caller did not pick, and the tool has no option for the sense; `totalAngleDeg` 350 was
+refused ("go past 360°"). Workaround: the seed moved to the other end of the range, 4
+calls. On the same part a 270° pattern said "rotation sense flipped (SOLIDWORKS' default
+missed the part)" and landed right. Reported `ok` while not what was asked, though what it
+reported was true. Proposed by the session: a `reverse` option, and the instances' angles
+reported about a model axis the caller names. Bears on S41 (Closed). Local. Not yet
+decided.
+
+### S74 - `dimension_set` on a mate's angle driven by an equation calls it a driven (reference) dimension - OPEN 2026-11-16
+
+On build `20261112-091908` (findings 2026-11-13, "two printed plates", point 7):
+`dimension_set` on an angle mate's dimension driven by an equation refused it "is a driven
+(reference) dimension: it reports a value but doesn't control the geometry". It is
+driving, through an equation; for a part's dimension the refusal names the equation's
+variable, for a mate's it does not. A hint that misses. Bears on S37 (Closed). Local. Not
+yet decided.
 
 ## Waiting
 

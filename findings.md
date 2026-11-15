@@ -1635,6 +1635,10 @@ Build `0.1.0-sw2023-20261112-091908+276d378`.
 7. `dimension_set` on a mate's angle driven by an equation refused it "is a driven (reference) dimension: it reports a value but doesn't control the geometry". It is driving, through an equation; the hint should name the equation's variable, as for a part's dimension.
 8. Held: the angular dimension's warning that `textAt` lay in the supplement, which let it be fixed by `dimension_set` 130; `feature_rib` flipping its side when the first met no wall, with a warning; `asm_replace` keeping 21 of 22 mates and naming the one on a face it lost; `asm_mate_add` coincident of two faces anti-aligned, `originMm` read back; `equation_set` with 27 equations in one call.
 
+Sorted into S73 new (2); S64 (h) new (3); S65 (c), met again (4), and S65 (e) new (5); S74
+new (7). S55 (1) and S56 (b) (6), met again on the build before their fixes in build
+`20261114-024455`, both Closed. Not filed (8): works as described.
+
 **2026-11-14: scenario test of the run's items (S47 to S59, S60 b-d, S61 b-c, S62 a/d/e, S63, S64 a/d-g, S65 a, S66)**
 
 Build `0.1.0-sw2023-20261114-024455+cfd987e` (`sw_status` and the tag agree).
