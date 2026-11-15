@@ -252,8 +252,8 @@ server change since build `20261114-024455`).
 - [x] Phase 1: the opening question asked and answered (2026-11-16)
 - [x] S51: committed (`f665a18`)
 - [x] S73: committed (`9cd5638`)
-- [x] S64 (h): committed
-- [ ] S64 (c): committed
+- [x] S64 (h): committed (`86e7042`)
+- [x] S64 (c): committed
 - [ ] Group 1: full live tests and release (build: )
 - [ ] Group 1: scenario test (session id: ), its entry committed and sorted
 - [ ] S68: committed
@@ -991,6 +991,27 @@ spacing. Test kept, passing before and after (no fix):
 and 4, 1800 mm³, 6/6 positions, no warning), with `Rib_5mm_fills_the_corner_of_an_L_bracket`,
 2 of 2 live. Made stricter: none. Local: on `sw2023`, in the commit that records it; not
 yet in a build. Upstream: not yet decided. The item stays Open for (b) and (c).
+**Probed in the run of 2026-11-16: (c), not reproduced.** Probe, 2026-11-16, on `86e7042`,
+on the plate of S52's test (113 × 10, 10 thick mid plane, quarter-round R7 ends into a face
+30° off their tangent), each case on a fresh plate: `feature_fillet` over the top chain
+(the top line and both rounds, by `at` on the line, `propagate` on) built at 0.5, 1, 1.5,
+2 and 3 mm (ΔV -6.496, -25.993, -58.585, -104.37, -235.31 mm³; at 1 mm about (1 - π/4) ×
+the chain's 121 mm), the back chain at 1 mm the same, the chain from a round with `propagate`
+on the same, the line and both rounds named without `propagate` the same, the line and one
+round -23.954, the face z = 5 at 1 mm -50.669; `feature_chamfer` 1 mm by the line and by a
+round -60.666 each. So the five failures of the finding did not come back on this plate.
+What did fail, `FEATURE_FAILED` "SOLIDWORKS created no feature (the API returned nothing)"
+with the hint "A radius too large for the adjacent faces fails": a round alone with
+`propagate` off, at 1, 0.5 and 0.2 mm alike, and both rounds together without the line.
+Each such edge ends on the top line, tangent to it and not in the call: a fillet that stops
+at a tangent joint fails at any radius, so there the hint misses as the finding says, but
+the cause is the joint, not the radius, and a retry per edge would name the same edges the
+call gave. Decided 2026-11-16 by the run, not the owner: (c) stays Open with no code change
+and no test kept, because the plan's test builds and the retry per edge was decided for a
+chain that fails as a whole and has edges that pass alone, which no probed case showed; a
+hint for the tangent joint ("an edge ending tangent to one not in the call: turn
+`propagate` on or add that edge") is a new choice for the owner. A repro needs the
+session's own part. The item stays Open for (b) and (c).
 
 ### S65 - Missing options met while modelling - OPEN 2026-11-12
 
