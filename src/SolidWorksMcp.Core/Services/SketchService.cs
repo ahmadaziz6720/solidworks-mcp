@@ -315,7 +315,8 @@ public sealed class SketchService(SwSession session)
     /// drawn before it (in this call or earlier), which SOLIDWORKS left apart: an arc from its centre and angles on a
     /// polyline typed to 4 decimals stayed open ("ManyOpen"). Merged with sgMERGEPOINTS, as sketch_relation_add 'merge':
     /// one point, no relation; checked by the two ends reading one point where they were. Ends of two older segments, an
-    /// end on a segment's middle and a free point are left as they are. Each merge is listed under its entity's Merged.
+    /// end on a segment's middle and a free point are left as they are. Each merge is listed under its entity's Merged,
+    /// with the gap as drawn (S87); the new end is set onto the other first, so the merge moves no other end.
     /// </summary>
     private static void MergeEnds(SwContext ctx, IModelDoc2 d, ISketch sketch, List<ISketchSegment> created,
         Dictionary<string, int> entityOf, List<SketchEntityResult> results)
@@ -324,6 +325,10 @@ public sealed class SketchService(SwSession session)
         var order = new Dictionary<string, int>(StringComparer.Ordinal);
         foreach (var s in created) order.TryAdd(s.GetName(), order.Count);
         var ends = Ends(sketch, order);
+        // S87: each end where it was drawn. A merge moved the arc, so the next one read the gap it left (twice the drawn
+        // one) and moved a polyline's end that far: the gap is the one as drawn, and the new end is put onto the other first.
+        var drawn = ends.ToDictionary(x => (x.Seg, x.Which), x => x.At);
+        Vec3 Drawn(EndAt x) => drawn.GetValueOrDefault((x.Seg, x.Which), x.At);
         var mine = ends.Where(x => x.Order >= 0).OrderBy(x => x.Order).Select(x => (x.Seg, x.Which)).ToList();
         bool is3D = sketch.Is3D();
         foreach (var (seg, which) in mine)
@@ -333,9 +338,17 @@ public sealed class SketchService(SwSession session)
                 var e = ends.FirstOrDefault(x => x.Seg == seg && x.Which == which);
                 if (e is null) break;
                 var onto = ends.Where(o => o.Seg != seg && o.Key != e.Key && (o.Order < 0 || o.Order < e.Order))
-                    .Select(o => (O: o, Gap: o.At.DistanceTo(e.At))).Where(x => x.Gap <= MergeTol).OrderBy(x => x.Gap).FirstOrDefault();
+                    .Select(o => (O: o, Gap: Drawn(o).DistanceTo(Drawn(e)))).Where(x => x.Gap <= MergeTol).OrderBy(x => x.Gap).FirstOrDefault();
                 if (onto.O is null) break;
                 var o = onto.O;
+                if (e.At.DistanceTo(o.At) > 0 && e.P.SetCoords(o.At.X, o.At.Y, o.At.Z))
+                {
+                    ends = Ends(sketch, order);
+                    var (oSeg, oWhich) = (o.Seg, o.Which);
+                    e = ends.FirstOrDefault(x => x.Seg == seg && x.Which == which);
+                    o = ends.FirstOrDefault(x => x.Seg == oSeg && x.Which == oWhich);
+                    if (e is null || o is null) break;
+                }
                 d.ClearSelection2(true);
                 bool selected = e.P.Select4(false, null) && o.P.Select4(true, null);
                 if (selected) d.SketchAddConstraints("sgMERGEPOINTS");
@@ -353,10 +366,15 @@ public sealed class SketchService(SwSession session)
                 }
                 var r = results[entityOf[seg]];
                 r.Merged = [.. r.Merged ?? [], $"{seg} {which} merged onto [{where}] ({o.Seg} {o.Which}), " +
-                    $"{(Units.Mm(onto.Gap) + 0.0).ToString("0.######", System.Globalization.CultureInfo.InvariantCulture)} mm apart"];
+                    $"{Mm6(onto.Gap)} mm apart"];
+                if (e2.At.DistanceTo(Drawn(o)) > onto.Gap + 1e-9)
+                    ctx.Warn($"Merging {seg} {which} moved {o.Seg} {o.Which} {Mm6(e2.At.DistanceTo(Drawn(o)))} mm from where it was " +
+                             $"drawn, more than the {Mm6(onto.Gap)} mm between them.");
             }
         }
     }
+
+    private static string Mm6(double m) => (Units.Mm(m) + 0.0).ToString("0.######", System.Globalization.CultureInfo.InvariantCulture);
 
     private static HashSet<string> SegmentNames(ISketch s) => s.Segments().Select(x => x.GetName()).ToHashSet(StringComparer.Ordinal);
 

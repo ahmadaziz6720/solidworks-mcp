@@ -141,6 +141,9 @@ type libraries and writes `sldworks_api.txt`, `swconst_enums.txt`, `swcommands.t
     sketch point). One of the two `ISketchPoint` objects is then dead (`RPC_E_DISCONNECTED`), so find the points again
     through their segments. It ignores a free point. `sgCOINCIDENT` on two end points merges them the same way; on a free
     point it adds a coincident relation (type 9) and moves the second point onto the first. VERIFIED.
+    The solver picks which point moves: an arc merged onto one polyline end moved as a whole, and its other end, merged
+    next, pulled that polyline end twice the drawn gap. `ISketchPoint.SetCoords(x, y, z)` (sketch metres) on the new end
+    first puts it on the other, the arc bending and the polyline staying, so the merge moves nothing. VERIFIED (S87).
   - Coincident point + line puts the point on the **infinite** line. VERIFIED.
   - **Relations made while drawing, `AddToDB` on** (VERIFIED 2023 SP3): a corner rectangle drawn square gets an equal
     relation besides its horizontals and verticals, a corner on the origin a coincident to it, a polygon a tangent and

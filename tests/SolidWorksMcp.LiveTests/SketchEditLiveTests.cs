@@ -34,6 +34,8 @@ public class SketchEditLiveTests(LiveFixture fx) : LiveTest(fx)
         return (doc, st.Sketch, added);
     }
 
+    private static string Fmt(double[] p) => $"[{string.Join(", ", p.Select(v => v.ToString(System.Globalization.CultureInfo.InvariantCulture)))}]";
+
     private static string Name(SketchAddResult added, int entity) => added.Entities[entity].Segments[0];
 
     private static string[] Sides(SketchAddResult added, int entity) =>
@@ -819,6 +821,17 @@ public class SketchEditLiveTests(LiveFixture fx) : LiveTest(fx)
         Assert.Contains(arcMerged, m => m.Contains("merged onto [34.33, 12.5]") && m.EndsWith("0.000027 mm apart"));
         Assert.Contains(arcMerged, m => m.Contains("merged onto [25.67, 12.5]"));
         Assert.Equal(2, added.EndsMerged);
+        // S87: each merge reports its gap as drawn and moves an end by at most it. The first merge had moved the arc, and the
+        // second read the gap that left (0.000054) and moved the polyline's end that far from where it was typed.
+        Assert.All(arcMerged, m => Assert.EndsWith("0.000027 mm apart", m));
+        var polyEnds = (await Ed.InfoAsync(doc, null)).Segments.Where(s => added.Entities[0].Segments.Contains(s.Name))
+            .SelectMany(s => new[] { s.StartMm!, s.EndMm! }).ToList();
+        foreach (var typed in new double[][] { [34.3301, 12.5], [25.6699, 12.5] })
+        {
+            var read = polyEnds.MinBy(p => double.Hypot(p[0] - typed[0], p[1] - typed[1]))!;
+            Assert.True(double.Hypot(read[0] - typed[0], read[1] - typed[1]) <= 0.0000275,
+                $"the polyline's end typed at {Fmt(typed)} reads {Fmt(read)}");
+        }
 
         // The arc in a later call, onto the ends of a polyline drawn before.
         var poly = await Sk.AddAsync(doc, [new SketchEntity { Kind = "polyline", Points = [[64.3301, 12.5], [64.3301, 0], [55.6699, 0], [55.6699, 12.5]] }]);

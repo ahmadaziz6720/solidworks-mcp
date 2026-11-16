@@ -17,7 +17,7 @@ Closed all the same, its PR named, and an open PR no longer holds an item in Wai
 item sent upstream ends with `**Upstream: PR #9, open.**`, one per PR or issue
 (`merged`, `closed unmerged`; an issue `open` or `closed`), kept to its state.
 
-**Open: S4, S5, S7, S10 to S12, S33, S34, S52, S60, S61, S64, S65, S79 to S89.**
+**Open: S4, S5, S7, S10 to S12, S33, S34, S52, S60, S61, S64, S65, S79 to S86, S88, S89.**
 Sorted 2026-11-16, the scenario test of build `20261116-205845` (findings 2026-11-16): S59
 held and closed, S65 (b) to (e) held and those parts closed; S87 and S88 new, taken into
 the run's group 5; S89 new (S60 (b) again, a SOLIDWORKS started by `launch`), not in this
@@ -364,8 +364,8 @@ server change since build `20261114-024455`).
   For the release: `PropertiesLiveTests.A_custom_material_is_listed_…` fails on this
   machine before and after S72 (a second classification in the custom library, from an
   earlier run), not a fault of this group.
-- [x] S71: committed
-- [ ] S87: committed
+- [x] S71: committed (`e18996e`)
+- [x] S87: committed
 - [ ] S88: committed
 - [ ] Group 5: full live tests and release (build: )
 - [ ] Group 5: scenario test (session id: ), its entry committed and sorted
@@ -1428,21 +1428,6 @@ Proposed: (a) a warning naming each segment removed that was not named, with the
 dimensions and relations that went with it; (b) a probe that S54 (c)'s warning fires after
 `sketch_delete` and a new dimension of a freed name. Local. Not decided.
 
-### S87 - `sketch_add`'s second merge reports the distance after the first and moves an end twice the gap - OPEN 2026-11-16
-
-Sorted out of the entry of 2026-11-16 (the scenario test of build `20261116-205845`), point
-2. An open polyline typed to 4 decimals and an arc on its ends, in one call: `endsMerged: 2`,
-one closed contour (S65 (e) held). Reported `ok`: the second merge read "0.000054 mm apart"
-where the drawn gap was 0.000027; the first merge had moved the arc (its centre to y
-10.000027), and the second moved the line's end 0.000054 from where it was typed
-(`sketch_info`: y 14.330154, typed 14.3301). Within the 1e-4 tolerance, the geometry right;
-the reported distance is the one after the earlier merge, and one end moved twice the gap.
-
-Proposed: each merge reports the gap as drawn, and moves an end by at most that gap (the
-second merge onto the point the first left, or both measured before either moves). Local,
-small, in group 4's files: by the run's rule a later item of this run, taken into group 5.
-Not decided.
-
 ### S88 - `view_screenshot` fits a part small to an axis made through points, with no warning - OPEN 2026-11-16
 
 Sorted out of the entry of 2026-11-16 (the scenario test of build `20261116-205845`), point
@@ -1613,5 +1598,49 @@ springs add stiffness to the model the results are read from, while FFEPlus solv
 model as it is; both are one setting.
 Decided 2026-11-16 by the run, not the owner: only with no fixtures, because the fixed
 study solves under SOLIDWORKS' own choice and the item is the free body.
+Local: on `sw2023`, in the commit that moves it here; not yet in a build. Upstream: not yet
+decided.
+
+### S87 - `sketch_add`'s second merge reports the distance after the first and moves an end twice the gap - BUILT 2026-11-16, proof: the scenario test of group 5's build
+
+Sorted out of the entry of 2026-11-16 (the scenario test of build `20261116-205845`), point
+2. An open polyline typed to 4 decimals and an arc on its ends, in one call: `endsMerged: 2`,
+one closed contour (S65 (e) held). Reported `ok`: the second merge read "0.000054 mm apart"
+where the drawn gap was 0.000027; the first merge had moved the arc (its centre to y
+10.000027), and the second moved the line's end 0.000054 from where it was typed
+(`sketch_info`: y 14.330154, typed 14.3301). Within the 1e-4 tolerance, the geometry right;
+the reported distance is the one after the earlier merge, and one end moved twice the gap.
+
+Proposed: each merge reports the gap as drawn, and moves an end by at most that gap (the
+second merge onto the point the first left, or both measured before either moves). Local,
+small, in group 4's files: by the run's rule a later item of this run, taken into group 5.
+Taken into the run of 2026-11-16, group 5 (`## Run 2026-11-16`).
+Cause: `MergeEnds` measured each gap on the sketch as it stood, after the merges before
+it, and left SOLIDWORKS' solver to pick which point moves. The arc merged onto one
+polyline end moved as a whole, its other end then 0.000054 off the other polyline end,
+and that merge pulled the polyline end onto it.
+Fix: the ends are read once before any merge, and each gap reported and checked against
+the 1e-4 mm tolerance is the one as drawn; before each merge the new end is set onto the
+other with `ISketchPoint.SetCoords`, the arc bending and the polyline staying, so the merge
+moves nothing; a merge that still moves the other end more than the drawn gap warns,
+naming it. In `docs/solidworks-api-notes.md` (Merge).
+Test before: `SketchEditLiveTests.Sketch_add_merges_an_arc_drawn_on_a_polyline_s_ends_into_one_closed_contour`,
+extended: "Assert.EndsWith() Failure ... (Line3 end), 0.000054 mm apart, Expected end:
+0.000027 mm apart"; with the report fixed alone, "the polyline's end typed at [34.3301,
+12.5] reads [34.330154, 12.5]". After: it passes; with it,
+`Sketch_add_lists_the_relations_and_merges_SOLIDWORKS_made`,
+`Merge_and_coincident_join_two_line_ends_into_one_point`,
+`Constrain_follows_a_point_through_a_merge`,
+`Info_lists_segments_contours_frame_and_dimensions` and
+`A_point_where_offset_arcs_centres_and_line_ends_sit_…`: 6 of 6 passed. Unit tests 297
+passed; `python tools/check_repo.py` ok; no tool description changed.
+Made stricter: the test asserts both merges' gaps and the polyline's ends within the
+drawn gap of where they were typed.
+Decided 2026-11-16 by the run, not the owner: the new end set onto the other before the
+merge, not only both gaps measured before either merge, because measuring alone makes the
+report true while the polyline's end still moves twice the gap; setting the end needs no
+relation added and removed, as fixing the other end would.
+Decided 2026-11-16 by the run, not the owner: a warning when a merge moves the other end
+more than the drawn gap, because the result then says so instead of a silent move.
 Local: on `sw2023`, in the commit that moves it here; not yet in a build. Upstream: not yet
 decided.
