@@ -153,6 +153,28 @@ public class AssemblyMathTests
     }
 
     [Fact]
+    public void Moved_lists_a_top_level_component_that_moved_and_a_nested_one_that_moved_in_its_parent()
+    {
+        // S78 (a): full names; a child carried along by its subassembly is not listed besides it.
+        static double[] At(double x, double y, double z) => [1, 0, 0, 0, 1, 0, 0, 0, 1, x, y, z, 1, 0, 0, 0];
+        static double[] Turned(double x, double y, double z) => [0, 1, 0, -1, 0, 0, 0, 0, 1, x, y, z, 1, 0, 0, 0];
+        var before = new Dictionary<string, (string?, double[])>
+        {
+            ["sub-1"] = (null, At(0, 0, 0.1)), ["sub-1/b-1"] = ("sub-1", At(0.04, 0, 0.1)), ["sub-1/a-1"] = ("sub-1", At(0, 0, 0.1)),
+            ["b-1"] = (null, At(0.04, 0, 0.1)), ["c-1"] = (null, At(0, 0.03, 0)),
+            ["sub-2"] = (null, At(0, 0, 0)), ["sub-2/b-1"] = ("sub-2", At(0.01, 0, 0)),
+        };
+        // sub-1 stays and its b-1 moves in it, the top-level b-1 with it; sub-2 turns and carries its b-1 along.
+        (string, string?, double[])[] after =
+        [
+            ("sub-1", null, At(0, 0, 0.1)), ("sub-1/b-1", "sub-1", At(0.04, 0.03, 0.1)), ("sub-1/a-1", "sub-1", At(0, 0, 0.1)),
+            ("b-1", null, At(0.04, 0.03, 0.1)), ("c-1", null, At(0, 0.03, 0)),
+            ("sub-2", null, Turned(0, 0, 0)), ("sub-2/b-1", "sub-2", Turned(0, 0.01, 0)), ("new-1", null, At(1, 1, 1)),
+        ];
+        Assert.Equal(["sub-1/b-1", "b-1", "sub-2"], AsmMath.Moved(before, after));
+    }
+
+    [Fact]
     public void Distances_and_angles()
     {
         Assert.Equal(-2, AsmMath.PointToPlane(new Vec3(0, 1, 0), Vec3.UnitY, new Vec3(5, -1, 7)), 12);

@@ -17,7 +17,7 @@ Closed all the same, its PR named, and an open PR no longer holds an item in Wai
 item sent upstream ends with `**Upstream: PR #9, open.**`, one per PR or issue
 (`merged`, `closed unmerged`; an issue `open` or `closed`), kept to its state.
 
-**Open: S4, S5, S7, S10 to S12, S33, S34, S52, S59 to S61, S64, S65, S71, S72, S78, S79.**
+**Open: S4, S5, S7, S10 to S12, S33, S34, S52, S59 to S61, S64, S65, S71, S72, S79.**
 Sorted 2026-11-16, the scenario test of build `20261116-080311` (findings 2026-11-16):
 S68, S69, S70, S62 and S75 held and closed; S76, S77 and S78 new, taken into the run's
 group 3; S79 new, not in this run. Sorted 2026-11-16, the scenario test of build `20261116-050908` (findings 2026-11-16):
@@ -290,8 +290,8 @@ server change since build `20261114-024455`).
 - [x] S74: committed (`972bc54`)
 - [x] S67: committed (`1da8d57`)
 - [x] S76: committed (`96dd93f`)
-- [x] S77: committed
-- [ ] S78: committed
+- [x] S77: committed (`14a0e56`)
+- [x] S78: committed
 - [ ] Group 3: full live tests and release (build: )
 - [ ] Group 3: scenario test (session id: ), its entry committed and sorted
 - [ ] S59 (c): committed
@@ -985,29 +985,6 @@ rolled back) when the density read differs from the database's by more than 1 % 
 body material of its own and no mass override, naming a restart at about 1 kg/m³. Taken
 into the run of 2026-11-16, group 5 (`## Run 2026-11-16`).
 
-### S78 - Mate results and origin references: `moved` short and incomplete, an origin needs a name and reads as a point - OPEN 2026-11-16
-
-Sorted out of the entry of 2026-11-16, points 7 and 3. On build `20261116-080311`, each
-reported `ok`. (a) A mate moved a cube inside a subassembly and, through two earlier
-mates, a top-level cube of the same short name; the result gave `moved:
-["<cube>-2"]`, one short name, which is the top-level one's full name, and `components`
-listed the nested cube and the fixed one but not the top-level one that moved (point 7;
-bears on S70, Closed). The list is keyed by `Name2` before and after, which a top-level
-and a nested component of the same short name may share. (b) `{component,
-type:"origin"}` with no name was refused `INVALID_ARGUMENT: 'a' needs 'id', 'where', 'at'
-or 'name'.`, one call more, though the server's instructions list `origin` as a reference
-type and a component has one origin (point 3; bears on S68, Closed). (c) In a mate's row
-(the result and `asm_mate_list`) an origin reads `kind: "point"` with `pointMm` only, so
-it cannot be told from a sketch point (point 3).
-
-Proposed: (a) `moved` gives full names (`<sub>-1/<cube>-2`) and every component that
-moved, the components compared by their full path; (b) `type:"origin"` with no name takes
-the component's origin, or the assembly's with no component; (c) an origin reads as one
-in the row (its kind or its name). Local, the assembly files. Not decided.
-Decided 2026-11-16 by the run, not the owner: taken into the run of 2026-11-16, group 3,
-(a) to (c), because they are small and in group 2's files, so the next group, as the
-run's "How it runs" says.
-
 ### S79 - `doc_undo` right after a chamfer split by `flipEdges` is refused "Nothing changed" - OPEN 2026-11-16
 
 Sorted out of the entry of 2026-11-16, point 9. On build `20261116-080311`: `doc_undo`
@@ -1372,5 +1349,85 @@ Decided 2026-11-16 by the run, not the owner: the rows only; `asm_mate_add`'s hi
 sides are fixed" on a failed mate and `review`'s count of floating components (a child of
 a flexible subassembly not counted) still read `IsFixed`, because they are not the rows
 the item names and each is a change of its own, to an item if a session meets it.
+Local: on `sw2023`, in the commit that moves it here; not yet in a build. Upstream: not yet
+decided.
+
+### S78 - Mate results and origin references: `moved` short and incomplete, an origin needs a name and reads as a point - BUILT 2026-11-16, proof: the scenario test of group 3's build
+
+Sorted out of the entry of 2026-11-16, points 7 and 3. On build `20261116-080311`, each
+reported `ok`. (a) A mate moved a cube inside a subassembly and, through two earlier
+mates, a top-level cube of the same short name; the result gave `moved:
+["<cube>-2"]`, one short name, which is the top-level one's full name, and `components`
+listed the nested cube and the fixed one but not the top-level one that moved (point 7;
+bears on S70, Closed). The list is keyed by `Name2` before and after, which a top-level
+and a nested component of the same short name may share. (b) `{component,
+type:"origin"}` with no name was refused `INVALID_ARGUMENT: 'a' needs 'id', 'where', 'at'
+or 'name'.`, one call more, though the server's instructions list `origin` as a reference
+type and a component has one origin (point 3; bears on S68, Closed). (c) In a mate's row
+(the result and `asm_mate_list`) an origin reads `kind: "point"` with `pointMm` only, so
+it cannot be told from a sketch point (point 3).
+
+Proposed: (a) `moved` gives full names (`<sub>-1/<cube>-2`) and every component that
+moved, the components compared by their full path; (b) `type:"origin"` with no name takes
+the component's origin, or the assembly's with no component; (c) an origin reads as one
+in the row (its kind or its name). Local, the assembly files. Not decided.
+Decided 2026-11-16 by the run, not the owner: taken into the run of 2026-11-16, group 3,
+(a) to (c), because they are small and in group 2's files, so the next group, as the
+run's "How it runs" says.
+Fixed in the run of 2026-11-16, group 3, all three points.
+(a) Cause: `moved` compared the ArrayData of the top-level components only
+(`GetComponents(true)`), so a child of a flexible subassembly that the mate moved was never
+looked at, and the one name listed was the top-level twin's, the same short name. Fix:
+`asm_mate_add` reads every component at every level, by full name with its parent's,
+before and after; a top-level one is listed when its placement changed, a nested one when
+its placement in its parent changed (`AsmMath.Moved`, interop-free, unit-tested), so the
+children a subassembly carries along are not listed besides it. `components` stays the
+mated components, as its description says. Test
+`A_mate_names_every_component_it_moved_by_its_full_name` (a subassembly of a fixed cube A
+and a floating cube B, fixed in a top assembly with a fixed cube C and a top-level B held
+on the nested B by three plane mates; flexible, the nested B mated to C's top plane) failed
+on the code before: "moved: [<B>-1], expected [<sub>-1/<B>-1, <B>-1]". After: it passes,
+`moved` equal to what `asm_component_list allLevels` reads as moved, A not listed.
+(b) Cause: a reference needed `id`, `where`, `at` or `name` before its `type` was looked
+at. Fix: `type:"origin"` alone takes the origin, of the component given or of the document
+(`EntityResolver.OriginOf`, the origin feature found by its type, so in any UI language);
+`{component, name:"origin"}` goes the same way. Test `An_origin_is_taken_by_its_type_alone`
+(`{component, type:"origin"}` coincident with `{type:"origin"}`) failed before: "'a' needs
+'id', 'where', 'at' or 'name'."; after: it passes, both resolved as `origin`, the
+component's origin at [0, 0, 0].
+(c) Cause: the mate entity of an origin is the point of the origin's sketch
+(`ISketchPoint`, whose `GetSketch()` is the `OriginProfileFeature`), read as any point.
+Fix: that entity reads `kind: "origin"` with the origin's name and its `pointMm`. Test
+`A_mate_s_row_reads_an_origin_as_one` (a component's origin on another's vertex) failed
+before: "the origin reads {component: <B>-1, kind: point, name: , id: }"; after: it passes,
+in the mate's result and in `asm_mate_list`, the vertex still `point`.
+After: the three tests and the live tests that call the changed code,
+`Coincident_mates_take_the_assembly_s_origin_and_a_component_s_origin`,
+`Mate_list_names_the_plane_face_edge_or_vertex_each_mate_takes`,
+`A_top_level_component_is_reached_by_its_name_when_a_nested_one_has_the_same_short_name`,
+`A_plane_of_a_component_inside_a_subassembly_takes_a_mate`,
+`A_subassembly_is_solved_flexible_and_rigid_again_as_SOLIDWORKS_reads_it`,
+`A_child_of_a_flexible_subassembly_reads_as_able_to_move`,
+`Mates_that_cant_hold_are_refused_rolled_back_and_nothing_moves`,
+`Plane_mates_coincident_and_distance_reproduce_the_4000_mm3_overlap`,
+`Concentric_mate_puts_the_shaft_on_the_bore_axis_and_tangent_lays_one_on_the_plate`,
+`Lock_mate_keeps_the_relative_position_of_two_components` and, for the origin by name in a
+sketch, `Constrain_reads_a_relation_the_sketch_already_has_as_held_and_runs_the_next_steps`:
+14/14 pass. Unit tests 290/290
+(`Moved_lists_a_top_level_component_that_moved_and_a_nested_one_that_moved_in_its_parent`
+new); `check_repo` ok; no description changed (the reference types already list
+`origin`). Made stricter: no test read `moved` for a nested component, an origin by its
+type, or an origin's row; the new ones assert `moved` against the component list's own
+reading, and the origin's kind and name in both rows.
+Decided 2026-11-16 by the run, not the owner: a nested component is in `moved` when it
+moved in its subassembly, not when its subassembly carried it, because the subassembly's
+own name already says that and listing every child of a moved subassembly would bury what
+the mate did.
+Decided 2026-11-16 by the run, not the owner: `components` stays the mated components and
+`moved` lists the rest, because `components` is described as the mated ones and `moved` is
+the list the item asks to be complete.
+Decided 2026-11-16 by the run, not the owner: an origin reads `kind: "origin"` and the
+origin's name both, because the kind tells it from a sketch point and the name is what the
+other tools take back (`{component, name:"Origin"}`), as a plane's row gives its name.
 Local: on `sw2023`, in the commit that moves it here; not yet in a build. Upstream: not yet
 decided.

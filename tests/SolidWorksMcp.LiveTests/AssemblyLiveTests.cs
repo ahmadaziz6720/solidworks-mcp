@@ -1061,6 +1061,84 @@ public class AssemblyLiveTests(LiveFixture fx) : LiveTest(fx)
     }
 
     [Fact]
+    public async Task A_mate_names_every_component_it_moved_by_its_full_name()
+    {
+        // S78 (a): 'moved' compared the top-level components only, so a child of a flexible subassembly that a mate moved
+        // was left out, and the top-level component of the same short name that moved with it read as if it were the
+        // child. Oracle: the rows of asm_component_list (allLevels) before and after the mate.
+        var a = await CubeAsync("mvA");
+        var b = await CubeAsync("mvB");
+        var c = await CubeAsync("mvC");
+        string sub = await NewAssemblyAsync("mv_sub");
+        await InsertAsync(sub, a.Path, [0, 0, 0]);
+        await InsertAsync(sub, b.Path, [40, 0, 0], fixedState: false);
+        var saved = await Docs.SaveAsync(sub, "as", Path.Combine(_dir, $"mv_sub_{_tag}.sldasm"), overwrite: false);
+
+        string top = await NewAssemblyAsync("mv_top");
+        string ns = (await InsertAsync(top, saved.SavedTo!, [0, 0, 100], fixedState: true)).Component.Name;
+        string nc = (await InsertAsync(top, c.Path, [40, 30, 100], fixedState: true)).Component.Name;
+        string nt = (await InsertAsync(top, b.Path, [100, -50, 0], fixedState: false)).Component.Name;
+        string nb = $"{ns}/{b.Name}-1", na = $"{ns}/{a.Name}-1";
+        Assert.Equal($"{b.Name}-1", nt);
+
+        // The top-level twin held on the nested B by three plane mates (the subassembly rigid, so the twin moves).
+        foreach (var p in new[] { "top", "front", "right" }) await Mate(top, "coincident", Plane(nt, p), Plane(nb, p));
+        async Task<Dictionary<string, double[]>> Origins() =>
+            (await Asm.ComponentListAsync(top, allLevels: true, 100, 0)).Components.ToDictionary(x => x.Name, x => x.OriginMm!);
+        AssertPoint([40, 0, 100], (await Origins())[nt]);
+
+        // Flexible, B follows C's top plane (y 30) and the twin with it; the subassembly, A and C stay.
+        await Set(new() { Doc = top, Component = ns, Flexible = true });
+        var before = await Origins();
+        var m = await Mate(top, "coincident", Plane(nc, "top"), Plane(nb, "top"));
+        var after = await Origins();
+        var reallyMoved = after.Where(kv => before[kv.Key].Zip(kv.Value).Any(x => Math.Abs(x.First - x.Second) > 1e-6)).Select(kv => kv.Key).ToList();
+        Assert.Equal([nb, nt], reallyMoved.Order().ToList());
+        AssertPoint([40, 30, 100], after[nt]);
+        string got = $"moved: [{string.Join(", ", m.Moved ?? [])}]";
+        Assert.True(m.Moved is not null && m.Moved.Order().SequenceEqual(new[] { nb, nt }.Order()), $"{got}, expected [{nb}, {nt}]");
+        Assert.DoesNotContain(na, m.Moved!);
+    }
+
+    [Fact]
+    public async Task An_origin_is_taken_by_its_type_alone()
+    {
+        // S78 (b): {component, type:"origin"} with no name was refused "'a' needs 'id', 'where', 'at' or 'name'", though a
+        // component (and the assembly) has one origin.
+        var a = await CubeAsync("otA");
+        var b = await CubeAsync("otB");
+        string asm = await NewAssemblyAsync("asm_otype");
+        await InsertAsync(asm, a.Path, [0, 0, 0], fixedState: true);
+        string nb = (await InsertAsync(asm, b.Path, [37, 23, -15], fixedState: false)).Component.Name;
+
+        var m = await Mate(asm, "coincident", new EntityRef { Component = nb, Type = "origin" }, new EntityRef { Type = "origin" });
+        Assert.Equal("coincident", m.Mate.Type);
+        Assert.All(m.Resolved!, x => Assert.Equal("origin", x.Type));
+        AssertPoint([0, 0, 0], (await ComponentAsync(asm, nb)).OriginMm);
+    }
+
+    [Fact]
+    public async Task A_mate_s_row_reads_an_origin_as_one()
+    {
+        // S78 (c): an origin in a mate's row read {kind: "point", pointMm} only, as a sketch point would.
+        var a = await CubeAsync("orA");
+        var b = await CubeAsync("orB");
+        string asm = await NewAssemblyAsync("asm_orow");
+        string na = (await InsertAsync(asm, a.Path, [0, 0, 0], fixedState: true)).Component.Name;
+        string nb = (await InsertAsync(asm, b.Path, [37, 23, -15], fixedState: false)).Component.Name;
+
+        var m = await Mate(asm, "coincident", new EntityRef { Component = nb, Name = "origin" }, new EntityRef { Component = na, Type = "vertex", At = [10, 10, 10] });
+        static string Show(AsmMateEntity e) => $"{{component: {e.Component}, kind: {e.Kind}, name: {e.Name}, id: {e.Id}}}";
+        foreach (var row in new[] { m.Mate, Assert.Single((await Asm.MateListAsync(asm, 100, 0)).Mates) })
+        {
+            var o = row.Entities.Single(e => e.Component == nb);
+            Assert.True(o.Kind == "origin" && o.Name is not null, $"the origin reads {Show(o)}");
+            AssertPoint([10, 10, 10], o.PointMm);
+            Assert.Equal("point", row.Entities.Single(e => e.Component == na).Kind);
+        }
+    }
+
+    [Fact]
     public async Task Setting_a_subassembly_rigid_names_the_mates_it_puts_in_error()
     {
         // S76: flexible, a mate holds the subassembly's floating child B at C's top plane (y 30), where the

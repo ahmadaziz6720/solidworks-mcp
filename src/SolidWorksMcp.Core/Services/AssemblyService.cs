@@ -167,7 +167,7 @@ public sealed class AsmMateEntity
 {
     /// <summary>The component it belongs to (null: the assembly's own plane, axis or origin).</summary>
     public string? Component { get; init; }
-    /// <summary>point | line | circle | plane | cylinder | sphere | cone | … (IMateEntity2.ReferenceType2).</summary>
+    /// <summary>point | line | circle | plane | cylinder | sphere | cone | … (IMateEntity2.ReferenceType2); origin for an origin.</summary>
     public required string Kind { get; init; }
     /// <summary>The plane, axis, point or other feature it takes (e.g. "Front Plane"), as its component names it.</summary>
     public string? Name { get; init; }
@@ -201,7 +201,7 @@ public sealed class AsmMateAddResult : ToolResult
     public required IReadOnlyList<string> Verified { get; init; }
     /// <summary>The mated components after solving (where they went, fixed, constrained status).</summary>
     public required IReadOnlyList<AsmComponentInfo> Components { get; init; }
-    /// <summary>The components the mate moved.</summary>
+    /// <summary>The components the mate moved, by full name: a nested one when it moved in its subassembly (S78 a).</summary>
     public IReadOnlyList<string>? Moved { get; init; }
     public IReadOnlyList<ResolvedInfo>? Resolved { get; init; }
 }
@@ -552,6 +552,7 @@ public sealed partial class AssemblyService(SwSession session)
         using var prefs = ctx.SystemPrefs();
         prefs.Toggle(SystemPrefIds.ShowErrorsEveryRebuild, false);
         var rawBefore = RawTransforms(asm);
+        var placed0 = Placements(asm).ToDictionary(x => x.Name, x => (x.Parent, x.Raw), StringComparer.OrdinalIgnoreCase);
         Frame? fa0 = a.Comp is null ? null : FrameOf(ctx, a.Comp);
         Frame? fb0 = b.Comp is null ? null : FrameOf(ctx, b.Comp);
         AsmGeo? ga0 = typeName == "distance" ? Safe<AsmGeo?>(() => ToAsm(ctx, a), null) : null;
@@ -660,9 +661,7 @@ public sealed partial class AssemblyService(SwSession session)
             throw new SwException(code, $"asm_mate_add: the {label} {what}: {problem}. {tail}", hint);
         }
 
-        var moved = asm.Components(true)
-            .Where(c => rawBefore.TryGetValue(c.Name2, out var r0) && AsmMath.Changed(r0, Safe(() => c.AsmXformData(), r0)))
-            .Select(c => c.Name2).ToList();
+        var moved = AsmMath.Moved(placed0, Placements(asm));
         var counts = MateCounts(d);
         var infos = new List<AsmComponentInfo>();
         foreach (var c in new[] { a.Comp, b.Comp, mc?.Comp, md?.Comp })
@@ -1434,6 +1433,10 @@ public sealed partial class AssemblyService(SwSession session)
         return map;
     }
 
+    /// <summary>ArrayData of every component at every level, by full name, with its parent's full name (S78 a).</summary>
+    private static List<(string Name, string? Parent, double[] Raw)> Placements(IAssemblyDoc asm) =>
+        asm.Components(false).Select(c => (c.Name2, ParentOf(c)?.Name2, Safe(() => c.AsmXformData(), Array.Empty<double>()))).ToList();
+
     /// <summary>Puts every top-level component that moved since <paramref name="rawBefore"/> back (exact ArrayData round trip).</summary>
     private static List<string> RestoreMoved(SwContext ctx, IAssemblyDoc asm, Dictionary<string, double[]> rawBefore)
     {
@@ -1929,6 +1932,13 @@ public sealed partial class AssemblyService(SwSession session)
         string kind = Safe(() => e.ReferenceType, -1) is int rt and >= 0 ? AsmParse.RefTypeName(rt) : AsmParse.SelTypeName(Safe(() => e.ReferenceType2, -1));
         object? r = Safe<object?>(() => e.Reference, null);
         string? name = r is IFeature f ? Safe<string?>(() => f.Name, null) : null;
+        // S78 (c): an origin is taken as the point of the origin's sketch, which read as any sketch point would.
+        if ((r is ISketchPoint sp ? Safe<object?>(() => sp.GetSketch(), null) as IFeature : r as IFeature) is IFeature of &&
+            Safe(() => of.GetTypeName2(), "") == "OriginProfileFeature")
+        {
+            kind = "origin";
+            name = Safe<string?>(() => of.Name, null);
+        }
         string? id = name is null ? Safe<string?>(() => r switch
         {
             IFace2 face => ctx.Entities.IdFor(d, face, EntityResolver.Prefix(EntityKind.Face), EntityResolver.KindName(EntityKind.Face),
@@ -1940,7 +1950,7 @@ public sealed partial class AssemblyService(SwSession session)
             _ => null,
         }, null) : null;
         double[]? point = null;
-        if (kind == "point" || (name is null && id is null))
+        if (kind is "point" or "origin" || (name is null && id is null))
         {
             var p = Safe(() => ComArgs.Doubles((object?)e.EntityParams), []);
             if (p.Length >= 3) point = Units.Mm(new Vec3(p[0], p[1], p[2]));

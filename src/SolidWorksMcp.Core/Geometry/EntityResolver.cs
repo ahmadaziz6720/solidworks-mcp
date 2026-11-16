@@ -103,7 +103,9 @@ internal static class EntityResolver
         else if (r.Where is not null) res = ByQuery(ctx, doc, r, argName, allowed);
         else if (r.At is not null) res = [ByPoint(ctx, doc, r, argName, allowed)];
         else if (!string.IsNullOrWhiteSpace(r.Name)) res = [ByName(ctx, doc, r, argName, allowed)];
-        else throw SwException.InvalidArgument($"'{argName}' needs 'id', 'where', 'at' or 'name'.");
+        // S78 (b): a document, and a component, has one origin, so its type alone names it.
+        else if (ParseKind(r.Type) == EntityKind.Origin) res = [OriginOf(ctx, doc, r.Component)];
+        else throw SwException.InvalidArgument($"'{argName}' needs 'id', 'where', 'at' or 'name' (an origin: type 'origin' alone).");
 
         foreach (var x in res)
             if (allowed.Length > 0 && !allowed.Contains(x.Kind))
@@ -382,11 +384,7 @@ internal static class EntityResolver
         if (kind == EntityKind.Body) return BodyByName(ctx, doc, name);
         if (kind == EntityKind.SketchSegment) return SegmentByName(ctx, doc, r, name);
         if (kind == EntityKind.Origin || (kind is null && name.Equals("origin", StringComparison.OrdinalIgnoreCase)))
-        {
-            var o = Tree.Walk(doc).FirstOrDefault(f => f.GetTypeName2() == "OriginProfileFeature")
-                    ?? throw new SwException(ErrorCodes.EntityNotFound, "This document has no origin feature.");
-            return new Resolved { Obj = o, Kind = EntityKind.Origin, Label = $"origin '{o.Name}'" };
-        }
+            return OriginOf(ctx, doc, null);
 
         var feat = (kind is null or EntityKind.Plane ? StandardPlane(doc, name) : null) ?? FeatureByName(doc, name);
         if (feat is null)
@@ -495,16 +493,42 @@ internal static class EntityResolver
     /// <summary>A plane/axis/feature of a component, mapped into the assembly context.</summary>
     private static Resolved InComponent(SwContext ctx, IModelDoc2 doc, EntityRef r, string name, EntityKind? kind)
     {
-        var asm = ctx.Assembly(doc);
-        var comp = Component(asm, r.Component!);
-        var compDoc = (object?)comp.GetModelDoc2() as IModelDoc2
-                      ?? throw new SwException(ErrorCodes.NotSupported, $"Component '{comp.Name2}' is suppressed or lightweight.",
-                          "Resolve it (asm_component_set) first.");
+        if (kind == EntityKind.Origin || (kind is null && name.Equals("origin", StringComparison.OrdinalIgnoreCase)))
+            return OriginOf(ctx, doc, r.Component);
+        var (comp, compDoc) = ComponentDoc(ctx, doc, r.Component!);
         var feat = (kind is null or EntityKind.Plane ? StandardPlane(compDoc, name) : null) ?? FeatureByName(compDoc, name)
                    ?? throw new SwException(ErrorCodes.EntityNotFound, $"No feature named '{name}' in component '{comp.Name2}'.");
         var inAsm = (object?)comp.FeatureByName(feat.Name) as IFeature
                     ?? throw new SwException(ErrorCodes.EntityNotFound, $"'{name}' could not be mapped into the assembly for '{comp.Name2}'.");
         var fk = FeatureKind(inAsm);
         return new Resolved { Obj = inAsm, Kind = kind == EntityKind.Feature ? EntityKind.Feature : fk, Label = $"{KindName(fk)} '{feat.Name}' of {comp.Name2}", Component = comp };
+    }
+
+    private static (IComponent2 Comp, IModelDoc2 Doc) ComponentDoc(SwContext ctx, IModelDoc2 doc, string component)
+    {
+        var comp = Component(ctx.Assembly(doc), component);
+        var compDoc = (object?)comp.GetModelDoc2() as IModelDoc2
+                      ?? throw new SwException(ErrorCodes.NotSupported, $"Component '{comp.Name2}' is suppressed or lightweight.",
+                          "Resolve it (asm_component_set) first.");
+        return (comp, compDoc);
+    }
+
+    /// <summary>
+    /// The origin (its OriginProfileFeature, found by type, so in any UI language) of the document, or of a component of
+    /// an assembly mapped into the assembly.
+    /// </summary>
+    private static Resolved OriginOf(SwContext ctx, IModelDoc2 doc, string? component)
+    {
+        static IFeature? Origin(IModelDoc2 d) => Tree.Walk(d).FirstOrDefault(f => f.GetTypeName2() == "OriginProfileFeature");
+        if (component is null || doc.GetType() != (int)swDocumentTypes_e.swDocASSEMBLY)
+        {
+            var o = Origin(doc) ?? throw new SwException(ErrorCodes.EntityNotFound, "This document has no origin feature.");
+            return new Resolved { Obj = o, Kind = EntityKind.Origin, Label = $"origin '{o.Name}'" };
+        }
+        var (comp, compDoc) = ComponentDoc(ctx, doc, component);
+        var own = Origin(compDoc) ?? throw new SwException(ErrorCodes.EntityNotFound, $"Component '{comp.Name2}' has no origin feature.");
+        var inAsm = (object?)comp.FeatureByName(own.Name) as IFeature
+                    ?? throw new SwException(ErrorCodes.EntityNotFound, $"The origin could not be mapped into the assembly for '{comp.Name2}'.");
+        return new Resolved { Obj = inAsm, Kind = EntityKind.Origin, Label = $"origin '{own.Name}' of {comp.Name2}", Component = comp };
     }
 }

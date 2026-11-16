@@ -98,6 +98,37 @@ internal static class AsmMath
         return false;
     }
 
+    /// <summary>
+    /// The components that moved between two readings of every component's ArrayData, each read in the top assembly and
+    /// keyed by its full name with its parent's (null at the top level) (S78 a): a top-level one when its placement
+    /// changed, a nested one when its placement in its parent changed, so the children a subassembly carries along are
+    /// not listed besides it. In the order of <paramref name="after"/>.
+    /// </summary>
+    public static List<string> Moved(IReadOnlyDictionary<string, (string? Parent, double[] Raw)> before,
+        IReadOnlyList<(string Name, string? Parent, double[] Raw)> after)
+    {
+        var now = after.ToDictionary(x => x.Name, x => x.Raw, StringComparer.OrdinalIgnoreCase);
+        var moved = new List<string>();
+        foreach (var (name, parent, raw) in after)
+        {
+            if (!before.TryGetValue(name, out var b0)) continue;
+            bool changed = parent is not null && b0.Parent is not null && before.TryGetValue(parent, out var p0) && now.TryGetValue(parent, out var p1) &&
+                           p0.Raw.Length >= 13 && p1.Length >= 13 && b0.Raw.Length >= 13 && raw.Length >= 13
+                ? InParent(b0.Raw, p0.Raw).Zip(InParent(raw, p1)).Any(x => x.First.DistanceTo(x.Second) > 1e-9)
+                : Changed(b0.Raw, raw);
+            if (changed) moved.Add(name);
+        }
+        return moved;
+    }
+
+    /// <summary>A placement seen from its parent's: its origin and the ends of its unit axes (m) in the parent's space.</summary>
+    private static Vec3[] InParent(double[] child, double[] parent)
+    {
+        var c = new Xform(child);
+        var toParent = new Xform(parent).Inverse();
+        return [.. new[] { Vec3.Zero, Vec3.UnitX, Vec3.UnitY, Vec3.UnitZ }.Select(p => toParent.ApplyPoint(c.ApplyPoint(p)))];
+    }
+
     /// <summary>asm_interference's filter: with one name, anything that involves it; with more, interferences among them.</summary>
     public static bool Involves(IReadOnlyList<string> components, IReadOnlyList<string> among)
     {
