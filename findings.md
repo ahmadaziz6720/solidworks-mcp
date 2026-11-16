@@ -1863,3 +1863,5 @@ started again by hand (point 6).
 
 106 calls, 46.8k characters of results; 7 errors (6 `NOT_CONNECTED`: 3 before SOLIDWORKS was
 started, 3 after the restart of point 6; 1 refusal meant).
+
+Sorted into S87 (2), new, S65 (e) held; S88 (5), new, S65 (d) held; S89 (6), new, S60 again; S5 (7), met again. Held: S59 (1), closed; S65 (3, 4), parts (c) and (b), closed.
