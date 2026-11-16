@@ -334,10 +334,12 @@ public sealed partial class AssemblyService(SwSession session)
         var asm = ctx.Assembly();
         var d = (IModelDoc2)asm;
         NoOpenSketch(d);
-        var file = ResolveFile(ctx, q.Path!, "path");
+        var file = ResolveFile(ctx, q.Path!, "path", step: true);
         if (SamePath(file.Full, DocumentRegistry.SafePath(d)))
             throw SwException.InvalidArgument("An assembly can't contain itself.", "Insert a part or another assembly.");
-        config = MatchConfig(ctx, file, config);
+        if (file.Step && config is not null)
+            throw SwException.InvalidArgument("A STEP has no configurations; omit 'configuration'.");
+        config = file.Step ? null : MatchConfig(ctx, file, config);
         if (file.Open is IModelDoc2 open && Safe(() => open.GetSaveFlag(), false))
             ctx.Warn($"'{ctx.Title(open)}' has unsaved changes: the assembly shows them, but its file doesn't have them until it is saved (doc_save).");
 
@@ -345,16 +347,23 @@ public sealed partial class AssemblyService(SwSession session)
         prefs.Toggle(SystemPrefIds.ShowErrorsEveryRebuild, false);
         int before = asm.GetComponentCount(true);
         IComponent2? added;
-        var opened = EnsureLoaded(ctx, d, file, prefs);
-        try
+        if (file.Step)
         {
-            // AddComponent5 puts the component's bounding-box center at (x, y, z) (VERIFIED); the exact placement follows.
-            added = asm.AddComponent5(file.Full, (int)swAddComponentConfigOptions_e.swAddComponentConfigOptions_CurrentSelectedConfig,
-                "", false, config ?? "", origin.X, origin.Y, origin.Z);
+            added = InsertStep(ctx, asm, file.Full, origin, prefs);
         }
-        finally
+        else
         {
-            CloseLoaded(ctx, d, opened);
+            var opened = EnsureLoaded(ctx, d, file, prefs);
+            try
+            {
+                // AddComponent5 puts the component's bounding-box center at (x, y, z) (VERIFIED); the exact placement follows.
+                added = asm.AddComponent5(file.Full, (int)swAddComponentConfigOptions_e.swAddComponentConfigOptions_CurrentSelectedConfig,
+                    "", false, config ?? "", origin.X, origin.Y, origin.Z);
+            }
+            finally
+            {
+                CloseLoaded(ctx, d, opened);
+            }
         }
         int after = asm.GetComponentCount(true);
         IComponent2 c = added ?? throw new SwException(ErrorCodes.FeatureFailed,
@@ -369,6 +378,7 @@ public sealed partial class AssemblyService(SwSession session)
             if (after != before + 1)
                 throw new SwException(ErrorCodes.VerifyFailed, $"the component count went from {before} to {after}, not {before + 1}.");
             checks.Add($"component count {before} → {after}");
+            if (file.Step) StepChecks(ctx, c, file.Full, checks);
 
             string? got = Safe<string?>(() => c.ReferencedConfiguration, null);
             if (config is not null && !Eq(got, config))
@@ -422,10 +432,66 @@ public sealed partial class AssemblyService(SwSession session)
             File = file.Full,
             ComponentCount = after,
             Verified = checks,
-            Message = solidworksFixed
-                ? $"SOLIDWORKS fixed '{name}' (the first component of an assembly is fixed); asm_component_set {{component:'{name}', fixed:false}} floats it."
-                : null,
+            Message = string.Join(" ", new[]
+            {
+                file.Step
+                    ? $"'{name}' is linked to '{System.IO.Path.GetFileName(file.Full)}' by 3D Interconnect; its part '{CompPath(c)}' is not written until the assembly is saved."
+                    : null,
+                solidworksFixed
+                    ? $"SOLIDWORKS fixed '{name}' (the first component of an assembly is fixed); asm_component_set {{component:'{name}', fixed:false}} floats it."
+                    : null,
+            }.OfType<string>()) is { Length: > 0 } msg ? msg : null,
         };
+    }
+
+    /// <summary>
+    /// A STEP goes in through 3D Interconnect (S61 a, VERIFIED 2026-11-16 on 2023 SP3): IAssemblyDoc.InsertImportedComponent
+    /// with the preference on gives a component linked to the file (an MBimport feature, Is3DInterconnectFeature); with it
+    /// off it returns 1 and nothing; AddComponent5 of a STEP returns null either way. Its part is named
+    /// "&lt;step file name&gt;.SLDPRT" in SOLIDWORKS' working directory and not written until saved, so the working directory
+    /// is the STEP's folder for the call. Both preferences and the working directory are restored.
+    /// </summary>
+    private static IComponent2 InsertStep(SwContext ctx, IAssemblyDoc asm, string step, Vec3 origin, PreferenceScope prefs)
+    {
+        prefs.Toggle(SystemPrefIds.Enable3DInterconnect, true)
+             .Toggle(SystemPrefIds.ImportAutoRunDiagnostics, false)
+             .Toggle(SystemPrefIds.ImportNeutralRunDiagnostics, false);
+        string cwd = ctx.App.GetCurrentWorkingDirectory() ?? "";
+        ctx.App.SetCurrentWorkingDirectory(System.IO.Path.GetDirectoryName(step)!);
+        int ret;
+        object? comp;
+        try
+        {
+            ret = asm.InsertImportedComponent(step, origin.X, origin.Y, origin.Z, out comp);
+        }
+        finally
+        {
+            if (cwd.Length > 0) ctx.App.SetCurrentWorkingDirectory(cwd);
+        }
+        return ret == 0 && comp is IComponent2 c ? c : throw new SwException(ErrorCodes.FeatureFailed,
+            $"asm_insert: SOLIDWORKS did not insert '{step}' through 3D Interconnect (InsertImportedComponent returned {ret}).",
+            "The way round: doc_open the STEP (translated, not linked), doc_save it as a .sldprt, and asm_insert that file.");
+    }
+
+    /// <summary>A STEP component's bodies, volume and link, read back (the import may bring surfaces only, S5).</summary>
+    private static void StepChecks(SwContext ctx, IComponent2 c, string step, List<string> checks)
+    {
+        var solids = c.Bodies(swBodyType_e.swSolidBody);
+        int sheets = c.Bodies(swBodyType_e.swSheetBody).Count;
+        if (solids.Count + sheets == 0)
+            throw new SwException(ErrorCodes.VerifyFailed, $"'{c.Name2}' has no bodies: nothing usable came in from the STEP.",
+                "Check the STEP (doc_open shows what it holds).");
+        double volume = solids.Sum(b => b.MassOfBody() is { Length: > 3 } mp ? mp[3] : 0);
+        checks.Add((solids.Count > 0 ? $"{solids.Count} solid bod{(solids.Count == 1 ? "y" : "ies")} ({Units.Mm3(volume):0.###} mm³)" : "no solid body") +
+                   (sheets > 0 ? $", {sheets} surface bod{(sheets == 1 ? "y" : "ies")}" : ""));
+        if (solids.Count == 0)
+            ctx.Warn($"'{c.Name2}' came in as {sheets} surface bod{(sheets == 1 ? "y" : "ies")} and no solid: it has no mass or volume.");
+        string file = System.IO.Path.GetFileName(step);
+        var link = c.GetModelDoc2() is IModelDoc2 md ? Tree.Walk(md).FirstOrDefault(f => Safe(() => f.Is3DInterconnectFeature, false)) : null;
+        if (link is not null)
+            checks.Add($"linked to '{file}' by 3D Interconnect (feature '{link.Name}')");
+        else
+            ctx.Warn($"No 3D Interconnect feature was found in '{c.Name2}': it may not follow changes to '{file}'.");
     }
 
     // ================================================================== asm_mate_add
@@ -1717,10 +1783,14 @@ public sealed partial class AssemblyService(SwSession session)
 
     // ------------------------------------------------------------------ files
 
-    private sealed record FileRef(string Full, IModelDoc2? Open, swDocumentTypes_e Type);
+    /// <summary>A component file; Step: a STEP for asm_insert, inserted through 3D Interconnect (S61 a).</summary>
+    private sealed record FileRef(string Full, IModelDoc2? Open, swDocumentTypes_e Type, bool Step = false);
 
-    /// <summary>A component file: an open, saved document (handle, title or path) or a .sldprt/.sldasm on disk.</summary>
-    private static FileRef ResolveFile(SwContext ctx, string spec, string arg)
+    /// <summary>
+    /// A component file: an open, saved document (handle, title or path) or a .sldprt/.sldasm on disk; with
+    /// <paramref name="step"/>, a .step/.stp on disk too.
+    /// </summary>
+    private static FileRef ResolveFile(SwContext ctx, string spec, string arg, bool step = false)
     {
         string s = spec.Trim().Trim('"');
         var open = ctx.App.Documents();
@@ -1753,12 +1823,15 @@ public sealed partial class AssemblyService(SwSession session)
             return new FileRef(FullPath(p), doc, (swDocumentTypes_e)t);
         }
         string ext = System.IO.Path.GetExtension(s).ToLowerInvariant();
+        if (step && ext is ".step" or ".stp")
+            return new FileRef(ctx.Paths.ForRead(s, arg), null, swDocumentTypes_e.swDocPART, Step: true);
         var type = ext switch
         {
             ".sldprt" => swDocumentTypes_e.swDocPART,
             ".sldasm" => swDocumentTypes_e.swDocASSEMBLY,
-            _ => throw SwException.InvalidArgument($"'{arg}' must be a .sldprt or .sldasm file{(ext.Length == 0 ? "" : $", not '{ext}'")} (got '{s}').",
-                "Pass a saved part or assembly, or the handle (D…) of an open, saved document (doc_list)."),
+            _ => throw SwException.InvalidArgument($"'{arg}' must be a .sldprt{(step ? ", .sldasm or .step" : " or .sldasm")} file{(ext.Length == 0 ? "" : $", not '{ext}'")} (got '{s}').",
+                "Pass a saved part or assembly, or the handle (D…) of an open, saved document (doc_list)" +
+                (step ? "; another format: doc_open it, doc_save it as a .sldprt, and insert that." : ".")),
         };
         string full = ctx.Paths.ForRead(s, arg);
         var already = open.FirstOrDefault(o => SamePath(DocumentRegistry.SafePath(o), full));

@@ -300,8 +300,9 @@ public class AssemblyLiveTests(LiveFixture fx) : LiveTest(fx)
         Assert.Contains("saved", ex1.Message);
         var ex2 = await Assert.ThrowsAsync<SwException>(() => InsertAsync(asm, Path.Combine(_dir, "missing.sldprt")));
         Assert.Equal(ErrorCodes.IoError, ex2.Code);
-        var ex3 = await Assert.ThrowsAsync<SwException>(() => InsertAsync(asm, Path.Combine(_dir, "part.step")));
+        var ex3 = await Assert.ThrowsAsync<SwException>(() => InsertAsync(asm, Path.Combine(_dir, "part.igs")));
         Assert.Equal(ErrorCodes.InvalidArgument, ex3.Code);
+        Assert.Equal(ErrorCodes.IoError, (await Assert.ThrowsAsync<SwException>(() => InsertAsync(asm, Path.Combine(_dir, "missing.step")))).Code);
         var ex4 = await Assert.ThrowsAsync<SwException>(() => InsertAsync(asm, cube.Path, rotation: Rot([0, 0, 0], 90)));
         Assert.Equal(ErrorCodes.InvalidArgument, ex4.Code);
         var ex5 = await Assert.ThrowsAsync<SwException>(() => InsertAsync(asm, cube.Path, configuration: "NoSuchConfig"));
@@ -340,6 +341,53 @@ public class AssemblyLiveTests(LiveFixture fx) : LiveTest(fx)
         // A component inside a subassembly moves with it.
         var ex = await Assert.ThrowsAsync<SwException>(() => Move(new() { Doc = top, Component = inner[0].Name, TranslateMm = [1, 0, 0] }));
         Assert.Equal(ErrorCodes.InvalidArgument, ex.Code);
+    }
+
+    // ------------------------------------------------------------------ asm_insert of a STEP (S61 a)
+
+    [Fact]
+    public async Task A_step_is_inserted_as_a_component_linked_to_the_file_with_its_solid()
+    {
+        // A STEP of a 20 mm cube (written from the part), inserted into an assembly: one component, one solid of 8000 mm³,
+        // its box the cube's at the origin given.
+        var cube = await CubeAsync("stepins");
+        string step = Path.Combine(_dir, $"stepins_{_tag}.step");
+        await new ExportService(S).ExportAsync(new ExportRequest { Doc = cube.Doc, Path = step, StepAp = 214 });
+        await Docs.CloseAsync(cube.Doc, save: false, discard: true);
+        string asm = await NewAssemblyAsync("stepins_asm");
+
+        var before = (await Docs.ListAsync()).Documents.Select(d => d.Handle).ToHashSet();
+        AsmInsertResult r;
+        try
+        {
+            r = await InsertAsync(asm, step, [50, 0, 0]);
+        }
+        finally
+        {
+            foreach (var d in (await Docs.ListAsync()).Documents.Where(d => !before.Contains(d.Handle) && d.Handle != asm))
+                Track(d.Handle);
+        }
+        string dump = System.Text.Json.JsonSerializer.Serialize(r);
+        Assert.True(r.ComponentCount == 1, dump);
+        AssertPoint([50, 0, 0], r.Component.OriginMm);
+        AssertBox(r.Component.Box, [40, -10, -10], [60, 10, 10]);
+        Assert.Contains(r.Verified, c => c.Contains("1 solid body", StringComparison.Ordinal));
+        Assert.Contains(r.Verified, c => c.Contains("3D Interconnect", StringComparison.Ordinal));
+        var mass = await new MeasureService(S).MassAsync(asm, null);
+        Assert.Equal(8000, mass.VolumeMm3, 0.5);
+        // The part SOLIDWORKS makes for it lies beside the STEP, not yet written.
+        Assert.Equal(Path.Combine(_dir, $"stepins_{_tag}.step.SLDPRT"), r.Component.Path, ignoreCase: true);
+        Assert.Contains(r.Component.Path!, r.Message);
+
+        // A STEP has no configurations to choose.
+        var ex = await Assert.ThrowsAsync<SwException>(() => InsertAsync(asm, step, configuration: "Default"));
+        Assert.Equal(ErrorCodes.InvalidArgument, ex.Code);
+        Assert.Equal(1, (await Asm.ComponentListAsync(asm, false, 100, 0)).Total);
+
+        // Saving the assembly writes that part.
+        Assert.False(File.Exists(r.Component.Path));
+        await Docs.SaveAsync(asm, "as", Path.Combine(_dir, $"stepins_asm_{_tag}.sldasm"), overwrite: false);
+        Assert.True(File.Exists(r.Component.Path), $"{r.Component.Path} was not written by the assembly's save");
     }
 
     // ------------------------------------------------------------------ doc_open of a STEP that comes in as an assembly (S61 b, c)

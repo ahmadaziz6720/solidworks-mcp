@@ -358,8 +358,8 @@ server change since build `20261114-024455`).
   owner's word (and resumed unasked from then on, the check's rule above), detached, and
   ended the same evening: all five held, the entry `4f8700f`, sorted into S59 (closed), S65
   (b) to (e) (closed), S87 and S88 (group 5), S89 (Open), S5 met again.
-- [x] S52: committed
-- [ ] S61 (a): committed
+- [x] S52: committed (`44869a2`)
+- [x] S61 (a): committed
 - [ ] S72: committed
 - [ ] S71: committed
 - [ ] S87: committed
@@ -693,6 +693,47 @@ Held in the scenario test of build `20261114-024455` (findings 2026-11-14, point
 Those parts closed 2026-11-14 on the owner's word; the item stays Open for (a).
 Decided 2026-11-16 by the owner: (a) taken into the run of 2026-11-16, group 5, a probe of
 the insert through 3D Interconnect first (`## Run 2026-11-16`).
+(a) done 2026-11-16 in the run of 2026-11-16 (group 5). Probe (live, 2023 SP3, a STEP of a
+20 mm cube written from the part): `AddComponent5` of the STEP returns null, with 3D
+Interconnect on and with the STEP loaded first by `LoadFile4` (with Interconnect on, a
+part holding an `MBimport` feature and no path); `OpenDoc6` of it fails (2097152);
+`IAssemblyDoc.InsertImportedComponent` with 3D Interconnect on returns 0 and the
+component, one solid of 8000 mm³, linked to the file (`IFeature.Is3DInterconnectFeature`);
+with it off, 1 and nothing. Its part is `<step file name>.SLDPRT` in SOLIDWORKS' working
+directory (a folder of the user's, not the STEP's), not written until the assembly is
+saved, which writes it there. Cause: `asm_insert` took a .sldprt or .sldasm only
+(`ResolveFile`) and loaded it by `OpenDoc6` for `AddComponent5`, and neither takes a STEP.
+Fix: a .step or .stp goes in by `InsertImportedComponent` with 3D Interconnect on and
+Import Diagnostics off in a preference scope, the working directory set to the STEP's
+folder for the call, both restored after, so its part lies beside the STEP; then it is
+placed and verified as any component, and the checks add its solid bodies with their
+volume and its 3D Interconnect feature; surface bodies only warn, no bodies refuse and
+roll back; the message names the link and the part, not written until the assembly is
+saved; `configuration` with a STEP is refused; SOLIDWORKS refusing the insert gives
+`FEATURE_FAILED` with the way round (doc_open the STEP, doc_save it as a .sldprt,
+asm_insert that), and another format's refusal names the same. The `path` description
+names .step. Before: the new
+`AssemblyLiveTests.A_step_is_inserted_as_a_component_linked_to_the_file_with_its_solid`
+failed ("'path' must be a .sldprt or .sldasm file, not '.step' (got
+'…\stepins_….step')."). After: it passes (one component, origin [50, 0, 0], box ±10 mm
+about it, "1 solid body (8000 mm³)", `model_mass` 8000 mm³, the part beside the STEP and
+written by the assembly's save, `configuration` refused), with
+`Insert_puts_the_origin_at_originMm_…`, `Insert_with_a_rotation_…`,
+`Insert_refuses_unsaved_missing_and_foreign_files_…` (a missing STEP now an I/O error, an
+.igs still refused), `Subassemblies_are_inserted_…`,
+`Configurations_are_chosen_at_insert_…`, `Replace_swaps_the_file_…` and
+`A_step_imported_as_an_assembly_…`, 8/8 live; unit tests 290/290;
+`ContractTests.Tool_catalog_follows_the_conventions` 1/1; `--check-catalog` ok;
+`check_repo` ok. Noted in `docs/solidworks-api-notes.md` §8. Made stricter: none. Decided
+2026-11-16 by the run, not the owner: (1) the working directory is the STEP's folder for
+the insert, because SOLIDWORKS otherwise names the part in whatever folder its working
+directory is and the assembly's save writes it there; (2) a STEP that comes in as surface
+bodies only is kept with a warning, not refused, because the insert is what was asked and
+the result says what came in (S5's case); (3) only .step and .stp are taken, not IGES or
+the other formats 3D Interconnect reads, because the item and its test are a STEP's; (4)
+the `path` description adds ".step" and nothing more, the link named in the result,
+because the tool list is at its byte budget. Local: on `sw2023`, in the commit that
+records it; not yet in a build. Upstream: not yet decided.
 
 ### S64 - Feature calls refused, failed or counted wrong, with hints that miss - OPEN 2026-11-12
 

@@ -25,7 +25,7 @@ public sealed class AssemblyTools(SwSession session)
                  "read back (origin within 1 µm, axes), else removed. Returns its name (bracket-1), origin, rotation, box, fixed.")]
     public Task<string> AsmInsert(
         IProgress<ProgressNotificationValue> progress,
-        [Description(FileDesc)] string path,
+        [Description("A saved .sldprt/.sldasm or a .step (relative: the output folder), or an open saved document (handle D2 or title).")] string path,
         [Description("Where the component's origin goes, [x,y,z] assembly mm (default [0,0,0]).")] double[]? originMm = null,
         [Description("{axis:[x,y,z], angleDeg}: right-hand rotation about the component origin.")] AsmRotation? rotation = null,
         [Description("Configuration of the file to use (default: its active one).")] string? configuration = null,
