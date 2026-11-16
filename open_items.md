@@ -311,7 +311,10 @@ server change since build `20261114-024455`).
   class with SOLIDWORKS restarted between (one batch stopped by its "critically low
   on memory" dialog, ~1.4 GB free); S74's live test failed once in the full class
   run on SOLIDWORKS refusing every equation (S58 b's state) and passed alone after a
-  restart.
+  restart. Cost this session (for `learned.md` at the run's end), tokens / minutes:
+  S49 110k/9, S74 132k/9, S67 121k/8, S76 140k/12, S77 168k/15, S78 195k/21 (each
+  the default model); group 3's release 105k/87 (Sonnet); the sorts of groups 2 and
+  3 124k/4 and 111k/3; group 2's scenario test resumed once, group 3's in one run.
 - [ ] S59 (c): committed
 - [ ] S65 (e): committed
 - [ ] S65 (c): committed
