@@ -305,7 +305,13 @@ server change since build `20261114-024455`).
   ReferenceLiveTests 46, all passed (S74's test failed once in the full Assembly class run,
   SOLIDWORKS refusing a valid equation, passed alone after a restart); unit 290.
 - [x] Group 3: scenario test (session id: `9f4eae18-a900-4e4a-8818-c5ee41ec6ad3`), its entry committed and sorted:
-  S49, S74, S67, S76, S77, S78 held and closed; S52 and S79 gained a point (findings 2026-11-16, `f236686`)
+  S49, S74, S67, S76, S77, S78 held and closed; S52 and S79 gained a point (findings 2026-11-16, `f236686`).
+  The run stopped here 2026-11-16 on the owner's word, to go on in a new session from
+  group 4. For the next releases: group 3's full live tests took 86 min, class by
+  class with SOLIDWORKS restarted between (one batch stopped by its "critically low
+  on memory" dialog, ~1.4 GB free); S74's live test failed once in the full class
+  run on SOLIDWORKS refusing every equation (S58 b's state) and passed alone after a
+  restart.
 - [ ] S59 (c): committed
 - [ ] S65 (e): committed
 - [ ] S65 (c): committed
