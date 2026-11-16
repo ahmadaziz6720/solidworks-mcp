@@ -366,7 +366,7 @@ server change since build `20261114-024455`).
   earlier run), not a fault of this group.
 - [x] S71: committed (`e18996e`)
 - [x] S87: committed (`0b7698f`)
-- [x] S88: committed
+- [x] S88: committed (`5320223`)
 - [x] Group 5: full live tests and release (build: `20261117-012659`, `098a10b`)
   Live: AssemblyLiveTests 56, AssemblyStructureLiveTests 2, PropertiesLiveTests 25, SimulationLiveTests 17,
   SketchEditLiveTests 77, VisualsLiveTests 3, M0LiveTests 23; all passed but two. Known failure, not this group's:
@@ -376,7 +376,7 @@ server change since build `20261114-024455`).
   before the first start after the build servers were shut down (0.5 GB with them up and SOLIDWORKS open); no "low on
   memory" dialog. The live tests took 65 min of test time (37, 1, 3, 6, 13, 1, 3 min, and the 1 min rerun of the flake;
   75 min on the clock with the restarts), the whole release about 82 min. Unit 299. `docs/tools.md` regenerated and committed alone (`098a10b`).
-- [ ] Group 5: scenario test (session id: ), its entry committed and sorted
+- [ ] Group 5: scenario test (session id: `793c7f74-1bf1-46d3-9199-eed2f71d1e46`), its entry committed and sorted
 - [ ] The report
 
 ## Open
