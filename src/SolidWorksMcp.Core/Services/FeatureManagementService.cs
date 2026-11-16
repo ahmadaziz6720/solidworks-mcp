@@ -949,7 +949,7 @@ public sealed partial class FeatureManagementService(SwSession session)
             RequireNoOpenSketch(ctx, d, "dimension_set rebuilds the model, which would close it");
 
             // Resolve and check everything before changing anything.
-            var byEquation = EquationTargets(d);
+            var equations = ActiveEquations(d);
             bool part = IsPart(d);
             var plan = new List<PlannedValue>();
             foreach (var (name, value) in items)
@@ -960,12 +960,16 @@ public sealed partial class FeatureManagementService(SwSession session)
                 // In an assembly the name as given: a component's dimension (D1@Boss-Extrude1@cube-1) reads back as the part's
                 // own D1@Boss-Extrude1, which names neither the component nor tells two components apart (S49).
                 string full = part ? FeatureVerifier.ShortName(dim.FullName) : name.Trim();
+                // Before the driven check: a mate's dimension an equation drives reads as driven (S74), and it is the equation
+                // that sets it.
+                if (FeatureManagementLogic.EquationOn(equations, full, name) is { } equation)
+                {
+                    var (message, hint) = FeatureManagementLogic.EquationDrivenRefusal(full, equation);
+                    throw SwException.InvalidArgument(message, hint);
+                }
                 if (dim.DrivenState == (int)swDimensionDrivenState_e.swDimensionDriven || Try(() => dim.IsReference()) == true)
                     throw SwException.InvalidArgument($"'{full}' is a driven (reference) dimension: it reports a value but doesn't control the geometry.",
                         "Set the driving dimension instead (dimension_list marks driven ones).");
-                if (byEquation.Contains(full) || byEquation.Contains(name))
-                    throw SwException.InvalidArgument($"'{full}' is driven by an equation; the next rebuild would overwrite a direct change.",
-                        "Change the equation instead.");
                 if (dim.ReadOnly)
                     throw SwException.InvalidArgument($"'{full}' is read-only (driven by a design table, configuration or link?).");
                 if (plan.Any(p => string.Equals(p.Name, full, StringComparison.OrdinalIgnoreCase)))
@@ -1108,14 +1112,9 @@ public sealed partial class FeatureManagementService(SwSession session)
         catch (Exception ex) when (!ComArgs.IsDisconnect(ex)) { return double.NaN; }
     }
 
-    /// <summary>Names that equations assign (dimensions like D1@Boss-Extrude1 and global variables), suppressed ones excluded.</summary>
-    private static HashSet<string> EquationTargets(IModelDoc2 d)
-    {
-        var set = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        foreach (var (text, suppressed) in d.EquationList())
-            if (!suppressed && FeatureManagementLogic.EquationTarget(text) is { } t) set.Add(t);
-        return set;
-    }
+    /// <summary>The document's equations as SOLIDWORKS stores them, suppressed ones excluded.</summary>
+    private static List<string> ActiveEquations(IModelDoc2 d) =>
+        d.EquationList().Where(e => !e.Suppressed).Select(e => e.Text).ToList();
 
     // ------------------------------------------------------------------ doc_rebuild
 
@@ -1663,6 +1662,31 @@ internal static class FeatureManagementLogic
         string lhs = equation[..eq].Trim();
         if (lhs.Length >= 2 && lhs[0] == '"' && lhs[^1] == '"') lhs = lhs[1..^1].Trim();
         return lhs.Length == 0 ? null : lhs;
+    }
+
+    /// <summary>
+    /// The equation that assigns a dimension, by the name dimension_set read back or the one it was given (letter case
+    /// ignored; a qualified "D1@Boss-Extrude1@cube-1.Part" is a component's, not this document's D1@Boss-Extrude1). Null when
+    /// none does.
+    /// </summary>
+    public static string? EquationOn(IEnumerable<string> equations, params string[] names) =>
+        equations.FirstOrDefault(e => EquationTarget(e) is { } t && names.Any(n => string.Equals(t, n.Trim(), StringComparison.OrdinalIgnoreCase)));
+
+    /// <summary>
+    /// dimension_set's refusal of a dimension an equation drives (S74): the equation, the names its right-hand side uses, and
+    /// the equation_set call that changes it.
+    /// </summary>
+    public static (string Message, string Hint) EquationDrivenRefusal(string dimension, string equation)
+    {
+        string text = equation.Trim();
+        var uses = EquationText.References(text).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+        string usesPart = uses.Count == 0 ? "" : $", which uses {string.Join(", ", uses.Select(u => $"\"{u}\""))}";
+        string message = $"'{dimension}' is driven by the equation {text}{usesPart}; the next rebuild would overwrite a direct change.";
+        string hint = uses.Count == 0
+            ? $"Change the equation: equation_set lhs '{dimension}' with the new expression (equation_delete frees the dimension)."
+            : $"Change it with equation_set: lhs '{uses.FirstOrDefault(u => !u.Contains('@')) ?? uses[0]}' for the value the equation " +
+              $"uses, or lhs '{dimension}' for a new expression.";
+        return (message, hint);
     }
 
     /// <summary>A usable feature name: trimmed, non-empty, without '@' (it separates dimension names) or quotes.</summary>

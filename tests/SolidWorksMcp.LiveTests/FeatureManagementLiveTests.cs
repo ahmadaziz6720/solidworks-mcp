@@ -140,6 +140,16 @@ public class FeatureManagementLiveTests(LiveFixture fx) : LiveTest(fx)
         var negative = await Assert.ThrowsAsync<SwException>(() => M.DimensionSetAsync(b.Doc, [new DimensionValue { Name = b.Depth, Value = -5 }]));
         Assert.Equal(ErrorCodes.InvalidArgument, negative.Code);
 
+        // A dimension an equation drives: refused naming the equation and what it uses, with equation_set (S74).
+        var p = new PropertiesService(S);
+        await p.EquationSetManyAsync(b.Doc, [new EquationInput { Lhs = "DEPTH", Expression = "20mm" }, new EquationInput { Lhs = b.Depth, Expression = "\"DEPTH\"" }]);
+        var byEquation = await Assert.ThrowsAsync<SwException>(() => M.DimensionSetAsync(b.Doc, [new DimensionValue { Name = b.Depth, Value = 30 }]));
+        Assert.Equal(ErrorCodes.InvalidArgument, byEquation.Code);
+        Assert.Contains("driven by the equation", byEquation.Message);
+        Assert.Contains("\"DEPTH\"", byEquation.Message);
+        Assert.Contains("equation_set: lhs 'DEPTH'", byEquation.Hint ?? "");
+        await p.EquationDeleteManyAsync(b.Doc, [b.Depth, "DEPTH"]);
+
         var sk = new SketchService(S);
         await sk.StartAsync(b.Doc, new EntityRef { Name = "front" }, false);
         var open = await Assert.ThrowsAsync<SwException>(() => M.DimensionSetAsync(b.Doc, [new DimensionValue { Name = b.Depth, Value = 30 }]));
@@ -776,6 +786,28 @@ public class FeatureManagementLogicTests
     [InlineData("", null)]
     public void Equation_targets_are_the_left_hand_side(string equation, string? expected) =>
         Assert.Equal(expected, FeatureManagementLogic.EquationTarget(equation));
+
+    [Fact]
+    public void An_equation_driven_dimension_is_refused_naming_the_equation_and_what_it_uses()
+    {
+        // S74: the equation found by the name read back or the one given, letter case ignored; a component's equation is not
+        // this document's dimension of the same short name.
+        string[] equations = ["\"TILT\" = 40", "\"D1@Angle1\" = \"TILT\"", "\"D1@Boss-Extrude1\" = 20mm", "\"D1@Cut1@cube-1.Part\" = 5mm"];
+        Assert.Equal(equations[1], FeatureManagementLogic.EquationOn(equations, "d1@angle1"));
+        Assert.Equal(equations[2], FeatureManagementLogic.EquationOn(equations, "x", " D1@Boss-Extrude1"));
+        Assert.Null(FeatureManagementLogic.EquationOn(equations, "D2@Angle1"));
+        Assert.Null(FeatureManagementLogic.EquationOn(equations, "D1@Cut1"));
+
+        var (message, hint) = FeatureManagementLogic.EquationDrivenRefusal("D1@Angle1", equations[1]);
+        Assert.Equal("'D1@Angle1' is driven by the equation \"D1@Angle1\" = \"TILT\", which uses \"TILT\"; the next rebuild would " +
+                     "overwrite a direct change.", message);
+        Assert.Equal("Change it with equation_set: lhs 'TILT' for the value the equation uses, or lhs 'D1@Angle1' for a new expression.", hint);
+        // A variable is named before a dimension the expression also uses; a constant names the equation's own left-hand side.
+        Assert.Contains("lhs 'W'", FeatureManagementLogic.EquationDrivenRefusal("D2@Sketch1", "\"D2@Sketch1\" = \"D1@Sketch1\" + \"W\"").Hint);
+        var constant = FeatureManagementLogic.EquationDrivenRefusal("D1@Boss-Extrude1", equations[2]);
+        Assert.DoesNotContain("which uses", constant.Message);
+        Assert.Contains("equation_set lhs 'D1@Boss-Extrude1' with", constant.Hint);
+    }
 
     [Fact]
     public void New_names_are_trimmed_and_checked()

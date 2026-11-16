@@ -1784,6 +1784,36 @@ public class AssemblyLiveTests(LiveFixture fx) : LiveTest(fx)
     }
 
     [Fact]
+    public async Task Dimension_set_on_a_mate_angle_an_equation_drives_names_the_equation_and_its_variable()
+    {
+        // S74: an angle mate's dimension driven by an equation was refused as "a driven (reference) dimension: it reports a
+        // value but doesn't control the geometry". It drives, through the equation: the refusal names that equation and the
+        // variable it uses, with equation_set, and nothing changes.
+        var a = await CubeAsync("eqangA");
+        var b = await CubeAsync("eqangB");
+        string asm = await NewAssemblyAsync("eqang_asm");
+        string na = (await InsertAsync(asm, a.Path, [0, 0, 0])).Component.Name;
+        string nb = (await InsertAsync(asm, b.Path, [60, 0, 0])).Component.Name;
+        await Mate(asm, "parallel", Plane(na, "top"), Plane(nb, "top"));
+        string mate = (await Mate(asm, "angle", Plane(na, "front"), Plane(nb, "front"), angleDeg: 30)).Mate.Name;
+        var fm = new FeatureManagementService(S);
+        var dim = Assert.Single((await fm.DimensionListAsync(asm, mate)).Dimensions);
+        Assert.Equal("deg", dim.Unit);
+        await new PropertiesService(S).EquationSetManyAsync(asm,
+            [new EquationInput { Lhs = "TILT", Expression = "40" }, new EquationInput { Lhs = dim.Name, Expression = "\"TILT\"" }]);
+        Assert.Equal(40, Assert.Single((await fm.DimensionListAsync(asm, mate)).Dimensions).Value, 1e-6);
+
+        var ex = await Assert.ThrowsAsync<SwException>(() => fm.DimensionSetAsync(asm, [new DimensionValue { Name = dim.Name, Value = 50 }]));
+        Assert.Equal(ErrorCodes.InvalidArgument, ex.Code);
+        Assert.DoesNotContain("reference", ex.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("equation", ex.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("\"TILT\"", ex.Message);
+        Assert.Contains("equation_set", ex.Hint ?? "");
+        Assert.Contains("TILT", ex.Hint ?? "");
+        Assert.Equal(40, Assert.Single((await fm.DimensionListAsync(asm, mate)).Dimensions).Value, 1e-6); // nothing changed
+    }
+
+    [Fact]
     public async Task A_part_the_server_owned_comes_back_owned_when_its_owned_assembly_loads_it()
     {
         // S62 (d): a part the server had saved and closed, loaded again by an assembly doc_open opened, read 'foreign' ("the

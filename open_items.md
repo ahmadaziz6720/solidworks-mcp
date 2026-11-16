@@ -17,7 +17,7 @@ Closed all the same, its PR named, and an open PR no longer holds an item in Wai
 item sent upstream ends with `**Upstream: PR #9, open.**`, one per PR or issue
 (`merged`, `closed unmerged`; an issue `open` or `closed`), kept to its state.
 
-**Open: S4, S5, S7, S10 to S12, S33, S34, S52, S59 to S61, S64, S65, S67, S71, S72, S74, S76 to S79.**
+**Open: S4, S5, S7, S10 to S12, S33, S34, S52, S59 to S61, S64, S65, S67, S71, S72, S76 to S79.**
 Sorted 2026-11-16, the scenario test of build `20261116-080311` (findings 2026-11-16):
 S68, S69, S70, S62 and S75 held and closed; S76, S77 and S78 new, taken into the run's
 group 3; S79 new, not in this run. Sorted 2026-11-16, the scenario test of build `20261116-050908` (findings 2026-11-16):
@@ -286,8 +286,8 @@ server change since build `20261114-024455`).
 - [x] Group 2: scenario test (session id: `98f558e8-fa78-4f15-bb54-1981e3df0738`), its
   entry committed and sorted: resumed once after the stop for low memory; S68, S69, S70,
   S62 (b), S75 held and closed, S76, S77, S78 and S79 new (findings 2026-11-16, `54ce718`)
-- [x] S49: committed
-- [ ] S74: committed
+- [x] S49: committed (`5c776ef`)
+- [x] S74: committed
 - [ ] S67: committed
 - [ ] S76: committed
 - [ ] S77: committed
@@ -996,17 +996,6 @@ rolled back) when the density read differs from the database's by more than 1 % 
 body material of its own and no mass override, naming a restart at about 1 kg/m³. Taken
 into the run of 2026-11-16, group 5 (`## Run 2026-11-16`).
 
-### S74 - `dimension_set` on a mate's angle driven by an equation calls it a driven (reference) dimension - OPEN 2026-11-16
-
-On build `20261112-091908` (findings 2026-11-13, "two printed plates", point 7):
-`dimension_set` on an angle mate's dimension driven by an equation refused it "is a driven
-(reference) dimension: it reports a value but doesn't control the geometry". It is
-driving, through an equation; for a part's dimension the refusal names the equation's
-variable, for a mate's it does not. A hint that misses. Bears on S37 (Closed). Local. Not
-yet decided.
-Taken into the run of 2026-11-16, group 3: the refusal names the equation and its variable
-(`## Run 2026-11-16`).
-
 ### S76 - `asm_component_set` `flexible:false` puts a mate in error, reported `ok` with no warning - OPEN 2026-11-16
 
 Sorted out of the entry of 2026-11-16, point 5. On build `20261116-080311`, with S62 (b):
@@ -1214,5 +1203,51 @@ Decided 2026-11-16 by the run, not the owner: a part registered by the line take
 update stamp after the change as seen, because without a stamp on record the S57 check
 would stay silent on a later change by the user, and the change this call made is the
 server's.
+Local: on `sw2023`, in the commit that moves it here; not yet in a build. Upstream: not yet
+decided.
+
+### S74 - `dimension_set` on a mate's angle driven by an equation calls it a driven (reference) dimension - BUILT 2026-11-16, proof: the scenario test of group 3's build
+
+On build `20261112-091908` (findings 2026-11-13, "two printed plates", point 7):
+`dimension_set` on an angle mate's dimension driven by an equation refused it "is a driven
+(reference) dimension: it reports a value but doesn't control the geometry". It is
+driving, through an equation; for a part's dimension the refusal names the equation's
+variable, for a mate's it does not. A hint that misses. Bears on S37 (Closed). Local. Not
+yet decided.
+Taken into the run of 2026-11-16, group 3: the refusal names the equation and its variable
+(`## Run 2026-11-16`).
+Fixed in the run of 2026-11-16, group 3. Cause: `dimension_set` checked a dimension's
+driven state before its equations, and SOLIDWORKS reads a mate's dimension an equation
+drives as driven (`swDimensionDriven`), so the refusal for a reference dimension came
+first; and the equation's own refusal, where it was reached, named neither the equation
+nor its variable ("is driven by an equation … Change the equation instead."). Fix: the equation is looked for first, by the name read back or the one given
+(letter case ignored, a component's qualified equation not taken for the document's own
+dimension), and the refusal names it and what its right-hand side uses, for a mate's
+dimension and a part's alike: "'D1@Angle1' is driven by the equation "D1@Angle1" =
+"TILT", which uses "TILT"; the next rebuild would overwrite a direct change.", hint
+"Change it with equation_set: lhs 'TILT' for the value the equation uses, or lhs
+'D1@Angle1' for a new expression." (a variable named before a dimension it also uses; an
+equation of a constant names the dimension's own `lhs` and `equation_delete`). The rule is
+in `FeatureManagementLogic` (`EquationOn`, `EquationDrivenRefusal`), with an offline test.
+Test before: `AssemblyLiveTests.Dimension_set_on_a_mate_angle_an_equation_drives_names_the_equation_and_its_variable`
+(two cubes, a parallel and a 30° angle mate on their front planes, `"TILT" = 40` and the
+mate's dimension `= "TILT"`, `dimension_set` 50 on it) failed on the code before: "'D1@Angle1'
+is a driven (reference) dimension: it reports a value but doesn't control the geometry."
+After: it passes, the angle still 40 after the refusal; with it
+`FeatureManagementLogicTests.An_equation_driven_dimension_is_refused_naming_the_equation_and_what_it_uses`
+(offline) and the live tests that call `dimension_set`: `FeatureManagementLiveTests`
+`Dimension_set_changes_…`, `Dimension_set_refuses_…` (now with a part's depth driven by a
+variable), `Dimension_set_restores_…`, `Rename_reads_back_and_renames_the_dimensions`;
+`AssemblyLiveTests` `Dimension_set_through_an_assembly_names_a_part_not_listed_yet_…`,
+`Dimension_set_through_an_assembly_names_the_component_…`, `Configurations_are_chosen_at_insert_…`,
+`A_part_the_server_owned_comes_back_owned_…`, `A_change_through_a_document_an_assembly_loads_…`;
+`AdvancedFeatureLiveTests.Helix_start_angle_…`: 12/12 pass. Unit tests 288/288;
+`check_repo` ok; no description changed. Made stricter: a part's dimension driven by an
+equation had no test of its refusal; `Dimension_set_refuses_…` now asserts it names the
+equation, its variable and `equation_set`, and the mate's test that nothing changed.
+Decided 2026-11-16 by the run, not the owner: the equation is matched by its exact
+left-hand side (letter case aside), not with a document qualifier stripped, because a
+component's equation `"D1@Cut1@cube-1.Part"` would otherwise refuse the assembly's own
+`D1@Cut1`, a refusal that is not true; the earlier check matched exactly too.
 Local: on `sw2023`, in the commit that moves it here; not yet in a build. Upstream: not yet
 decided.
