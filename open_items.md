@@ -17,8 +17,11 @@ Closed all the same, its PR named, and an open PR no longer holds an item in Wai
 item sent upstream ends with `**Upstream: PR #9, open.**`, one per PR or issue
 (`merged`, `closed unmerged`; an issue `open` or `closed`), kept to its state.
 
-**Open: S4, S5, S7, S10 to S12, S33, S34, S52, S59 to S61, S64, S65, S71, S72, S79.**
-Sorted 2026-11-16, the scenario test of build `20261116-124830` (findings 2026-11-16):
+**Open: S4, S5, S7, S10 to S12, S33, S34, S52, S59 to S61, S64, S65, S71, S72, S79 to S86.**
+Sorted 2026-11-16, working sessions' entries on build `20261116-124830` (findings
+2026-11-16, seven entries): S80 to S86 new, S64 (i) to (l) and S65 (f) new parts, reported
+`ok` while wrong S80 (a), S82 (a) and S64 (k); S52 met again. None of them taken into the
+run: groups 4 and 5 go as planned (the owner, 2026-11-16); they wait for the next plan. Sorted 2026-11-16, the scenario test of build `20261116-124830` (findings 2026-11-16):
 S49, S74, S67, S76, S77 and S78 held and closed; S52 (c) new, taken into the run's group
 5; S79 (b) new, reported `ok` while wrong, not in this run, for the next plan first.
 Sorted 2026-11-16, the scenario test of build `20261116-080311` (findings 2026-11-16):
@@ -483,6 +486,11 @@ are placed (the tight box over each), else a word saying it is the file's placem
 Local. Not decided.
 Decided 2026-11-16 by the run, not the owner: (c) taken into the run of 2026-11-16, group
 5, with S52, because it is in S52's files (`TightBox.cs`) and group 5 holds S52.
+Met again 2026-11-16 (findings 2026-11-16, "a part edited by rollback", point 9), build
+`20261116-124830`: `body_list` gave a box max of 149.016816 on a part whose
+`equation_set` and `model_mass` boxes said 149.016716, the same body, nothing changed
+between. New: `body_list`'s box is not the tight box (`IBody2.GetBodyBox` through
+`SwExt.Box`, it seems), so two tools give two boxes for one body.
 
 ### S59 - Reference geometry that cannot be made - OPEN 2026-11-12
 
@@ -909,6 +917,41 @@ chain that fails as a whole and has edges that pass alone, which no probed case 
 hint for the tangent joint ("an edge ending tangent to one not in the call: turn
 `propagate` on or add that edge") is a new choice for the owner. A repro needs the
 session's own part. The item stays Open for (b) and (c).
+(i) Sorted out of the entry of 2026-11-16 ("the same edit, a second round", point 1), on
+build `20261116-124830`: `feature_chamfer {type:"equal"}` returns two dimensions
+(`D1@...`, `D3@...`) that are independent once one is driven. An equation on D1 alone left
+D3 at its old value when the variable changed, a 6 x 5 chamfer where 6 x 6 was meant; no
+warning, `equation_set` ok. Found only by a hand-figured volume (+24 mm³). Workaround:
+drive both. Proposed: the result names both as the chamfer's legs and says they are
+separate dimensions, or `equation_set` warns when one leg of an equal chamfer is driven
+alone. Local. Not decided.
+(j) Sorted out of the entry of 2026-11-16 ("an edit to three printed parts", point 1), the
+same build: `feature_chamfer` `angle_distance` 1 / 60° on two edges where a groove's side
+meets a flat wall, both unflipped and then both `flip: true`: `VERIFY_FAILED` "no chamfer
+face with legs 1/1.732051 or 0.57735/1 mm along edge E25 (found legs 1/1.085649 mm)", the
+hint "A distance larger than the adjacent faces fails; use smaller distances or fewer
+edges". The cause was the side: one edge needed the flip and the other did not, and on the
+wrong side the 1.73 leg ran past the 1 mm deep side face, so the chamfer was cut short. The
+hint pointed at the distances, and the error named only the edge that failed, not that the
+other held. Workaround: `flipEdges: [0]` on the pair (S51's per-edge flip, Closed), which
+held on four grooves, -16.0 mm³ each as figured. Proposed: when the found legs share the
+requested distance and the other leg is short, the hint says the angle's side may be
+swapped (`flip`, `flipEdges`), and the error gives each edge's result. Local. Not decided.
+(k) **A result reported `ok` while wrong.** Sorted out of the same entry, point 2: the leg
+check of that chamfer gave both faces of each edge the same plane, "edge E24: 1 mm along
+F252 (plane [-0.866, 0, -0.5]), 1.732051 mm along F253 (plane [-0.866, 0, -0.5])", where
+one of the two is a face square to the axis, normal ±Y. The volume matched to the mm³, so
+the chamfer was right and the reported normals were not. Not met on a `distance_distance`
+9.5 / 9.4 chamfer over a cylinder's and two planes' concave edges against one flat face
+(findings 2026-11-16, "an edit to two printed parts", point 1: two faces per edge, each
+with its own normal), so it may belong to `angle_distance` or to plane-plane edges.
+Proposed: a probe of that case; each face's own normal read. Local. Not decided.
+(l) Sorted out of the entry of 2026-11-16 ("an edit to four printed parts", point 6), the
+same build: `sketch_add` polygon, the contour read `"closed"` with `"regions":0`, and the
+cut from it worked (volume to the hand figure). (f) fixed an over-count on a face (closed
+2026-11-14); this is an under-count, on a build with that fix. Proposed: a probe of the
+region count for a polygon on a plane and on a face; when SOLIDWORKS gives 0 for a closed
+contour, the regions counted from the closed contours. Local. Not decided.
 
 ### S65 - Missing options met while modelling - OPEN 2026-11-12
 
@@ -975,6 +1018,15 @@ merging ends that meet. Both not yet decided.
 Decided 2026-11-16 by the owner: (e) `sketch_add` merges segment ends that meet, no new
 reference form; (b) and (d) taken into the run of 2026-11-16, group 4, with (c) and (e):
 (c) `resolved` names the point taken and warns of the others there (`## Run 2026-11-16`).
+(f) Sorted out of the entry of 2026-11-16 ("an edit to four printed parts", point 1), on
+build `20261116-124830`: `sketch_add` slot makes 2 lines and 2 arcs with no relations
+(`sketch_info`: `"relations":0`), where SOLIDWORKS' own slot tool ties them. Two slots took
+8 `tangent`, 4 `vertical` and 1 `equal` in `sketch_constrain` before they could be
+dimensioned, and the first call, with 2 `vertical` short, left the sketch under-defined
+(24.8 s). Missing: a slot with its tangencies and its centreline, so it is defined by its
+two centres and a width. Proposed: `sketch_add` relates the slot's four segments as it
+draws them (tangent at the four joints), and perhaps a centreline between the centres;
+which form is a choice. Local. Not decided.
 
 ### S71 - A frequency study with no fixtures fails in the solver - OPEN 2026-11-14
 
@@ -1051,6 +1103,143 @@ at least names the step it undid and the features it removed. Local. Not decided
 Decided 2026-11-16 by the run, not the owner: (b) stays Open, outside the run of
 2026-11-16, marked as a result reported `ok` while wrong for the next plan to take first,
 because `doc_undo` is in none of groups 4 and 5's files and the run's groups are set.
+
+### S80 - `sketch_add` relates what it draws to model edges and moves it off the coordinates given, with no warning - OPEN 2026-11-16
+
+(a) Sorted out of the entries of 2026-11-16 ("an edit of two mirrored printed parts",
+point 1; "a part edited by rollback", point 4), on build `20261116-124830`. A rectangle
+drawn on a planar face with corners [[100, 40], [-95, 43]], its bottom on the face's
+boundary edge, came back with `relations: ["coincident: a model entity, Line1 start",
+"midpoint: Line3 end, a model edge"]`, 2.5 tall where 3 was drawn, and the sketch fully
+defined with no dimension; the next `sketch_constrain` dimension was refused as
+over-defining. Two rectangles with corners on body edges projected into the sketch plane
+got "coincident: a model edge" and "midpoint: Line8 end, a model edge", and one moved: 10
+wide drawn, 9 after, a corner pulled to a model edge's midpoint. The relations are listed,
+as S56 (Closed) decided; nothing says the solved shape differs from the input, and the
+tool's description says inference is off while the server draws. Reported `ok`.
+Workaround: draw 1 mm clear of every model edge and place by dimensions, about 3 calls
+more a sketch; held six times.
+(b) The second entry, point 3: `sketch_add` of a 3-point arc whose centre fell exactly on
+an existing corner merged the centre onto it (reported in `merged`), which made the arc's
+radius equal to a plate thickness and left the radius dimension redundant. Workaround: the
+mid point 0.02 off, so the centre lands near, then tangents and a radius. Bears on S65 (e),
+which makes `sketch_add` merge ends that meet.
+
+Proposed: (a) `sketch_add` compares each point it was given with where the solved sketch
+has it, and warns, naming the relation, when one moved more than the sketch's tolerance;
+(b) the description says a 3-point arc's centre is merged like its ends, or the centre is
+not merged; weighed with S65 (e). Local. Not decided.
+
+### S81 - "modified outside this server (by the user?)" again after the server's own changes - OPEN 2026-11-16
+
+Sorted out of the entries of 2026-11-16 ("an edit of two mirrored printed parts", point 2;
+"layout sketches added to an existing part", point 4), on build `20261116-124830`, which
+has S57's fix: S57 (Closed) again. (1) `equation_set` and `doc_save` on an assembly warned
+"'...SLDASM' was modified outside this server since its last change (by the user?)" on
+every call after `doc_activate {allowEdit:true}`, when the only changes were the server's
+own: its parts edited and saved earlier in the session, and the assembly dirty from their
+rebuild when it was adopted. (2) `feature_delete {deleteEquations:true}`, which held (a
+sketch and its 9 equations removed in one call, no rebuild error), warned the same of a
+part the user had only been viewing, with no hint of what changed. The owner was not
+working in SOLIDWORKS either time. A false alarm that, read literally, stops a session from
+saving under the rule never to save while the owner works. Bears on S60 (what a session
+cannot tell about the process it runs on).
+
+Proposed: a probe of the stamp the warning compares in the two cases (an assembly adopted
+by `doc_activate allowEdit` after its parts' rebuild moved its stamp; a document only
+viewed in SOLIDWORKS); the stamp taken at adoption, or the warning saying what changed.
+Local. Not decided.
+
+### S82 - `sketch_constrain` angular where two lines meet only virtually turns the shape inside out, reported `ok` - OPEN 2026-11-16
+
+(a) **A result reported `ok` while wrong.** Sorted out of the entry of 2026-11-16 ("a part
+edited by rollback", point 1), on build `20261116-124830`: S42 (Closed) again. An angular
+dimension between a 3 mm line at 20° and a long horizontal line 55 above it, which meet
+only virtually far away, `valueDeg` 60 meant as the other line's slope: the line flipped
+to 120°, the trapezoid's corners collapsed onto the axis (126 wide became 6), reported
+`ok` with "textAt lies in the supplementary angle, so the dimension is on the angle that
+was 119.99°... then 60°" (S6's line) and "geometry measures 60°". The geometry did measure
+60° on the dimension's own angle, so the check passed a shape turned inside out; only the
+`changed` list (a line from 126 to 6 long) showed it, and S42's sign of a line turned by
+more than 90° did not fire. Workaround: `sketch_finish`, then `dimension_set` of the same
+dimension to 120, which flipped it back. Carried again in another entry of that day ("an
+edit to four printed parts", point 7) in a session's own words, an angular dimension's
+`textAt` turning a line to the supplementary angle, not seen there; likely the same.
+(b) The same entry, point 2: angular 45 at a sketch point made the intersection of two
+lines (a lead-in's virtual sharp), drawn at 135° between the rays: the tool took the angle
+between the rays, mirrored three segments and said so in a warning (S42's warning, held).
+The repair by `dimension_set` 135 after `sketch_finish` then left a perpendicular 3 mm
+segment solved to the far side, so the closed profile crossed itself
+(`contours.problem: "EntXEnt"`); `dimension_set` reported `ok`, volume 0, since no feature
+used the sketch yet. Workaround: the sketch drawn again with the angle dimensioned first,
+at the value between the rays as drawn (135), before any distance; held.
+
+Proposed by the session: (a) a warning when a `changed` length drops by more than half, or
+a refusal when `textAt` names one sector and the value moves the line into the other (S42
+was decided a warning, not a refusal, by the owner); (b) `dimension_set` on a sketch
+dimension reads the sketch's contours after and warns when one became invalid. Local. Not
+decided.
+
+### S83 - `asm_mate_add` distance with `flip` that lands right warns in the words of a wrong side - OPEN 2026-11-16
+
+Sorted out of the entry of 2026-11-16 ("a part edited by rollback", point 5), on build
+`20261116-124830`. `asm_mate_add` distance between two parallel planes, `alignment:
+aligned`, 80: it landed on the far side (origin at -80, the part inserted at +80), with
+the warning that says so (S50, Closed: held). Again with `flip: true` it landed right
+(origin read back +80) but warned in the same words ("80 mm along its normal before, -80
+mm after... If it should stay on the side it was on, delete the mate..."), which reads as
+a second failure. The side check on `originMm` held.
+
+Proposed: with `flip` asked, the warning says the side now differs from where the part
+was inserted, as asked, not that it may be wrong. Local. Not decided.
+
+### S84 - Feature results that read as faults on a right result: a mirror's area line, a pattern's rebuild warning under its old name - OPEN 2026-11-16
+
+(a) Sorted out of three entries of 2026-11-16 ("a part edited by rollback", point 6; "an
+edit to four printed parts", point 5; "an edit to three printed parts", point 7), on build
+`20261116-124830`. `feature_mirror` of features about the symmetry plane gave "the copy's
+faces have 0.86 x the seed's area" (then 1.001, 0.996, 1.006) while the volume was exactly
+the seeds' (-2 627.2 = 2 x -1 313.6 in one) and every instance face was found (14/14,
+7/7). The line is in `checks`, not a warning (`AreaNote`, S17 (a)'s fix, Closed: as
+designed), yet each session took it for a warning and checked the volume by hand; "it
+meets the body differently from the seed" reads as a clash.
+(b) "An edit to four printed parts", point 2: `feature_pattern_linear` warned
+"'LPattern1' has rebuild warning 51 (swSketchErrorExtRefFail)", naming the feature by the
+name it had before the call's own `name` renamed it; the next `model_review` was clean.
+
+Proposed: (a) when every instance face is found and the volume matches, the line says so
+("faces merge differently from the seed's; volume and instance faces match"), or it is
+left out below a wider ratio; (b) the rebuild warnings read after the rename's rebuild,
+naming the renamed feature, a transient one dropped. Local. Not decided.
+
+### S85 - `feature_delete`'s dry run lists as kept an absorbed sketch the real call removes - OPEN 2026-11-16
+
+Sorted out of the entry of 2026-11-16 ("an edit to three printed parts", point 4), on build
+`20261116-124830`. The dry run of a delete of a loft cut said `keptAbsorbed: ["...start
+sketch", "...run sketch<2>"]`; the real call removed the `<2>` one and said so plainly:
+"SOLIDWORKS also removed '...<2>' (absorbed by ...), which was not planned." The `<2>` is
+the loft's reference to a sketch another feature owns. Not a wrong result, but the dry run
+did not say what the call would do. Bears on S64 (d) and S54 (Closed parts and item).
+
+Proposed: a probe of how SOLIDWORKS lists such a reference; the plan counts it as going
+with the feature that holds it. Local. Not decided.
+
+### S86 - `sketch_delete` removes a polygon's construction circle unasked, with its dimensions and relations - OPEN 2026-11-16
+
+Sorted out of the entry of 2026-11-16 ("an edit to two printed parts", point 3), on build
+`20261116-124830`. (a) `sketch_delete` of a polygon's six lines also removed its
+construction circle, which carried the polygon's centre dimensions, its diameter and an
+`equal` to the other polygon's circle: `"removed":["Arc1","Line1",...,"Line6"]` while the
+checks said "6 segment(s) gone". The other polygon was left with no size (under-defined).
+The result lists it; a warning that a segment not asked for went, with the dimensions and
+relations that went with it, would have saved a `sketch_info`. (b) The new dimensions took
+the freed names (`D1`, `D2`, `D3`), so the old equations on `D2` and `D3` bound to them
+again; right here by luck of order. The entry does not say whether S54 (c)'s pick-up
+warning came (S54, Closed).
+
+Proposed: (a) a warning naming each segment removed that was not named, with the
+dimensions and relations that went with it; (b) a probe that S54 (c)'s warning fires after
+`sketch_delete` and a new dimension of a freed name. Local. Not decided.
 
 ## Waiting
 

@@ -1725,12 +1725,16 @@ Server build `0.1.0-sw2023-20261116-124830+ad5f6ba`.
 2. **`equation_set` and `doc_save` on an assembly warned "'…SLDASM' was modified outside this server since its last change (by the user?)"** on every call after `doc_activate {allowEdit:true}`, when the only changes were the server's own: its parts edited and saved earlier in the session, and the assembly dirty from their rebuild when adopted. The owner was not working in SOLIDWORKS. A false alarm that, read literally, would stop a session from saving under the "never while the owner is working" rule. Bears on S60.
 3. **Held, worth knowing:** `feature_delete {deleteAbsorbed, deleteEquations}` removed a flange, a pattern and the mirror of that pattern in one call, with their five equations: no rebuild error 51, the volume as figured to the mm³. `feature_rollback` to after a feature, a new sketch and extrude inserted there, and back to the end, held three times a part. `feature_mirror` of a rib about a reference plane: volume and instance faces checked.
 
+Sorted into S80 (1), new; S81 (2), new, S57 again. Held: S54 (3), closed.
+
 **2026-11-16: the same edit, a second round: sketches reshaped in place, a pattern and mirror remade, an edge chamfer driven by equation**
 
 Server build `0.1.0-sw2023-20261116-124830+ad5f6ba`.
 
 1. **`feature_chamfer {type:"equal"}` returns two dimensions (`D1@…`, `D3@…`) that are independent once one is driven**: an equation on D1 alone left D3 at its old value when the driving variable changed, a chamfer of 6 x 5 where 6 x 6 was meant; no warning, `equation_set` ok. Found only by a hand-figured volume (+24 mm³). Workaround: drive both. The result could say that an equal chamfer's two legs are separate dimensions.
 2. **Held:** `sketch_edit` + `sketch_delete` of one line + `sketch_add` of two lines with exact end points (merged onto the existing ones, reported) + two relations reshaped a fully defined triangle into a rectangle keeping its dimensions and equations, twice a part. `feature_pattern_linear` reported faces merged by an instance flush with an existing face ("0.612 x 1 seed copies: instances overlap, merge or are clipped"), which was the intent.
+
+Sorted into S64 (1), part (i). Held: S56 (2), closed.
 
 **2026-11-16: layout sketches added to an existing part, driven by global variables, no solid changed**
 
@@ -1740,6 +1744,8 @@ Server build `0.1.0-sw2023-20261116-124830+ad5f6ba`.
 2. **Held: `sketch_constrain` angular `textAt` in the supplementary sector** was reported plainly ("textAt lies in the supplementary angle, so the dimension is on the angle that was 45°…") and the value read back right; no retry needed.
 3. **Held: `equation_set` with `equations`**, 11 new globals one of them derived from two others, then 8 and 9 dimension equations, one call each, `volumeDeltaMm3: 0` as expected for sketches only.
 4. **Held: `feature_delete {deleteEquations:true}` on a sketch with 9 driven dimensions** removed the sketch and all 9 equations in one call, listed in the result, no rebuild error after. The same call warned "'<doc>' was modified outside this server since its last change (by the user?)" on a document the user had only been viewing; harmless here, but it gave no hint of what changed.
+
+Sorted into S81 (4), new. Held: S6 (2), closed; S37 (3), closed. Not filed (1): held, a usage lesson (dimension the sharp corner first, fillet after).
 
 **2026-11-16: a part edited by rollback (a cut and a loft cut before a later cut, a boss from offsets, one mirror), three new parts from side and section sketches, one part copied and its outline driven, an assembly with a component replaced and two parts mated**
 
@@ -1755,6 +1761,8 @@ Server build `0.1.0-sw2023-20261116-124830+ad5f6ba`.
 8. **Held: `asm_replace` of a part mated by two faces and a plane**: three mates reattached to the new file, none in error; the new part sat where the old did.
 9. **S52, met again in part:** `body_list` gave a box max of 149.016816 on a part whose `equation_set` and `model_mass` boxes said 149.016716, same body, no change between.
 
+Sorted into S82 (1, 2), new, S42 again; S80 (3, 4), new; S83 (5), new; S84 (6), new; S52 (9), met again. Not filed (7, 8): held.
+
 **2026-11-16: an edit to four printed parts and their assembly: features deleted and mirrored again, slots, pilots, a pattern, a second set**
 
 Build `0.1.0-sw2023-20261116-124830+ad5f6ba`.
@@ -1766,6 +1774,8 @@ Build `0.1.0-sw2023-20261116-124830+ad5f6ba`.
 5. **`feature_mirror` warned "the copy's faces have 1.001 x the seed's area"** on a boss and a hole mirrored about the symmetry plane, the instance faces 7/7 and the volume as figured; no clash (the earlier entry's point 6, met again).
 6. **`sketch_add` polygon: the contour read `"closed"` with `"regions":0`**, and the cut from it worked (volume to the hand figure). The regions count looks wrong for a closed hexagon.
 7. **Carried from earlier the same day, in that session's own words, not seen here:** "textAt pada dimensi angular membalik garis ke sudut suplemen", an angular dimension's `textAt` turning a line to the supplementary angle; the earlier entry's points 1 and 2, met again.
+
+Sorted into S65 (1), part (f); S84 (2, 5), new; S64 (6), part (l); S82 (7), new. Held: S54 (4), closed. Not filed (3): held.
 
 **2026-11-16: an edit to three printed parts: a loft cut and its offset plane removed, a cut extended or made again from the loft's start sketch, a mirror and four chamfers made again, second sets**
 
@@ -1779,6 +1789,8 @@ Server build `0.1.0-sw2023-20261116-124830+ad5f6ba`.
 6. **Held: the face count at the second set** (`body_list`): 242, 19 and 94 faces at both sets on the three parts, the loft's faces gone as figured.
 7. **`feature_mirror` area ratio again (0.996, 1.006)** with the volume exactly the seed's and the instance faces all found: no clash, as the earlier entries' point 6.
 
+Sorted into S64 (1), part (j); S64 (2), part (k); S85 (4), new; S84 (7), new. Held: S54 (5), closed. Not filed (3, 6): SOLIDWORKS' own limit, refused plainly with its cause, a lesson for callers (3); held (6).
+
 **2026-11-16: an edit to two printed parts: a chamfer deleted and made again earlier in the tree by rollback, a sketch line deleted, second sets**
 
 Server build `0.1.0-sw2023-20261116-124830+ad5f6ba`.
@@ -1786,3 +1798,5 @@ Server build `0.1.0-sw2023-20261116-124830+ad5f6ba`.
 1. **`feature_chamfer` `distance_distance` 9.5 / 9.4 on three edges (a cylinder's and two planes' concave edges against one flat face): the leg check named two different faces per edge, with their right normals** ("9.5 mm along F284 (plane [0, 1, 0]), 9.4 mm along F285 (cylinder r 34.2)"). The earlier entry's point 2, both faces given the same plane, did not recur here; it may belong to `angle_distance` or to plane-plane edges.
 2. **Held**: `feature_delete` with `deleteEquations` (dry run first), `feature_rollback` to a feature and back to the end, `equation_delete` then `sketch_delete` of the line its dimension sat on, a `coincident` of two loose ends solved to the right one of two intersections, and the face count at the second set (`body_list`), every volume near the hand figure.
 3. **`sketch_delete` of a polygon's six lines also removed its construction circle**, which carried the polygon's centre dimensions, its diameter and an `equal` to the other polygon's circle: `"removed":["Arc1","Line1",…,"Line6"]` while the checks said "6 segment(s) gone". The other polygon was left with no size (under-defined). The result does list it; a warning that a segment not asked for went, with the dimensions and relations that went with it, would have saved a `sketch_info`. The new dimensions took the freed names (`D1`, `D2`, `D3`), so the old equations on `D2`/`D3` bound to them again; right here by luck of order.
+
+Sorted into S64 (1), part (k); S86 (3), new. Not filed (2): held.
