@@ -291,9 +291,13 @@ server change since build `20261114-024455`).
 - [x] S67: committed (`1da8d57`)
 - [x] S76: committed (`96dd93f`)
 - [x] S77: committed (`14a0e56`)
-- [x] S78: committed
-- [ ] Group 3: full live tests and release (build: )
-- [ ] Group 3: scenario test (session id: ), its entry committed and sorted
+- [x] S78: committed (`ad5f6ba`)
+- [x] Group 3: full live tests and release (build: `20261116-124830`, `ad5f6ba`)
+  Live: AssemblyLiveTests 53, FeatureManagementLiveTests 36, TopDownLiveTests 4,
+  AssemblyStructureLiveTests 2, SketchEditLiveTests 74, PartFeatureLiveTests 49,
+  ReferenceLiveTests 46, all passed (S74's test failed once in the full Assembly class run,
+  SOLIDWORKS refusing a valid equation, passed alone after a restart); unit 290.
+- [ ] Group 3: scenario test (session id: `9f4eae18-a900-4e4a-8818-c5ee41ec6ad3`), its entry committed and sorted
 - [ ] S59 (c): committed
 - [ ] S65 (e): committed
 - [ ] S65 (c): committed
@@ -1020,7 +1024,7 @@ the cut, so a circle landing elsewhere on the part would pass.
 
 **Upstream: PR #1, open.**
 
-### S49 - `dimension_set` through an assembly does not say which component, nor the document it changed - BUILT 2026-11-16, proof: the scenario test of group 3's build
+### S49 - `dimension_set` through an assembly does not say which component, nor the document it changed - BUILT 2026-11-16, proof: the scenario test of build `20261116-124830`
 
 In the scenario test of build `20261112-091908` (findings
 2026-11-12, second entry, points 3, 4), a two-part assembly mated by hand. (a)
@@ -1134,10 +1138,10 @@ Decided 2026-11-16 by the run, not the owner: a part registered by the line take
 update stamp after the change as seen, because without a stamp on record the S57 check
 would stay silent on a later change by the user, and the change this call made is the
 server's.
-Local: on `sw2023`, in the commit that moves it here; not yet in a build. Upstream: not yet
+Local: on `sw2023`, in the commit that moves it here; in build `20261116-124830` (`ad5f6ba`). Upstream: not yet
 decided.
 
-### S74 - `dimension_set` on a mate's angle driven by an equation calls it a driven (reference) dimension - BUILT 2026-11-16, proof: the scenario test of group 3's build
+### S74 - `dimension_set` on a mate's angle driven by an equation calls it a driven (reference) dimension - BUILT 2026-11-16, proof: the scenario test of build `20261116-124830`
 
 On build `20261112-091908` (findings 2026-11-13, "two printed plates", point 7):
 `dimension_set` on an angle mate's dimension driven by an equation refused it "is a driven
@@ -1180,10 +1184,10 @@ Decided 2026-11-16 by the run, not the owner: the equation is matched by its exa
 left-hand side (letter case aside), not with a document qualifier stripped, because a
 component's equation `"D1@Cut1@cube-1.Part"` would otherwise refuse the assembly's own
 `D1@Cut1`, a refusal that is not true; the earlier check matched exactly too.
-Local: on `sw2023`, in the commit that moves it here; not yet in a build. Upstream: not yet
+Local: on `sw2023`, in the commit that moves it here; in build `20261116-124830` (`ad5f6ba`). Upstream: not yet
 decided.
 
-### S67 - `feature_rollback` before the only feature fails its check - BUILT 2026-11-16, proof: the scenario test of group 3's build
+### S67 - `feature_rollback` before the only feature fails its check - BUILT 2026-11-16, proof: the scenario test of build `20261116-124830`
 
 Seen in the run of
 2026-11-13, in S60's probe, on that run's code: `feature_rollback {to:<renamed extrude>,
@@ -1225,10 +1229,10 @@ list reads `IsRolledBack` as it is.
 Decided 2026-11-16 by the run, not the owner: only the named feature's own sub-features
 listed right before it move the expected first feature up, not any sketch rolled back,
 because the check then still reports any other feature in a state not asked for.
-Local: on `sw2023`, in the commit that moves it here; not yet in a build. Upstream: not yet
+Local: on `sw2023`, in the commit that moves it here; in build `20261116-124830` (`ad5f6ba`). Upstream: not yet
 decided.
 
-### S76 - `asm_component_set` `flexible:false` puts a mate in error, reported `ok` with no warning - BUILT 2026-11-16, proof: the scenario test of group 3's build
+### S76 - `asm_component_set` `flexible:false` puts a mate in error, reported `ok` with no warning - BUILT 2026-11-16, proof: the scenario test of build `20261116-124830`
 
 Sorted out of the entry of 2026-11-16, point 5. On build `20261116-080311`, with S62 (b):
 a subassembly set flexible, a mate on its floating child held the child where the
@@ -1285,10 +1289,10 @@ the bare code, because the probe found it in both cases tried, and other codes o
 the enum's mate names stay bare; the type is passed by every caller that names a feature's
 error (`feature_info`, `dimension_set`, `review`), not by `asm_mate_list` alone, because
 `dimension_set` showed the same wrong name for a mate.
-Local: on `sw2023`, in the commit that moves it here; not yet in a build. Upstream: not yet
+Local: on `sw2023`, in the commit that moves it here; in build `20261116-124830` (`ad5f6ba`). Upstream: not yet
 decided.
 
-### S77 - A child of a flexible subassembly reads `fixed: true`, `constrained: "fully"` - BUILT 2026-11-16, proof: the scenario test of group 3's build
+### S77 - A child of a flexible subassembly reads `fixed: true`, `constrained: "fully"` - BUILT 2026-11-16, proof: the scenario test of build `20261116-124830`
 
 Sorted out of the entry of 2026-11-16, point 6. On build `20261116-080311`, with S62 (b):
 a child of a flexible subassembly that floats in its own file, and that a mate had just
@@ -1349,10 +1353,10 @@ Decided 2026-11-16 by the run, not the owner: the rows only; `asm_mate_add`'s hi
 sides are fixed" on a failed mate and `review`'s count of floating components (a child of
 a flexible subassembly not counted) still read `IsFixed`, because they are not the rows
 the item names and each is a change of its own, to an item if a session meets it.
-Local: on `sw2023`, in the commit that moves it here; not yet in a build. Upstream: not yet
+Local: on `sw2023`, in the commit that moves it here; in build `20261116-124830` (`ad5f6ba`). Upstream: not yet
 decided.
 
-### S78 - Mate results and origin references: `moved` short and incomplete, an origin needs a name and reads as a point - BUILT 2026-11-16, proof: the scenario test of group 3's build
+### S78 - Mate results and origin references: `moved` short and incomplete, an origin needs a name and reads as a point - BUILT 2026-11-16, proof: the scenario test of build `20261116-124830`
 
 Sorted out of the entry of 2026-11-16, points 7 and 3. On build `20261116-080311`, each
 reported `ok`. (a) A mate moved a cube inside a subassembly and, through two earlier
@@ -1429,5 +1433,5 @@ the list the item asks to be complete.
 Decided 2026-11-16 by the run, not the owner: an origin reads `kind: "origin"` and the
 origin's name both, because the kind tells it from a sketch point and the name is what the
 other tools take back (`{component, name:"Origin"}`), as a plane's row gives its name.
-Local: on `sw2023`, in the commit that moves it here; not yet in a build. Upstream: not yet
+Local: on `sw2023`, in the commit that moves it here; in build `20261116-124830` (`ad5f6ba`). Upstream: not yet
 decided.
