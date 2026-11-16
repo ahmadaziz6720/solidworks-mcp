@@ -132,6 +132,9 @@ stands*.
   (`~/.claude/projects/<claude_solidworks>/<uuid>.jsonl`). Stopped with no `findings.md`
   entry, or the transcript unwritten for 30 minutes with the process still there (stop it
   first): resume it at once, unasked, up to three times, then Blocked with what was seen.
+  A SOLIDWORKS the stopped session started by `sw_connect launch` is out of reach of the
+  resumed one (S89): it is closed and started from its exe, what is open in it the test's
+  own copies.
   It starts with `sw_status` reading the new version (step 6's short check). Its `findings.md` entry is committed here unasked and
   sorted (`backlog:sort`), the release page's notes updated (step 7). What it finds goes
   four ways: **held**, the item to `closed_items.md`, `CLOSED <date>`; **a fix of this
