@@ -333,6 +333,10 @@ server change since build `20261114-024455`).
   S65 (c) 191k/15, S65 (b) 144k/7, S65 (d) 242k/26 (each the default model); group 4's
   release 105k/45 (Sonnet).
 - [ ] Group 4: scenario test (session id: `5e28cb8b-9a48-46e6-addb-0c43e04ad1b8`), its entry committed and sorted
+  Stopped 2026-11-16 before it wrote an entry: Claude Code ended the background session for
+  low system memory and says not to start it again unasked. Blocked there; go on with
+  `claude -p --resume 5e28cb8b-9a48-46e6-addb-0c43e04ad1b8` from `claude_solidworks` once
+  memory is free.
 - [ ] S52: committed
 - [ ] S61 (a): committed
 - [ ] S72: committed
