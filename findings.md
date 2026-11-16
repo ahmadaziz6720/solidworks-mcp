@@ -1713,3 +1713,6 @@ level, so `<cube>-2` exists both at the top level and as `<sub>-1/<cube>-2`.
 9. Held, regression: `feature_chamfer` `equal` 2 mm on a Ø20 bore's bottom edge −134.041, legs measured, no warning; a 1:2 sheet's frame [20, 10, 410, 287] / [230, 10, 410, 65.25]; the shelled tray's two sections (1 and 3 hatched faces); interference 0 in a saved hinge assembly. STEP of the shelled tray still 16 surface bodies (S5, met again).
 
 90 calls, 45.6k characters of results; 4 errors (3 refusals meant, 1 feature name mistyped by the session).
+
+Sorted into S52 (7), part (c); S79 (8), part (b); S5 (9), met again. Held: S67 (1), S74 (2),
+S78 (3), S77 (4), S76 (5), S49 (6). Not filed (9): the rest of it held, regression.

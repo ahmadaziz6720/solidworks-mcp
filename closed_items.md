@@ -2198,6 +2198,450 @@ Held in its scenario test (findings 2026-11-16, build 20261116-080311, point 8):
 `faceCountDelta`, `alsoCreated` and both warnings as before; a plain chamfer one face, no
 `feature`. Left for S79: `doc_undo` right after that split chamfer is refused.
 
+### S49 - `dimension_set` through an assembly does not say which component, nor the document it changed - CLOSED 2026-11-16
+
+In the scenario test of build `20261112-091908` (findings
+2026-11-12, second entry, points 3, 4), a two-part assembly mated by hand. (a)
+`dimension_set` with a component's dimension (`D1@Boss-Extrude1@<component>-1`) made the
+change right, but the result named it `D1@Boss-Extrude1`, without the component, and
+carried no volume change, which the description promises and a part's result gives. With
+two components holding a `D1@Boss-Extrude1` the row would not say which changed. (b) The
+change went to a part `doc_list` lists as `foreign` (`loadedBy` the assembly), leaving it
+dirty; closing the assembly with `discard` closed and discarded it too ("SOLIDWORKS also
+closed"), the part's file not touched. Whether a referenced part counts as the assembly's
+for the server's rule on foreign documents is not said anywhere, and the result does not
+name the other document. Reported success, rightly. Bears on S27. Local: the component in
+the row, the assembly's volume change, and a line naming the part changed and not saved.
+Taken into the run of 2026-11-13 as proposed, no choice in it.
+Fixed in the run of 2026-11-13. Cause: `dimension_set` named each row by the dimension's
+own full name with the document's suffix cut (`FeatureVerifier.ShortName`), which for a
+component's dimension is the part's `D1@Boss-Extrude1`; so two components holding one were
+refused "listed twice", and the read-back after the rebuild looked the dimension up again by
+that short name in the assembly. The volume change was read for a part only, and nothing
+looked at the documents a change through the assembly reached. Fix: in an assembly each row
+keeps the name as given (`D1@Boss-Extrude1@<component>-1`), which also keys the "listed
+twice" check and the read-back; the volume change of an assembly is that of its mass
+properties (`CreateMassProperty2().Volume`) before and after; the update stamp of every
+other open document is read before the change, and each one whose stamp moved and that is
+now dirty is named in a warning, "Also changed, not saved: '<title>' (<handle>, <access>), a
+component's own document." Whether a referenced part counts as the assembly's for the
+server's rule on foreign documents is not decided here: the fix does not need it, the change
+goes through as before and is now named, with the part's access. Test before:
+`AssemblyLiveTests.Dimension_set_through_an_assembly_names_the_component_the_volume_and_the_part_it_changed`
+(two cubes in an assembly, both `D1@Boss-Extrude1@…` set in one call) failed on the code
+before, "'D1@Boss-Extrude1' is listed twice." After: it passes, with each row named as given,
+20 → 30 and 20 → 25, the volume change 6 000 mm³ and a line naming each part, and none
+naming the assembly; with it the live tests that call `dimension_set` through an assembly or
+on a part, `A_change_through_a_document_an_assembly_loads_does_not_read_as_the_users`,
+`A_part_the_server_owned_comes_back_owned_when_its_owned_assembly_loads_it`,
+`Compare_cannot_open_a_revision_…`, `Configurations_are_chosen_at_insert_…` of
+`AssemblyLiveTests`, `TopDownLiveTests.An_in_context_cover_…`, the three `Dimension_set_…` and
+`Rename_reads_back_and_renames_the_dimensions` of `FeatureManagementLiveTests`, M0's
+`Dirty_reads_unsaved_changes_made_through_another_process`, pass (11/11; in a first mixed run
+`A_part_the_server_owned_comes_back_owned_…` failed once, its message not kept, and passed in
+the three runs after, alone and in two batches); unit tests 284/284; `check_repo` ok; no
+description changed. Made stricter: none (a batch the old check refused, two components'
+dimensions of one name, now goes through).
+Local: on `sw2023`, `2a41e9e`; in build `20261114-024455`. Upstream: not yet
+decided.
+Release run 2026-11-14: `A_part_the_server_owned_comes_back_owned_…` failed every time, alone
+too, after its asserts held: "System preferences changed by this test: Integer230: 0 -> 1".
+Cause, by a probe reading preference 230 after each step: SOLIDWORKS itself writes it.
+`ActivateDoc3(title, false, swDontRebuildActiveDoc)` on a document with no window of its own
+(`Visible` false: the part the reopened assembly loaded, brought forward by `doc_open`'s
+already-open path) sets `RebuildOnActivation` 0 -> 1; on a visible document it stays 0. No
+scope held it there, so nothing restored it (`EnsureLoaded`'s scope was not on this path;
+the test does not depend on S49's code). The same call sits wherever the server brings a
+document forward: a write bound to such a part's handle (S62 d makes it owned) and
+`doc_activate` leak it too. Fix: `SwContext.ActivateDoc`, which holds the preference at that
+value in a `PreferenceScope` when the document is not visible (a visible one is activated as
+before), used at the nine places that bring a target forward (bind, `doc_open`,
+`doc_activate`, export, Pack and Go, view, simulation, recognition, the assembly's
+reactivation); the five that bring back the previously active document are left as they
+were. Noted in `docs/solidworks-api-notes.md` (*Activate*). New test
+`Activating_a_part_an_assembly_loaded_leaves_the_rebuild_preference_as_it_was` (a write bound
+to the loaded part's handle, then `doc_activate` of it) failed on the code before at its
+first step, "Expected: 0, Actual: 1". After, each batch on a freshly restarted SOLIDWORKS: the
+two tests alone 1/1 each; with them the live tests that bring a document forward through the
+changed code, 17: `AssemblyLiveTests` `A_change_through_a_document_…`, `Replace_swaps_…`,
+`Compare_cannot_open_…`, `Pack_and_go_copies_…`, `Configurations_are_chosen_at_insert_…`,
+`Insert_refuses_…`; `ExportLiveTests` `A_file_that_is_already_open_…`,
+`A_saved_part_reopens_…`, `Images_pdf_and_edrawings_are_written`; M0's
+`Dirty_reads_unsaved_changes_…` and `Screenshot_returns_a_png_…`; `VisualsLiveTests`'
+`A_section_cuts_the_image_…`; `FeatureManagementLiveTests`' `The_servers_own_failed_kept_…`;
+`SimulationLiveTests`' `Simulation_refuses_to_change_the_users_documents`;
+`RecognitionLiveTests`' `An_imported_step_block_…`; `SketchEditLiveTests`'
+`Edit_reopens_a_finished_sketch_…`; `ConfigurationLiveTests`'
+`A_material_set_in_one_configuration_…`: 19/19 pass. Unit tests 284/284; `check_repo` ok; no
+description changed. Local: on `sw2023`, `cfd987e`; in
+build `20261114-024455`.
+Held in its scenario test (findings 2026-11-14, points 4, 6): the component in the row and
+the volume, in a hand-mated assembly too. Left, wording (point 4): the line naming the
+part reads "Also changed, not saved: '<part>.SLDPRT', a component's own document.",
+without handle and access, in a new assembly whose parts the server had not listed yet,
+and "'<part>.SLDPRT' (D19, foreign), …" in an assembly opened from file. Back to Open
+2026-11-14 for that. Not yet decided.
+Taken into the run of 2026-11-16, group 3: the line names the part with its handle and
+access always, a part not yet listed registered first (`## Run 2026-11-16`).
+Fixed in the run of 2026-11-16, group 3. Cause: the line took the handle and access from
+the registry's entry for the part (`DocumentRegistry.Find`), and a part the server had not
+listed yet (one only the assembly loaded, its own document closed or never opened by the
+server) had none, so the line named its title alone. Fix: `WarnChangedOthers` registers
+such a part first (`DocumentRegistry.Track`, the call `doc_list` makes), so the line always
+reads "Also changed, not saved: '<title>' (<handle>, <access>), a component's own
+document.", with the handle and access `doc_list` then gives it; the access is the
+registry's own rule (S62 (d): a part from a file this server owned, loaded by its owned
+assembly, reads `owned`). A part registered by the call takes its update stamp after the
+change as seen (S57), so a later change by the user still warns. Test before:
+`AssemblyLiveTests.Dimension_set_through_an_assembly_names_a_part_not_listed_yet_by_its_handle_and_access`
+(a cube saved and closed, a new assembly inserting it, its `D1@Boss-Extrude1@<component>`
+set) failed on the code before, "no handle and access: Also changed, not saved:
+'unlisted_….SLDPRT', a component's own document." After (SOLIDWORKS restarted first: it ran
+but could not be reached over COM): it passes, 1/1, the line's handle, title and access
+those of `doc_list`'s row for the part, the part dirty; with it the live tests that call
+`dimension_set` through an assembly or on a part, `AssemblyLiveTests`
+`Dimension_set_through_an_assembly_names_the_component_…`,
+`A_change_through_a_document_an_assembly_loads_…`, `A_part_the_server_owned_comes_back_owned_…`,
+`Compare_cannot_open_a_revision_…`, `Configurations_are_chosen_at_insert_…`;
+`TopDownLiveTests.An_in_context_cover_…`; `FeatureManagementLiveTests`
+`Dimension_set_changes_…`, `Dimension_set_refuses_…`, `Dimension_set_restores_…`,
+`Rename_reads_back_and_renames_the_dimensions`; M0's `Dirty_reads_unsaved_changes_…`: 11/11
+pass. Unit tests 288/288; `check_repo` ok; no description changed. Made stricter: none (the
+call refuses nothing new; its line now always carries a handle and access).
+Decided 2026-11-16 by the run, not the owner: a part registered by the line takes its
+update stamp after the change as seen, because without a stamp on record the S57 check
+would stay silent on a later change by the user, and the change this call made is the
+server's.
+Local: on `sw2023`, in the commit that moves it here; in build `20261116-124830` (`ad5f6ba`). Upstream: not yet
+decided.
+Held in its scenario test (findings 2026-11-16, build 20261116-124830, point 6): in an
+assembly whose part's own document was closed and never listed, `dimension_set` of a
+component's dimension 20 → 25 named the row as given, `volumeDeltaMm3` 8000 (four
+instances) and "Also changed, not saved: '<part>.SLDPRT' (D5, owned), a component's own
+document.", `doc_list` giving that part D5, owned, dirty; in a hand-mated assembly opened
+from file, the shaft's length 60 → 80 → 60 through it named "'<part>.SLDPRT' (D10,
+foreign)", ±6283.185, mates without error, the three files byte for byte unchanged after
+`discard`.
+
+### S74 - `dimension_set` on a mate's angle driven by an equation calls it a driven (reference) dimension - CLOSED 2026-11-16
+
+On build `20261112-091908` (findings 2026-11-13, "two printed plates", point 7):
+`dimension_set` on an angle mate's dimension driven by an equation refused it "is a driven
+(reference) dimension: it reports a value but doesn't control the geometry". It is
+driving, through an equation; for a part's dimension the refusal names the equation's
+variable, for a mate's it does not. A hint that misses. Bears on S37 (Closed). Local. Not
+yet decided.
+Taken into the run of 2026-11-16, group 3: the refusal names the equation and its variable
+(`## Run 2026-11-16`).
+Fixed in the run of 2026-11-16, group 3. Cause: `dimension_set` checked a dimension's
+driven state before its equations, and SOLIDWORKS reads a mate's dimension an equation
+drives as driven (`swDimensionDriven`), so the refusal for a reference dimension came
+first; and the equation's own refusal, where it was reached, named neither the equation
+nor its variable ("is driven by an equation … Change the equation instead."). Fix: the equation is looked for first, by the name read back or the one given
+(letter case ignored, a component's qualified equation not taken for the document's own
+dimension), and the refusal names it and what its right-hand side uses, for a mate's
+dimension and a part's alike: "'D1@Angle1' is driven by the equation "D1@Angle1" =
+"TILT", which uses "TILT"; the next rebuild would overwrite a direct change.", hint
+"Change it with equation_set: lhs 'TILT' for the value the equation uses, or lhs
+'D1@Angle1' for a new expression." (a variable named before a dimension it also uses; an
+equation of a constant names the dimension's own `lhs` and `equation_delete`). The rule is
+in `FeatureManagementLogic` (`EquationOn`, `EquationDrivenRefusal`), with an offline test.
+Test before: `AssemblyLiveTests.Dimension_set_on_a_mate_angle_an_equation_drives_names_the_equation_and_its_variable`
+(two cubes, a parallel and a 30° angle mate on their front planes, `"TILT" = 40` and the
+mate's dimension `= "TILT"`, `dimension_set` 50 on it) failed on the code before: "'D1@Angle1'
+is a driven (reference) dimension: it reports a value but doesn't control the geometry."
+After: it passes, the angle still 40 after the refusal; with it
+`FeatureManagementLogicTests.An_equation_driven_dimension_is_refused_naming_the_equation_and_what_it_uses`
+(offline) and the live tests that call `dimension_set`: `FeatureManagementLiveTests`
+`Dimension_set_changes_…`, `Dimension_set_refuses_…` (now with a part's depth driven by a
+variable), `Dimension_set_restores_…`, `Rename_reads_back_and_renames_the_dimensions`;
+`AssemblyLiveTests` `Dimension_set_through_an_assembly_names_a_part_not_listed_yet_…`,
+`Dimension_set_through_an_assembly_names_the_component_…`, `Configurations_are_chosen_at_insert_…`,
+`A_part_the_server_owned_comes_back_owned_…`, `A_change_through_a_document_an_assembly_loads_…`;
+`AdvancedFeatureLiveTests.Helix_start_angle_…`: 12/12 pass. Unit tests 288/288;
+`check_repo` ok; no description changed. Made stricter: a part's dimension driven by an
+equation had no test of its refusal; `Dimension_set_refuses_…` now asserts it names the
+equation, its variable and `equation_set`, and the mate's test that nothing changed.
+Decided 2026-11-16 by the run, not the owner: the equation is matched by its exact
+left-hand side (letter case aside), not with a document qualifier stripped, because a
+component's equation `"D1@Cut1@cube-1.Part"` would otherwise refuse the assembly's own
+`D1@Cut1`, a refusal that is not true; the earlier check matched exactly too.
+Local: on `sw2023`, in the commit that moves it here; in build `20261116-124830` (`ad5f6ba`). Upstream: not yet
+decided.
+Held in its scenario test (findings 2026-11-16, build 20261116-124830, point 2): a part's
+dimension driven by `"H"` refused naming the equation, `"H"` and `equation_set` lhs `H` or
+`D1@Plate`; a mate's angle driven by `"TILT"` refused the same way, the angle still 40,
+and `equation_set TILT 50deg` then read 50 on the mate.
+
+### S67 - `feature_rollback` before the only feature fails its check - CLOSED 2026-11-16
+
+Seen in the run of
+2026-11-13, in S60's probe, on that run's code: `feature_rollback {to:<renamed extrude>,
+before:true}` on a part holding one extrude failed `VERIFY_FAILED` "… unexpected state:
+'Sketch1'". A valid call refused, the rollback's state not said. Not probed: whether the
+rename, the single feature or the check's reading of the bar is the cause. Local. Decided
+2026-11-13 by the run, not the owner: an item of its own, open and not fixed in the run,
+because the run's items were the owner's and this one has not been looked at.
+Taken into the run of 2026-11-16, group 3, a probe first (`## Run 2026-11-16`).
+Fixed in the run of 2026-11-16, group 3. Probe: the call fails the same with the extrude
+renamed and not renamed, and on a part of two extrudes `before` the second fails naming
+`Sketch2`, so neither the rename nor the single feature is the cause. The history walk
+lists a feature's absorbed sketch just before it (`Sketch1`, owner `Boss-Extrude1`, then
+`Boss-Extrude1`), and `EditRollback` before the feature rolls back that sketch too (read
+from SOLIDWORKS while the bar stood there: both rolled back). Cause: the check's reading,
+which expected every feature from the named one on rolled back and the ones above it
+active, so the absorbed sketch read as "unexpected state". A fillet, with no sketch, never
+showed it: the only `before` in the tests named a fillet. Fix: for `before`, the first
+feature expected rolled back is the named one's run of absorbed features listed just
+before it (its own sub-features by `GetOwnerFeature`), in `feature_rollback`'s check
+(`FeatureManagementService.FirstRolledBack`); `rolledBack` lists the sketch with its
+feature. Test before: `FeatureManagementLiveTests.Rollback_before_the_only_extrude_rolls_it_and_its_sketch_back`
+and `…_renamed_rolls_it_back` (a 100 × 60 × 20 block, `before` its extrude, renamed
+`Plate` in the second) failed on the code before: "The rollback bar is not where requested
+(EditRollback returned True); unexpected state: 'Sketch1'. Tried to move it back to its
+previous position." After: both pass, with
+`Rollback_before_a_second_extrude_keeps_the_first_and_its_sketch` (a 10 × 10 × 5 boss on
+the block, `before` it: its sketch and it rolled back, −500 mm³, the block's extrude
+active) and the live tests that call `feature_rollback`:
+`Rollback_to_the_extrude_hides_the_fillet_and_end_restores_it`,
+`Rollback_refuses_unknown_features_and_before_end`,
+`The_servers_own_failed_kept_and_rolled_back_changes_do_not_read_as_the_users`: 6/6 pass.
+Unit tests 288/288; `check_repo` ok; no description changed. Made stricter: `before` a
+sketched feature had no test; the three tests assert the bar's text, the features rolled
+back by name, the volume change and the state after `end`.
+Decided 2026-11-16 by the run, not the owner: `rolledBack` lists the absorbed sketch with
+its feature, not the feature alone, because SOLIDWORKS does roll the sketch back and the
+list reads `IsRolledBack` as it is.
+Decided 2026-11-16 by the run, not the owner: only the named feature's own sub-features
+listed right before it move the expected first feature up, not any sketch rolled back,
+because the check then still reports any other feature in a state not asked for.
+Local: on `sw2023`, in the commit that moves it here; in build `20261116-124830` (`ad5f6ba`). Upstream: not yet
+decided.
+Held in its scenario test (findings 2026-11-16, build 20261116-124830, point 1): `before`
+a block's only extrude rolled back `Sketch1` and `Boss-Extrude1`, −120 000, volume 0, and
+`end` restored it; the same with the extrude renamed `Plate`; `before` a 10 × 10 × 5 boss
+on it rolled back its sketch and it, −500, the block's extrude active, `end` +500.
+
+### S76 - `asm_component_set` `flexible:false` puts a mate in error, reported `ok` with no warning - CLOSED 2026-11-16
+
+Sorted out of the entry of 2026-11-16, point 5. On build `20261116-080311`, with S62 (b):
+a subassembly set flexible, a mate on its floating child held the child where the
+subassembly's own file does not put it; `asm_component_set` `flexible:false` then returned
+"flexible → rigid" with no warning, the child went back to where the file puts it and the
+mate went into error (`asm_mate_list`: `inError: 1`, `error: 51`, `errorName:
+"swSketchErrorExtRefFail"`). Reported `ok`. The name is read from `swFeatureError_e`
+(`FeatureVerifier.ErrorName`), where 51 is a sketch's error: for a mate it may be the wrong
+enum. Bears on S62 (Closed).
+
+Proposed: a change of `asm_component_set` that rebuilds compares the mates in error before
+and after and names those it put in error in a warning (and a check line); a mate's
+`errorName` read from the enum its code belongs to, or the bare code. Local, the assembly
+files. Not decided.
+Decided 2026-11-16 by the run, not the owner: taken into the run of 2026-11-16, group 3,
+because it is small and in group 2's files, so the next group, as the run's "How it runs"
+says.
+Fixed in the run of 2026-11-16, group 3. Probe: SOLIDWORKS 2023 gives code 51 to a mate it
+cannot satisfy, in the case met and in a plain one (a distance mate between two fixed
+parts set to a value they do not have, through `dimension_set`, refused and read as
+"Distance1: swSketchErrorExtRefFail"). The 2023 interop has no mate error enum: the mate
+errors are `swFeatureError_e`'s `swFeatureErrorMate*` (38 to 48), and 51 is
+`swSketchErrorExtRefFail` there. The mate's error clears when the subassembly is made
+flexible again. Cause: `asm_component_set` read no mate after a change, and
+`FeatureVerifier.ErrorName` named every code by `swFeatureError_e` whatever the feature.
+Fix: `asm_component_set` reads the mates in error before and after a change and warns
+"The change put N mate(s) in error: '<mate>' (error 51, mate not satisfied). They no
+longer hold; set it back, or edit or delete them (asm_mate_list)." (a mate newly in error,
+with another code, or from warning to error); the change stands. `ErrorName` takes the
+feature's type: for a mate a code outside `swFeatureErrorMate*` is not named by the enum,
+51 reads "mate not satisfied", any other the bare code; used by `asm_mate_list`,
+`asm_mate_add`'s error and warning, `feature_info`, `dimension_set`'s broken features and
+`review`. The code noted in `docs/solidworks-api-notes.md`.
+Test before: `AssemblyLiveTests.Setting_a_subassembly_rigid_names_the_mates_it_puts_in_error`
+(the scenario's case: a subassembly with a floating child, made flexible, a top-level mate
+moving the child, then rigid) failed on the code before: "no warning names the mate put in
+error ('Coincident1', error 51 swSketchErrorExtRefFail); warnings: []". After: it passes,
+with the live tests that call the changed code:
+`Component_set_floats_hides_suppresses_and_returns_the_previous_state`,
+`A_subassembly_is_solved_flexible_and_rigid_again_as_SOLIDWORKS_reads_it`,
+`Configurations_are_chosen_at_insert_and_switched_by_component_set`,
+`Mates_that_cant_hold_are_refused_rolled_back_and_nothing_moves`,
+`Review_of_an_assembly_counts_the_floating_component_and_lists_a_suppressed_one`,
+`ReferenceLiveTests.Review_reports_a_broken_shell_…_and_a_missing_material`,
+`FeatureManagementLiveTests.Feature_delete_with_deleteEquations_removes_them_and_leaves_no_rebuild_error`:
+8/8 pass. Unit tests 288/288; `check_repo` ok; no description changed. Made stricter: the
+test asserts the mate in error by name, its code and name, the warning, no warning when
+nothing breaks (made flexible, and flexible again), and the mate holding again.
+Decided 2026-11-16 by the run, not the owner: the change stands with a warning, not
+refused and rolled back, because the caller asked for it and setting it back is one call;
+the warning says so.
+Decided 2026-11-16 by the run, not the owner: a mate's 51 reads "mate not satisfied", not
+the bare code, because the probe found it in both cases tried, and other codes outside
+the enum's mate names stay bare; the type is passed by every caller that names a feature's
+error (`feature_info`, `dimension_set`, `review`), not by `asm_mate_list` alone, because
+`dimension_set` showed the same wrong name for a mate.
+Local: on `sw2023`, in the commit that moves it here; in build `20261116-124830` (`ad5f6ba`). Upstream: not yet
+decided.
+Held in its scenario test (findings 2026-11-16, build 20261116-124830, point 5): setting a
+flexible subassembly rigid while three top-level mates held its child elsewhere warned
+"The change put 3 mate(s) in error: …", each mate named with error 51, "mate not
+satisfied", and `asm_mate_list` read `inError: 3` with that name; flexible again, no
+warning, `inError: 0`.
+
+### S77 - A child of a flexible subassembly reads `fixed: true`, `constrained: "fully"` - CLOSED 2026-11-16
+
+Sorted out of the entry of 2026-11-16, point 6. On build `20261116-080311`, with S62 (b):
+a child of a flexible subassembly that floats in its own file, and that a mate had just
+moved, reads `fixed: true, constrained: "fully"` in `asm_component_list allLevels` and in
+the mate's `components`; the same while the subassembly was rigid. A caller cannot see
+from the rows that the child can move. Reported `ok`. Bears on S62 (Closed).
+
+Proposed: a probe first, what `IComponent2` reports for such a child (`IsFixed`,
+`GetConstrainedStatus`, read in the subassembly's context and in the top assembly's), then
+the row says the child can move when the subassembly is flexible. Local, the assembly
+files. Not decided.
+Decided 2026-11-16 by the run, not the owner: taken into the run of 2026-11-16, group 3, a
+probe first; if no reading tells it, the item records the probe and stays Open, because it
+is small and in group 2's files, so the next group, as the run's "How it runs" says.
+Fixed in the run of 2026-11-16, group 3. Probe (a subassembly of a fixed cube A and a cube
+B floating in its file, in a top assembly with a fixed cube C; rigid, flexible, flexible
+with one top-level plane mate on B, with three): in the top assembly `IsFixed()` reads true
+and `GetConstrainedStatus` 3 for A and B in every case, from `GetComponents(false)` and
+from the subassembly's `GetChildren` alike; B in the subassembly's own document
+(`GetModelDoc2`) reads false and 2 (under) in every case, top-level mates not seen there;
+B's node in the top assembly's FeatureManager tree, under the subassembly's node, reads
+"(-)" rigid, flexible and with one mate, and no mark (fully defined) with three; A's reads
+"(f)". `Solving` of the subassembly reads 0 or 1 as set. Cause: the rows read `IsFixed` and
+`GetConstrainedStatus` of the nested component, which SOLIDWORKS answers for the
+subassembly's rigid body. Fix: a component under flexible subassemblies only (every parent
+up to the top flexible) reads `fixed` and `constrained` from the mark on its node in the
+top assembly's tree (`AssemblyService.FlexibleChildState`, the mark parsed by
+`AsmMath.TreeMark`: "(f)" fixed, "(-)" under, "(+)" over, "(?)" no solution, none fully),
+in every row built by `Info` (`asm_component_list`, a mate's `components`, `asm_insert`,
+`asm_component_set`, `asm_component_move`, the pattern tools); a node not found keeps the
+reading as before. Noted in `docs/solidworks-api-notes.md`.
+Test before: `AssemblyLiveTests.A_child_of_a_flexible_subassembly_reads_as_able_to_move`
+(the probe's assembly, flexible, B mated to C's top plane, then to its front and right
+planes) failed on the code before: "the mate's row for '<sub>-1/<B>-1' reads fixed: True,
+constrained: fully". After: it passes (B `fixed: false`, `under` after one mate in the
+mate's row and the list's, `fully` and not fixed after three, at C's origin; A `fixed:
+true`; B fixed while rigid), with the live tests that call the changed rows:
+`A_subassembly_is_solved_flexible_and_rigid_again_as_SOLIDWORKS_reads_it`,
+`Setting_a_subassembly_rigid_names_the_mates_it_puts_in_error`,
+`Subassemblies_are_inserted_and_listed_with_their_children`,
+`A_plane_of_a_component_inside_a_subassembly_takes_a_mate`,
+`A_top_level_component_is_reached_by_its_name_when_a_nested_one_has_the_same_short_name`,
+`A_limit_angle_mate_reads_fully_constrained_as_SOLIDWORKS_marks_it_in_the_tree`,
+`Component_set_floats_hides_suppresses_and_returns_the_previous_state`: 8/8 pass. Unit
+tests 289/289 (`A_tree_mark_reads_as_fixed_and_constrained` new); `check_repo` ok; no
+description changed. Made stricter: no test read a nested component's `fixed` or
+`constrained`; the new one asserts both for a floating and a fixed child, in the mate's row
+and the list's, under-defined and fully held, and the rigid case.
+Decided 2026-11-16 by the run, not the owner: the tree's mark, not the subassembly
+document's `IsFixed` and `GetConstrainedStatus`, because the document does not see the
+top-level mates (it read B under-defined while three mates held it) and the mark is what
+SOLIDWORKS shows in the top assembly.
+Decided 2026-11-16 by the run, not the owner: a child of a rigid subassembly keeps
+`fixed: true`, `constrained: "fully"`, because in the top assembly it moves only with its
+subassembly (the tree's "(-)" there is its own file's state); the parent's row says
+`flexible: false`.
+Decided 2026-11-16 by the run, not the owner: the rows only; `asm_mate_add`'s hint "both
+sides are fixed" on a failed mate and `review`'s count of floating components (a child of
+a flexible subassembly not counted) still read `IsFixed`, because they are not the rows
+the item names and each is a change of its own, to an item if a session meets it.
+Local: on `sw2023`, in the commit that moves it here; in build `20261116-124830` (`ad5f6ba`). Upstream: not yet
+decided.
+Held in its scenario test (findings 2026-11-16, build 20261116-124830, point 4): the
+floating child of a flexible subassembly read `fixed: false`, `constrained: "under"` in
+the mate's row after one mate, and `"fully"` after three, at the fixed cube's origin,
+`asm_component_list allLevels` the same and its fixed sibling `fixed: true`; while rigid
+it read `fixed: true`, `"fully"`, as decided.
+
+### S78 - Mate results and origin references: `moved` short and incomplete, an origin needs a name and reads as a point - CLOSED 2026-11-16
+
+Sorted out of the entry of 2026-11-16, points 7 and 3. On build `20261116-080311`, each
+reported `ok`. (a) A mate moved a cube inside a subassembly and, through two earlier
+mates, a top-level cube of the same short name; the result gave `moved:
+["<cube>-2"]`, one short name, which is the top-level one's full name, and `components`
+listed the nested cube and the fixed one but not the top-level one that moved (point 7;
+bears on S70, Closed). The list is keyed by `Name2` before and after, which a top-level
+and a nested component of the same short name may share. (b) `{component,
+type:"origin"}` with no name was refused `INVALID_ARGUMENT: 'a' needs 'id', 'where', 'at'
+or 'name'.`, one call more, though the server's instructions list `origin` as a reference
+type and a component has one origin (point 3; bears on S68, Closed). (c) In a mate's row
+(the result and `asm_mate_list`) an origin reads `kind: "point"` with `pointMm` only, so
+it cannot be told from a sketch point (point 3).
+
+Proposed: (a) `moved` gives full names (`<sub>-1/<cube>-2`) and every component that
+moved, the components compared by their full path; (b) `type:"origin"` with no name takes
+the component's origin, or the assembly's with no component; (c) an origin reads as one
+in the row (its kind or its name). Local, the assembly files. Not decided.
+Decided 2026-11-16 by the run, not the owner: taken into the run of 2026-11-16, group 3,
+(a) to (c), because they are small and in group 2's files, so the next group, as the
+run's "How it runs" says.
+Fixed in the run of 2026-11-16, group 3, all three points.
+(a) Cause: `moved` compared the ArrayData of the top-level components only
+(`GetComponents(true)`), so a child of a flexible subassembly that the mate moved was never
+looked at, and the one name listed was the top-level twin's, the same short name. Fix:
+`asm_mate_add` reads every component at every level, by full name with its parent's,
+before and after; a top-level one is listed when its placement changed, a nested one when
+its placement in its parent changed (`AsmMath.Moved`, interop-free, unit-tested), so the
+children a subassembly carries along are not listed besides it. `components` stays the
+mated components, as its description says. Test
+`A_mate_names_every_component_it_moved_by_its_full_name` (a subassembly of a fixed cube A
+and a floating cube B, fixed in a top assembly with a fixed cube C and a top-level B held
+on the nested B by three plane mates; flexible, the nested B mated to C's top plane) failed
+on the code before: "moved: [<B>-1], expected [<sub>-1/<B>-1, <B>-1]". After: it passes,
+`moved` equal to what `asm_component_list allLevels` reads as moved, A not listed.
+(b) Cause: a reference needed `id`, `where`, `at` or `name` before its `type` was looked
+at. Fix: `type:"origin"` alone takes the origin, of the component given or of the document
+(`EntityResolver.OriginOf`, the origin feature found by its type, so in any UI language);
+`{component, name:"origin"}` goes the same way. Test `An_origin_is_taken_by_its_type_alone`
+(`{component, type:"origin"}` coincident with `{type:"origin"}`) failed before: "'a' needs
+'id', 'where', 'at' or 'name'."; after: it passes, both resolved as `origin`, the
+component's origin at [0, 0, 0].
+(c) Cause: the mate entity of an origin is the point of the origin's sketch
+(`ISketchPoint`, whose `GetSketch()` is the `OriginProfileFeature`), read as any point.
+Fix: that entity reads `kind: "origin"` with the origin's name and its `pointMm`. Test
+`A_mate_s_row_reads_an_origin_as_one` (a component's origin on another's vertex) failed
+before: "the origin reads {component: <B>-1, kind: point, name: , id: }"; after: it passes,
+in the mate's result and in `asm_mate_list`, the vertex still `point`.
+After: the three tests and the live tests that call the changed code,
+`Coincident_mates_take_the_assembly_s_origin_and_a_component_s_origin`,
+`Mate_list_names_the_plane_face_edge_or_vertex_each_mate_takes`,
+`A_top_level_component_is_reached_by_its_name_when_a_nested_one_has_the_same_short_name`,
+`A_plane_of_a_component_inside_a_subassembly_takes_a_mate`,
+`A_subassembly_is_solved_flexible_and_rigid_again_as_SOLIDWORKS_reads_it`,
+`A_child_of_a_flexible_subassembly_reads_as_able_to_move`,
+`Mates_that_cant_hold_are_refused_rolled_back_and_nothing_moves`,
+`Plane_mates_coincident_and_distance_reproduce_the_4000_mm3_overlap`,
+`Concentric_mate_puts_the_shaft_on_the_bore_axis_and_tangent_lays_one_on_the_plate`,
+`Lock_mate_keeps_the_relative_position_of_two_components` and, for the origin by name in a
+sketch, `Constrain_reads_a_relation_the_sketch_already_has_as_held_and_runs_the_next_steps`:
+14/14 pass. Unit tests 290/290
+(`Moved_lists_a_top_level_component_that_moved_and_a_nested_one_that_moved_in_its_parent`
+new); `check_repo` ok; no description changed (the reference types already list
+`origin`). Made stricter: no test read `moved` for a nested component, an origin by its
+type, or an origin's row; the new ones assert `moved` against the component list's own
+reading, and the origin's kind and name in both rows.
+Decided 2026-11-16 by the run, not the owner: a nested component is in `moved` when it
+moved in its subassembly, not when its subassembly carried it, because the subassembly's
+own name already says that and listing every child of a moved subassembly would bury what
+the mate did.
+Decided 2026-11-16 by the run, not the owner: `components` stays the mated components and
+`moved` lists the rest, because `components` is described as the mated ones and `moved` is
+the list the item asks to be complete.
+Decided 2026-11-16 by the run, not the owner: an origin reads `kind: "origin"` and the
+origin's name both, because the kind tells it from a sketch point and the name is what the
+other tools take back (`{component, name:"Origin"}`), as a plane's row gives its name.
+Local: on `sw2023`, in the commit that moves it here; in build `20261116-124830` (`ad5f6ba`). Upstream: not yet
+decided.
+Held in its scenario test (findings 2026-11-16, build 20261116-124830, point 3): (b)
+`{component, type:"origin"}` with no name on both sides accepted, each resolved as that
+component's origin; (c) the rows, in the result and in `asm_mate_list`, `kind: "origin"`,
+`name: "Origin"`, `pointMm`; (a) a mate on the nested cube of a flexible subassembly gave
+`moved` with the nested cube's full name and the top-level cube of the same short name it
+carried, the nested cube's sibling not listed, and the same for the two mates after it.
+
 ## Not items
 
 - **SW 2023 interop patch** (`27e8c25`): `swCustomInfoEquation` case removed,
