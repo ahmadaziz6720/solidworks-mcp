@@ -267,7 +267,7 @@ server change since build `20261114-024455`).
 - [x] S70: committed (`a6a28d6`)
 - [x] S62 (b): committed (`64cb0b0`)
 - [x] S75: committed
-- [ ] Group 2: full live tests and release (build: )
+- [x] Group 2: full live tests and release (build: `20261116-080311`, `643fc77`)
 - [ ] Group 2: scenario test (session id: ), its entry committed and sorted
 - [ ] S49: committed
 - [ ] S74: committed
@@ -1090,7 +1090,7 @@ the cut, so a circle landing elsewhere on the part would pass.
 
 **Upstream: PR #1, open.**
 
-### S68 - `asm_mate_add` coincident with an origin fails - BUILT 2026-11-16, proof: the scenario test of group 2's build
+### S68 - `asm_mate_add` coincident with an origin fails - BUILT 2026-11-16, proof: the scenario test of build `20261116-080311`
 
 Seen in the run of 2026-11-13, in
 S62's tests: a coincident mate with the assembly's origin or a component's origin failed
@@ -1123,10 +1123,10 @@ refused before the mate, not selected as the origin feature as before, because t
 selection makes no mate and the caller would get an unknown error (status 0) instead of
 what failed.
 
-Local: on `sw2023`, in the commit that moves it here; not yet in a build. Upstream: not yet
+Local: on `sw2023`, in the commit that moves it here; in build `20261116-080311` (`643fc77`). Upstream: not yet
 decided.
 
-### S69 - A component's named plane inside a subassembly cannot be selected - BUILT 2026-11-16, proof: the scenario test of group 2's build
+### S69 - A component's named plane inside a subassembly cannot be selected - BUILT 2026-11-16, proof: the scenario test of build `20261116-080311`
 
 Seen in the
 run of 2026-11-13, in S62's tests: "Could not select 'b' (plane 'Top Plane' of
@@ -1160,10 +1160,10 @@ before the next, for every component plane, axis, point and origin, not only for
 nested component, because a false result that still selected leaves the selection
 unknown, and the next try's count would then read wrong.
 
-Local: on `sw2023`, in the commit that moves it here; not yet in a build. Upstream: not yet
+Local: on `sw2023`, in the commit that moves it here; in build `20261116-080311` (`643fc77`). Upstream: not yet
 decided.
 
-### S70 - A top-level component may resolve to a nested one of the same short name - BUILT 2026-11-16, proof: the scenario test of group 2's build
+### S70 - A top-level component may resolve to a nested one of the same short name - BUILT 2026-11-16, proof: the scenario test of build `20261116-080311`
 
 Seen
 once in the run of 2026-11-13, in S62's tests: a top-level component whose name matched a
@@ -1209,10 +1209,10 @@ Decided 2026-11-16 by the run, not the owner: that short name is refused
 is whichever SOLIDWORKS lists first and a call would change a part the caller did not
 mean.
 
-Local: on `sw2023`, in the commit that moves it here; not yet in a build. Upstream: not yet
+Local: on `sw2023`, in the commit that moves it here; in build `20261116-080311` (`643fc77`). Upstream: not yet
 decided.
 
-### S62 - Assembly reading and options - BUILT 2026-11-16, proof: the scenario test of group 2's build
+### S62 - Assembly reading and options - BUILT 2026-11-16, proof: the scenario test of build `20261116-080311`
 
 On build `20261112-091908`. (a) `asm_mate_list`
 gives each entity `{component, kind: "plane"}` with no name, face id or point, so which
@@ -1329,10 +1329,10 @@ because the result has to show it and a caller can then see which are flexible; 
 bytes paid by the description's first sentence, because the parameters already say each
 change it listed.
 
-Local: (b) on `sw2023`, in the commit that moves it here; not yet in a build; proof: the
-scenario test of group 2's build. Upstream: not yet decided.
+Local: (b) on `sw2023`, in the commit that moves it here; in build `20261116-080311` (`643fc77`); proof: the
+scenario test of build `20261116-080311`. Upstream: not yet decided.
 
-### S75 - `feature_chamfer` lists in `newFaces` only the named chamfer's faces when an edge moves to a chamfer of its own - BUILT 2026-11-16, proof: the scenario test of group 2's build
+### S75 - `feature_chamfer` lists in `newFaces` only the named chamfer's faces when an edge moves to a chamfer of its own - BUILT 2026-11-16, proof: the scenario test of build `20261116-080311`
 
 Sorted out of the entry of 2026-11-16, point 2. On build `20261116-050908`, with S51's fix:
 a new `distance_distance` chamfer with `flipEdges:[1]` on two edges meeting at a corner
@@ -1364,5 +1364,5 @@ result's `feature` already and the short list was cut to id and surface to save
 characters (S45); the change is in the serializer, so any feature result whose faces
 come from more than one feature gives it, which only a chamfer's does now.
 
-Local: on `sw2023`, in the commit that moves it here; not yet in a build. Upstream: not yet
+Local: on `sw2023`, in the commit that moves it here; in build `20261116-080311` (`643fc77`). Upstream: not yet
 decided.
