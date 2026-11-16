@@ -269,6 +269,12 @@ server change since build `20261114-024455`).
 - [x] S75: committed (`643fc77`)
 - [x] Group 2: full live tests and release (build: `20261116-080311`, `643fc77`)
 - [ ] Group 2: scenario test (session id: `98f558e8-fa78-4f15-bb54-1981e3df0738`), its entry committed and sorted
+  Blocked 2026-11-16: the headless session, started in the background on
+  ~970 MB free, was stopped by Claude Code for low memory after 14 calls
+  (its first test part made), before it wrote anything (no `findings.md`
+  entry). Not restarted unasked. To go on: memory freed, then the run again
+  from this step; it resumes this session id with `claude -p --resume <id>`
+  `"<go on>"` from `claude_solidworks`.
 - [ ] S49: committed
 - [ ] S74: committed
 - [ ] S67: committed
