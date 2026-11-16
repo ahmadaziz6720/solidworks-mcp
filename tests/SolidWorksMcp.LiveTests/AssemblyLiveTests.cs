@@ -1015,6 +1015,45 @@ public class AssemblyLiveTests(LiveFixture fx) : LiveTest(fx)
     }
 
     [Fact]
+    public async Task Setting_a_subassembly_rigid_names_the_mates_it_puts_in_error()
+    {
+        // S76: flexible, a mate holds the subassembly's floating child B at C's top plane (y 30), where the
+        // subassembly's own file does not put it (y 0). Rigid again, B goes back and the mate cannot hold: the change
+        // was reported with no warning, and the mate's error read as a sketch error (swSketchErrorExtRefFail).
+        var a = await CubeAsync("rigA");
+        var b = await CubeAsync("rigB");
+        var c = await CubeAsync("rigC");
+        string sub = await NewAssemblyAsync("rig_sub");
+        await InsertAsync(sub, a.Path, [0, 0, 0]);
+        await InsertAsync(sub, b.Path, [40, 0, 0], fixedState: false);
+        var saved = await Docs.SaveAsync(sub, "as", Path.Combine(_dir, $"rig_sub_{_tag}.sldasm"), overwrite: false);
+
+        string top = await NewAssemblyAsync("rig_top");
+        string ns = (await InsertAsync(top, saved.SavedTo!, [0, 0, 100], fixedState: true)).Component.Name;
+        string nc = (await InsertAsync(top, c.Path, [40, 30, 100], fixedState: true)).Component.Name;
+        string nb = $"{ns}/{b.Name}-1";
+        Assert.Null((await Set(new() { Doc = top, Component = ns, Flexible = true })).Warnings);
+        var m = await Mate(top, "coincident", Plane(nc, "top"), Plane(nb, "top"));
+        Assert.Equal(0, (await Asm.MateListAsync(top, 100, 0)).InError);
+
+        var rg = await Set(new() { Doc = top, Component = ns, Flexible = false });
+        Assert.Equal(["flexible → rigid"], rg.Changed);
+        var bad = Assert.Single((await Asm.MateListAsync(top, 100, 0)).Mates, x => x.Error is not null);
+        Assert.Equal(m.Mate.Name, bad.Name);
+        string warned = string.Join(" | ", rg.Warnings ?? []);
+        Assert.True(rg.Warnings?.Any(w => w.Contains($"'{bad.Name}'") && w.Contains("error")) == true,
+            $"no warning names the mate put in error ('{bad.Name}', error {bad.Error} {bad.ErrorName}); warnings: [{warned}]");
+        Assert.Equal(51, bad.Error);
+        Assert.Equal("mate not satisfied", bad.ErrorName); // not the interop's sketch name for 51
+        Assert.Contains("1 mate(s) in error", warned);
+
+        // Flexible again, the mate holds again: nothing newly in error, no warning.
+        var back = await Set(new() { Doc = top, Component = ns, Flexible = true });
+        Assert.Null(back.Warnings);
+        Assert.Equal(0, (await Asm.MateListAsync(top, 100, 0)).InError);
+    }
+
+    [Fact]
     public async Task Configurations_are_chosen_at_insert_and_switched_by_component_set()
     {
         // A 20 mm cube whose configuration "Tall" is 40 mm deep (z -20..20): the component box tells which one is used.

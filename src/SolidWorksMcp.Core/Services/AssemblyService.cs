@@ -622,12 +622,12 @@ public sealed partial class AssemblyService(SwSession session)
                 int err = main.Feature.GetErrorCode2(out bool warn);
                 if (err != 0 && !warn)
                 {
-                    problem = $"'{main.Name}' has rebuild error {err} ({FeatureVerifier.ErrorName(err)})";
+                    problem = $"'{main.Name}' has rebuild error {err} ({FeatureVerifier.ErrorName(err, "Mate")})";
                     code = ErrorCodes.RebuildError;
                 }
                 else
                 {
-                    if (err != 0) ctx.Warn($"'{main.Name}' has rebuild warning {err} ({FeatureVerifier.ErrorName(err)}).");
+                    if (err != 0) ctx.Warn($"'{main.Name}' has rebuild warning {err} ({FeatureVerifier.ErrorName(err, "Mate")}).");
                     checks.Add($"{main.Name} ({(spec.Limits ? "limit " : "")}{typeName}) created and solved without errors");
                     var problems = isLock
                         ? LockIntent(ctx, a, b, fa0, fb0, checks)
@@ -942,6 +942,7 @@ public sealed partial class AssemblyService(SwSession session)
         var previous = State(c);
         string? config = Clean(q.Configuration);
         if (config is not null) config = MatchComponentConfig(ctx, c, config);
+        var errorsBefore = MateErrors(d);
 
         using var prefs = ctx.SystemPrefs();
         prefs.Toggle(SystemPrefIds.ShowErrorsEveryRebuild, false);
@@ -1029,6 +1030,17 @@ public sealed partial class AssemblyService(SwSession session)
                 sw?.Hint, ex);
         }
         d.GraphicsRedraw2();
+        // S76: a change can leave a mate unsatisfied (a subassembly made rigid puts its children back where its own
+        // file has them); the change stands, as asked, and the mates it put in error are named.
+        if (changed.Count > 0)
+        {
+            var broke = MateErrors(d).Where(kv => !errorsBefore.TryGetValue(kv.Key, out var b) || b.Error != kv.Value.Error || (b.Warning && !kv.Value.Warning))
+                .Select(kv => $"'{kv.Key}' ({(kv.Value.Warning ? "warning" : "error")} {kv.Value.Error}, {FeatureVerifier.ErrorName(kv.Value.Error, "Mate")})")
+                .ToList();
+            if (broke.Count > 0)
+                ctx.Warn($"The change put {broke.Count} mate(s) in error: {string.Join(", ", broke)}. They no longer hold; " +
+                         "set it back, or edit or delete them (asm_mate_list).");
+        }
         return new AsmComponentSetResult
         {
             Doc = ctx.Title(d),
@@ -1801,6 +1813,15 @@ public sealed partial class AssemblyService(SwSession session)
         return (e, w);
     }, (0, false));
 
+    /// <summary>The mates in error or warning, by name.</summary>
+    private static Dictionary<string, (int Error, bool Warning)> MateErrors(IModelDoc2 d)
+    {
+        var map = new Dictionary<string, (int Error, bool Warning)>(StringComparer.OrdinalIgnoreCase);
+        foreach (var m in Mates(d))
+            if (MateError(m) is { Error: not 0 } e) map.TryAdd(m.Name, e);
+        return map;
+    }
+
     /// <summary>The components a mate references (assembly-level planes and the origin have none).</summary>
     private static List<string> MateComponents(IMate2 m)
     {
@@ -1857,7 +1878,7 @@ public sealed partial class AssemblyService(SwSession session)
             AngleDeg = dim is { Unit: "deg" } ? dim.Value : null,
             Dimension = dim?.Name,
             Error = err == 0 ? null : err,
-            ErrorName = err == 0 ? null : FeatureVerifier.ErrorName(err),
+            ErrorName = err == 0 ? null : FeatureVerifier.ErrorName(err, "Mate"),
             Warning = err != 0 && warn ? true : null,
             Suppressed = Safe(() => mf.Feature.IsSuppressed(), false) ? true : null,
         };

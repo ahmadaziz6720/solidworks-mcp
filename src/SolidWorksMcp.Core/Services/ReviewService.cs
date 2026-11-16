@@ -70,7 +70,7 @@ public sealed class ReviewService(SwSession session)
                 bool mate = type.StartsWith("Mate", StringComparison.Ordinal) && type != "MateGroup";
                 if (code != 0)
                 {
-                    string error = FeatureVerifier.ErrorName(code);
+                    string error = FeatureVerifier.ErrorName(code, type);
                     if (mate) Add(warn ? "warning" : "error", "mate_error", name, $"mate {(warn ? "warning" : "error")} {error}");
                     else Add(warn ? "warning" : "error", warn ? "rebuild_warning" : "rebuild_error", name, $"{type}: {error}");
                 }

@@ -17,7 +17,7 @@ Closed all the same, its PR named, and an open PR no longer holds an item in Wai
 item sent upstream ends with `**Upstream: PR #9, open.**`, one per PR or issue
 (`merged`, `closed unmerged`; an issue `open` or `closed`), kept to its state.
 
-**Open: S4, S5, S7, S10 to S12, S33, S34, S52, S59 to S61, S64, S65, S71, S72, S76 to S79.**
+**Open: S4, S5, S7, S10 to S12, S33, S34, S52, S59 to S61, S64, S65, S71, S72, S77 to S79.**
 Sorted 2026-11-16, the scenario test of build `20261116-080311` (findings 2026-11-16):
 S68, S69, S70, S62 and S75 held and closed; S76, S77 and S78 new, taken into the run's
 group 3; S79 new, not in this run. Sorted 2026-11-16, the scenario test of build `20261116-050908` (findings 2026-11-16):
@@ -288,8 +288,8 @@ server change since build `20261114-024455`).
   S62 (b), S75 held and closed, S76, S77, S78 and S79 new (findings 2026-11-16, `54ce718`)
 - [x] S49: committed (`5c776ef`)
 - [x] S74: committed (`972bc54`)
-- [x] S67: committed
-- [ ] S76: committed
+- [x] S67: committed (`1da8d57`)
+- [x] S76: committed
 - [ ] S77: committed
 - [ ] S78: committed
 - [ ] Group 3: full live tests and release (build: )
@@ -985,25 +985,6 @@ rolled back) when the density read differs from the database's by more than 1 % 
 body material of its own and no mass override, naming a restart at about 1 kg/m³. Taken
 into the run of 2026-11-16, group 5 (`## Run 2026-11-16`).
 
-### S76 - `asm_component_set` `flexible:false` puts a mate in error, reported `ok` with no warning - OPEN 2026-11-16
-
-Sorted out of the entry of 2026-11-16, point 5. On build `20261116-080311`, with S62 (b):
-a subassembly set flexible, a mate on its floating child held the child where the
-subassembly's own file does not put it; `asm_component_set` `flexible:false` then returned
-"flexible → rigid" with no warning, the child went back to where the file puts it and the
-mate went into error (`asm_mate_list`: `inError: 1`, `error: 51`, `errorName:
-"swSketchErrorExtRefFail"`). Reported `ok`. The name is read from `swFeatureError_e`
-(`FeatureVerifier.ErrorName`), where 51 is a sketch's error: for a mate it may be the wrong
-enum. Bears on S62 (Closed).
-
-Proposed: a change of `asm_component_set` that rebuilds compares the mates in error before
-and after and names those it put in error in a warning (and a check line); a mate's
-`errorName` read from the enum its code belongs to, or the bare code. Local, the assembly
-files. Not decided.
-Decided 2026-11-16 by the run, not the owner: taken into the run of 2026-11-16, group 3,
-because it is small and in group 2's files, so the next group, as the run's "How it runs"
-says.
-
 ### S77 - A child of a flexible subassembly reads `fixed: true`, `constrained: "fully"` - OPEN 2026-11-16
 
 Sorted out of the entry of 2026-11-16, point 6. On build `20261116-080311`, with S62 (b):
@@ -1283,5 +1264,65 @@ list reads `IsRolledBack` as it is.
 Decided 2026-11-16 by the run, not the owner: only the named feature's own sub-features
 listed right before it move the expected first feature up, not any sketch rolled back,
 because the check then still reports any other feature in a state not asked for.
+Local: on `sw2023`, in the commit that moves it here; not yet in a build. Upstream: not yet
+decided.
+
+### S76 - `asm_component_set` `flexible:false` puts a mate in error, reported `ok` with no warning - BUILT 2026-11-16, proof: the scenario test of group 3's build
+
+Sorted out of the entry of 2026-11-16, point 5. On build `20261116-080311`, with S62 (b):
+a subassembly set flexible, a mate on its floating child held the child where the
+subassembly's own file does not put it; `asm_component_set` `flexible:false` then returned
+"flexible → rigid" with no warning, the child went back to where the file puts it and the
+mate went into error (`asm_mate_list`: `inError: 1`, `error: 51`, `errorName:
+"swSketchErrorExtRefFail"`). Reported `ok`. The name is read from `swFeatureError_e`
+(`FeatureVerifier.ErrorName`), where 51 is a sketch's error: for a mate it may be the wrong
+enum. Bears on S62 (Closed).
+
+Proposed: a change of `asm_component_set` that rebuilds compares the mates in error before
+and after and names those it put in error in a warning (and a check line); a mate's
+`errorName` read from the enum its code belongs to, or the bare code. Local, the assembly
+files. Not decided.
+Decided 2026-11-16 by the run, not the owner: taken into the run of 2026-11-16, group 3,
+because it is small and in group 2's files, so the next group, as the run's "How it runs"
+says.
+Fixed in the run of 2026-11-16, group 3. Probe: SOLIDWORKS 2023 gives code 51 to a mate it
+cannot satisfy, in the case met and in a plain one (a distance mate between two fixed
+parts set to a value they do not have, through `dimension_set`, refused and read as
+"Distance1: swSketchErrorExtRefFail"). The 2023 interop has no mate error enum: the mate
+errors are `swFeatureError_e`'s `swFeatureErrorMate*` (38 to 48), and 51 is
+`swSketchErrorExtRefFail` there. The mate's error clears when the subassembly is made
+flexible again. Cause: `asm_component_set` read no mate after a change, and
+`FeatureVerifier.ErrorName` named every code by `swFeatureError_e` whatever the feature.
+Fix: `asm_component_set` reads the mates in error before and after a change and warns
+"The change put N mate(s) in error: '<mate>' (error 51, mate not satisfied). They no
+longer hold; set it back, or edit or delete them (asm_mate_list)." (a mate newly in error,
+with another code, or from warning to error); the change stands. `ErrorName` takes the
+feature's type: for a mate a code outside `swFeatureErrorMate*` is not named by the enum,
+51 reads "mate not satisfied", any other the bare code; used by `asm_mate_list`,
+`asm_mate_add`'s error and warning, `feature_info`, `dimension_set`'s broken features and
+`review`. The code noted in `docs/solidworks-api-notes.md`.
+Test before: `AssemblyLiveTests.Setting_a_subassembly_rigid_names_the_mates_it_puts_in_error`
+(the scenario's case: a subassembly with a floating child, made flexible, a top-level mate
+moving the child, then rigid) failed on the code before: "no warning names the mate put in
+error ('Coincident1', error 51 swSketchErrorExtRefFail); warnings: []". After: it passes,
+with the live tests that call the changed code:
+`Component_set_floats_hides_suppresses_and_returns_the_previous_state`,
+`A_subassembly_is_solved_flexible_and_rigid_again_as_SOLIDWORKS_reads_it`,
+`Configurations_are_chosen_at_insert_and_switched_by_component_set`,
+`Mates_that_cant_hold_are_refused_rolled_back_and_nothing_moves`,
+`Review_of_an_assembly_counts_the_floating_component_and_lists_a_suppressed_one`,
+`ReferenceLiveTests.Review_reports_a_broken_shell_…_and_a_missing_material`,
+`FeatureManagementLiveTests.Feature_delete_with_deleteEquations_removes_them_and_leaves_no_rebuild_error`:
+8/8 pass. Unit tests 288/288; `check_repo` ok; no description changed. Made stricter: the
+test asserts the mate in error by name, its code and name, the warning, no warning when
+nothing breaks (made flexible, and flexible again), and the mate holding again.
+Decided 2026-11-16 by the run, not the owner: the change stands with a warning, not
+refused and rolled back, because the caller asked for it and setting it back is one call;
+the warning says so.
+Decided 2026-11-16 by the run, not the owner: a mate's 51 reads "mate not satisfied", not
+the bare code, because the probe found it in both cases tried, and other codes outside
+the enum's mate names stay bare; the type is passed by every caller that names a feature's
+error (`feature_info`, `dimension_set`, `review`), not by `asm_mate_list` alone, because
+`dimension_set` showed the same wrong name for a mate.
 Local: on `sw2023`, in the commit that moves it here; not yet in a build. Upstream: not yet
 decided.

@@ -267,7 +267,7 @@ public sealed partial class FeatureManagementService(SwSession session)
                 Name = f.Name,
                 Type = f.GetTypeName2(),
                 Error = err == 0 ? null : err,
-                ErrorName = err == 0 ? null : FeatureVerifier.ErrorName(err),
+                ErrorName = err == 0 ? null : FeatureVerifier.ErrorName(err, f.GetTypeName2()),
                 Warning = err != 0 && warn ? true : null,
                 Suppressed = IsSuppressed(f) ? true : null,
                 RolledBack = IsRolledBack(f) ? true : null,
@@ -1448,7 +1448,7 @@ public sealed partial class FeatureManagementService(SwSession session)
         Feature = e.Name,
         Type = e.Type,
         Code = e.Code,
-        Error = FeatureVerifier.ErrorName(e.Code),
+        Error = FeatureVerifier.ErrorName(e.Code, e.Type),
         Warning = e.Warning ? true : null,
     };
 

@@ -157,8 +157,20 @@ internal static class FeatureVerifier
         return $"Rollback incomplete: {left.Count} new feature(s) remain in the tree (feature_list shows them).";
     }
 
-    public static string ErrorName(int code) =>
-        Enum.IsDefined(typeof(swFeatureError_e), code) ? ((swFeatureError_e)code).ToString() : code.ToString();
+    /// <summary>
+    /// The swFeatureError_e name of a rebuild error. <paramref name="type"/>: the feature's GetTypeName2; a mate's code
+    /// outside the enum's swFeatureErrorMate* names is not named by the enum (S76: SOLIDWORKS 2023 gives 51,
+    /// swSketchErrorExtRefFail, to a mate it cannot satisfy, VERIFIED live: a distance between two fixed parts set to a
+    /// value they do not have, and a mate on a child of a subassembly made rigid).
+    /// </summary>
+    public static string ErrorName(int code, string? type = null)
+    {
+        string? name = Enum.IsDefined(typeof(swFeatureError_e), code) ? ((swFeatureError_e)code).ToString() : null;
+        if (type is null || !type.StartsWith("Mate", StringComparison.Ordinal) || type == "MateGroup"
+            || name?.StartsWith("swFeatureErrorMate", StringComparison.Ordinal) == true)
+            return name ?? code.ToString();
+        return code == 51 ? "mate not satisfied" : code.ToString();
+    }
 
     private static string? Hint(FeatureSpec spec) => spec.Tool switch
     {
