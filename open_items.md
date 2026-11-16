@@ -17,7 +17,7 @@ Closed all the same, its PR named, and an open PR no longer holds an item in Wai
 item sent upstream ends with `**Upstream: PR #9, open.**`, one per PR or issue
 (`merged`, `closed unmerged`; an issue `open` or `closed`), kept to its state.
 
-**Open: S4, S5, S7, S10 to S12, S33, S34, S52, S60, S61, S64, S65, S71, S72, S79 to S89.**
+**Open: S4, S5, S7, S10 to S12, S33, S34, S52, S60, S61, S64, S65, S71, S79 to S89.**
 Sorted 2026-11-16, the scenario test of build `20261116-205845` (findings 2026-11-16): S59
 held and closed, S65 (b) to (e) held and those parts closed; S87 and S88 new, taken into
 the run's group 5; S89 new (S60 (b) again, a SOLIDWORKS started by `launch`), not in this
@@ -359,8 +359,11 @@ server change since build `20261114-024455`).
   ended the same evening: all five held, the entry `4f8700f`, sorted into S59 (closed), S65
   (b) to (e) (closed), S87 and S88 (group 5), S89 (Open), S5 met again.
 - [x] S52: committed (`44869a2`)
-- [x] S61 (a): committed
-- [ ] S72: committed
+- [x] S61 (a): committed (`1b0203a`)
+- [x] S72: committed
+  For the release: `PropertiesLiveTests.A_custom_material_is_listed_…` fails on this
+  machine before and after S72 (a second classification in the custom library, from an
+  earlier run), not a fault of this group.
 - [ ] S71: committed
 - [ ] S87: committed
 - [ ] S88: committed
@@ -1273,31 +1276,6 @@ before the run.
 Taken into the run of 2026-11-16, group 5, a probe of soft springs and the solver first
 (`## Run 2026-11-16`).
 
-### S72 - A SOLIDWORKS process in a bad state: a material applied at 1 kg/m³ with a warning only, a linked property in metres, every equation refused - OPEN 2026-11-14
-
-In the scenario test of build
-`20261114-024455` (findings 2026-11-14, point 1), on a SOLIDWORKS process started before
-the session (what ran in it earlier is not known): every equation was refused, a batch of
-ten globals and then `"W" = 60mm` alone in a new part, with S58 (b)'s message as designed.
-In the same process `material_set "AISI 1020"`, with or without a configuration, applied
-the material at 1 kg/m³: `densityKgM3: 1`, `databaseDensityKgM3: 7900`, the check
-"material reads back" and only a warning ("The mass properties give 1 kg/m³, the database
-7900 kg/m³ (bodies with their own material, or an overridden mass?)"), no error, though
-the description says the mass properties are verified to show its density. A user-library
-material at 1270 kg/m³ read right in that process. A property linked to a 3 mm dimension
-(`"D1@<feature>"`) resolved `0,0030000000000000`, metres. After a restart of SOLIDWORKS
-the equations went in at once and a database material read 2700 kg/m³, its database
-density. The same three symptoms were met together once before, in an old SOLIDWORKS
-session (S28's test). Reported `ok` while wrong. Proposed by the session: `material_set`
-refuses (`VERIFY_FAILED`, rolled back) when the density read differs from the database's,
-as it once did, and its message, like S58 (b)'s, names a restart when a database material
-reads ~1 kg/m³. Bears on S58 (b), S30. Local. Not yet decided.
-Decided 2026-11-16 in the plan, not by the owner, because the description promises the
-density verified and the session proposed it: `material_set` refuses (`VERIFY_FAILED`,
-rolled back) when the density read differs from the database's by more than 1 % with no
-body material of its own and no mass override, naming a restart at about 1 kg/m³. Taken
-into the run of 2026-11-16, group 5 (`## Run 2026-11-16`).
-
 ### S79 - `doc_undo` undoes the step before an `equation_set`, reported `ok`, and is refused after a chamfer split by `flipEdges` - OPEN 2026-11-16
 
 (a) Sorted out of the entry of 2026-11-16, point 9. On build `20261116-080311`: `doc_undo`
@@ -1537,3 +1515,75 @@ sheet's there), which S1 found false for sections and details; its live test onl
 the cut, so a circle landing elsewhere on the part would pass.
 
 **Upstream: PR #1, open.**
+
+### S72 - A SOLIDWORKS process in a bad state: a material applied at 1 kg/m³ with a warning only, a linked property in metres, every equation refused - BUILT 2026-11-16, proof: the scenario test of group 5's build
+
+In the scenario test of build
+`20261114-024455` (findings 2026-11-14, point 1), on a SOLIDWORKS process started before
+the session (what ran in it earlier is not known): every equation was refused, a batch of
+ten globals and then `"W" = 60mm` alone in a new part, with S58 (b)'s message as designed.
+In the same process `material_set "AISI 1020"`, with or without a configuration, applied
+the material at 1 kg/m³: `densityKgM3: 1`, `databaseDensityKgM3: 7900`, the check
+"material reads back" and only a warning ("The mass properties give 1 kg/m³, the database
+7900 kg/m³ (bodies with their own material, or an overridden mass?)"), no error, though
+the description says the mass properties are verified to show its density. A user-library
+material at 1270 kg/m³ read right in that process. A property linked to a 3 mm dimension
+(`"D1@<feature>"`) resolved `0,0030000000000000`, metres. After a restart of SOLIDWORKS
+the equations went in at once and a database material read 2700 kg/m³, its database
+density. The same three symptoms were met together once before, in an old SOLIDWORKS
+session (S28's test). Reported `ok` while wrong. Proposed by the session: `material_set`
+refuses (`VERIFY_FAILED`, rolled back) when the density read differs from the database's,
+as it once did, and its message, like S58 (b)'s, names a restart when a database material
+reads ~1 kg/m³. Bears on S58 (b), S30. Local. Not yet decided.
+Decided 2026-11-16 in the plan, not by the owner, because the description promises the
+density verified and the session proposed it: `material_set` refuses (`VERIFY_FAILED`,
+rolled back) when the density read differs from the database's by more than 1 % with no
+body material of its own and no mass override, naming a restart at about 1 kg/m³. Taken
+into the run of 2026-11-16, group 5 (`## Run 2026-11-16`).
+
+Only the material point is this run's; the linked property in metres (S30) and the
+equations refused (S58 (b)'s message, as designed) stay as they are.
+Cause: `material_set` compared the density read with the database's and only warned
+when they differed, so a material named and read back at 1 kg/m³ was reported `ok`.
+Fix: the rule is `MaterialDensity.Judge` (interop-free, in the unit tests): within 0.5 %
+the check "matches the database"; off by more than 1 % with no solid body of another
+material and Mass Properties' "override mass" off (`IMassProperty2.GetOverrideOptions`,
+`OverrideMass`), `VERIFY_FAILED`, the previous material put back (in the configuration
+given) and read back, the message ending "Rolled back to '<prev>'." or "Rolled back: no
+material, as before."; at 0.5 to 1.5 kg/m³ it adds "SOLIDWORKS can come to apply every
+database material at 1 kg/m³, in a new part too, until it is restarted.", hint "Save the
+open documents, restart SOLIDWORKS and repeat the call."; otherwise a warning naming why
+(bodies with their own material, the mass overridden, within 1 %).
+Test before: `MaterialDensityTests` (7 cases) did not compile, CS0103 "The name
+'MaterialDensity' does not exist in the current context". After: unit tests 297 passed
+(290 + 7). The bad state was met live on the fix's own first run, in a SOLIDWORKS
+process that had run earlier work: the live tests that apply a database material were
+refused with the new message, "the mass properties give 1 kg/m³, the database 7900
+kg/m³ … until it is restarted. Rolled back to 'AISI 1020'." (or "no material, as
+before"). After a restart of SOLIDWORKS, the live tests that call `material_set`, each by
+`--filter-method`: 12 of 13 cases passed (`ConfigurationLiveTests` A_material_named_…
+(2) and A_material_set_in_one_configuration_…, `M0LiveTests`
+Status_gives_a_failed_call_…, `PropertiesLiveTests` Material_set_AISI_1020_…,
+Material_set_rejects_unknown_names_…, A_material_library_that_does_not_parse_…,
+Foreign_documents_…, `ReferenceLiveTests` Cost_of_the_machined_block_… and
+Review_reports_…, `SimulationLiveTests` Two_bonded_halves_…); the 13th,
+`PropertiesLiveTests` A_custom_material_is_listed_…, fails at `material_add`'s
+byte-for-byte check of the library (line 67), before its `material_set`, and fails the
+same on the code before the fix: the machine's custom library holds a second
+classification with a material this server wrote, which the test's layout check does not
+expect. `python tools/check_repo.py` ok; no tool description changed.
+Made stricter: a density off by more than 1 % with no body material and no override was a
+warning, now a refusal.
+Decided 2026-11-16 by the run, not the owner: between 0.5 % and 1 % off it stays a
+warning, as the match check was 0.5 % already, because the plan set the refusal at 1 % and
+that is the smaller change.
+Decided 2026-11-16 by the run, not the owner: "about 1 kg/m³" is 0.5 to 1.5 kg/m³,
+because the bad state reads 1 and no database material is that light.
+Decided 2026-11-16 by the run, not the owner: a body material or mass override that
+cannot be read counts as present (a warning, not a refusal), because a refusal on an
+unknown reading would refuse a material that may be right.
+Decided 2026-11-16 by the run, not the owner: the rollback puts back the previous name as
+read, a name SOLIDWORKS kept without applying it (S30) included, because that is the state
+before the call.
+Local: on `sw2023`, in the commit that moves it here; not yet in a build. Upstream: not yet
+decided.

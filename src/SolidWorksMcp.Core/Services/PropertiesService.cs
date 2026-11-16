@@ -243,7 +243,7 @@ public sealed partial class PropertiesService(SwSession session)
     /// <summary>Rebuilds can take a while on large models (progress is reported by the tool layer).</summary>
     private static readonly TimeSpan RebuildTimeout = TimeSpan.FromSeconds(120);
 
-    private const double DensityRelTol = 0.005;
+    private const double DensityRelTol = MaterialDensity.MatchTolerance;
 
     // ------------------------------------------------------------------ material_list
 
@@ -380,13 +380,21 @@ public sealed partial class PropertiesService(SwSession session)
             {
                 mass = mp.Mass;
                 density = mp.Mass / mp.Volume;
-                if (entry?.DensityKgM3 is double expect)
+                if (entry?.DensityKgM3 is double expect && expect > 0)
                 {
-                    if (Math.Abs(density.Value - expect) <= DensityRelTol * expect)
-                        checks.Add($"density {F(density.Value)} kg/m³ matches the database");
+                    // S72: a database material whose density does not show is not applied, so the call is refused.
+                    var judged = MaterialDensity.Judge(now, density.Value, expect, OtherBodyMaterial(part, now), MassOverridden(mp));
+                    if (judged.Verdict == DensityVerdict.Matches) checks.Add(judged.Text);
+                    else if (judged.Verdict == DensityVerdict.Warn) ctx.Warn(judged.Text);
                     else
-                        ctx.Warn($"The mass properties give {F(density.Value)} kg/m³, the database {F(expect)} kg/m³ " +
-                                 "(bodies with their own material, or an overridden mass?).");
+                    {
+                        if (cfg.Length > 0) SetMaterialIn(ctx, d, cfg, prevDb ?? "", prev);
+                        else part.SetMaterialPropertyName2(cfg, prevDb ?? "", prev);
+                        string back = part.GetMaterialPropertyName2(cfg, out _) ?? "";
+                        string undone = back != prev ? $" Could not roll it back: the material reads '{back}'."
+                            : prev.Length == 0 ? " Rolled back: no material, as before." : $" Rolled back to '{prev}'.";
+                        throw new SwException(ErrorCodes.VerifyFailed, judged.Text + undone, judged.Hint);
+                    }
                 }
             }
             else checks.Add("density not checked (no solid volume)");
@@ -484,6 +492,24 @@ public sealed partial class PropertiesService(SwSession session)
               $"{F(expect)} kg/m³ of '{name}': it was not applied, so the previous one is reported as none."
             : $"SOLIDWORKS names the material '{name}' for '{config}', but its mass has {F(densityKgM3)} kg/m³, not the " +
               $"{F(expect)} kg/m³ of '{name}': the material is not applied, so it is reported as none.";
+    }
+
+    /// <summary>A solid body with a material of its own other than <paramref name="name"/> (its mass has that one's density).</summary>
+    private static bool OtherBodyMaterial(IPartDoc part, string name)
+    {
+        try
+        {
+            return part.Bodies(swBodyType_e.swSolidBody, visibleOnly: false)
+                .Any(b => (b.GetMaterialPropertyName("", out _) ?? "") is { Length: > 0 } own && own != name);
+        }
+        catch (COMException e) when (!ComArgs.IsDisconnect(e)) { return true; } // not known: a warning, never a refusal
+    }
+
+    /// <summary>Mass Properties' "override mass" is on (the mass is then the user's, not volume × density).</summary>
+    private static bool MassOverridden(IMassProperty2 mp)
+    {
+        try { return mp.GetOverrideOptions() is IMassPropertyOverrideOptions o && o.OverrideMass; }
+        catch (COMException e) when (!ComArgs.IsDisconnect(e)) { return true; } // not known: a warning, never a refusal
     }
 
     private static IMassProperty2? MassProps(IModelDoc2 d)
