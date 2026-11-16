@@ -884,7 +884,14 @@ public sealed partial class FeatureManagementService(SwSession session)
     {
         int id = SafeId(f);
         int i = history.FindIndex(h => SafeId(h) == id);
-        if (i >= 0) return before ? i : i + 1;
+        if (i >= 0)
+        {
+            if (!before) return i + 1;
+            // The history lists the sketches a feature absorbs just before it, and SOLIDWORKS puts the bar before
+            // them too: "before Extrude1" rolls back Sketch1 with it (S67).
+            while (i > 0 && TryRef(() => history[i - 1].GetOwnerFeature()) is { } o && SafeId(o) == id) i--;
+            return i;
+        }
         // An absorbed sub-feature: the bar goes just before its owner, so the owner is rolled back either way.
         var owner = TryRef(() => f.GetOwnerFeature());
         int j = owner is null ? -1 : history.FindIndex(h => SafeId(h) == SafeId(owner));

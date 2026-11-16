@@ -17,7 +17,7 @@ Closed all the same, its PR named, and an open PR no longer holds an item in Wai
 item sent upstream ends with `**Upstream: PR #9, open.**`, one per PR or issue
 (`merged`, `closed unmerged`; an issue `open` or `closed`), kept to its state.
 
-**Open: S4, S5, S7, S10 to S12, S33, S34, S52, S59 to S61, S64, S65, S67, S71, S72, S76 to S79.**
+**Open: S4, S5, S7, S10 to S12, S33, S34, S52, S59 to S61, S64, S65, S71, S72, S76 to S79.**
 Sorted 2026-11-16, the scenario test of build `20261116-080311` (findings 2026-11-16):
 S68, S69, S70, S62 and S75 held and closed; S76, S77 and S78 new, taken into the run's
 group 3; S79 new, not in this run. Sorted 2026-11-16, the scenario test of build `20261116-050908` (findings 2026-11-16):
@@ -287,8 +287,8 @@ server change since build `20261114-024455`).
   entry committed and sorted: resumed once after the stop for low memory; S68, S69, S70,
   S62 (b), S75 held and closed, S76, S77, S78 and S79 new (findings 2026-11-16, `54ce718`)
 - [x] S49: committed (`5c776ef`)
-- [x] S74: committed
-- [ ] S67: committed
+- [x] S74: committed (`972bc54`)
+- [x] S67: committed
 - [ ] S76: committed
 - [ ] S77: committed
 - [ ] S78: committed
@@ -942,17 +942,6 @@ Decided 2026-11-16 by the owner: (e) `sketch_add` merges segment ends that meet,
 reference form; (b) and (d) taken into the run of 2026-11-16, group 4, with (c) and (e):
 (c) `resolved` names the point taken and warns of the others there (`## Run 2026-11-16`).
 
-### S67 - `feature_rollback` before the only feature fails its check - OPEN 2026-11-13
-
-Seen in the run of
-2026-11-13, in S60's probe, on that run's code: `feature_rollback {to:<renamed extrude>,
-before:true}` on a part holding one extrude failed `VERIFY_FAILED` "… unexpected state:
-'Sketch1'". A valid call refused, the rollback's state not said. Not probed: whether the
-rename, the single feature or the check's reading of the bar is the cause. Local. Decided
-2026-11-13 by the run, not the owner: an item of its own, open and not fixed in the run,
-because the run's items were the owner's and this one has not been looked at.
-Taken into the run of 2026-11-16, group 3, a probe first (`## Run 2026-11-16`).
-
 ### S71 - A frequency study with no fixtures fails in the solver - OPEN 2026-11-14
 
 Seen in the release runs
@@ -1249,5 +1238,50 @@ Decided 2026-11-16 by the run, not the owner: the equation is matched by its exa
 left-hand side (letter case aside), not with a document qualifier stripped, because a
 component's equation `"D1@Cut1@cube-1.Part"` would otherwise refuse the assembly's own
 `D1@Cut1`, a refusal that is not true; the earlier check matched exactly too.
+Local: on `sw2023`, in the commit that moves it here; not yet in a build. Upstream: not yet
+decided.
+
+### S67 - `feature_rollback` before the only feature fails its check - BUILT 2026-11-16, proof: the scenario test of group 3's build
+
+Seen in the run of
+2026-11-13, in S60's probe, on that run's code: `feature_rollback {to:<renamed extrude>,
+before:true}` on a part holding one extrude failed `VERIFY_FAILED` "… unexpected state:
+'Sketch1'". A valid call refused, the rollback's state not said. Not probed: whether the
+rename, the single feature or the check's reading of the bar is the cause. Local. Decided
+2026-11-13 by the run, not the owner: an item of its own, open and not fixed in the run,
+because the run's items were the owner's and this one has not been looked at.
+Taken into the run of 2026-11-16, group 3, a probe first (`## Run 2026-11-16`).
+Fixed in the run of 2026-11-16, group 3. Probe: the call fails the same with the extrude
+renamed and not renamed, and on a part of two extrudes `before` the second fails naming
+`Sketch2`, so neither the rename nor the single feature is the cause. The history walk
+lists a feature's absorbed sketch just before it (`Sketch1`, owner `Boss-Extrude1`, then
+`Boss-Extrude1`), and `EditRollback` before the feature rolls back that sketch too (read
+from SOLIDWORKS while the bar stood there: both rolled back). Cause: the check's reading,
+which expected every feature from the named one on rolled back and the ones above it
+active, so the absorbed sketch read as "unexpected state". A fillet, with no sketch, never
+showed it: the only `before` in the tests named a fillet. Fix: for `before`, the first
+feature expected rolled back is the named one's run of absorbed features listed just
+before it (its own sub-features by `GetOwnerFeature`), in `feature_rollback`'s check
+(`FeatureManagementService.FirstRolledBack`); `rolledBack` lists the sketch with its
+feature. Test before: `FeatureManagementLiveTests.Rollback_before_the_only_extrude_rolls_it_and_its_sketch_back`
+and `…_renamed_rolls_it_back` (a 100 × 60 × 20 block, `before` its extrude, renamed
+`Plate` in the second) failed on the code before: "The rollback bar is not where requested
+(EditRollback returned True); unexpected state: 'Sketch1'. Tried to move it back to its
+previous position." After: both pass, with
+`Rollback_before_a_second_extrude_keeps_the_first_and_its_sketch` (a 10 × 10 × 5 boss on
+the block, `before` it: its sketch and it rolled back, −500 mm³, the block's extrude
+active) and the live tests that call `feature_rollback`:
+`Rollback_to_the_extrude_hides_the_fillet_and_end_restores_it`,
+`Rollback_refuses_unknown_features_and_before_end`,
+`The_servers_own_failed_kept_and_rolled_back_changes_do_not_read_as_the_users`: 6/6 pass.
+Unit tests 288/288; `check_repo` ok; no description changed. Made stricter: `before` a
+sketched feature had no test; the three tests assert the bar's text, the features rolled
+back by name, the volume change and the state after `end`.
+Decided 2026-11-16 by the run, not the owner: `rolledBack` lists the absorbed sketch with
+its feature, not the feature alone, because SOLIDWORKS does roll the sketch back and the
+list reads `IsRolledBack` as it is.
+Decided 2026-11-16 by the run, not the owner: only the named feature's own sub-features
+listed right before it move the expected first feature up, not any sketch rolled back,
+because the check then still reports any other feature in a state not asked for.
 Local: on `sw2023`, in the commit that moves it here; not yet in a build. Upstream: not yet
 decided.

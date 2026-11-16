@@ -544,6 +544,54 @@ public class FeatureManagementLiveTests(LiveFixture fx) : LiveTest(fx)
         Assert.Equal(120000 - FilletDv, end.Model!.VolumeMm3, V);
     }
 
+    /// <summary>
+    /// S67: the bar before a sketched feature goes before the sketch it absorbs too, which the history lists just
+    /// before it; the check expected that sketch active. Renamed or not, the only feature or not.
+    /// </summary>
+    [Fact]
+    public async Task Rollback_before_the_only_extrude_rolls_it_and_its_sketch_back()
+    {
+        var b = await BlockAsync("fm_rollback_only");
+        var r = await M.RollbackAsync(b.Doc, b.Extrude, before: true);
+        Assert.Equal($"before {b.Extrude}", r.Bar);
+        Assert.Equal(new[] { b.Sketch, b.Extrude }, r.RolledBack!);
+        Assert.Equal(-120000, r.VolumeDeltaMm3!.Value, 1e-3);
+        Assert.True((await M.InfoAsync(b.Doc, b.Extrude)).RolledBack);
+        var end = await M.RollbackAsync(b.Doc, "end");
+        Assert.Null(end.RolledBack);
+        Assert.Equal(120000, end.Model!.VolumeMm3, 1e-3);
+    }
+
+    [Fact]
+    public async Task Rollback_before_the_only_extrude_renamed_rolls_it_back()
+    {
+        var b = await BlockAsync("fm_rollback_only_ren");
+        await M.RenameAsync(b.Doc, b.Extrude, "Plate");
+        var r = await M.RollbackAsync(b.Doc, "Plate", before: true);
+        Assert.Equal("before Plate", r.Bar);
+        Assert.Equal(new[] { b.Sketch, "Plate" }, r.RolledBack!);
+        Assert.Equal(-120000, r.VolumeDeltaMm3!.Value, 1e-3);
+        var end = await M.RollbackAsync(b.Doc, "end");
+        Assert.Equal(120000, end.Model!.VolumeMm3, 1e-3);
+    }
+
+    [Fact]
+    public async Task Rollback_before_a_second_extrude_keeps_the_first_and_its_sketch()
+    {
+        var b = await BlockAsync("fm_rollback_second");
+        var sk = new SketchService(S);
+        var st = await sk.StartAsync(b.Doc, new EntityRef { At = [0, 20, 0] }, false);
+        await sk.AddAsync(b.Doc, [new SketchEntity { Kind = "rectangle", Center = [0, 0], WidthMm = 10, HeightMm = 10 }]);
+        var boss = await new FeatureService(S).ExtrudeAsync(new ExtrudeRequest { Doc = b.Doc, DepthMm = 5 });
+        Assert.Equal(500, boss.Verified.VolumeDeltaMm3, 1e-3);
+
+        var r = await M.RollbackAsync(b.Doc, boss.Feature.Name, before: true);
+        Assert.Equal(new[] { st.Sketch, boss.Feature.Name }, r.RolledBack!);
+        Assert.Equal(-500, r.VolumeDeltaMm3!.Value, 1e-3);
+        Assert.Null((await M.InfoAsync(b.Doc, b.Extrude)).RolledBack);
+        await M.RollbackAsync(b.Doc, "end");
+    }
+
     [Fact]
     public async Task Rollback_refuses_unknown_features_and_before_end()
     {
