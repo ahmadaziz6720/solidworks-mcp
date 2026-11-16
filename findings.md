@@ -1800,3 +1800,66 @@ Server build `0.1.0-sw2023-20261116-124830+ad5f6ba`.
 3. **`sketch_delete` of a polygon's six lines also removed its construction circle**, which carried the polygon's centre dimensions, its diameter and an `equal` to the other polygon's circle: `"removed":["Arc1","Line1",…,"Line6"]` while the checks said "6 segment(s) gone". The other polygon was left with no size (under-defined). The result does list it; a warning that a segment not asked for went, with the dimensions and relations that went with it, would have saved a `sketch_info`. The new dimensions took the freed names (`D1`, `D2`, `D3`), so the old equations on `D2`/`D3` bound to them again; right here by luck of order.
 
 Sorted into S64 (1), part (k); S86 (3), new. Not filed (2): held.
+
+**2026-11-16: scenario test of build 20261116-205845 (S59 (c), S65 (e), S65 (c), S65 (b), S65 (d))**
+
+Build `bin\0.1.0-20261116-205845` (`serverVersion` `0.1.0-sw2023-20261116-205845+ba2ce83`, tag
+`build-20261116-205845`), SOLIDWORKS 2023 SP3, started by the session (`sw_connect launch`), then
+started again by hand (point 6).
+
+1. S59 (c), held. A line on the Top plane in a finished sketch: `ref_plane` `angle` 30° on `top`
+   with `axis: {name:"Line1", sketch:"Sketch1"}`, no `type`: resolved "sketch segment Line1",
+   checked "contains sketch segment Line1, 30° to plane 'Top Plane'". `ref_axis` `two_points`
+   with `entities: [{at:[-20, 0], sketch:"Sketch1"}, {at:[20, 0], sketch:"Sketch1"}]`, no `type`:
+   two sketch points, the axis along [-20, 0, 0] → [20, 0, 0].
+2. S65 (e), held. An open polyline typed to 4 decimals ([32.5, 14.3301] … [32.5, 5.6699]) and an
+   arc from its centre [30, 10], r 5, −60° to 60° on its ends, in one call: `endsMerged: 2`, 1
+   closed contour; the same arc in a later call onto an older polyline: 2 merged; an arc drawn
+   0.2 mm off (centre x + 0.2): not merged, the contour still open. Small, reported `ok`: the
+   second merge read "0.000054 mm apart" where the drawn gap was 0.000027: the first merge had
+   moved the arc (its centre to y 10.000027), and the second then moved the line's end 0.000054
+   from where it was typed (`sketch_info`: the polyline's top line at y 14.330154, typed 14.3301).
+   Within the 1e-4 tolerance, so nothing wrong in the geometry; the reported distance is the one
+   after the earlier merge, not the gap drawn, and one end moved twice the gap.
+3. S65 (c), held. A circle r 5 at [20, 10], `sketch_offset` `both` 2 (two offset circles, own
+   centres), three lines from [20, 10] (`sketch_add` merged their starts onto the inner offset's
+   centre, listed in `merged`), the circle fixed. `sketch_relation_add vertical` `{at:[20, 10]}`
+   with the origin: `VERIFY_FAILED: 'vertical' on sketch point at [20, 10] (Arc1 centre; 2 other
+   points there), origin 'Origin' conflicts …` (a true conflict: the fixed centre is at x 20).
+   `horizontal` `{at:[20, 10]}` with a line's end: accepted, `resolved` label with the owner and
+   the count, the warning listing "Arc2 centre; Arc3 centre, Line1 start, Line2 start, Line3
+   start" and that no reference picks them; the same warning from a `sketch_constrain` step; the
+   lone point in the same calls unwarned.
+4. S65 (b), held. A text "UJI 7", 6 mm, at [12, −8] on the Right plane (a sketch frame not the
+   model's): `sketch_info` `atMm: [12, -8]`, `heightMm: 6`, `angleDeg: 0`, open and after finish.
+5. S65 (d), held as designed, and a gap. A 40 mm block, a plane 300 mm out on `right` and an axis
+   of it with `top`: the default screenshot fills the image with the block; with
+   `hidePlanes:false, hideAxes:false` the plane is in the fit (the block small, as asked). Then an
+   axis by `ref_axis two_points` at z 300: the default screenshot shows the block at about a tenth
+   of the image beside two near-invisible dots (the axis's 3D sketch points); with
+   `hideSketches:true` it fills the image. Reported `ok`, with nothing in the result saying the
+   fit took in a sketch that reaches past the bodies, which the server checks for. A caller who
+   made the axis by points and wants the part gets a small one, as in the finding that opened
+   (d). Proposed: a warning in that case naming the sketch and `hideSketches`, or the 3D sketch
+   `ref_axis` makes for its points hidden when made.
+6. Bears on S60 (b), met again. SOLIDWORKS started by `sw_connect {launch:true}` runs as
+   `SLDWORKS.exe -Embedding` (parent: the DCOM launcher). After the session's client was
+   restarted, the new server process got `NOT_CONNECTED: SOLIDWORKS is running (pid …) but can't
+   be reached over COM: it may still be starting, or it runs with different privileges …` on
+   every call, `sw_connect` too, with SOLIDWORKS responding, its window up, the old server
+   process gone and none listed, same user and level. Likely: a SOLIDWORKS started through COM
+   is not in the running object table, so only the process that started it holds it. Workaround:
+   SOLIDWORKS stopped (a throwaway part's unsaved changes lost) and started from its exe, then
+   `sw_connect` attached at once. The hint named neither cause; it could say SOLIDWORKS was
+   started by another server process with `-Embedding`, and `launch` could start the exe so any
+   later process attaches.
+7. Held, regression: the shelled tray rebuilt from the procedure, every volume exact (1 617 000 →
+   201 850.83 → 160 562.414 → 174 928.873 → −318.086 → 174 346.977, the 6.5 c'sink kept after a
+   force rebuild), PETG 221.42 g, a dimension-linked property `3,00`, the design-intent round
+   clean with 1 body; `feature_chamfer` `equal` 2 mm on a Ø20 bore's edge −134.041; a hand-mated
+   assembly's two mates without error and 127 402.659 → +6283.185 → back; interference 0 in a
+   saved hinge assembly; a 1:2 sheet's frame and the tray's two sections (1 and 3 hatched faces).
+   STEP of the shelled tray still 16 surface bodies (S5, met again).
+
+106 calls, 46.8k characters of results; 7 errors (6 `NOT_CONNECTED`: 3 before SOLIDWORKS was
+started, 3 after the restart of point 6; 1 refusal meant).
