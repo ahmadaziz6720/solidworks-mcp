@@ -119,9 +119,17 @@ stands*.
   first and written on the group's check line, then `claude -p "Uji skenario build
   …-<stamp> (<S-items>), menurut reports/uji-skenario.md. Tanpa nanya apa-apa."
   --session-id <uuid> --permission-mode auto --allowedTools mcp__solidworks-mcp
-  --add-dir "<the fork>"`; cut short, `claude -p
-  --resume <uuid>` from the same folder. It starts with `sw_status` reading the new
-  version (step 6's short check). Its `findings.md` entry is committed here unasked and
+  --add-dir "<the fork>"`; cut short, `claude -p --resume <uuid>` from the same folder,
+  with the same flags. **So it does not stop half-way** (the owner, 2026-11-16, after
+  group 4's was ended for low memory): before it, `dotnet build-server shutdown` and read
+  free memory (7.3 GB in all here; SOLIDWORKS takes about 1 GB more once it opens); start
+  it detached, by `Start-Process` with its output to a file, not as a background task of
+  the running session, which Claude Code ends when memory runs low; watch it by its
+  process and by the session's transcript
+  (`~/.claude/projects/<claude_solidworks>/<uuid>.jsonl`). Stopped with no `findings.md`
+  entry, or the transcript unwritten for 30 minutes with the process still there (stop it
+  first): resume it at once, unasked, up to three times, then Blocked with what was seen.
+  It starts with `sw_status` reading the new version (step 6's short check). Its `findings.md` entry is committed here unasked and
   sorted (`backlog:sort`), the release page's notes updated (step 7). What it finds goes
   four ways: **held**, the item to `closed_items.md`, `CLOSED <date>`; **a fix of this
   group not holding**, fixed and its group built and checked again before the next group;
@@ -334,9 +342,8 @@ server change since build `20261114-024455`).
   release 105k/45 (Sonnet).
 - [ ] Group 4: scenario test (session id: `5e28cb8b-9a48-46e6-addb-0c43e04ad1b8`), its entry committed and sorted
   Stopped 2026-11-16 before it wrote an entry: Claude Code ended the background session for
-  low system memory and says not to start it again unasked. Blocked there; go on with
-  `claude -p --resume 5e28cb8b-9a48-46e6-addb-0c43e04ad1b8` from `claude_solidworks` once
-  memory is free.
+  low system memory and says not to start it again unasked. Resumed 2026-11-16 on the
+  owner's word (and resumed unasked from then on, the check's rule above).
 - [ ] S52: committed
 - [ ] S61 (a): committed
 - [ ] S72: committed
