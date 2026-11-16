@@ -318,8 +318,8 @@ server change since build `20261114-024455`).
   S49 110k/9, S74 132k/9, S67 121k/8, S76 140k/12, S77 168k/15, S78 195k/21 (each
   the default model); group 3's release 105k/87 (Sonnet); the sorts of groups 2 and
   3 124k/4 and 111k/3; group 2's scenario test resumed once, group 3's in one run.
-- [x] S59 (c): committed
-- [ ] S65 (e): committed
+- [x] S59 (c): committed (`d8dd2ee`)
+- [x] S65 (e): committed
 - [ ] S65 (c): committed
 - [ ] S65 (b): committed
 - [ ] S65 (d): committed
@@ -937,6 +937,53 @@ dimensioned, and the first call, with 2 `vertical` short, left the sketch under-
 two centres and a width. Proposed: `sketch_add` relates the slot's four segments as it
 draws them (tangent at the four joints), and perhaps a centreline between the centres;
 which form is a choice. Local. Not decided.
+**Done in the run of 2026-11-16: (e).** **Left open: (b), (c), (d) and (f).** (e) Cause:
+SOLIDWORKS merges an end drawn onto another end only within about 1e-5 mm (probed on 2023 SP3:
+ends 1e-6 and 1e-5 mm apart merged, 1e-4 and 1e-3 mm not; a 3-point arc on a polyline's
+exact ends, on a plane or a face, in one call or two, and a polyline drawn onto an arc's ends,
+all merged). An arc from its centre and angles, whose ends are irrational (x 30 ± 4.330127),
+on a polyline typed to 4 decimals stayed apart, and the whole sketch read "ManyOpen". Fix
+(`SketchService.MergeEnds`, run by `sketch_add` after it draws): each end of a segment the
+call drew is merged onto an end of another segment within 1e-4 mm drawn before it, in the call
+or earlier, with `sgMERGEPOINTS` (as `sketch_relation_add` `merge`: one point, no relation),
+and checked by the two ends reading one point within 1e-4 mm of where they were; a merge
+SOLIDWORKS does not make is a warning, and the contour status reads them apart. Each is listed
+in its entity's `merged` ("Arc1 start merged onto [34.33, 12.5] (Line1 start), 0.000027 mm
+apart"), and the result's new `endsMerged` counts the call's merges, SOLIDWORKS' and the
+server's. The `sketch_add` description: "relations SOLIDWORKS made, ends merged where they
+meet" (was "relations and merges SOLIDWORKS made"). Before, on the code before the fix (the
+merge pass off), `SketchEditLiveTests.Sketch_add_merges_an_arc_drawn_on_a_polyline_s_ends_into_one_closed_contour`
+failed "contours invalid, 0 closed, 0 open, problem ManyOpen". After: it passes (1 closed
+contour, 2 ends merged 0.000027 mm apart; the arc in a later call onto an older polyline, 2
+closed; a 3-point arc on exact ends, SOLIDWORKS' 2 merges counted; 15 sketch points, 0
+relations; an end on a line's middle, 0.001 mm and 0.2 mm off, not merged), with
+`Sketch_add_lists_the_relations_and_merges_SOLIDWORKS_made`,
+`Constrain_reads_a_relation_the_sketch_already_has_as_held_and_runs_the_next_steps`,
+`Constrain_runs_twenty_steps_on_a_sketch_of_two_dozen_segments_within_its_limit_and_says_how_long`,
+`Regions_count_the_sketchs_own_closed_regions_on_a_face_as_on_a_plane`,
+`Construction_relation_and_delete_work_in_a_3D_sketch`,
+`PartFeatureLiveTests.The_model_box_after_round_faces_is_the_body_s_extremes` (lines and arcs
+from angles, extruded), `AdvancedFeatureLiveTests.Sweep_of_a_slot_along_a_line_is_exact_through_its_start_face`,
+`M0LiveTests.Box_extrude_matches_the_oracle`,
+`WeldmentLiveTests.Table_frame_from_a_3D_sketch_is_a_mitered_top_and_four_square_cut_legs`,
+`BodySheetMetalLiveTests.Miter_flange_on_a_slanted_end_sketches_on_a_plane_normal_to_the_edge`
+and `ContractTests.Tool_catalog_follows_the_conventions`, 12 of 12 live; unit tests 290 of
+290; `--check-catalog` ok; `check_repo` ok. Made stricter: none (a merge is checked, and one
+not made is said). Decided 2026-11-16 by the run, not the owner: the tolerance is 1e-4 mm, the
+one the sketch tools check geometry to and `sketch_import` merges to, because an end moved by
+less still reads where it was asked, and 1e-3 mm or more would join ends a caller drew apart
+on purpose (the session's workaround drew them 0.2 mm off). Decided 2026-11-16 by the run, not
+the owner: ends of construction geometry merge as solid ones, because a merge moves no end
+beyond that tolerance and the flag does not change where the ends are. Decided 2026-11-16 by
+the run, not the owner: only ends merge, an end that meets a segment's middle or a free point
+does not, and two ends both drawn before the call are left as they are, because a merge there
+would change geometry or a sketch the call did not draw. Decided 2026-11-16 by the run, not the
+owner: the merge is `sgMERGEPOINTS` on the two points, not SOLIDWORKS' inference
+(`AddToDB` off), because inference also snaps to model edges and adds relations (S80), and
+the merge is one point with no relation, as the relation count and contour status read after
+(verified: 0 relations, 1 closed contour). 3D sketches take the same pass; there it was not
+probed, and a merge not made is warned. Local: (e) on `sw2023`, in the commit that records it
+here; not yet in a build. Upstream: not yet decided.
 
 ### S71 - A frequency study with no fixtures fails in the solver - OPEN 2026-11-14
 

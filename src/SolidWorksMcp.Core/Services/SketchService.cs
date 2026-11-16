@@ -48,8 +48,11 @@ public sealed class SketchEntityResult
     public string? ConstructionCircle { get; init; }
     /// <summary>Relations SOLIDWORKS made on what this entity drew ("equal: Line1, Line2"), the call's own included.</summary>
     public IReadOnlyList<string>? Relations { get; init; }
-    /// <summary>Ends SOLIDWORKS merged onto points already in the sketch ("Line5 start merged onto [50, 50] (Line2 end, Line3 start)").</summary>
-    public IReadOnlyList<string>? Merged { get; init; }
+    /// <summary>
+    /// Ends merged onto points already in the sketch: by SOLIDWORKS as it drew ("Line5 start merged onto [50, 50] (Line2
+    /// end, Line3 start)"), or by the server, to <see cref="SketchService.MergeTol"/> (S65 e: "…, 0.000027 mm apart").
+    /// </summary>
+    public IReadOnlyList<string>? Merged { get; set; }
     public IReadOnlyList<string>? Checks { get; init; }
 }
 
@@ -57,6 +60,8 @@ public sealed class SketchAddResult : ToolResult
 {
     public required string Sketch { get; init; }
     public required IReadOnlyList<SketchEntityResult> Entities { get; init; }
+    /// <summary>Ends this call merged onto another end at the same point, SOLIDWORKS' and the server's (each in its entity's Merged).</summary>
+    public int? EndsMerged { get; init; }
     public required ContourStatus Contours { get; init; }
 }
 
@@ -75,6 +80,12 @@ public sealed class SketchFinishResult : ToolResult
 public sealed class SketchService(SwSession session)
 {
     private const double Tol = 1e-6; // m
+
+    /// <summary>
+    /// Ends this close are one point (S65 e): the tolerance the sketch tools check geometry to (1e-4 mm), and
+    /// sketch_import's. SOLIDWORKS merges an end drawn on another only within ~1e-5 mm (probed, 2023 SP3).
+    /// </summary>
+    internal const double MergeTol = 1e-7; // m
 
     // ------------------------------------------------------------------ start
 
@@ -163,6 +174,7 @@ public sealed class SketchService(SwSession session)
             bool oldAddToDb = sm.AddToDB;
             sm.AddToDB = true; // no inference snapping or automatic relations while the server draws
             var created = new List<ISketchSegment>();
+            var entityOf = new Dictionary<string, int>(StringComparer.Ordinal); // a drawn segment → its entity
             var results = new List<SketchEntityResult>();
             // S56: the points already in the sketch, to tell which ends SOLIDWORKS merged onto one of them.
             var known = SketchRelations.PointKeys(sketch);
@@ -178,10 +190,12 @@ public sealed class SketchService(SwSession session)
                     Draw(d, sm, e, conv, checks);
                     var segs = sketch.Segments().Where(s => !before.Contains(s.GetName())).ToList();
                     created.AddRange(segs);
+                    foreach (var s in segs) entityOf[s.GetName()] = i;
                     int newPoints = sketch.Points().Count - pointsBefore;
                     var made = SketchRelations.Made(sketch, segs, newPoints, relationsBefore, known);
                     results.Add(Check(e, i, segs, newPoints, Texts(sketch) - textsBefore, checks, conv, made));
                 }
+                MergeEnds(ctx, d, sketch, created, entityOf, results);
             }
             catch
             {
@@ -198,6 +212,7 @@ public sealed class SketchService(SwSession session)
                 Doc = ctx.Title(d),
                 Sketch = ((IFeature)sketch).Name,
                 Entities = results,
+                EndsMerged = results.Sum(r => r.Merged?.Count ?? 0) is > 0 and var n ? n : null,
                 Contours = Contours(sketch),
             };
         }, RunOptions.Write(doc), ct);
@@ -271,6 +286,76 @@ public sealed class SketchService(SwSession session)
             foreach (var y in new[] { b[1], b[4] })
                 foreach (var z in new[] { b[2], b[5] })
                     yield return new Vec3(x, y, z);
+    }
+
+    /// <summary>A segment's end: its point's key and position (sketch m; model m in a 3D sketch).</summary>
+    private sealed record EndAt(string Seg, string Which, int Order, string Key, Vec3 At, ISketchPoint P);
+
+    /// <summary>The ends of the sketch's open segments (a circle, a closed ellipse or spline has none); Order is the place
+    /// among <paramref name="drawn"/>, -1 for a segment drawn before.</summary>
+    private static List<EndAt> Ends(ISketch sketch, Dictionary<string, int> drawn)
+    {
+        var list = new List<EndAt>();
+        foreach (var seg in sketch.Segments())
+        {
+            var ends = SketchRelations.Ends(seg).Where(x => x.Which != "centre").ToList();
+            if (ends.Count != 2) continue;
+            var keys = ends.Select(x => SketchRelations.PointKey(x.P)).ToList();
+            if (keys[0] == keys[1]) continue;
+            string name = seg.GetName();
+            int order = drawn.GetValueOrDefault(name, -1);
+            for (int k = 0; k < 2; k++)
+                list.Add(new EndAt(name, ends[k].Which, order, keys[k], new Vec3(ends[k].P.X, ends[k].P.Y, ends[k].P.Z), ends[k].P));
+        }
+        return list;
+    }
+
+    /// <summary>
+    /// S65 (e): an end this call drew is merged onto an end of another segment that meets it, to <see cref="MergeTol"/>,
+    /// drawn before it (in this call or earlier), which SOLIDWORKS left apart: an arc from its centre and angles on a
+    /// polyline typed to 4 decimals stayed open ("ManyOpen"). Merged with sgMERGEPOINTS, as sketch_relation_add 'merge':
+    /// one point, no relation; checked by the two ends reading one point where they were. Ends of two older segments, an
+    /// end on a segment's middle and a free point are left as they are. Each merge is listed under its entity's Merged.
+    /// </summary>
+    private static void MergeEnds(SwContext ctx, IModelDoc2 d, ISketch sketch, List<ISketchSegment> created,
+        Dictionary<string, int> entityOf, List<SketchEntityResult> results)
+    {
+        if (created.Count == 0) return;
+        var order = new Dictionary<string, int>(StringComparer.Ordinal);
+        foreach (var s in created) order.TryAdd(s.GetName(), order.Count);
+        var ends = Ends(sketch, order);
+        var mine = ends.Where(x => x.Order >= 0).OrderBy(x => x.Order).Select(x => (x.Seg, x.Which)).ToList();
+        bool is3D = sketch.Is3D();
+        foreach (var (seg, which) in mine)
+        {
+            for (int guard = 0; guard < 8; guard++)
+            {
+                var e = ends.FirstOrDefault(x => x.Seg == seg && x.Which == which);
+                if (e is null) break;
+                var onto = ends.Where(o => o.Seg != seg && o.Key != e.Key && (o.Order < 0 || o.Order < e.Order))
+                    .Select(o => (O: o, Gap: o.At.DistanceTo(e.At))).Where(x => x.Gap <= MergeTol).OrderBy(x => x.Gap).FirstOrDefault();
+                if (onto.O is null) break;
+                var o = onto.O;
+                d.ClearSelection2(true);
+                bool selected = e.P.Select4(false, null) && o.P.Select4(true, null);
+                if (selected) d.SketchAddConstraints("sgMERGEPOINTS");
+                d.ClearSelection2(true);
+                ends = Ends(sketch, order);
+                var e2 = ends.FirstOrDefault(x => x.Seg == seg && x.Which == which);
+                var o2 = ends.FirstOrDefault(x => x.Seg == o.Seg && x.Which == o.Which);
+                string where = TopoQuery.Fmt(is3D ? Units.Mm(o.At) : [Units.Mm(o.At.X), Units.Mm(o.At.Y)]);
+                if (e2 is null || o2 is null || e2.Key != o2.Key ||
+                    e2.At.DistanceTo(o.At) > MergeTol || e2.At.DistanceTo(e.At) > MergeTol)
+                {
+                    ctx.Warn($"{seg} {which} and {o.Seg} {o.Which} meet at [{where}] but SOLIDWORKS did not merge them; " +
+                             "the contour status reads them as apart.");
+                    break;
+                }
+                var r = results[entityOf[seg]];
+                r.Merged = [.. r.Merged ?? [], $"{seg} {which} merged onto [{where}] ({o.Seg} {o.Which}), " +
+                    $"{(Units.Mm(onto.Gap) + 0.0).ToString("0.######", System.Globalization.CultureInfo.InvariantCulture)} mm apart"];
+            }
+        }
     }
 
     private static HashSet<string> SegmentNames(ISketch s) => s.Segments().Select(x => x.GetName()).ToHashSet(StringComparer.Ordinal);

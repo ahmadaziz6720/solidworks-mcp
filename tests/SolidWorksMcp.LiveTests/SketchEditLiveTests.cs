@@ -771,6 +771,50 @@ public class SketchEditLiveTests(LiveFixture fx) : LiveTest(fx)
     }
 
     [Fact]
+    public async Task Sketch_add_merges_an_arc_drawn_on_a_polyline_s_ends_into_one_closed_contour()
+    {
+        // S65 (e): a polyline and a separate arc drawn on its two ends left those ends unmerged ("ManyOpen"), and no
+        // relation could merge them ({at} twice names one point). SOLIDWORKS merges an end drawn on another only within
+        // ~1e-5 mm: an arc from its centre and angles (ends at x 30 ± 4.330127) on a polyline typed to 4 decimals stayed
+        // open. sketch_add merges ends that meet to 1e-4 mm, in one call and onto the ends already in the sketch.
+        var (doc, _, added) = await SketchAsync("s65e", "front",
+            new SketchEntity { Kind = "polyline", Points = [[34.3301, 12.5], [34.3301, 0], [25.6699, 0], [25.6699, 12.5]] },
+            new SketchEntity { Kind = "arc", Center = [30, 10], RadiusMm = 5, StartDeg = 30, EndDeg = 150 });
+        var c = added.Contours;
+        Assert.True(c is { Status: "closed", ClosedContours: 1, OpenContours: 0, Problem: null },
+            $"contours {c.Status}, {c.ClosedContours} closed, {c.OpenContours} open, problem {c.Problem ?? "none"}");
+        Assert.Null(added.Entities[0].Merged);
+        var arcMerged = added.Entities[1].Merged!;
+        Assert.Equal(2, arcMerged.Count);
+        Assert.Contains(arcMerged, m => m.Contains("merged onto [34.33, 12.5]") && m.EndsWith("0.000027 mm apart"));
+        Assert.Contains(arcMerged, m => m.Contains("merged onto [25.67, 12.5]"));
+        Assert.Equal(2, added.EndsMerged);
+
+        // The arc in a later call, onto the ends of a polyline drawn before.
+        var poly = await Sk.AddAsync(doc, [new SketchEntity { Kind = "polyline", Points = [[64.3301, 12.5], [64.3301, 0], [55.6699, 0], [55.6699, 12.5]] }]);
+        Assert.Null(poly.EndsMerged);
+        var arc = await Sk.AddAsync(doc, [new SketchEntity { Kind = "arc", Center = [60, 10], RadiusMm = 5, StartDeg = 30, EndDeg = 150 }]);
+        Assert.Equal(2, arc.EndsMerged);
+        Assert.True(arc.Contours is { Status: "closed", ClosedContours: 2, OpenContours: 0, Problem: null }, $"contours {arc.Contours.Status}");
+
+        // Ends SOLIDWORKS merged itself (a 3-point arc on the exact ends) count as well.
+        var exact = await Sk.AddAsync(doc, [new SketchEntity { Kind = "polyline", Points = [[100, 0], [140, 0], [140, 20], [100, 20]] },
+            new SketchEntity { Kind = "arc", Start = [100, 20], Mid = [90, 10], End = [100, 0] }]);
+        Assert.Equal(2, exact.EndsMerged);
+        Assert.All(exact.Entities[1].Merged!, m => Assert.DoesNotContain("apart", m));
+        Assert.Equal(3, exact.Contours.ClosedContours);
+        var info = await Ed.InfoAsync(doc, null);
+        Assert.Equal(3 * (4 + 1), info.Points); // each polyline's 4 and the arc's centre: its ends are the polyline's
+        Assert.Equal(0, info.Relations); // a merge is no relation
+
+        // Not merged: an end on a segment's middle, an end 0.001 mm off another (10 x the tolerance), one 0.2 mm off.
+        var off = await Sk.AddAsync(doc, [Line([120, 0], [120, -20]), Line([140.001, 20], [160, 40]), Line([100.2, 20], [80, 40])]);
+        Assert.Null(off.EndsMerged);
+        Assert.All(off.Entities, e => Assert.Null(e.Merged));
+        Assert.Equal(info.Points + 6, (await Ed.InfoAsync(doc, null)).Points);
+    }
+
+    [Fact]
     public async Task Constrain_reads_a_relation_the_sketch_already_has_as_held_and_runs_the_next_steps()
     {
         // S56 (a): 'equal' on two sides of a rectangle drawn square, which SOLIDWORKS had related while drawing, failed
