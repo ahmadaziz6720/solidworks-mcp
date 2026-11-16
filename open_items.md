@@ -17,7 +17,7 @@ Closed all the same, its PR named, and an open PR no longer holds an item in Wai
 item sent upstream ends with `**Upstream: PR #9, open.**`, one per PR or issue
 (`merged`, `closed unmerged`; an issue `open` or `closed`), kept to its state.
 
-**Open: S4, S5, S7, S10 to S12, S33, S34, S52, S60, S61, S64, S65, S71, S79 to S89.**
+**Open: S4, S5, S7, S10 to S12, S33, S34, S52, S60, S61, S64, S65, S79 to S89.**
 Sorted 2026-11-16, the scenario test of build `20261116-205845` (findings 2026-11-16): S59
 held and closed, S65 (b) to (e) held and those parts closed; S87 and S88 new, taken into
 the run's group 5; S89 new (S60 (b) again, a SOLIDWORKS started by `launch`), not in this
@@ -360,11 +360,11 @@ server change since build `20261114-024455`).
   (b) to (e) (closed), S87 and S88 (group 5), S89 (Open), S5 met again.
 - [x] S52: committed (`44869a2`)
 - [x] S61 (a): committed (`1b0203a`)
-- [x] S72: committed
+- [x] S72: committed (`47c9f62`)
   For the release: `PropertiesLiveTests.A_custom_material_is_listed_…` fails on this
   machine before and after S72 (a second classification in the custom library, from an
   earlier run), not a fault of this group.
-- [ ] S71: committed
+- [x] S71: committed
 - [ ] S87: committed
 - [ ] S88: committed
 - [ ] Group 5: full live tests and release (build: )
@@ -1258,24 +1258,6 @@ one 0.2 mm off not. Those parts closed 2026-11-16 by the run's rule (*Per group,
 check*: held, closed); the item stays Open for (b)'s move and (f). Two gaps met in the same
 test are S87 ((e)) and S88 ((d)).
 
-### S71 - A frequency study with no fixtures fails in the solver - OPEN 2026-11-14
-
-Seen in the release runs
-of 2026-11-14: `SimulationLiveTests.Frequency_of_the_cantilever_column_matches_beam_theory_and_a_free_bar_has_six_rigid_body_modes`
-fails at its second study, the free-free column (`sim_run` frequency, 8 modes, no fixed
-faces, default mesh size, mesh quality High), with "The solver did not finish:
-RunAnalysis returned 24 (swsRunAnalysisErrorAnalysisFailed)" after ~40 s; its first study,
-the fixed-foot one (4 modes, 2.5 mm mesh), passes. Four runs of four, two of them on a
-fresh SOLIDWORKS with 1.6-2.0 GB free; the same on build `091908`'s code, and no commit
-since that build touches `SimulationService` or the test. The server picks no solver, so
-SOLIDWORKS 2023 chooses one for a stiffness matrix with six rigid-body modes. Not probed:
-whether a solver choice (FFEPlus, Direct Sparse), a mesh size or the soft-spring option
-lets it finish. Local, upstream's test. Decided 2026-11-14 by the run, not the owner: an
-item, open, as S67, not fixed in the release run, because it fails the same on the code
-before the run.
-Taken into the run of 2026-11-16, group 5, a probe of soft springs and the solver first
-(`## Run 2026-11-16`).
-
 ### S79 - `doc_undo` undoes the step before an `equation_set`, reported `ok`, and is refused after a chamfer split by `flipEdges` - OPEN 2026-11-16
 
 (a) Sorted out of the entry of 2026-11-16, point 9. On build `20261116-080311`: `doc_undo`
@@ -1585,5 +1567,51 @@ unknown reading would refuse a material that may be right.
 Decided 2026-11-16 by the run, not the owner: the rollback puts back the previous name as
 read, a name SOLIDWORKS kept without applying it (S30) included, because that is the state
 before the call.
+Local: on `sw2023`, in the commit that moves it here; not yet in a build. Upstream: not yet
+decided.
+
+### S71 - A frequency study with no fixtures fails in the solver - BUILT 2026-11-16, proof: the scenario test of group 5's build
+
+Seen in the release runs
+of 2026-11-14: `SimulationLiveTests.Frequency_of_the_cantilever_column_matches_beam_theory_and_a_free_bar_has_six_rigid_body_modes`
+fails at its second study, the free-free column (`sim_run` frequency, 8 modes, no fixed
+faces, default mesh size, mesh quality High), with "The solver did not finish:
+RunAnalysis returned 24 (swsRunAnalysisErrorAnalysisFailed)" after ~40 s; its first study,
+the fixed-foot one (4 modes, 2.5 mm mesh), passes. Four runs of four, two of them on a
+fresh SOLIDWORKS with 1.6-2.0 GB free; the same on build `091908`'s code, and no commit
+since that build touches `SimulationService` or the test. The server picks no solver, so
+SOLIDWORKS 2023 chooses one for a stiffness matrix with six rigid-body modes. Not probed:
+whether a solver choice (FFEPlus, Direct Sparse), a mesh size or the soft-spring option
+lets it finish. Local, upstream's test. Decided 2026-11-14 by the run, not the owner: an
+item, open, as S67, not fixed in the release run, because it fails the same on the code
+before the run.
+Taken into the run of 2026-11-16, group 5, a probe of soft springs and the solver first
+(`## Run 2026-11-16`).
+Cause: the server left the solver to SOLIDWORKS (`FrequencyStudyOptions.SolverType` reads
+0, automatic, soft springs off), and SOLIDWORKS 2023 stops on a free body's six rigid-body
+modes with code 24 within 2-3 s of solving.
+Probe, 2026-11-16, the test's free-free study (default mesh, 8 modes), the option set
+after the mesh: automatic, 24; Direct Sparse (1), 24; Direct Sparse with soft springs
+(`UseSoftSpring2`), 24; FFEPlus (2), solved; automatic with soft springs, solved; FFEPlus
+with soft springs, solved. Each that solved passed the test's oracle (six modes below
+1 Hz, the first free bending mode within 2 % of 1293 Hz).
+Fix: `sim_run` frequency with no fixtures sets `SolverType` FFEPlus, reads it back
+(`VERIFY_FAILED` if it does not hold) and says "solver FFEPlus for the free body (read
+back)" in its checks; a study with fixtures keeps SOLIDWORKS' choice. The probe is in
+`docs/solidworks-api-notes.md` (§14, Frequency).
+Test before: `SimulationLiveTests.Frequency_of_the_cantilever_column_…` failed at its
+free-free study, "The solver did not finish: RunAnalysis returned 24
+(swsRunAnalysisErrorAnalysisFailed)." After: it passes, with the FFEPlus check asserted
+for the free study and absent for the fixed one; with it, `Buckling_of_the_fixed_free_…`,
+`Sim_run_refuses_loads_on_a_frequency_study_…` and `Plots_of_kept_studies_…`: 4 of 4
+passed. Unit tests 297 passed; `python tools/check_repo.py` ok; no tool description
+changed.
+Made stricter: the test asserts the solver check of the free study, and its absence with
+fixtures.
+Decided 2026-11-16 by the run, not the owner: FFEPlus, not soft springs, because soft
+springs add stiffness to the model the results are read from, while FFEPlus solves the
+model as it is; both are one setting.
+Decided 2026-11-16 by the run, not the owner: only with no fixtures, because the fixed
+study solves under SOLIDWORKS' own choice and the item is the free body.
 Local: on `sw2023`, in the commit that moves it here; not yet in a build. Upstream: not yet
 decided.

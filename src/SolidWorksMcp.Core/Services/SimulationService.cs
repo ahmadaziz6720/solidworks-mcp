@@ -831,6 +831,15 @@ public sealed partial class SimulationService(SwSession session)
                     if (fo.NoOfFrequencies != modes)
                         throw new SwException(ErrorCodes.VerifyFailed, $"The study asks for {fo.NoOfFrequencies} frequencies instead of {modes}.");
                     checks.Add($"{modes} natural frequenc{(modes == 1 ? "y" : "ies")} asked for (read back)");
+                    if (inputs.FixtureFaces == 0)
+                    {
+                        // A free body: SOLIDWORKS 2023's automatic choice and Direct Sparse stop with code 24 on the six
+                        // rigid-body modes; FFEPlus solves it as it is, with no soft springs added to the model.
+                        fo.SolverType = (int)swsSolverType_e.swsSolverTypeFFEPlus;
+                        if (fo.SolverType != (int)swsSolverType_e.swsSolverTypeFFEPlus)
+                            throw new SwException(ErrorCodes.VerifyFailed, $"The free-free study reads back solver {Name<swsSolverType_e>(fo.SolverType)}, not FFEPlus.");
+                        checks.Add("solver FFEPlus for the free body (read back)");
+                    }
                 }
                 else
                 {

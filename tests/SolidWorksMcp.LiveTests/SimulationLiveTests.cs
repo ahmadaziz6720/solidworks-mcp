@@ -199,6 +199,7 @@ public class SimulationLiveTests(LiveFixture fx) : LiveTest(fx)
         // The second bending pair: Euler-Bernoulli gives 6.27 f1; shear and rotary inertia bring a 20:1 bar a little lower.
         Assert.InRange(r.FrequenciesHz[2] / r.FrequenciesHz[0], 6.0, 6.3);
         Assert.Contains(r.Checks, c => c.StartsWith("4 natural frequencies asked for (read back)", StringComparison.Ordinal));
+        Assert.DoesNotContain(r.Checks, c => c.StartsWith("solver FFEPlus", StringComparison.Ordinal));
         await AssertCleanAsync(doc, addinBefore);
 
         // Free-free: six rigid-body modes at 0 Hz, then the first free bending mode, βL = 4.7300.
@@ -206,6 +207,8 @@ public class SimulationLiveTests(LiveFixture fx) : LiveTest(fx)
         Assert.Equal(6, free.FrequenciesHz!.Count(f => f < 1));
         Assert.Equal(4.73 * 4.73 / (2 * Math.PI) * ColumnRoot, free.FrequenciesHz[6], 1292.9 * 0.02);
         Assert.Contains(free.Checks, c => c.StartsWith("six rigid-body modes below 1 Hz", StringComparison.Ordinal));
+        // SOLIDWORKS 2023's automatic solver stops on a free body (code 24); sim_run sets FFEPlus for it (S71).
+        Assert.Contains(free.Checks, c => c.StartsWith("solver FFEPlus for the free body (read back)", StringComparison.Ordinal));
         await AssertCleanAsync(doc, addinBefore);
     }
 

@@ -876,6 +876,9 @@ type libraries and writes `sldworks_api.txt`, `swconst_enums.txt`, `swcommands.t
   `ICWResults.GetResonantFrequencies(out err)` returns groups of four: mode number, rad/s, Hz, period. A 10 x 10 x 200
   AISI 1020 column fixed at its foot: 203.29 Hz twice (beam theory 203.2), then 1259 Hz (6.27 x f1 in Euler-Bernoulli,
   lower with shear) and 3464 Hz (torsion). Without fixtures: six modes at 0 Hz, then 1281 Hz (free-free theory 1293).
+  On SOLIDWORKS 2023 that free-free study stops with `RunAnalysis` 24 under the automatic solver (`SolverType` 0, the
+  default) and under Direct Sparse (1), soft springs or not; FFEPlus (2) solves it, and so does automatic with
+  `UseSoftSpring2 = true`. `sim_run` sets FFEPlus when there are no fixtures (VERIFIED 2026-11-16).
 - **Buckling** (VERIFIED). `CreateNewStudy3(name, 2, 0, …)`, fixtures and loads, mesh, `BucklingStudyOptions.BucklingModes
   = n`, solve; `GetBucklingLoadFactors(out err)` gave one plain factor: 10.2848 for 1 kN on that column's head (Euler,
   fixed-free: π²EI/(2L)² = 10.28 kN). Both study types ran with SOLIDWORKS Premium's Simulation licence here.
