@@ -815,6 +815,47 @@ public class SketchEditLiveTests(LiveFixture fx) : LiveTest(fx)
     }
 
     [Fact]
+    public async Task A_point_where_offset_arcs_centres_and_line_ends_sit_names_the_one_taken_and_warns_of_the_others()
+    {
+        // S65 (c): 'vertical' between {at} on an arc's centre and the origin failed "conflicts ... no_solution" where three
+        // concentric arcs from sketch_offset and three line ends sat on that point, and nothing said which point it took.
+        // The point taken is still the nearest (the first of those at one place); its label names it by its segments, a
+        // relation that fails names it too, and a warning lists the others there, which no reference picks alone.
+        var (doc, _, added) = await SketchAsync("s65c", "front",
+            new SketchEntity { Kind = "arc", Center = [20, 10], RadiusMm = 10, StartDeg = 0, EndDeg = 90 });
+        string arc = Name(added, 0);
+        var off = await Ed.OffsetAsync(doc, [Seg(arc)], 5, "both");
+        var arcs = new[] { arc }.Concat(off.Created!.Where(c => c.Kind == "arc").Select(c => c.Name)).ToList();
+        Assert.Equal(3, arcs.Count);
+        var lines = await Sk.AddAsync(doc, [Line([20, 10], [50, -20]), Line([20, 10], [-10, -20]), Line([20, 10], [20, -30])]);
+        string ends = string.Join(", ", lines.Entities.Select(e => e.Segments[0] + " start")); // one point: SOLIDWORKS merged them on a centre
+        await Ed.RelationAddAsync(doc, "fix", [Seg(arc)]);
+        const string Taken = @"sketch point at \[20, 10\] \((Arc\d centre)(, Line\d start)*; 2 other points there\)";
+
+        // The session's call: the centre is held at x 20, so 'vertical' to the origin conflicts; the error names the point.
+        var ex = await Fails(ErrorCodes.VerifyFailed, () => Ed.RelationAddAsync(doc, "vertical", [At(20, 10), new EntityRef { Name = "origin" }]));
+        Assert.Matches($"'vertical' on {Taken}, origin .* conflicts with existing relations", ex.Message);
+
+        await Sk.AddAsync(doc, [Point([60, 40]), Point([70, 50])]);
+        var r = await Ed.RelationAddAsync(doc, "horizontal", [At(20, 10), At(60, 40)]);
+        Assert.Matches($"^{Taken}$", r.Resolved![0].Label);
+        string took = System.Text.RegularExpressions.Regex.Match(r.Resolved[0].Label, @"\((.*); 2 other").Groups[1].Value;
+        var w = Assert.Single(r.Warnings!, x => x.StartsWith("entities[0]: 3 sketch points lie within 0.01 mm of [20, 10]; "));
+        Assert.Contains($"took the nearest, {took}. Not taken: ", w);
+        foreach (var a in arcs) Assert.Single(System.Text.RegularExpressions.Regex.Matches(w, $@"\b{a} centre\b"));
+        Assert.Contains(ends, w);
+        Assert.Contains("No reference picks one of those", w);
+        Assert.DoesNotContain(r.Warnings!, x => x.StartsWith("entities[1]")); // one point at [60, 40]: no warning
+        Assert.Equal("sketch point at [60, 40]", r.Resolved[1].Label);
+
+        // sketch_constrain resolves through the same path: the same warning, for its step.
+        var c = await Ed.ConstrainAsync(doc, [Rel("horizontal", At(20, 10), At(70, 50))]);
+        Assert.Contains(c.Warnings!, x => x.StartsWith("steps[0].entities[0]: 3 sketch points lie within 0.01 mm of [20, 10]; ") &&
+                                          x.Contains($"took the nearest, {took}. Not taken: "));
+        Assert.Equal(r.RelationsAfter + 1, c.RelationsAfter);
+    }
+
+    [Fact]
     public async Task Constrain_reads_a_relation_the_sketch_already_has_as_held_and_runs_the_next_steps()
     {
         // S56 (a): 'equal' on two sides of a rectangle drawn square, which SOLIDWORKS had related while drawing, failed

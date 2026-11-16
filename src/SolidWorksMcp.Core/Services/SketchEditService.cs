@@ -796,7 +796,7 @@ public sealed class SketchEditService(SwSession session)
         {
             string state = ConstrainedName(sketch.GetConstrainedStatus());
             string rb = Undo(ctx, d, name, before);
-            throw new SwException(ErrorCodes.VerifyFailed, $"'{rel}' conflicts with existing relations or dimensions (the sketch became {state}). {rb}",
+            throw new SwException(ErrorCodes.VerifyFailed, $"'{rel}' on {labels} conflicts with existing relations or dimensions (the sketch became {state}). {rb}",
                 "Delete the conflicting relation or dimension first, or relate other entities.");
         }
         if (!is3D)
@@ -813,7 +813,7 @@ public sealed class SketchEditService(SwSession session)
             if (problem is not null)
             {
                 string rb = Undo(ctx, d, name, before);
-                throw new SwException(ErrorCodes.VerifyFailed, $"After '{rel}' the geometry doesn't satisfy it: {problem}. {rb}",
+                throw new SwException(ErrorCodes.VerifyFailed, $"After '{rel}' on {labels} the geometry doesn't satisfy it: {problem}. {rb}",
                     "The sketch may not solve with this relation; check sketch_info.");
             }
         }

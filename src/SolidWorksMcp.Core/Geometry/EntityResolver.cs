@@ -3,6 +3,7 @@ using SolidWorks.Interop.sldworks;
 using SolidWorks.Interop.swconst;
 using SolidWorksMcp.Core.Com;
 using SolidWorksMcp.Core.Model;
+using SolidWorksMcp.Core.Services;
 
 namespace SolidWorksMcp.Core.Geometry;
 
@@ -356,15 +357,44 @@ internal static class EntityResolver
         double x = Units.M(r.At[0]), y = Units.M(r.At[1]);
         ISketchPoint? best = null;
         double bestD = double.MaxValue;
+        var near = new List<(ISketchPoint P, double D)>();
         foreach (var sp in sketch.Points())
         {
             double d = Math.Sqrt((sp.X - x) * (sp.X - x) + (sp.Y - y) * (sp.Y - y));
             if (d < bestD) { bestD = d; best = sp; }
+            if (d <= tol) near.Add((sp, d));
         }
+        string where = $"[{TopoQuery.Fmt(r.At)}]";
         if (best is null || bestD > tol)
-            throw new SwException(ErrorCodes.EntityNotFound, $"No sketch point within {Units.Mm(tol)} mm of [{TopoQuery.Fmt(r.At)}] in the sketch.",
+            throw new SwException(ErrorCodes.EntityNotFound, $"No sketch point within {Units.Mm(tol)} mm of {where} in the sketch.",
                 "Use sketch_info to see the sketch's points.");
-        return new Resolved { Obj = best, Kind = EntityKind.SketchPoint, Label = $"sketch point at [{TopoQuery.Fmt(r.At)}]" };
+        string label = $"sketch point at {where}";
+        if (near.Count > 1) label = SeveralPointsAt(ctx, sketch, best, bestD, near, where, tol, argName);
+        return new Resolved { Obj = best, Kind = EntityKind.SketchPoint, Label = label };
+    }
+
+    /// <summary>
+    /// S65 (c): several sketch points within the tolerance of an [x, y] (offset arcs' centres, a line's end on one): the
+    /// nearest is taken, as before, and it was not said which. The label names the point taken by the segments it ends or
+    /// centres ("Arc1 centre"), and a warning lists the others there. A sketch point has no name a reference can give, so
+    /// none of the others can be picked alone: the warning says so, and how to relate an arc's centre all the same.
+    /// </summary>
+    private static string SeveralPointsAt(SwContext ctx, ISketch sketch, ISketchPoint best, double bestD,
+        List<(ISketchPoint P, double D)> near, string where, double tol, string argName)
+    {
+        var owners = SketchRelations.Owners(sketch.Segments());
+        string Of(ISketchPoint p) =>
+            owners.TryGetValue(SketchRelations.PointKey(p), out var o) && o.Count > 0 ? string.Join(", ", o) : "a free point";
+        static string Mm(double m) => Units.Mm(m).ToString("0.######", CultureInfo.InvariantCulture);
+        string Off(double d) => d > 1e-12 ? $" ({Mm(d)} mm off)" : "";
+        string bestKey = SketchRelations.PointKey(best);
+        var others = near.Where(n => SketchRelations.PointKey(n.P) != bestKey).ToList();
+        if (others.Count == 0) return $"sketch point at {where}";
+        ctx.Warn($"{argName}: {others.Count + 1} sketch points lie within {Mm(tol)} mm of {where}; took the nearest, " +
+                 $"{Of(best)}{Off(bestD)}. Not taken: {string.Join("; ", others.Take(8).Select(n => Of(n.P) + Off(n.D)))}" +
+                 $"{(others.Count > 8 ? $"; and {others.Count - 8} more" : "")}. No reference picks one of those (a sketch point has no " +
+                 "name, and 'at' takes the nearest): relate an arc's centre through its arc ('concentric'), or draw the points apart.");
+        return $"sketch point at {where} ({Of(best)}; {others.Count} other point{(others.Count == 1 ? "" : "s")} there)";
     }
 
     // ---------------------------------------------------------------- by name

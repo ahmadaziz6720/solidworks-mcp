@@ -319,8 +319,8 @@ server change since build `20261114-024455`).
   the default model); group 3's release 105k/87 (Sonnet); the sorts of groups 2 and
   3 124k/4 and 111k/3; group 2's scenario test resumed once, group 3's in one run.
 - [x] S59 (c): committed (`d8dd2ee`)
-- [x] S65 (e): committed
-- [ ] S65 (c): committed
+- [x] S65 (e): committed (`27408b8`)
+- [x] S65 (c): committed
 - [ ] S65 (b): committed
 - [ ] S65 (d): committed
 - [ ] Group 4: full live tests and release (build: )
@@ -984,6 +984,59 @@ the merge is one point with no relation, as the relation count and contour statu
 (verified: 0 relations, 1 closed contour). 3D sketches take the same pass; there it was not
 probed, and a merge not made is warned. Local: (e) on `sw2023`, in the commit that records it
 here; not yet in a build. Upstream: not yet decided.
+**Done in the run of 2026-11-16: (c).** **Left open: (b), (d) and (f).** (c) Cause: `{at:[x,y]}`
+on a sketch point takes the nearest of the sketch's points (`EntityResolver.SketchPointAt`, the
+first of several at one place), and its label read "sketch point at [x, y]" whatever else sat
+there; a relation that failed named no entity ("'vertical' conflicts with existing relations or
+dimensions"). Probed on 2023 SP3: SOLIDWORKS merges a centre or an end drawn exactly on another
+point (two circles on one centre, a line end on a centre: one point), so points stay apart at one
+place only where a tool made them: `sketch_offset` gives each offset arc its own centre, and
+three line ends drawn on the centre merged onto the last offset arc's. With the original arc
+fixed, `vertical` from `{at}` on that centre to the origin failed "the sketch became over", as in
+the finding; the point taken was the original arc's centre (Arc1), and with the original deleted
+`sketch_relation_add` and `sketch_constrain` both moved the first offset arc (Arc2) of the two.
+Fix (`EntityResolver.SeveralPointsAt`): where more than one sketch point lies within the
+reference's tolerance, the label names the point taken by the segments it ends or centres and
+counts the others ("sketch point at [20, 10] (Arc1 centre; 2 other points there)"), so
+`resolved` names it, and a warning lists the others: "entities[0]: 3 sketch points lie within
+0.01 mm of [20, 10]; took the nearest, Arc1 centre. Not taken: Arc2 centre; Arc3 centre, Line1
+start, Line2 start, Line3 start. No reference picks one of those (a sketch point has no name, and
+'at' takes the nearest): relate an arc's centre through its arc ('concentric'), or draw the points
+apart." A relation's failures "conflicts with existing relations" and "the geometry doesn't
+satisfy it" (`SketchEditService.AddRelation`, both tools) name their entities, as a dimension's
+already did ("'vertical' on sketch point at [20, 10] (Arc1 centre; 2 other points there), origin
+'Origin' conflicts …"). Which point is taken is unchanged; no description changed. Before, on the
+code before the fix,
+`SketchEditLiveTests.A_point_where_offset_arcs_centres_and_line_ends_sit_names_the_one_taken_and_warns_of_the_others`
+failed "Assert.Matches() Failure: Pattern not found in value", value "'vertical' conflicts with
+existing relations or di…". After: it passes (the conflict named, the label and warning in
+`sketch_relation_add`, the same warning for a `sketch_constrain` step, a lone point unwarned),
+with `Horizontal_relation_of_two_points_levels_the_circle_centers`,
+`Merge_and_coincident_join_two_line_ends_into_one_point`, `Relation_misuse_and_conflicts_are_refused`,
+`Constrain_follows_a_point_through_a_merge`, `Constrain_stops_at_a_failing_step_and_keeps_the_ones_before`,
+`Dimension_and_relation_take_a_point_in_another_sketch_on_a_segment_of_the_same_name`,
+`The_origin_takes_dimensions_and_relations`,
+`Radial_horizontal_and_point_to_point_vertical_dimensions_drive_the_geometry`,
+`Tangent_concentric_midpoint_symmetric_collinear_parallel_intersection_and_fix_hold`,
+`Constrain_defines_a_rectangle_fully_in_one_call`,
+`ReferenceLiveTests.A_reference_with_its_sketch_and_no_type_is_in_that_sketch` and
+`ContractTests.Tool_catalog_follows_the_conventions`, 13 of 13 live; unit tests 290 of 290;
+`--check-catalog` ok; `check_repo` ok. Made stricter: none (nothing refused that passed before; a
+failed relation's message now names its entities). Decided 2026-11-16 by the run, not the owner:
+"there" is within the reference's tolerance (`tolMm`, default 0.01 mm), not only the points at
+one place, because those are the points the `at` could have meant. Decided 2026-11-16 by the run,
+not the owner: no `{name, sketch}` is offered for the others, and the warning says none picks
+them, because a sketch point has no name the server reads and `EntityRef` has no end or centre
+qualifier; one would be repeated in every tool's schema, which is at its byte budget. Decided
+2026-11-16 by the run, not the owner: the owner segment is named only where several points lie,
+because finding it reads every segment of the sketch for each point reference, and a lone point's
+position names it already. Decided 2026-11-16 by the run, not the owner: a relation's failure
+names its entities, because a failed call returns its message only, not the warnings, and the
+finding's call was a failure. Decided 2026-11-16 by the run, not the owner: `sketch_constrain`
+holds the point as before (through the first segment with an end or centre at its place), not by
+the point's own key, because in the probe that was the point the resolver took, and checking it
+costs a segment walk per point on every step (S55). Local: (c) on `sw2023`, in the commit that
+records it here; not yet in a build. Upstream: not yet decided.
 
 ### S71 - A frequency study with no fixtures fails in the solver - OPEN 2026-11-14
 
