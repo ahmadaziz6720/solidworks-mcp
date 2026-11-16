@@ -367,7 +367,15 @@ server change since build `20261114-024455`).
 - [x] S71: committed (`e18996e`)
 - [x] S87: committed (`0b7698f`)
 - [x] S88: committed
-- [ ] Group 5: full live tests and release (build: )
+- [x] Group 5: full live tests and release (build: `20261117-012659`, `098a10b`)
+  Live: AssemblyLiveTests 56, AssemblyStructureLiveTests 2, PropertiesLiveTests 25, SimulationLiveTests 17,
+  SketchEditLiveTests 77, VisualsLiveTests 3, M0LiveTests 23; all passed but two. Known failure, not this group's:
+  `PropertiesLiveTests.A_custom_material_is_listed_…` (24/25, as before S72). Flake: `AssemblyLiveTests.
+  Dimension_set_on_a_mate_angle_an_equation_drives_…` refused a valid equation in the full class run (55/56) and passed
+  alone after a SOLIDWORKS restart. Run class by class with SOLIDWORKS restarted between, free memory 2.6 GB
+  before the first start after the build servers were shut down (0.5 GB with them up and SOLIDWORKS open); no "low on
+  memory" dialog. The live tests took 66 min (37, 1, 3, 6, 13, 1, 3 min of test time; the Assembly class alone is
+  ~40 min), the whole release about 105 min. Unit 299. `docs/tools.md` regenerated and committed alone (`098a10b`).
 - [ ] Group 5: scenario test (session id: ), its entry committed and sorted
 - [ ] The report
 
@@ -570,7 +578,7 @@ with the live tests that read component boxes and subassemblies
 S76 to S78, `A_tilted_…`, `Insert_puts_the_origin_…`, `Move_translates_…`, the subassembly
 mate, `Two_components_form_a_subassembly_…`; 13/13 with the two new); unit tests 290/290;
 `check_repo` ok; no description changed.
-Made stricter: none. Local: on `sw2023`, in the commit that records it; not yet in a build.
+Made stricter: none. Local: on `sw2023`, in the commit that records it; in build `20261117-012659` (the S52 (c) point).
 Upstream: not yet decided.
 Decided 2026-11-16 by the run, not the owner: the item stays Open, not to Waiting, for
 `body_list`'s box (met again 2026-11-16, above), a point found after the plan and not in
@@ -736,7 +744,7 @@ the result says what came in (S5's case); (3) only .step and .stp are taken, not
 the other formats 3D Interconnect reads, because the item and its test are a STEP's; (4)
 the `path` description adds ".step" and nothing more, the link named in the result,
 because the tool list is at its byte budget. Local: on `sw2023`, in the commit that
-records it; not yet in a build. Upstream: not yet decided.
+records it; in build `20261117-012659` (the S61 (a) point). Upstream: not yet decided.
 
 ### S64 - Feature calls refused, failed or counted wrong, with hints that miss - OPEN 2026-11-12
 
@@ -1466,7 +1474,7 @@ the cut, so a circle landing elsewhere on the part would pass.
 
 **Upstream: PR #1, open.**
 
-### S72 - A SOLIDWORKS process in a bad state: a material applied at 1 kg/m³ with a warning only, a linked property in metres, every equation refused - BUILT 2026-11-16, proof: the scenario test of group 5's build
+### S72 - A SOLIDWORKS process in a bad state: a material applied at 1 kg/m³ with a warning only, a linked property in metres, every equation refused - BUILT 2026-11-17, proof: the scenario test of build 20261117-012659
 
 In the scenario test of build
 `20261114-024455` (findings 2026-11-14, point 1), on a SOLIDWORKS process started before
@@ -1535,10 +1543,10 @@ unknown reading would refuse a material that may be right.
 Decided 2026-11-16 by the run, not the owner: the rollback puts back the previous name as
 read, a name SOLIDWORKS kept without applying it (S30) included, because that is the state
 before the call.
-Local: on `sw2023`, in the commit that moves it here; not yet in a build. Upstream: not yet
+Local: on `sw2023`, in the commit that moves it here; in build `20261117-012659`. Upstream: not yet
 decided.
 
-### S71 - A frequency study with no fixtures fails in the solver - BUILT 2026-11-16, proof: the scenario test of group 5's build
+### S71 - A frequency study with no fixtures fails in the solver - BUILT 2026-11-17, proof: the scenario test of build 20261117-012659
 
 Seen in the release runs
 of 2026-11-14: `SimulationLiveTests.Frequency_of_the_cantilever_column_matches_beam_theory_and_a_free_bar_has_six_rigid_body_modes`
@@ -1581,10 +1589,10 @@ springs add stiffness to the model the results are read from, while FFEPlus solv
 model as it is; both are one setting.
 Decided 2026-11-16 by the run, not the owner: only with no fixtures, because the fixed
 study solves under SOLIDWORKS' own choice and the item is the free body.
-Local: on `sw2023`, in the commit that moves it here; not yet in a build. Upstream: not yet
+Local: on `sw2023`, in the commit that moves it here; in build `20261117-012659`. Upstream: not yet
 decided.
 
-### S87 - `sketch_add`'s second merge reports the distance after the first and moves an end twice the gap - BUILT 2026-11-16, proof: the scenario test of group 5's build
+### S87 - `sketch_add`'s second merge reports the distance after the first and moves an end twice the gap - BUILT 2026-11-17, proof: the scenario test of build 20261117-012659
 
 Sorted out of the entry of 2026-11-16 (the scenario test of build `20261116-205845`), point
 2. An open polyline typed to 4 decimals and an arc on its ends, in one call: `endsMerged: 2`,
@@ -1625,10 +1633,10 @@ report true while the polyline's end still moves twice the gap; setting the end 
 relation added and removed, as fixing the other end would.
 Decided 2026-11-16 by the run, not the owner: a warning when a merge moves the other end
 more than the drawn gap, because the result then says so instead of a silent move.
-Local: on `sw2023`, in the commit that moves it here; not yet in a build. Upstream: not yet
+Local: on `sw2023`, in the commit that moves it here; in build `20261117-012659`. Upstream: not yet
 decided.
 
-### S88 - `view_screenshot` fits a part small to an axis made through points, with no warning - BUILT 2026-11-16, proof: the scenario test of group 5's build
+### S88 - `view_screenshot` fits a part small to an axis made through points, with no warning - BUILT 2026-11-17, proof: the scenario test of build 20261117-012659
 
 Sorted out of the entry of 2026-11-16 (the scenario test of build `20261116-205845`), point
 5. A 40 mm block and an axis by `ref_axis two_points` at z 300: the default screenshot
@@ -1680,5 +1688,5 @@ a spline its points only, because the warning must not claim a reach the fit doe
 Decided 2026-11-16 by the run, not the owner: the warning only, no description change,
 because `hideSketches`' text already says it leaves sketches out of the fit and the tool
 list is at its byte budget.
-Local: on `sw2023`, in the commit that moves it here; not yet in a build. Upstream: not yet
+Local: on `sw2023`, in the commit that moves it here; in build `20261117-012659`. Upstream: not yet
 decided.
