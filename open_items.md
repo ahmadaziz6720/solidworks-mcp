@@ -374,8 +374,8 @@ server change since build `20261114-024455`).
   Dimension_set_on_a_mate_angle_an_equation_drives_…` refused a valid equation in the full class run (55/56) and passed
   alone after a SOLIDWORKS restart. Run class by class with SOLIDWORKS restarted between, free memory 2.6 GB
   before the first start after the build servers were shut down (0.5 GB with them up and SOLIDWORKS open); no "low on
-  memory" dialog. The live tests took 66 min (37, 1, 3, 6, 13, 1, 3 min of test time; the Assembly class alone is
-  ~40 min), the whole release about 105 min. Unit 299. `docs/tools.md` regenerated and committed alone (`098a10b`).
+  memory" dialog. The live tests took 65 min of test time (37, 1, 3, 6, 13, 1, 3 min, and the 1 min rerun of the flake;
+  75 min on the clock with the restarts), the whole release about 82 min. Unit 299. `docs/tools.md` regenerated and committed alone (`098a10b`).
 - [ ] Group 5: scenario test (session id: ), its entry committed and sorted
 - [ ] The report
 
