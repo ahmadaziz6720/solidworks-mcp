@@ -17,7 +17,7 @@ Closed all the same, its PR named, and an open PR no longer holds an item in Wai
 item sent upstream ends with `**Upstream: PR #9, open.**`, one per PR or issue
 (`merged`, `closed unmerged`; an issue `open` or `closed`), kept to its state.
 
-**Open: S4, S5, S7, S10 to S12, S33, S34, S52, S60, S61, S64, S65, S79 to S86, S88, S89.**
+**Open: S4, S5, S7, S10 to S12, S33, S34, S52, S60, S61, S64, S65, S79 to S86, S89.**
 Sorted 2026-11-16, the scenario test of build `20261116-205845` (findings 2026-11-16): S59
 held and closed, S65 (b) to (e) held and those parts closed; S87 and S88 new, taken into
 the run's group 5; S89 new (S60 (b) again, a SOLIDWORKS started by `launch`), not in this
@@ -365,8 +365,8 @@ server change since build `20261114-024455`).
   machine before and after S72 (a second classification in the custom library, from an
   earlier run), not a fault of this group.
 - [x] S71: committed (`e18996e`)
-- [x] S87: committed
-- [ ] S88: committed
+- [x] S87: committed (`0b7698f`)
+- [x] S88: committed
 - [ ] Group 5: full live tests and release (build: )
 - [ ] Group 5: scenario test (session id: ), its entry committed and sorted
 - [ ] The report
@@ -1428,23 +1428,6 @@ Proposed: (a) a warning naming each segment removed that was not named, with the
 dimensions and relations that went with it; (b) a probe that S54 (c)'s warning fires after
 `sketch_delete` and a new dimension of a freed name. Local. Not decided.
 
-### S88 - `view_screenshot` fits a part small to an axis made through points, with no warning - OPEN 2026-11-16
-
-Sorted out of the entry of 2026-11-16 (the scenario test of build `20261116-205845`), point
-5. A 40 mm block and an axis by `ref_axis two_points` at z 300: the default screenshot
-showed the block at about a tenth of the image beside two near-invisible dots (the axis's 3D
-sketch points); with `hideSketches:true` it filled the image. Reported `ok`, nothing in the
-result saying the fit took in a sketch past the bodies, which the server checks for (S65
-(d)'s fit by selection). As designed in S65 (d) ("an axis through coordinates still needs
-`hideSketches:true`"), but a caller who wants the part gets a small one, the case that opened
-(d).
-
-Proposed: a warning when the fit takes in a shown sketch that reaches past the bodies,
-naming it and `hideSketches`. Hiding the 3D sketch `ref_axis` makes for its points was left
-by S65 (d)'s run for the next plan (it changes the reference tools) and is not taken here.
-Local, small, in group 4's files: by the run's rule the warning is a later item of this run,
-taken into group 5. Not decided.
-
 ### S89 - SOLIDWORKS started by `sw_connect launch` cannot be reached from a later server process - OPEN 2026-11-16
 
 Sorted out of the entry of 2026-11-16 (the scenario test of build `20261116-205845`), point
@@ -1642,5 +1625,60 @@ report true while the polyline's end still moves twice the gap; setting the end 
 relation added and removed, as fixing the other end would.
 Decided 2026-11-16 by the run, not the owner: a warning when a merge moves the other end
 more than the drawn gap, because the result then says so instead of a silent move.
+Local: on `sw2023`, in the commit that moves it here; not yet in a build. Upstream: not yet
+decided.
+
+### S88 - `view_screenshot` fits a part small to an axis made through points, with no warning - BUILT 2026-11-16, proof: the scenario test of group 5's build
+
+Sorted out of the entry of 2026-11-16 (the scenario test of build `20261116-205845`), point
+5. A 40 mm block and an axis by `ref_axis two_points` at z 300: the default screenshot
+showed the block at about a tenth of the image beside two near-invisible dots (the axis's 3D
+sketch points); with `hideSketches:true` it filled the image. Reported `ok`, nothing in the
+result saying the fit took in a sketch past the bodies, which the server checks for (S65
+(d)'s fit by selection). As designed in S65 (d) ("an axis through coordinates still needs
+`hideSketches:true`"), but a caller who wants the part gets a small one, the case that opened
+(d).
+
+Proposed: a warning when the fit takes in a shown sketch that reaches past the bodies,
+naming it and `hideSketches`. Hiding the 3D sketch `ref_axis` makes for its points was left
+by S65 (d)'s run for the next plan (it changes the reference tools) and is not taken here.
+Local, small, in group 4's files: by the run's rule the warning is a later item of this run,
+taken into group 5. Not decided.
+Taken into the run of 2026-11-16, group 5 (`## Run 2026-11-16`).
+Cause: S65 (d)'s fit selects the sketches shown, as the image shows them, and the result
+said nothing when one of them reached past the bodies: the 3D sketch of an axis through
+points is shown, so the fit took it in and left the part small, reported `ok`.
+Fix (`ViewService.FitToWhatIsShown`, `FitReach`): when the fit is by selection, each sketch
+selected is boxed in model space as the fit takes it in (its points but the centres of arcs
+and ellipses, its line and arc ends, a 2D arc's circle at the axis extremes on its sweep);
+one past the bodies' box by more than 10 % of its largest side is named in a warning: "The
+fit takes in 3DSketch1, shown past the bodies, which leaves them small in the image;
+hideSketches:true leaves sketches out of the image and the fit." Not with `hideSketches`,
+the sketches toggle off or `zoomToFit:false`. The rule and the arc's extremes in an
+interop-free file with unit tests. Probed live: a shallow arc's centre 180 mm out is not in
+the fit (the block's share 0.2126, 0.2125 without the arc); in
+`docs/solidworks-api-notes.md` (Zoom to fit). No tool description changed.
+Test before: `VisualsLiveTests.A_fit_that_takes_in_a_shown_sketch_past_the_bodies_warns`,
+a 40 mm block and an axis by `two_points` at z 300: "no warning of the fit taking in the
+axis's sketch: []". After: it passes (the axis's sketch named, not with `hideSketches` nor
+unfitted, none for the block alone nor for a shown arc 3 mm past it whose circle, r ≈ 200
+mm, reaches far past; that case warned falsely while arc centres were counted, now fixed);
+with it `Zoom_to_fit_takes_what_the_image_shows_and_axes_are_hidden`,
+`A_section_cuts_the_image_and_is_removed_afterwards`,
+`M0LiveTests.Screenshot_returns_a_png_and_restores_display_settings` and
+`SimulationLiveTests.Plots_of_kept_studies_show_the_results_range_in_an_image`: 5 of 5
+passed. Unit tests 299 of 299 (`FitReachTests`, 2 new); `python tools/check_repo.py` ok.
+Made stricter: none (a warning added; the fit and the image as before).
+Decided 2026-11-16 by the run, not the owner: a sketch warns when it reaches past the
+bodies' box by more than 10 % of its largest side, not by any amount, because below that
+the part's share of the image barely changes and the warning would read as a fault on a
+right result (S84).
+Decided 2026-11-16 by the run, not the owner: a sketch's box leaves out arc and ellipse
+centres and takes a 2D arc's extremes on its sweep only, and gives a 3D arc, an ellipse or
+a spline its points only, because the warning must not claim a reach the fit does not take
+(a centre 180 mm out did not move the fit); it may fall short on a bulge, never past.
+Decided 2026-11-16 by the run, not the owner: the warning only, no description change,
+because `hideSketches`' text already says it leaves sketches out of the fit and the tool
+list is at its byte budget.
 Local: on `sw2023`, in the commit that moves it here; not yet in a build. Upstream: not yet
 decided.

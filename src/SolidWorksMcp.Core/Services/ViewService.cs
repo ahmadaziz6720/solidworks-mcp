@@ -117,7 +117,11 @@ public sealed class ViewService(SwSession session)
                 if (hideAxes && axes) d.Extension.SetUserPreferenceToggle((int)swUserPreferenceToggle_e.swDisplayAxes, 0, false);
                 if (mode != "current") mv.DisplayMode = Modes[mode];
                 if (v != "current") d.ShowNamedView2("", Views[v]);
-                if (zoomToFit && !FitToWhatIsShown(d, sketches && !hideSketches, planes && !hidePlanes)) d.ViewZoomtofit2();
+                List<string> far = [];
+                if (zoomToFit && !FitToWhatIsShown(d, sketches && !hideSketches, planes && !hidePlanes, far)) d.ViewZoomtofit2();
+                if (far.Count > 0)
+                    ctx.Warn($"The fit takes in {string.Join(", ", far)}, shown past the bodies, which leaves them small in the image; " +
+                             "hideSketches:true leaves sketches out of the image and the fit.");
                 if (cut is not null)
                 {
                     var vm = d.ModelViewManager;
@@ -187,9 +191,10 @@ public sealed class ViewService(SwSession session)
     /// box's six extremes (a body selected zooms to more than itself, probed), the sketches shown when
     /// <paramref name="sketchesShown"/>, the planes shown when <paramref name="planesShown"/>, and the reference points and
     /// coordinate systems shown. False, leaving the fit to <c>ViewZoomtofit2</c>, for an assembly or drawing, a part with no
-    /// visible body, or one whose box is its bodies' box.
+    /// visible body, or one whose box is its bodies' box. <paramref name="far"/> gets the shown sketches in the fit that
+    /// reach past the bodies' box by more than <see cref="FitReach.Share"/> of its largest side (S88).
     /// </summary>
-    private static bool FitToWhatIsShown(IModelDoc2 d, bool sketchesShown, bool planesShown)
+    private static bool FitToWhatIsShown(IModelDoc2 d, bool sketchesShown, bool planesShown, List<string> far)
     {
         if (d is not IPartDoc part) return false;
         var bodies = ((object?)part.GetBodies2((int)swBodyType_e.swAllBodies, true) as object[] ?? []).OfType<IBody2>().ToList();
@@ -230,6 +235,16 @@ public sealed class ViewService(SwSession session)
             faces.AddRange(picked.Select(j => fs[j].Face));
         }
         if (faces.Count == 0) return false;
+        double[] all = [boxes.Min(x => x[0]), boxes.Min(x => x[1]), boxes.Min(x => x[2]), boxes.Max(x => x[3]), boxes.Max(x => x[4]), boxes.Max(x => x[5])];
+        foreach (var f in shown.Where(f => f.GetTypeName2() is "ProfileFeature" or "3DProfileFeature"))
+        {
+            try
+            {
+                var box = SketchModelBox((ISketch)(object)f.GetSpecificFeature2());
+                if (box.Length == 6 && FitReach.Warns(all, box)) far.Add(f.Name);
+            }
+            catch { /* a sketch that cannot be read is fitted all the same, unwarned */ }
+        }
         d.ClearSelection2(true);
         try
         {
@@ -239,5 +254,38 @@ public sealed class ViewService(SwSession session)
         }
         finally { d.ClearSelection2(true); }
         return true;
+    }
+
+    /// <summary>
+    /// A sketch's box in model space (m), as the fit takes it in: its points but the centres of arcs and ellipses (a shallow
+    /// arc's centre 180 mm out left the fit as without it, VERIFIED 2023 SP3), the arcs' ends and, in a 2D sketch, the points
+    /// of each arc's circle at its axis extremes that lie on the arc. A 3D sketch's arcs and an ellipse's or spline's bulge
+    /// give their points only, so the box may fall short of them, never past.
+    /// </summary>
+    private static double[] SketchModelBox(ISketch sk)
+    {
+        bool is3D = sk.Is3D();
+        Xform? s2m = is3D ? null : SketchService.SketchToModel(sk);
+        static Vec3 P(ISketchPoint p) => new(p.X, p.Y, p.Z);
+        var segs = ComArgs.Objects<ISketchSegment>((object?)sk.GetSketchSegments()).ToList();
+        var centres = segs.Select(s => s switch { ISketchArc a => a.SkCenter(), ISketchEllipse e => e.SkCenter(), _ => null })
+            .OfType<ISketchPoint>().Select(P).ToList();
+        var pts = ComArgs.Objects<ISketchPoint>((object?)sk.GetSketchPoints2()).Select(P)
+            .Where(p => !centres.Any(c => (p - c).Length < 1e-9)).ToList();
+        foreach (var arc in segs.OfType<ISketchArc>())
+        {
+            if (arc.SkCenter() is not { } c || arc.SkStart() is not { } a || arc.SkEnd() is not { } b) continue;
+            pts.Add(P(a));
+            pts.Add(P(b));
+            if (is3D) continue;
+            double r = arc.GetRadius();
+            bool circle = arc.IsCircle() != 0;
+            bool ccw = circle || AdvancedFeatureLogic.ArcCcw(new Vec3(c.X, c.Y, 0), r, new Vec3(a.X, a.Y, 0), new Vec3(b.X, b.Y, 0),
+                ((ISketchSegment)arc).GetLength(), arc.GetRotationDir());
+            pts.AddRange(FitReach.ArcExtremes(c.X, c.Y, r, a.X, a.Y, b.X, b.Y, ccw, circle).Select(q => new Vec3(q.X, q.Y, 0)));
+        }
+        foreach (var line in segs.OfType<ISketchLine>())
+            if (line.SkStart() is { } a && line.SkEnd() is { } b) { pts.Add(P(a)); pts.Add(P(b)); }
+        return FitReach.Box(pts.Select(p => s2m is null ? p : s2m.ApplyPoint(p)).Select(p => (p.X, p.Y, p.Z)));
     }
 }

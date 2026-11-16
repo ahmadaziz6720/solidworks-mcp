@@ -849,7 +849,8 @@ type libraries and writes `sldworks_api.txt`, `swconst_enums.txt`, `swcommands.t
   not reference planes or axes (an axis of two planes 300 mm out, shown, left the fit as it was). Blanking or toggling
   does not change the box. To fit what is shown: select the faces that reach each body's box extremes (`IEntity.Select4`)
   and the shown sketches and points (`IFeature.Select2`), `ViewZoomToSelection()`, clear the selection; the margin is
-  `ViewZoomtofit2`'s. A body selected (`IBody2.Select2`) zooms to more than the body. `ViewZoomTo2` does not take a model
+  `ViewZoomtofit2`'s. A sketch selected is fitted to its curves and points, not an arc's centre (a shallow arc's centre
+  180 mm out left the fit as without it). A body selected (`IBody2.Select2`) zooms to more than the body. `ViewZoomTo2` does not take a model
   box (a 40 mm block's box overflowed the window).
 - **Background** is a *system* preference (305 appearance, 99 colour): avoid it or restore it. The user had 305 = 3 and
   99 = 13813955.

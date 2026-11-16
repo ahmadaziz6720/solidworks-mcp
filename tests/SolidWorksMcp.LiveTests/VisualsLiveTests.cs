@@ -94,6 +94,41 @@ public class VisualsLiveTests(LiveFixture fx) : LiveTest(fx)
             $"with hideSketches the block's share {sketchHidden:0.0000}, without the axis {alone:0.0000}");
         Assert.True(await TestHooks.DocToggleAsync(S, doc, AxesToggle));    }
 
+    /// <summary>
+    /// S88: a shown sketch past the bodies (the 3D sketch of an axis through points 300 mm out) is in the fit by design
+    /// (S65 (d)), which leaves the part small; the result says so, naming the sketch and <c>hideSketches</c>. Not when the
+    /// sketches are hidden, nor for the block alone, nor for a shown arc 3 mm past it whose circle reaches far past.
+    /// </summary>
+    [Fact]
+    public async Task A_fit_that_takes_in_a_shown_sketch_past_the_bodies_warns()
+    {
+        string doc = await NewPartAsync("vis_fitwarn");
+        var sk = new SketchService(S);
+        await sk.StartAsync(doc, new EntityRef { Name = "top" }, false);
+        await sk.AddAsync(doc, [new SketchEntity { Kind = "rectangle", Center = [0, 0], WidthMm = 40, HeightMm = 40 }]);
+        await new FeatureService(S).ExtrudeAsync(new ExtrudeRequest { Doc = doc, DepthMm = 40 });
+        var alone = await V.ScreenshotAsync(doc, "iso", true, "shaded_edges", true, false, 512, null, false);
+        Assert.DoesNotContain(alone.Warnings ?? [], w => w.Contains("hideSketches"));
+
+        // A shown sketch 3 mm past the block, a shallow arc whose circle (r ≈ 200 mm) reaches far past it: no warning.
+        await sk.StartAsync(doc, new EntityRef { Name = "top" }, false);
+        await sk.AddAsync(doc, [new SketchEntity { Kind = "arc", Start = [-20, 22], Mid = [0, 23], End = [20, 22] }]);
+        await sk.FinishAsync(doc);
+        var near = await V.ScreenshotAsync(doc, "iso", true, "shaded_edges", true, false, 512, null, false);
+        Assert.False((near.Warnings ?? []).Any(w => w.Contains("hideSketches")), $"a warning for a sketch 3 mm past: [{string.Join(" | ", near.Warnings ?? [])}]");
+
+        await new ReferenceService(S).AxisAsync(doc, "two_points", null, [[0, -20, 300], [0, 20, 300]], null);
+        var shown = await V.ScreenshotAsync(doc, "iso", true, "shaded_edges", true, false, 512, null, false);
+        string? warning = (shown.Warnings ?? []).FirstOrDefault(w => w.Contains("hideSketches"));
+        Assert.True(warning is not null, $"no warning of the fit taking in the axis's sketch: [{string.Join(" | ", shown.Warnings ?? [])}]");
+        Assert.Contains("3DSketch", warning);
+        Assert.DoesNotContain("Sketch2", warning);
+        var hidden = await V.ScreenshotAsync(doc, "iso", true, "shaded_edges", true, true, 512, null, false);
+        Assert.DoesNotContain(hidden.Warnings ?? [], w => w.Contains("hideSketches"));
+        var unfitted = await V.ScreenshotAsync(doc, "iso", false, "shaded_edges", true, false, 512, null, false);
+        Assert.DoesNotContain(unfitted.Warnings ?? [], w => w.Contains("hideSketches"));
+    }
+
     /// <summary>The share of pixels that differ from <paramref name="blank"/>'s (same size) by more than a faint shade.</summary>
     private static double Share(byte[] blank, byte[] png)
     {

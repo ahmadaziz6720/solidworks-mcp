@@ -229,3 +229,37 @@ public class CircularPatternSenseTests
                      "from the seed; the axis as read points the other way from [-0.6, 0.8, 0]: about [-0.6, 0.8, 0], clockwise, at -12.5°, -25°, …, -87.5°", s);
     }
 }
+
+/// <summary>view_screenshot's warning of a shown sketch far past the bodies in the fit (S88).</summary>
+public class FitReachTests
+{
+    private static readonly double[] Block = [-0.02, 0, -0.02, 0.02, 0.04, 0.02]; // 40 mm
+
+    [Fact]
+    public void A_sketch_far_past_the_bodies_warns_one_near_them_does_not()
+    {
+        Assert.True(SolidWorksMcp.Core.Services.FitReach.Warns(Block, [0, -0.02, 0.3, 0, 0.02, 0.3])); // an axis's points at z 300
+        Assert.Equal(0.28, SolidWorksMcp.Core.Services.FitReach.Past(Block, [0, -0.02, 0.3, 0, 0.02, 0.3]), 12);
+        Assert.False(SolidWorksMcp.Core.Services.FitReach.Warns(Block, [-0.02, 0, -0.02, 0.02, 0.02, 0.02])); // inside
+        Assert.False(SolidWorksMcp.Core.Services.FitReach.Warns(Block, [-0.023, 0, -0.02, 0.02, 0.02, 0.02])); // 3 mm past
+        Assert.True(SolidWorksMcp.Core.Services.FitReach.Warns(Block, [-0.025, 0, -0.02, 0.02, 0.02, 0.02])); // 5 mm past
+        Assert.Empty(SolidWorksMcp.Core.Services.FitReach.Box([]));
+        Assert.Equal([-1, 0, 2, 3, 5, 2], SolidWorksMcp.Core.Services.FitReach.Box([(3, 0, 2), (-1, 5, 2)]));
+    }
+
+    [Fact]
+    public void An_arc_adds_the_extremes_on_its_sweep_only()
+    {
+        // A quarter from (1, 0) to (0, 1) about the origin: counter-clockwise it holds 0° and 90°; clockwise the other three quarters.
+        var ccw = SolidWorksMcp.Core.Services.FitReach.ArcExtremes(0, 0, 1, 1, 0, 0, 1, true, false).ToList();
+        Assert.Equal(2, ccw.Count);
+        Assert.DoesNotContain(ccw, p => p.X < -0.5 || p.Y < -0.5);
+        var cw = SolidWorksMcp.Core.Services.FitReach.ArcExtremes(0, 0, 1, 1, 0, 0, 1, false, false).ToList();
+        Assert.Equal(4, cw.Count);
+        Assert.Contains(cw, p => Math.Abs(p.X + 1) < 1e-12);
+        Assert.Contains(cw, p => Math.Abs(p.Y + 1) < 1e-12);
+        // An arc between the extremes holds none of them; a circle all four.
+        Assert.Empty(SolidWorksMcp.Core.Services.FitReach.ArcExtremes(0, 0, 1, Math.Cos(0.2), Math.Sin(0.2), Math.Cos(0.4), Math.Sin(0.4), true, false));
+        Assert.Equal(4, SolidWorksMcp.Core.Services.FitReach.ArcExtremes(5, 5, 2, 7, 5, 7, 5, true, true).Count());
+    }
+}
