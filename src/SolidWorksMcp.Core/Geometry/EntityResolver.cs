@@ -207,6 +207,7 @@ internal static class EntityResolver
         // Only faces, edges, vertices and sketch points can be found by point: infer the type from what the parameter allows.
         var byPoint = allowed.Where(a => a is EntityKind.Face or EntityKind.Edge or EntityKind.Vertex or EntityKind.SketchPoint).ToArray();
         var kind = ParseKind(r.Type)
+                   ?? (InSketch(r) && r.At is { Length: 2 } ? EntityKind.SketchPoint : (EntityKind?)null)
                    ?? (byPoint.Length == 1 ? byPoint[0] : (EntityKind?)null)
                    ?? throw SwException.InvalidArgument($"'{argName}': 'at' needs a 'type' (face, edge or vertex) here.");
         if (kind == EntityKind.SketchPoint) return SketchPointAt(ctx, doc, r, argName);
@@ -371,7 +372,9 @@ internal static class EntityResolver
     private static Resolved ByName(SwContext ctx, IModelDoc2 doc, EntityRef r, string argName, EntityKind[] allowed)
     {
         string name = r.Name!.Trim();
-        var kind = ParseKind(r.Type) ?? (allowed.Length == 1 ? allowed[0] : null);
+        var kind = ParseKind(r.Type)
+                   ?? (InSketch(r) && !name.Equals("origin", StringComparison.OrdinalIgnoreCase) ? EntityKind.SketchSegment : (EntityKind?)null)
+                   ?? (allowed.Length == 1 ? allowed[0] : null);
 
         if (r.Component is not null && doc.GetType() == (int)swDocumentTypes_e.swDocASSEMBLY && kind != EntityKind.Component)
             return InComponent(ctx, doc, r, name, kind);
@@ -398,6 +401,13 @@ internal static class EntityResolver
             throw new SwException(ErrorCodes.InvalidArgument, $"'{name}' is a {KindName(fk)} ({feat.GetTypeName2()}), not a {KindName(kind.Value)}.");
         return new Resolved { Obj = feat, Kind = kind == EntityKind.Feature ? EntityKind.Feature : fk, Label = $"{KindName(fk)} '{feat.Name}'" };
     }
+
+    /// <summary>
+    /// S59 (c): 'sketch' names the owning sketch, so with no 'type' the reference is in it: a name is a segment ("origin"
+    /// stays the origin), an [x, y] point a sketch point. Sketch points have no names here, so a name matches nothing else.
+    /// </summary>
+    private static bool InSketch(EntityRef r) =>
+        !string.IsNullOrWhiteSpace(r.Sketch) && string.IsNullOrWhiteSpace(r.Type) && r.Component is null;
 
     public static EntityKind FeatureKind(IFeature f) => f.GetTypeName2() switch
     {

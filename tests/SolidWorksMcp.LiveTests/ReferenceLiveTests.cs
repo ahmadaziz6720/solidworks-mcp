@@ -241,6 +241,40 @@ public class ReferenceLiveTests(LiveFixture fx) : LiveTest(fx)
     }
 
     [Fact]
+    public async Task A_reference_with_its_sketch_and_no_type_is_in_that_sketch()
+    {
+        // S59 (c): {name, sketch} is a segment of that sketch and {at:[x,y], sketch} one of its points, with no 'type'.
+        string doc = await BlockAsync("ref_in_sketch_untyped");
+        var sk = new SketchService(S);
+        await sk.StartAsync(doc, new EntityRef { Name = "front" }, false);
+        await sk.AddAsync(doc, [new SketchEntity { Kind = "line", From = [-40, 20], To = [40, 20] }]);
+        await sk.FinishAsync(doc);
+        var r = await Ref.PlaneAsync(new RefPlaneRequest
+        {
+            Doc = doc, Kind = "angle", Base = Face(0, 20, 10), AngleDeg = 30,
+            Axis = new EntityRef { Name = "Line1", Sketch = "Sketch2" },
+        });
+        Assert.Equal(Math.Cos(Math.PI / 6), Math.Abs(r.Frame.Normal![1]), U);
+        Assert.Equal(0, PlaneDistance(r.Frame, [-40, 20, 0]), L);
+        Assert.Equal(0, PlaneDistance(r.Frame, [40, 20, 0]), L);
+        Assert.Contains(r.Verified.Checks!, c => c.Contains("sketch segment Line1"));
+
+        var a = await Ref.AxisAsync(doc, "two_points",
+            [new EntityRef { At = [-40, 20], Sketch = "Sketch2" }, new EntityRef { At = [40, 20], Sketch = "Sketch2" }], null, null);
+        Along([1, 0, 0], a.Frame.Direction);
+        Assert.Equal(0, LineDistance(a.Frame, [0, 20, 0]), L);
+
+        int n = await FeatureCount(doc);
+        var ex = await Fails(ErrorCodes.EntityNotFound, () => Ref.PlaneAsync(new RefPlaneRequest
+        {
+            Doc = doc, Kind = "angle", Base = Face(0, 20, 10), AngleDeg = 30,
+            Axis = new EntityRef { Name = "Line9", Sketch = "Sketch2" },
+        }));
+        Assert.Contains("sketch segment named 'Line9' in Sketch2", ex.Message);
+        Assert.Equal(n, await FeatureCount(doc));
+    }
+
+    [Fact]
     public async Task Edit_flips_a_plane_to_the_other_side_and_rebuilds_its_children()
     {
         string doc = await BlockAsync("plane_flip");
