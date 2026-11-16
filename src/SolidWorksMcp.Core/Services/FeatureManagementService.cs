@@ -1059,7 +1059,8 @@ public sealed partial class FeatureManagementService(SwSession session)
 
     /// <summary>
     /// S49: a component's dimension set through an assembly changes the component's own document (a part, a subassembly),
-    /// which the assembly's result does not otherwise name; each one the call changed and left unsaved is named.
+    /// which the assembly's result does not otherwise name; each one the call changed and left unsaved is named, always with
+    /// its handle and access: a document the server had not listed yet (a part only the assembly loaded) is registered here.
     /// </summary>
     private static void WarnChangedOthers(SwContext ctx, List<(IModelDoc2 Doc, int Stamp)> before)
     {
@@ -1067,10 +1068,13 @@ public sealed partial class FeatureManagementService(SwSession session)
         {
             try
             {
-                if (o.GetUpdateStamp() == stamp || !o.GetSaveFlag()) continue;
-                var e = ctx.Documents.Find(o);
-                string who = e is null ? "" : $" ({e.Handle}, {e.Class.ToString().ToLowerInvariant()})";
-                ctx.Warn($"Also changed, not saved: '{ctx.Title(o)}'{who}, a component's own document.");
+                int now = o.GetUpdateStamp();
+                if (now == stamp || !o.GetSaveFlag()) continue;
+                bool listed = ctx.Documents.Find(o) is not null;
+                var e = ctx.Documents.Track(o);
+                // Registered by this call: its change is the server's (S57), so a later change by the user still warns.
+                if (!listed) e.StampSeen = now;
+                ctx.Warn($"Also changed, not saved: '{ctx.Title(o)}' ({e.Handle}, {e.Class.ToString().ToLowerInvariant()}), a component's own document.");
             }
             catch (Exception ex) when (!ComArgs.IsDisconnect(ex)) { /* a check, not the call's work */ }
         }

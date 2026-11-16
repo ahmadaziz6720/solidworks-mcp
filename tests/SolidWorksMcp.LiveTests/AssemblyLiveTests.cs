@@ -1757,6 +1757,33 @@ public class AssemblyLiveTests(LiveFixture fx) : LiveTest(fx)
     }
 
     [Fact]
+    public async Task Dimension_set_through_an_assembly_names_a_part_not_listed_yet_by_its_handle_and_access()
+    {
+        // S49: in a new assembly of parts the server had not listed (closed, then loaded by the assembly), the line naming the
+        // part changed read "'<part>.SLDPRT', a component's own document.", without a handle or access. The line now always
+        // reads "'<title>' (<handle>, <access>)", the part registered first, as doc_list then has them.
+        var cube = await CubeAsync("unlisted");
+        await Docs.CloseAsync(cube.Doc, save: false, discard: true);
+        string asm = await NewAssemblyAsync("unlisted_asm");
+        string comp = (await InsertAsync(asm, cube.Path, [0, 0, 0])).Component.Name;
+
+        var r = await new FeatureManagementService(S).DimensionSetAsync(asm,
+            [new DimensionValue { Name = $"D1@Boss-Extrude1@{comp}", Value = 30 }]);
+        var w = r.Warnings ?? [];
+        string line = w.FirstOrDefault(x => x.Contains(cube.Name, StringComparison.OrdinalIgnoreCase) && x.Contains("not saved"))
+            ?? throw new Xunit.Sdk.XunitException($"no line names {cube.Name}: {string.Join(" | ", w)}");
+        var m = System.Text.RegularExpressions.Regex.Match(line, @"'([^']+)' \((D\d+), (owned|adopted|foreign)\)");
+        Assert.True(m.Success, $"no handle and access: {line}");
+
+        // The handle and the access are the ones doc_list gives that part.
+        var listed = (await Docs.ListAsync()).Documents.FirstOrDefault(d => d.Handle == m.Groups[2].Value);
+        Assert.True(listed is not null, $"doc_list has no {m.Groups[2].Value}: {line}");
+        Assert.Equal(m.Groups[1].Value, listed!.Title);
+        Assert.Equal(m.Groups[3].Value, listed.Access);
+        Assert.True(listed.Dirty);
+    }
+
+    [Fact]
     public async Task A_part_the_server_owned_comes_back_owned_when_its_owned_assembly_loads_it()
     {
         // S62 (d): a part the server had saved and closed, loaded again by an assembly doc_open opened, read 'foreign' ("the

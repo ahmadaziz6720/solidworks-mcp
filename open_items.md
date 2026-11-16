@@ -17,7 +17,7 @@ Closed all the same, its PR named, and an open PR no longer holds an item in Wai
 item sent upstream ends with `**Upstream: PR #9, open.**`, one per PR or issue
 (`merged`, `closed unmerged`; an issue `open` or `closed`), kept to its state.
 
-**Open: S4, S5, S7, S10 to S12, S33, S34, S49, S52, S59 to S61, S64, S65, S67, S71, S72, S74, S76 to S79.**
+**Open: S4, S5, S7, S10 to S12, S33, S34, S52, S59 to S61, S64, S65, S67, S71, S72, S74, S76 to S79.**
 Sorted 2026-11-16, the scenario test of build `20261116-080311` (findings 2026-11-16):
 S68, S69, S70, S62 and S75 held and closed; S76, S77 and S78 new, taken into the run's
 group 3; S79 new, not in this run. Sorted 2026-11-16, the scenario test of build `20261116-050908` (findings 2026-11-16):
@@ -286,7 +286,7 @@ server change since build `20261114-024455`).
 - [x] Group 2: scenario test (session id: `98f558e8-fa78-4f15-bb54-1981e3df0738`), its
   entry committed and sorted: resumed once after the stop for low memory; S68, S69, S70,
   S62 (b), S75 held and closed, S76, S77, S78 and S79 new (findings 2026-11-16, `54ce718`)
-- [ ] S49: committed
+- [x] S49: committed
 - [ ] S74: committed
 - [ ] S67: committed
 - [ ] S76: committed
@@ -396,92 +396,6 @@ it, sketch relations and fragile references, in place of `model_info`, `feature_
 `dimension_list` and `equation_list`. (c) Session export as a replayable recipe (T3.15,
 not built), an idea for now. Upstream roadmap items; (a) first if built. Parked 2026-11-11
 by the owner: taken up when a job needs it.
-
-### S49 - `dimension_set` through an assembly does not say which component, nor the document it changed - OPEN 2026-11-12
-
-In the scenario test of build `20261112-091908` (findings
-2026-11-12, second entry, points 3, 4), a two-part assembly mated by hand. (a)
-`dimension_set` with a component's dimension (`D1@Boss-Extrude1@<component>-1`) made the
-change right, but the result named it `D1@Boss-Extrude1`, without the component, and
-carried no volume change, which the description promises and a part's result gives. With
-two components holding a `D1@Boss-Extrude1` the row would not say which changed. (b) The
-change went to a part `doc_list` lists as `foreign` (`loadedBy` the assembly), leaving it
-dirty; closing the assembly with `discard` closed and discarded it too ("SOLIDWORKS also
-closed"), the part's file not touched. Whether a referenced part counts as the assembly's
-for the server's rule on foreign documents is not said anywhere, and the result does not
-name the other document. Reported success, rightly. Bears on S27. Local: the component in
-the row, the assembly's volume change, and a line naming the part changed and not saved.
-Taken into the run of 2026-11-13 as proposed, no choice in it.
-Fixed in the run of 2026-11-13. Cause: `dimension_set` named each row by the dimension's
-own full name with the document's suffix cut (`FeatureVerifier.ShortName`), which for a
-component's dimension is the part's `D1@Boss-Extrude1`; so two components holding one were
-refused "listed twice", and the read-back after the rebuild looked the dimension up again by
-that short name in the assembly. The volume change was read for a part only, and nothing
-looked at the documents a change through the assembly reached. Fix: in an assembly each row
-keeps the name as given (`D1@Boss-Extrude1@<component>-1`), which also keys the "listed
-twice" check and the read-back; the volume change of an assembly is that of its mass
-properties (`CreateMassProperty2().Volume`) before and after; the update stamp of every
-other open document is read before the change, and each one whose stamp moved and that is
-now dirty is named in a warning, "Also changed, not saved: '<title>' (<handle>, <access>), a
-component's own document." Whether a referenced part counts as the assembly's for the
-server's rule on foreign documents is not decided here: the fix does not need it, the change
-goes through as before and is now named, with the part's access. Test before:
-`AssemblyLiveTests.Dimension_set_through_an_assembly_names_the_component_the_volume_and_the_part_it_changed`
-(two cubes in an assembly, both `D1@Boss-Extrude1@…` set in one call) failed on the code
-before, "'D1@Boss-Extrude1' is listed twice." After: it passes, with each row named as given,
-20 → 30 and 20 → 25, the volume change 6 000 mm³ and a line naming each part, and none
-naming the assembly; with it the live tests that call `dimension_set` through an assembly or
-on a part, `A_change_through_a_document_an_assembly_loads_does_not_read_as_the_users`,
-`A_part_the_server_owned_comes_back_owned_when_its_owned_assembly_loads_it`,
-`Compare_cannot_open_a_revision_…`, `Configurations_are_chosen_at_insert_…` of
-`AssemblyLiveTests`, `TopDownLiveTests.An_in_context_cover_…`, the three `Dimension_set_…` and
-`Rename_reads_back_and_renames_the_dimensions` of `FeatureManagementLiveTests`, M0's
-`Dirty_reads_unsaved_changes_made_through_another_process`, pass (11/11; in a first mixed run
-`A_part_the_server_owned_comes_back_owned_…` failed once, its message not kept, and passed in
-the three runs after, alone and in two batches); unit tests 284/284; `check_repo` ok; no
-description changed. Made stricter: none (a batch the old check refused, two components'
-dimensions of one name, now goes through).
-Local: on `sw2023`, `2a41e9e`; in build `20261114-024455`. Upstream: not yet
-decided.
-Release run 2026-11-14: `A_part_the_server_owned_comes_back_owned_…` failed every time, alone
-too, after its asserts held: "System preferences changed by this test: Integer230: 0 -> 1".
-Cause, by a probe reading preference 230 after each step: SOLIDWORKS itself writes it.
-`ActivateDoc3(title, false, swDontRebuildActiveDoc)` on a document with no window of its own
-(`Visible` false: the part the reopened assembly loaded, brought forward by `doc_open`'s
-already-open path) sets `RebuildOnActivation` 0 -> 1; on a visible document it stays 0. No
-scope held it there, so nothing restored it (`EnsureLoaded`'s scope was not on this path;
-the test does not depend on S49's code). The same call sits wherever the server brings a
-document forward: a write bound to such a part's handle (S62 d makes it owned) and
-`doc_activate` leak it too. Fix: `SwContext.ActivateDoc`, which holds the preference at that
-value in a `PreferenceScope` when the document is not visible (a visible one is activated as
-before), used at the nine places that bring a target forward (bind, `doc_open`,
-`doc_activate`, export, Pack and Go, view, simulation, recognition, the assembly's
-reactivation); the five that bring back the previously active document are left as they
-were. Noted in `docs/solidworks-api-notes.md` (*Activate*). New test
-`Activating_a_part_an_assembly_loaded_leaves_the_rebuild_preference_as_it_was` (a write bound
-to the loaded part's handle, then `doc_activate` of it) failed on the code before at its
-first step, "Expected: 0, Actual: 1". After, each batch on a freshly restarted SOLIDWORKS: the
-two tests alone 1/1 each; with them the live tests that bring a document forward through the
-changed code, 17: `AssemblyLiveTests` `A_change_through_a_document_…`, `Replace_swaps_…`,
-`Compare_cannot_open_…`, `Pack_and_go_copies_…`, `Configurations_are_chosen_at_insert_…`,
-`Insert_refuses_…`; `ExportLiveTests` `A_file_that_is_already_open_…`,
-`A_saved_part_reopens_…`, `Images_pdf_and_edrawings_are_written`; M0's
-`Dirty_reads_unsaved_changes_…` and `Screenshot_returns_a_png_…`; `VisualsLiveTests`'
-`A_section_cuts_the_image_…`; `FeatureManagementLiveTests`' `The_servers_own_failed_kept_…`;
-`SimulationLiveTests`' `Simulation_refuses_to_change_the_users_documents`;
-`RecognitionLiveTests`' `An_imported_step_block_…`; `SketchEditLiveTests`'
-`Edit_reopens_a_finished_sketch_…`; `ConfigurationLiveTests`'
-`A_material_set_in_one_configuration_…`: 19/19 pass. Unit tests 284/284; `check_repo` ok; no
-description changed. Local: on `sw2023`, `cfd987e`; in
-build `20261114-024455`.
-Held in its scenario test (findings 2026-11-14, points 4, 6): the component in the row and
-the volume, in a hand-mated assembly too. Left, wording (point 4): the line naming the
-part reads "Also changed, not saved: '<part>.SLDPRT', a component's own document.",
-without handle and access, in a new assembly whose parts the server had not listed yet,
-and "'<part>.SLDPRT' (D19, foreign), …" in an assembly opened from file. Back to Open
-2026-11-14 for that. Not yet decided.
-Taken into the run of 2026-11-16, group 3: the line names the part with its handle and
-access always, a part not yet listed registered first (`## Run 2026-11-16`).
 
 ### S52 - The boxes in results are loose, and say nothing of it - OPEN 2026-11-12
 
@@ -1185,3 +1099,120 @@ sheet's there), which S1 found false for sections and details; its live test onl
 the cut, so a circle landing elsewhere on the part would pass.
 
 **Upstream: PR #1, open.**
+
+### S49 - `dimension_set` through an assembly does not say which component, nor the document it changed - BUILT 2026-11-16, proof: the scenario test of group 3's build
+
+In the scenario test of build `20261112-091908` (findings
+2026-11-12, second entry, points 3, 4), a two-part assembly mated by hand. (a)
+`dimension_set` with a component's dimension (`D1@Boss-Extrude1@<component>-1`) made the
+change right, but the result named it `D1@Boss-Extrude1`, without the component, and
+carried no volume change, which the description promises and a part's result gives. With
+two components holding a `D1@Boss-Extrude1` the row would not say which changed. (b) The
+change went to a part `doc_list` lists as `foreign` (`loadedBy` the assembly), leaving it
+dirty; closing the assembly with `discard` closed and discarded it too ("SOLIDWORKS also
+closed"), the part's file not touched. Whether a referenced part counts as the assembly's
+for the server's rule on foreign documents is not said anywhere, and the result does not
+name the other document. Reported success, rightly. Bears on S27. Local: the component in
+the row, the assembly's volume change, and a line naming the part changed and not saved.
+Taken into the run of 2026-11-13 as proposed, no choice in it.
+Fixed in the run of 2026-11-13. Cause: `dimension_set` named each row by the dimension's
+own full name with the document's suffix cut (`FeatureVerifier.ShortName`), which for a
+component's dimension is the part's `D1@Boss-Extrude1`; so two components holding one were
+refused "listed twice", and the read-back after the rebuild looked the dimension up again by
+that short name in the assembly. The volume change was read for a part only, and nothing
+looked at the documents a change through the assembly reached. Fix: in an assembly each row
+keeps the name as given (`D1@Boss-Extrude1@<component>-1`), which also keys the "listed
+twice" check and the read-back; the volume change of an assembly is that of its mass
+properties (`CreateMassProperty2().Volume`) before and after; the update stamp of every
+other open document is read before the change, and each one whose stamp moved and that is
+now dirty is named in a warning, "Also changed, not saved: '<title>' (<handle>, <access>), a
+component's own document." Whether a referenced part counts as the assembly's for the
+server's rule on foreign documents is not decided here: the fix does not need it, the change
+goes through as before and is now named, with the part's access. Test before:
+`AssemblyLiveTests.Dimension_set_through_an_assembly_names_the_component_the_volume_and_the_part_it_changed`
+(two cubes in an assembly, both `D1@Boss-Extrude1@…` set in one call) failed on the code
+before, "'D1@Boss-Extrude1' is listed twice." After: it passes, with each row named as given,
+20 → 30 and 20 → 25, the volume change 6 000 mm³ and a line naming each part, and none
+naming the assembly; with it the live tests that call `dimension_set` through an assembly or
+on a part, `A_change_through_a_document_an_assembly_loads_does_not_read_as_the_users`,
+`A_part_the_server_owned_comes_back_owned_when_its_owned_assembly_loads_it`,
+`Compare_cannot_open_a_revision_…`, `Configurations_are_chosen_at_insert_…` of
+`AssemblyLiveTests`, `TopDownLiveTests.An_in_context_cover_…`, the three `Dimension_set_…` and
+`Rename_reads_back_and_renames_the_dimensions` of `FeatureManagementLiveTests`, M0's
+`Dirty_reads_unsaved_changes_made_through_another_process`, pass (11/11; in a first mixed run
+`A_part_the_server_owned_comes_back_owned_…` failed once, its message not kept, and passed in
+the three runs after, alone and in two batches); unit tests 284/284; `check_repo` ok; no
+description changed. Made stricter: none (a batch the old check refused, two components'
+dimensions of one name, now goes through).
+Local: on `sw2023`, `2a41e9e`; in build `20261114-024455`. Upstream: not yet
+decided.
+Release run 2026-11-14: `A_part_the_server_owned_comes_back_owned_…` failed every time, alone
+too, after its asserts held: "System preferences changed by this test: Integer230: 0 -> 1".
+Cause, by a probe reading preference 230 after each step: SOLIDWORKS itself writes it.
+`ActivateDoc3(title, false, swDontRebuildActiveDoc)` on a document with no window of its own
+(`Visible` false: the part the reopened assembly loaded, brought forward by `doc_open`'s
+already-open path) sets `RebuildOnActivation` 0 -> 1; on a visible document it stays 0. No
+scope held it there, so nothing restored it (`EnsureLoaded`'s scope was not on this path;
+the test does not depend on S49's code). The same call sits wherever the server brings a
+document forward: a write bound to such a part's handle (S62 d makes it owned) and
+`doc_activate` leak it too. Fix: `SwContext.ActivateDoc`, which holds the preference at that
+value in a `PreferenceScope` when the document is not visible (a visible one is activated as
+before), used at the nine places that bring a target forward (bind, `doc_open`,
+`doc_activate`, export, Pack and Go, view, simulation, recognition, the assembly's
+reactivation); the five that bring back the previously active document are left as they
+were. Noted in `docs/solidworks-api-notes.md` (*Activate*). New test
+`Activating_a_part_an_assembly_loaded_leaves_the_rebuild_preference_as_it_was` (a write bound
+to the loaded part's handle, then `doc_activate` of it) failed on the code before at its
+first step, "Expected: 0, Actual: 1". After, each batch on a freshly restarted SOLIDWORKS: the
+two tests alone 1/1 each; with them the live tests that bring a document forward through the
+changed code, 17: `AssemblyLiveTests` `A_change_through_a_document_…`, `Replace_swaps_…`,
+`Compare_cannot_open_…`, `Pack_and_go_copies_…`, `Configurations_are_chosen_at_insert_…`,
+`Insert_refuses_…`; `ExportLiveTests` `A_file_that_is_already_open_…`,
+`A_saved_part_reopens_…`, `Images_pdf_and_edrawings_are_written`; M0's
+`Dirty_reads_unsaved_changes_…` and `Screenshot_returns_a_png_…`; `VisualsLiveTests`'
+`A_section_cuts_the_image_…`; `FeatureManagementLiveTests`' `The_servers_own_failed_kept_…`;
+`SimulationLiveTests`' `Simulation_refuses_to_change_the_users_documents`;
+`RecognitionLiveTests`' `An_imported_step_block_…`; `SketchEditLiveTests`'
+`Edit_reopens_a_finished_sketch_…`; `ConfigurationLiveTests`'
+`A_material_set_in_one_configuration_…`: 19/19 pass. Unit tests 284/284; `check_repo` ok; no
+description changed. Local: on `sw2023`, `cfd987e`; in
+build `20261114-024455`.
+Held in its scenario test (findings 2026-11-14, points 4, 6): the component in the row and
+the volume, in a hand-mated assembly too. Left, wording (point 4): the line naming the
+part reads "Also changed, not saved: '<part>.SLDPRT', a component's own document.",
+without handle and access, in a new assembly whose parts the server had not listed yet,
+and "'<part>.SLDPRT' (D19, foreign), …" in an assembly opened from file. Back to Open
+2026-11-14 for that. Not yet decided.
+Taken into the run of 2026-11-16, group 3: the line names the part with its handle and
+access always, a part not yet listed registered first (`## Run 2026-11-16`).
+Fixed in the run of 2026-11-16, group 3. Cause: the line took the handle and access from
+the registry's entry for the part (`DocumentRegistry.Find`), and a part the server had not
+listed yet (one only the assembly loaded, its own document closed or never opened by the
+server) had none, so the line named its title alone. Fix: `WarnChangedOthers` registers
+such a part first (`DocumentRegistry.Track`, the call `doc_list` makes), so the line always
+reads "Also changed, not saved: '<title>' (<handle>, <access>), a component's own
+document.", with the handle and access `doc_list` then gives it; the access is the
+registry's own rule (S62 (d): a part from a file this server owned, loaded by its owned
+assembly, reads `owned`). A part registered by the call takes its update stamp after the
+change as seen (S57), so a later change by the user still warns. Test before:
+`AssemblyLiveTests.Dimension_set_through_an_assembly_names_a_part_not_listed_yet_by_its_handle_and_access`
+(a cube saved and closed, a new assembly inserting it, its `D1@Boss-Extrude1@<component>`
+set) failed on the code before, "no handle and access: Also changed, not saved:
+'unlisted_….SLDPRT', a component's own document." After (SOLIDWORKS restarted first: it ran
+but could not be reached over COM): it passes, 1/1, the line's handle, title and access
+those of `doc_list`'s row for the part, the part dirty; with it the live tests that call
+`dimension_set` through an assembly or on a part, `AssemblyLiveTests`
+`Dimension_set_through_an_assembly_names_the_component_…`,
+`A_change_through_a_document_an_assembly_loads_…`, `A_part_the_server_owned_comes_back_owned_…`,
+`Compare_cannot_open_a_revision_…`, `Configurations_are_chosen_at_insert_…`;
+`TopDownLiveTests.An_in_context_cover_…`; `FeatureManagementLiveTests`
+`Dimension_set_changes_…`, `Dimension_set_refuses_…`, `Dimension_set_restores_…`,
+`Rename_reads_back_and_renames_the_dimensions`; M0's `Dirty_reads_unsaved_changes_…`: 11/11
+pass. Unit tests 288/288; `check_repo` ok; no description changed. Made stricter: none (the
+call refuses nothing new; its line now always carries a handle and access).
+Decided 2026-11-16 by the run, not the owner: a part registered by the line takes its
+update stamp after the change as seen, because without a stamp on record the S57 check
+would stay silent on a later change by the user, and the change this call made is the
+server's.
+Local: on `sw2023`, in the commit that moves it here; not yet in a build. Upstream: not yet
+decided.
