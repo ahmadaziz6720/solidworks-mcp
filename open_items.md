@@ -17,8 +17,10 @@ Closed all the same, its PR named, and an open PR no longer holds an item in Wai
 item sent upstream ends with `**Upstream: PR #9, open.**`, one per PR or issue
 (`merged`, `closed unmerged`; an issue `open` or `closed`), kept to its state.
 
-**Open: S4, S5, S7, S10 to S12, S33, S34, S49, S52, S59 to S61, S64, S65, S67, S71, S72, S74.**
-Sorted 2026-11-16, the scenario test of build `20261116-050908` (findings 2026-11-16):
+**Open: S4, S5, S7, S10 to S12, S33, S34, S49, S52, S59 to S61, S64, S65, S67, S71, S72, S74, S76 to S79.**
+Sorted 2026-11-16, the scenario test of build `20261116-080311` (findings 2026-11-16):
+S68, S69, S70, S62 and S75 held and closed; S76, S77 and S78 new, taken into the run's
+group 3; S79 new, not in this run. Sorted 2026-11-16, the scenario test of build `20261116-050908` (findings 2026-11-16):
 S51 and S73 held and closed; S75 new, taken into the run's group 2. The scenario test of build `20261114-024455` (`cfd987e`) ran 2026-11-14 (findings
 2026-11-14). Held, and closed on the owner's word: S47, S48, S50, S53 to S58, S63, S66,
 and the fixed parts of S60 to S62, S64 and S65. Back to Open: S51 (`flipEdges` in a
@@ -29,7 +31,7 @@ and S65 are from twenty working sessions on build `20261112-091908` (findings 20
 and 13), S67 to S71 seen by the run of 2026-11-13 in its own tests. Reported `ok` while
 wrong or misleading: S51, S52, S60 (a), S72.
 S24's fix joined PR #9 (`2c2a98a`) and S20 (d) PR #10 (`d801b06`) on 2026-11-14, as S3
-and S20 say. Next: the owner's decisions on S49, S51, S52, S59 (c), S72, and on what the
+and S20 say. Next: the owner's decisions on S79, S49, S51, S52, S59 (c), S72, and on what the
 `findings.md` entry of 2026-11-13 added, sorted 2026-11-16: S73 and S74, new, S64 (h) and
 S65 (e). The run of 2026-11-13 is done, its section in
 `closed_items.md`. Not in it: S4, S5, S7 and S12 wait on upstream; S10, S11, S33 and S34 are parked until a job
@@ -189,6 +191,19 @@ server change since build `20261114-024455`).
     the single feature or the check's reading of the bar causes it, then the fix. Test: a
     part with one extrude, renamed, `feature_rollback {to, before:true}` (fails now:
     `VERIFY_FAILED` "unexpected state: 'Sketch1'"); not renamed too.
+  - **S76**, taken in 2026-11-16 from group 2's scenario test: `asm_component_set` warns
+    of the mates a change put in error, and a mate's `errorName` comes from its own enum.
+    Test: a flexible subassembly whose floating child a mate holds elsewhere, set rigid
+    (fails now: "flexible → rigid" with no warning, `swSketchErrorExtRefFail`).
+  - **S77**, taken in 2026-11-16 from group 2's scenario test: a probe of what
+    `IComponent2` reports for a child of a flexible subassembly; a reading found, the row
+    says the child can move. Test: that child's row (fails now: `fixed: true`,
+    `constrained: "fully"`). None found: Open with the probe recorded.
+  - **S78**, taken in 2026-11-16 from group 2's scenario test: (a) `moved` gives full names
+    and every component that moved, (b) `{component, type:"origin"}` with no name takes
+    the origin, (c) an origin reads as one in a mate's row. Test: a mate that moves a
+    nested cube and, through earlier mates, a top-level one of the same short name (fails
+    now: one short name), and an origin mate by type alone (fails now: `INVALID_ARGUMENT`).
 - **Group 4, references and sketches** (`ReferenceService.cs`, `EntityResolver.cs`,
   `SketchEditService.cs`, `SketchService.cs`, `ViewService.cs`):
   - **S59 (c)**, a reference with `sketch` given and no `type` resolves in that sketch, a
@@ -268,16 +283,15 @@ server change since build `20261114-024455`).
 - [x] S62 (b): committed (`64cb0b0`)
 - [x] S75: committed (`643fc77`)
 - [x] Group 2: full live tests and release (build: `20261116-080311`, `643fc77`)
-- [ ] Group 2: scenario test (session id: `98f558e8-fa78-4f15-bb54-1981e3df0738`), its entry committed and sorted
-  Blocked 2026-11-16: the headless session, started in the background on
-  ~970 MB free, was stopped by Claude Code for low memory after 14 calls
-  (its first test part made), before it wrote anything (no `findings.md`
-  entry). Not restarted unasked. To go on: memory freed, then the run again
-  from this step; it resumes this session id with `claude -p --resume <id>`
-  `"<go on>"` from `claude_solidworks`.
+- [x] Group 2: scenario test (session id: `98f558e8-fa78-4f15-bb54-1981e3df0738`), its
+  entry committed and sorted: resumed once after the stop for low memory; S68, S69, S70,
+  S62 (b), S75 held and closed, S76, S77, S78 and S79 new (findings 2026-11-16, `54ce718`)
 - [ ] S49: committed
 - [ ] S74: committed
 - [ ] S67: committed
+- [ ] S76: committed
+- [ ] S77: committed
+- [ ] S78: committed
 - [ ] Group 3: full live tests and release (build: )
 - [ ] Group 3: scenario test (session id: ), its entry committed and sorted
 - [ ] S59 (c): committed
@@ -319,6 +333,8 @@ solids where they were and the cylinder as 3 surface bodies (S52); `model_export
 assembly had reported `solids: 2`, two distinct parts of four components.
 Again in `20261116-050908` (findings 2026-11-16, point 5): the shelled tray's STEP, 16
 surface bodies.
+Met again 2026-11-16 (findings 2026-11-16, build `20261116-080311`, point 10): the
+shelled tray's STEP, 16 surface bodies, as before.
 
 **Upstream: issue #2, open.**
 
@@ -1077,6 +1093,80 @@ yet decided.
 Taken into the run of 2026-11-16, group 3: the refusal names the equation and its variable
 (`## Run 2026-11-16`).
 
+### S76 - `asm_component_set` `flexible:false` puts a mate in error, reported `ok` with no warning - OPEN 2026-11-16
+
+Sorted out of the entry of 2026-11-16, point 5. On build `20261116-080311`, with S62 (b):
+a subassembly set flexible, a mate on its floating child held the child where the
+subassembly's own file does not put it; `asm_component_set` `flexible:false` then returned
+"flexible → rigid" with no warning, the child went back to where the file puts it and the
+mate went into error (`asm_mate_list`: `inError: 1`, `error: 51`, `errorName:
+"swSketchErrorExtRefFail"`). Reported `ok`. The name is read from `swFeatureError_e`
+(`FeatureVerifier.ErrorName`), where 51 is a sketch's error: for a mate it may be the wrong
+enum. Bears on S62 (Closed).
+
+Proposed: a change of `asm_component_set` that rebuilds compares the mates in error before
+and after and names those it put in error in a warning (and a check line); a mate's
+`errorName` read from the enum its code belongs to, or the bare code. Local, the assembly
+files. Not decided.
+Decided 2026-11-16 by the run, not the owner: taken into the run of 2026-11-16, group 3,
+because it is small and in group 2's files, so the next group, as the run's "How it runs"
+says.
+
+### S77 - A child of a flexible subassembly reads `fixed: true`, `constrained: "fully"` - OPEN 2026-11-16
+
+Sorted out of the entry of 2026-11-16, point 6. On build `20261116-080311`, with S62 (b):
+a child of a flexible subassembly that floats in its own file, and that a mate had just
+moved, reads `fixed: true, constrained: "fully"` in `asm_component_list allLevels` and in
+the mate's `components`; the same while the subassembly was rigid. A caller cannot see
+from the rows that the child can move. Reported `ok`. Bears on S62 (Closed).
+
+Proposed: a probe first, what `IComponent2` reports for such a child (`IsFixed`,
+`GetConstrainedStatus`, read in the subassembly's context and in the top assembly's), then
+the row says the child can move when the subassembly is flexible. Local, the assembly
+files. Not decided.
+Decided 2026-11-16 by the run, not the owner: taken into the run of 2026-11-16, group 3, a
+probe first; if no reading tells it, the item records the probe and stays Open, because it
+is small and in group 2's files, so the next group, as the run's "How it runs" says.
+
+### S78 - Mate results and origin references: `moved` short and incomplete, an origin needs a name and reads as a point - OPEN 2026-11-16
+
+Sorted out of the entry of 2026-11-16, points 7 and 3. On build `20261116-080311`, each
+reported `ok`. (a) A mate moved a cube inside a subassembly and, through two earlier
+mates, a top-level cube of the same short name; the result gave `moved:
+["<cube>-2"]`, one short name, which is the top-level one's full name, and `components`
+listed the nested cube and the fixed one but not the top-level one that moved (point 7;
+bears on S70, Closed). The list is keyed by `Name2` before and after, which a top-level
+and a nested component of the same short name may share. (b) `{component,
+type:"origin"}` with no name was refused `INVALID_ARGUMENT: 'a' needs 'id', 'where', 'at'
+or 'name'.`, one call more, though the server's instructions list `origin` as a reference
+type and a component has one origin (point 3; bears on S68, Closed). (c) In a mate's row
+(the result and `asm_mate_list`) an origin reads `kind: "point"` with `pointMm` only, so
+it cannot be told from a sketch point (point 3).
+
+Proposed: (a) `moved` gives full names (`<sub>-1/<cube>-2`) and every component that
+moved, the components compared by their full path; (b) `type:"origin"` with no name takes
+the component's origin, or the assembly's with no component; (c) an origin reads as one
+in the row (its kind or its name). Local, the assembly files. Not decided.
+Decided 2026-11-16 by the run, not the owner: taken into the run of 2026-11-16, group 3,
+(a) to (c), because they are small and in group 2's files, so the next group, as the
+run's "How it runs" says.
+
+### S79 - `doc_undo` right after a chamfer split by `flipEdges` is refused "Nothing changed" - OPEN 2026-11-16
+
+Sorted out of the entry of 2026-11-16, point 9. On build `20261116-080311`: `doc_undo`
+right after a `distance_distance` chamfer with `flipEdges:[1]` that moved an edge to a
+chamfer of its own (S51, S75) failed `VERIFY_FAILED: Nothing changed: SOLIDWORKS had
+nothing to undo, or the last step can't be undone. Hint: Check the model with
+feature_list.`; both chamfers stayed. In the same part `doc_undo` of a cut made after it
+worked, and of a plain `equal` chamfer in another part. Not reported `ok`; not tried on
+the build before. Bears on S51 and S75 (Closed).
+
+Proposed: the hint, after a chamfer call that split off a chamfer, names `feature_delete`
+of both chamfers; or the chamfer call records the split so `doc_undo` removes both. Local.
+Not decided.
+Decided 2026-11-16 by the run, not the owner: not in the run of 2026-11-16, because it is
+not in group 2's files, is not reported `ok`, and is a hint only.
+
 ## Waiting
 
 ### S1 - `drw_view_section` / `drw_view_detail` drew in view-sketch coordinates - BUILT 2026-11-09, proof: a session that runs `drw_view_detail` and a view at an angle
@@ -1095,280 +1185,3 @@ sheet's there), which S1 found false for sections and details; its live test onl
 the cut, so a circle landing elsewhere on the part would pass.
 
 **Upstream: PR #1, open.**
-
-### S68 - `asm_mate_add` coincident with an origin fails - BUILT 2026-11-16, proof: the scenario test of build `20261116-080311`
-
-Seen in the run of 2026-11-13, in
-S62's tests: a coincident mate with the assembly's origin or a component's origin failed
-"SOLIDWORKS created no coincident mate … (unknown error (status 0))". Not probed: how the
-origin is selected for the mate. Bears on S62. Local. Decided 2026-11-13 by the run, not
-the owner: an item, open, as S67.
-Taken into the run of 2026-11-16, group 2, a probe of the origin's selection first (`##
-Run 2026-11-16`).
-
-Fixed in the run of 2026-11-16. Probe: the origin of a component selected by
-`SelectByID2("Point1@Origin@<component>@<assembly>", "EXTSKETCHPOINT", …)` and the
-assembly's by `"Point1@Origin"`, the same type, each gave selection type 25 and a mate
-that solved. Cause: the resolver gives an origin as its `OriginProfileFeature`, and the
-mate selected that feature itself (`Select2`), from which `AddMate5` makes no mate and
-reports status 0. Fix: `SelectForMate` selects an origin by its point, `Point1@<origin>`
-as `EXTSKETCHPOINT`, through the same names a component's plane takes (the
-`"…@<component>@<assembly>"` form, then `GetSelectByIDString`'s); an origin that cannot be
-selected so is refused naming the names tried. Test before:
-`Coincident_mates_take_the_assembly_s_origin_and_a_component_s_origin` (three 20 mm cubes
-floating at other places; a component's origin on the assembly's, a component's origin on
-another's corner, a corner on a component's origin) failed on the code before at its first
-mate: "asm_mate_add: SOLIDWORKS created no coincident mate between origin 'Origin' of
-orgA_…-1 and origin 'Origin' (it reported an unknown error (status 0))." After: it (the
-origins at (0, 0, 0), (10, 10, 10) and (20, 20, 20), three mates listed), with
-`Plane_mates_coincident_and_distance_reproduce_the_4000_mm3_overlap` and
-`Mate_list_names_the_plane_face_edge_or_vertex_each_mate_takes`, 3/3, on 2023 SP3; unit
-tests 287/287; `check_repo` ok. No tool description changed.
-Decided 2026-11-16 by the run, not the owner: an origin whose point cannot be selected is
-refused before the mate, not selected as the origin feature as before, because that
-selection makes no mate and the caller would get an unknown error (status 0) instead of
-what failed.
-
-Local: on `sw2023`, in the commit that moves it here; in build `20261116-080311` (`643fc77`). Upstream: not yet
-decided.
-
-### S69 - A component's named plane inside a subassembly cannot be selected - BUILT 2026-11-16, proof: the scenario test of build `20261116-080311`
-
-Seen in the
-run of 2026-11-13, in S62's tests: "Could not select 'b' (plane 'Top Plane' of
-sub-1/part-1)". Not probed: whether the select path for a nested component's plane is
-built right. Local. Decided 2026-11-13 by the run, not the owner: an item, open, as S67.
-Taken into the run of 2026-11-16, group 2 (`## Run 2026-11-16`).
-
-Fixed in the run of 2026-11-16. Probe: for a nested component `GetSelectByIDString`
-gives `sub-1@top/part-1@sub`, and `SelectByID2("Top Plane@sub-1@top/part-1@sub",
-"PLANE", …)` selects the plane (true, one object); the feature's own `Select2` does too.
-Cause: the first name tried, `"Top Plane@sub-1/part-1@top"` (the component's `Name2`),
-is no name, yet `SelectByID2` returns false *and* selects the plane. The plane stayed
-selected, so each later try (the `GetSelectByIDString` form, then `Select2`) added one
-more and the count check (one object more than before) failed every time. Fix:
-`SelectIds` leaves the `Name2` form out for a nested component (its `GetSelectByIDString`
-form alone); `SelectForMate` drops whatever a failed try left selected before the next,
-as `ref_plane`'s component select already did. The nested name noted in
-`docs/solidworks-api-notes.md`. Test before:
-`A_plane_of_a_component_inside_a_subassembly_takes_a_mate` (a 20 mm cube at y 15 in a
-subassembly placed at z 100, a second cube at (50, 40, 0); its top plane coincident with
-the nested cube's) failed on the code before: "Could not select 'b' (plane 'Top Plane'
-of nest_sub_…-1/nestA_…-1) for the mate." After: it (the second cube's origin at y 15,
-"planes coincide (0 mm apart)", the mate listing the nested component's `Top Plane`),
-with `Coincident_mates_take_the_assembly_s_origin_and_a_component_s_origin`,
-`Plane_mates_coincident_and_distance_reproduce_the_4000_mm3_overlap`,
-`Mate_list_names_the_plane_face_edge_or_vertex_each_mate_takes` and
-`Ref_plane_and_ref_axis_in_an_assembly_take_component_and_assembly_references`, 5/5, on
-2023 SP3; unit tests 287/287; `check_repo` ok. No tool description changed.
-Decided 2026-11-16 by the run, not the owner: a select try that returns false is undone
-before the next, for every component plane, axis, point and origin, not only for a
-nested component, because a false result that still selected leaves the selection
-unknown, and the next try's count would then read wrong.
-
-Local: on `sw2023`, in the commit that moves it here; in build `20261116-080311` (`643fc77`). Upstream: not yet
-decided.
-
-### S70 - A top-level component may resolve to a nested one of the same short name - BUILT 2026-11-16, proof: the scenario test of build `20261116-080311`
-
-Seen
-once in the run of 2026-11-13, in S62's tests: a top-level component whose name matched a
-nested component's short name seemed to resolve to the nested one. Not confirmed: a probe
-first (two components, one top-level and one in a subassembly, named alike). Local.
-Decided 2026-11-13 by the run, not the owner: an item, open, as S67, because a reference
-that reaches the wrong component would change the wrong part.
-Taken into the run of 2026-11-16, group 2, a probe first (`## Run 2026-11-16`).
-
-Fixed in the run of 2026-11-16. Probe: a cube saved in a subassembly, that subassembly
-inserted first into a new assembly, then the same cube at the top level; both are
-`<cube>-1`, the nested one `<sub>-1/<cube>-1`. `asm_component_move` with the top-level
-name was refused "'<sub>-1/<cube>-1' is inside subassembly '<sub>-1', which moves as
-one": reproduced. Cause: the resolver (`EntityResolver.Component`, which every
-`component` argument goes through) asked `IAssemblyDoc.GetComponentByName` first, and
-given `part-1` it returns a nested `sub-1/part-1` that comes before the top-level
-`part-1`; `asm_structure`'s and the configuration table's own lookups did the same. Fix:
-the resolver matches the full name (`Name2`) over every component first, then a nested
-component by its short name, then `GetComponentByName`; a short name that two or more
-nested components share, with no component of that full name, is refused
-`ENTITY_AMBIGUOUS` naming them. `asm_structure` and the configuration table take the full
-name first too (`EntityResolver.ComponentByName`). Noted in
-`docs/solidworks-api-notes.md`. Test before:
-`A_top_level_component_is_reached_by_its_name_when_a_nested_one_has_the_same_short_name`
-failed on the code before at its first call: "'twin_sub_…-1/twin_…-1' is inside
-subassembly 'twin_sub_…-1', which moves as one." After (with the refusal of a short name
-two subassemblies share, added with the fix): the top-level one moved by 10 mm in z and
-hidden while the nested one stays at (0, 15, 100) and visible, a mate on its top plane
-and one on a face picked in it each listing it and the nested one; with
-`A_plane_of_a_component_inside_a_subassembly_takes_a_mate`,
-`Component_set_floats_hides_suppresses_and_returns_the_previous_state`,
-`Mates_that_cant_hold_are_refused_rolled_back_and_nothing_moves`,
-`Exploded_view_moves_each_component_by_the_sum_of_its_steps`,
-`Linear_pattern_places_instances_at_the_spacing_along_one_and_two_directions`,
-`A_limit_angle_mate_reads_fully_constrained_as_SOLIDWORKS_marks_it_in_the_tree`,
-`AssemblyStructureLiveTests.Two_components_form_a_subassembly_and_dissolve_back_with_the_same_parts`
-and `ConfigurationLiveTests.An_assembly_table_picks_component_configurations_and_suppresses_components`,
-9/9, on 2023 SP3; unit tests 287/287; `check_repo` ok. No tool description changed.
-Made stricter: a short name that several nested components share, and no component has
-as its full name, is refused instead of taking the first.
-Decided 2026-11-16 by the run, not the owner: that short name is refused
-`ENTITY_AMBIGUOUS` naming the components, not resolved to the first, because the first
-is whichever SOLIDWORKS lists first and a call would change a part the caller did not
-mean.
-
-Local: on `sw2023`, in the commit that moves it here; in build `20261116-080311` (`643fc77`). Upstream: not yet
-decided.
-
-### S62 - Assembly reading and options - BUILT 2026-11-16, proof: the scenario test of build `20261116-080311`
-
-On build `20261112-091908`. (a) `asm_mate_list`
-gives each entity `{component, kind: "plane"}` with no name, face id or point, so which
-plane or face a mate takes cannot be told (findings 2026-11-12, "a two-part assembly",
-point 1; bears on S36). (b) No "solve as flexible" for a subassembly in
-`asm_component_set` (findings 2026-11-12, "two parts mated into a subassembly", point 1).
-(c) A subassembly component held by a limit angle mate reads `constrained: "fully"` and
-`model_review` names no floating component; whether SOLIDWORKS says the same is not
-settled (same entry, point 2). To probe live first. (d) `doc_open` of a part the server
-had owned, now loaded by an assembly the server opened, returned it `foreign`, "the user's
-document", and `equation_set` failed `NOT_OWNED`; `doc_activate {allowEdit:true}` got past
-it (findings 2026-11-12, "a part edited while an assembly the server opened held it";
-bears on S27 and S49 b). (e) `asm_interference` with `includeCoincident:true`: 9 or 10
-pairs of 0 mm³ with "SOLIDWORKS counted 2 interference(s) but listed 25" (or 26); the
-three numbers do not explain each other (findings 2026-11-13, "four small printed parts",
-point 3; "a revolved part remade", point 4). Taken into the run of 2026-11-13: (a) and
-(e), no choice in them; (c) a probe first, against SOLIDWORKS' own tree. (d) Decided
-2026-11-13 by the owner: a part loaded by an assembly the server owns, from a path the
-server owned, counts as owned. (b) offered 2026-11-13 and not chosen; stays open. (a), (d)
-and (e) fixed in the run of 2026-11-13, (c) probed and not a fault; (b) still open. (a) Cause:
-the row gave `IMateEntity2.ReferenceType` and the component only; `Reference` was never read.
-Fix: each entity gives `name` for a plane, axis or other feature (`Reference` is its
-`IFeature`, live: "Front Plane" of the component, or of the assembly with no component),
-`id` for a face, edge or vertex (registered as `face_list` registers it: the same id, live),
-and `pointMm` (SOLIDWORKS' `EntityParams`, assembly mm) for a vertex or point and for an
-entity with neither. (c) The probe, live on 2023 SP3: a subassembly held by concentric,
-coincident and a limit angle mate (30..50°) on its child reads `GetConstrainedStatus` fully
-constrained and its tree text loses "(-)"; a part held the same way reads the same. SOLIDWORKS
-counts a limit mate as fixing its freedom, so `constrained: "fully"` and `model_review` agree
-with it; nothing to fix. Kept as
-`AssemblyLiveTests.A_limit_angle_mate_reads_fully_constrained_as_SOLIDWORKS_marks_it_in_the_tree`
-(passes before and after; it reads the tree text through `TestHooks.ComponentTreeTextAsync`).
-(d) Cause: the registry forgets a document's class when it closes, and a reference an owned
-document loads was always tracked foreign. Fix: `DocumentRegistry` keeps the paths of
-documents it owned in this server process, closed ones included; a document first seen with
-such a path, with no window of its own and held as a component by an owned assembly, is owned,
-"loaded by D… from a file this server owned". (e) Cause: the result gave the rows and a bare
-warning; live, the first `GetInterferenceCount` on a fresh manager with coincidence on
-answered 1 (the overlap) while `GetInterferences` listed 3 (the overlap and two touching
-pairs). Fix: the result gives `listed` (what SOLIDWORKS listed, before the components
-filter), `overlapping` and, with `includeCoincident`, `touching` (0 mm³, faces in contact),
-and a check line saying so and how many of the listed involve the components named; the
-count is asked again after the list, and a warning, naming both calls, comes only when they
-still differ. Descriptions: `asm_mate_list` names the entities' plane name or id;
-`includeCoincident` says touching pairs read 0 mm³. Before, on the code before the fix:
-`Mate_list_names_the_plane_face_edge_or_vertex_each_mate_takes` failed ("Assert.All()
-Failure: 2 out of 2 items in the collection did not pass", no name);
-`Interference_with_coincident_faces_says_what_SOLIDWORKS_listed_overlapping_touching_and_kept`
-failed (no `listed`, `overlapping` or `touching`; warning "SOLIDWORKS counted 1
-interference(s) but listed 3."); `A_part_the_server_owned_comes_back_owned_when_its_owned_assembly_loads_it`
-failed ("foreign: 'owned_….SLDPRT' was already open in SOLIDWORKS (the user's document,
-D10) …"). After: those three and the (c) test pass, with `Plane_mates_coincident_and_distance_…`,
-`Interference_of_two_overlapping_cubes_…`, `Parallel_perpendicular_and_angle_mates_…`,
-`Replace_swaps_the_file_…`, `Mates_that_cant_hold_…`, `Concentric_mate_…`,
-`Component_set_floats_…`, `A_change_through_a_document_an_assembly_loads_…`,
-`Insert_refuses_unsaved_missing_and_foreign_files_…`,
-`DrawingLiveTests.Closing_a_drawing_names_what_solidworks_closed_with_it`,
-`ExportLiveTests.A_file_that_is_already_open_…` and `A_saved_part_reopens_as_owned_…`, 16/16
-live; unit tests 284/284; `ContractTests` 7/7; `--check-catalog` ok; `check_repo` ok. Made
-stricter: none; (d) widens ownership, and its test shows a part the user opened before the
-server's assembly loaded it stays foreign. The (d) test writes with `dimension_set`: in that
-SOLIDWORKS session `equation_set` refused every equation, on a new part too, until SOLIDWORKS
-was restarted (its own hint). Decided 2026-11-13 by the run, not the owner: (1) `pointMm` only
-for a vertex or point and for an entity with neither name nor id, because a name or id already
-says which and a point says where a point is; (2) the name is the feature's own ("Front Plane")
-beside `component`, not a select string, as `asm_mate_add` takes it; (3) (d) claims only a
-document with no window of its own, held by an owned assembly, when first seen, not one a
-drawing loads, because the decision names an assembly and a visible document may be the
-user's; (4) the owned paths live in the server process, not in the persisted registry, because
-the finding was within one session and a restarted server re-claims open documents already;
-(5) `count` stays the rows given (after the components filter) and `listed` is added, because
-callers read `count`; (6) a pair overlaps when its volume reads above 0 at 3 decimals, as its
-row shows it. Local: (a), (d) and (e) on `sw2023`, `af3598c`; in
-build `20261114-024455`. Upstream: not yet decided.
-Held in the scenario test of build `20261114-024455` (findings 2026-11-14, point 6): (a)
-plane names and face ids; (d) a part loaded by the server's assembly owned; (e) listed,
-overlapping and touching. Those parts closed 2026-11-14 on the owner's word; the item
-stays Open for (b).
-Decided 2026-11-16 by the owner: (b) taken into the run of 2026-11-16, group 2,
-`asm_component_set` `flexible` for a subassembly component (`## Run 2026-11-16`).
-
-(b) fixed in the run of 2026-11-16, the item's last open point. Cause: `asm_component_set`
-had no option for how a subassembly is solved, and `IComponent2.Solving` is read-only in
-the 2023 interop. Fix: `flexible` (true flexible, false rigid) for a subassembly component,
-set with the component selected through `IAssemblyDoc.CompConfigProperties4`, its
-suppression, visibility, configuration and BOM exclusion passed as they are, then read back
-with `Solving` (`VERIFY_FAILED` if it did not change, the earlier changes of the call
-reverted); refused `INVALID_ARGUMENT` for a part component before anything changes. Each
-subassembly's row (`asm_component_list`, the result and its `previous`) gives `flexible`,
-null for a part. Noted in `docs/solidworks-api-notes.md`. To stay within the tool list's
-byte budget, `asm_component_set`'s first sentence, which listed what its parameters say,
-is now "Change a component's state." (tools/list 253,579 bytes, 25 under the budget, 33
-before). Test before:
-`A_subassembly_is_solved_flexible_and_rigid_again_as_SOLIDWORKS_reads_it` (a subassembly
-of a fixed cube and a floating one, fixed in a top assembly beside a fixed third cube) did
-not compile on the code before: "error CS0117: 'AsmComponentSetRequest' does not contain a
-definition for 'Flexible'". After: it (`Solving` read 0, 1 after `flexible:true`, 0 after
-`flexible:false`, "rigid → flexible" and back, the second call "nothing"; the part refused;
-flexible again, the floating child's top plane mated to the third cube's moved its origin
-to (40, 30, 100) while the subassembly stayed at (0, 0, 100)), with
-`Component_set_floats_hides_suppresses_and_returns_the_previous_state`,
-`Configurations_are_chosen_at_insert_and_switched_by_component_set`,
-`Subassemblies_are_inserted_and_listed_with_their_children`,
-`A_plane_of_a_component_inside_a_subassembly_takes_a_mate` and
-`ContractTests.Tool_catalog_follows_the_conventions`, 6/6 live on 2023 SP3; unit tests
-287/287; `--check-catalog` ok; `check_repo` ok; `docs/tools.md` regenerated. Made
-stricter: none.
-Decided 2026-11-16 by the run, not the owner: (1) set through `CompConfigProperties4` with
-the component's other values passed as read, because `Solving` cannot be written in the
-2023 interop and that call takes it, and the read-back of `Solving` is the check; (2) a
-subassembly is told by its file (`.sldasm`), not by its children, because a lightweight or
-empty subassembly has none to count; (3) `flexible` read back in every subassembly's row,
-because the result has to show it and a caller can then see which are flexible; (4) the
-bytes paid by the description's first sentence, because the parameters already say each
-change it listed.
-
-Local: (b) on `sw2023`, in the commit that moves it here; in build `20261116-080311` (`643fc77`); proof: the
-scenario test of build `20261116-080311`. Upstream: not yet decided.
-
-### S75 - `feature_chamfer` lists in `newFaces` only the named chamfer's faces when an edge moves to a chamfer of its own - BUILT 2026-11-16, proof: the scenario test of build `20261116-080311`
-
-Sorted out of the entry of 2026-11-16, point 2. On build `20261116-050908`, with S51's fix:
-a new `distance_distance` chamfer with `flipEdges:[1]` on two edges meeting at a corner
-moved edge 1 to `Chamfer2` (said in a warning, `alsoCreated`), and the result gave
-`faceCountDelta` 2 but `newFaces` one face, the named chamfer's; the split-off chamfer's
-face took a `face_list {feature}`, one call more. Reported `ok`; the count was right.
-
-Proposed: `newFaces` lists the faces of every chamfer the call made, those of
-`alsoCreated` named apart. Local, the S51 code. Taken into the run of 2026-11-16, group 2
-(a small point in group 1's files).
-
-Fixed in the run of 2026-11-16. Cause: the result of a feature tool lists the faces of
-its main feature only (`FeatureVerifier.Result`), and the chamfer an edge moved to (S51)
-is a feature of its own, named in `alsoCreated`. Fix: a chamfer call, new or `edit`, lists
-in `newFaces` the faces of every chamfer in `alsoCreated` after the named chamfer's (up to
-twelve in all), `newFaceCount` counting them all; in the short list (no `faceDetail`) a
-face of another feature than the first face's gives its `feature` too, so the split-off
-chamfer's face is told apart. Test before:
-`Chamfer_flipEdges_flips_only_the_indexed_edge_of_two_meeting_at_a_corner`, with
-assertions added (each call's `newFaces` two faces, the named chamfer's then the
-`alsoCreated` one's, the short list naming the second's feature), failed on the code
-before at the new chamfer: "newFaces F25 (Chamfer1), newFaceCount 1, faceCountDelta 2,
-alsoCreated Chamfer2". After: it and the other chamfer tests (`Chamfer_*` in
-`PartFeatureLiveTests`), 8/8, on 2023 SP3; unit tests 288/288 (one new, the short face's
-`feature`); `check_repo` ok. No tool description changed.
-Decided 2026-11-16 by the run, not the owner: the short list names a face's feature only
-when it is not the first face's, not on every face, because the main chamfer is the
-result's `feature` already and the short list was cut to id and surface to save
-characters (S45); the change is in the serializer, so any feature result whose faces
-come from more than one feature gives it, which only a chamfer's does now.
-
-Local: on `sw2023`, in the commit that moves it here; in build `20261116-080311` (`643fc77`). Upstream: not yet
-decided.
