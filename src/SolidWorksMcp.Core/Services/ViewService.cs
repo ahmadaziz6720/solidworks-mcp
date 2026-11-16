@@ -22,7 +22,7 @@ public sealed class ScreenshotResult : ToolResult
 }
 
 /// <summary>
-/// Screenshots that leave no trace: the view orientation, zoom, display mode, plane/sketch visibility, selection and
+/// Screenshots that leave no trace: the view orientation, zoom, display mode, plane/axis/sketch visibility, selection and
 /// active document are restored after the capture.
 /// </summary>
 public sealed class ViewService(SwSession session)
@@ -51,16 +51,18 @@ public sealed class ViewService(SwSession session)
     };
 
     public Task<ScreenshotResult> ScreenshotAsync(string? doc, string view, bool zoomToFit, string displayMode, bool hidePlanes,
-        bool hideSketches, int maxEdgePx, string? file, bool overwrite, CancellationToken ct = default) =>
-        ScreenshotAsync(doc, view, zoomToFit, displayMode, hidePlanes, hideSketches, maxEdgePx, file, overwrite, null, 0, false, ct);
+        bool hideSketches, int maxEdgePx, string? file, bool overwrite, bool hideAxes = true, CancellationToken ct = default) =>
+        ScreenshotAsync(doc, view, zoomToFit, displayMode, hidePlanes, hideSketches, maxEdgePx, file, overwrite, null, 0, false, hideAxes, ct);
 
     /// <summary>
     /// With <paramref name="section"/>: a 3D section view (IModelViewManager.CreateSectionViewData, FirstPlane
     /// = the plane or planar face, FirstOffset, capped) for the image, removed again afterwards (RemoveSectionView).
+    /// <paramref name="hideAxes"/> hides the reference axes (swDisplayAxes) as <paramref name="hidePlanes"/> the planes (S65 (d));
+    /// zoom to fit takes in neither. In a part the fit is to what the image shows (<see cref="FitToWhatIsShown"/>).
     /// </summary>
     public Task<ScreenshotResult> ScreenshotAsync(string? doc, string view, bool zoomToFit, string displayMode, bool hidePlanes,
         bool hideSketches, int maxEdgePx, string? file, bool overwrite, EntityRef? section, double sectionOffsetMm, bool sectionReverse,
-        CancellationToken ct = default) =>
+        bool hideAxes = true, CancellationToken ct = default) =>
         session.RunAsync("view_screenshot", ctx =>
         {
             string v = (view ?? "iso").Trim().ToLowerInvariant();
@@ -104,6 +106,7 @@ public sealed class ViewService(SwSession session)
             int oldMode = mv.DisplayMode;
             bool planes = d.Extension.GetUserPreferenceToggle((int)swUserPreferenceToggle_e.swDisplayPlanes, 0);
             bool sketches = d.Extension.GetUserPreferenceToggle((int)swUserPreferenceToggle_e.swDisplaySketches, 0);
+            bool axes = d.Extension.GetUserPreferenceToggle((int)swUserPreferenceToggle_e.swDisplayAxes, 0);
             string tmp = Path.Combine(Path.GetTempPath(), $"swmcp_{Guid.NewGuid():N}.bmp");
             bool suspended = false;
             try
@@ -111,9 +114,10 @@ public sealed class ViewService(SwSession session)
                 try { sel.SuspendSelectionList(); suspended = true; } catch { /* nothing selected */ }
                 if (hidePlanes && planes) d.Extension.SetUserPreferenceToggle((int)swUserPreferenceToggle_e.swDisplayPlanes, 0, false);
                 if (hideSketches && sketches) d.Extension.SetUserPreferenceToggle((int)swUserPreferenceToggle_e.swDisplaySketches, 0, false);
+                if (hideAxes && axes) d.Extension.SetUserPreferenceToggle((int)swUserPreferenceToggle_e.swDisplayAxes, 0, false);
                 if (mode != "current") mv.DisplayMode = Modes[mode];
                 if (v != "current") d.ShowNamedView2("", Views[v]);
-                if (zoomToFit) d.ViewZoomtofit2();
+                if (zoomToFit && !FitToWhatIsShown(d, sketches && !hideSketches, planes && !hidePlanes)) d.ViewZoomtofit2();
                 if (cut is not null)
                 {
                     var vm = d.ModelViewManager;
@@ -153,6 +157,7 @@ public sealed class ViewService(SwSession session)
                     if (sectioned && !d.ModelViewManager.RemoveSectionView()) ctx.Warn("The section view could not be removed again.");
                     if (hidePlanes && planes) d.Extension.SetUserPreferenceToggle((int)swUserPreferenceToggle_e.swDisplayPlanes, 0, true);
                     if (hideSketches && sketches) d.Extension.SetUserPreferenceToggle((int)swUserPreferenceToggle_e.swDisplaySketches, 0, true);
+                    if (hideAxes && axes) d.Extension.SetUserPreferenceToggle((int)swUserPreferenceToggle_e.swDisplayAxes, 0, true);
                     if (mode != "current") mv.DisplayMode = oldMode;
                     if (v != "current" || zoomToFit)
                     {
@@ -171,4 +176,68 @@ public sealed class ViewService(SwSession session)
                 catch (Exception ex) { ctx.Warn($"Could not fully restore the view: {ex.Message}"); }
             }
         }, RunOptions.Read(doc), ct);
+
+    /// <summary>
+    /// Zoom to fit what the image shows (S65 (d)). <c>ViewZoomtofit2</c> fits the part's box (<c>GetPartBox</c>), which
+    /// takes in every sketch, shown or hidden (VERIFIED 2023 SP3: a sketch circle 300 mm out, or the 3D sketch holding an
+    /// axis's points, kept the block at under 2 % of the image with the sketches toggle off, with the axes toggle off and with
+    /// the axis blanked), and reference points; not reference planes or axes (an axis of two planes 300 mm out, shown, left
+    /// the fit as without it). So when the part's box reaches past its visible bodies, the view is fitted to a selection of
+    /// what is shown instead (<c>ViewZoomToSelection</c>, the selection cleared after): per body the faces that reach its
+    /// box's six extremes (a body selected zooms to more than itself, probed), the sketches shown when
+    /// <paramref name="sketchesShown"/>, the planes shown when <paramref name="planesShown"/>, and the reference points and
+    /// coordinate systems shown. False, leaving the fit to <c>ViewZoomtofit2</c>, for an assembly or drawing, a part with no
+    /// visible body, or one whose box is its bodies' box.
+    /// </summary>
+    private static bool FitToWhatIsShown(IModelDoc2 d, bool sketchesShown, bool planesShown)
+    {
+        if (d is not IPartDoc part) return false;
+        var bodies = ((object?)part.GetBodies2((int)swBodyType_e.swAllBodies, true) as object[] ?? []).OfType<IBody2>().ToList();
+        if (bodies.Count == 0) return false;
+        const double Tol = 1e-6; // m
+        var whole = ComArgs.Doubles((object?)part.GetPartBox(true));
+        var boxes = bodies.Select(b => ComArgs.Doubles((object?)b.GetBodyBox())).Where(x => x.Length == 6).ToList();
+        if (whole.Length != 6 || boxes.Count == 0) return false;
+        bool reachesPast = Enumerable.Range(0, 3).Any(i => whole[i] < boxes.Min(x => x[i]) - Tol || whole[i + 3] > boxes.Max(x => x[i + 3]) + Tol);
+        if (!reachesPast) return false;
+
+        var shown = new List<IFeature>();
+        void Look(IFeature f)
+        {
+            if (f.Visible != (int)swVisibilityState_e.swVisibilityStateShown) return;
+            string t = f.GetTypeName2();
+            if (t is "RefPoint" or "CoordSys" || sketchesShown && t is "ProfileFeature" or "3DProfileFeature" || planesShown && t == "RefPlane")
+                shown.Add(f);
+        }
+        for (var f = (object?)d.FirstFeature() as IFeature; f is not null; f = (object?)f.GetNextFeature() as IFeature)
+        {
+            Look(f);
+            for (var s = (object?)f.GetFirstSubFeature() as IFeature; s is not null; s = (object?)s.GetNextSubFeature() as IFeature)
+                Look(s);
+        }
+        var faces = new List<IFace2>();
+        foreach (var b in bodies)
+        {
+            var fs = ((object?)b.GetFaces() as object[] ?? []).OfType<IFace2>().Select(f => (Face: f, Box: f.Box())).Where(x => x.Box.Length == 6).ToList();
+            if (fs.Count == 0) continue;
+            var picked = new HashSet<int>();
+            for (int i = 0; i < 6; i++)
+            {
+                int k = i;
+                var ext = Enumerable.Range(0, fs.Count);
+                picked.Add(k < 3 ? ext.MinBy(j => fs[j].Box[k]) : ext.MaxBy(j => fs[j].Box[k]));
+            }
+            faces.AddRange(picked.Select(j => fs[j].Face));
+        }
+        if (faces.Count == 0) return false;
+        d.ClearSelection2(true);
+        try
+        {
+            foreach (var f in faces) ((IEntity)f).Select4(true, null);
+            foreach (var f in shown) f.Select2(true, 0);
+            d.ViewZoomToSelection();
+        }
+        finally { d.ClearSelection2(true); }
+        return true;
+    }
 }

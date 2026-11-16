@@ -53,6 +53,17 @@ internal static class TestHooks
             return (status, dim.SystemValue * 1000);
         }, asUser ? RunOptions.Read(doc) : RunOptions.Write(doc));
 
+    /// <summary>
+    /// A document toggle (swUserPreferenceToggle_e, e.g. 4 swDisplayAxes): read, and set first when <paramref name="set"/>
+    /// is given. Returns the value read after.
+    /// </summary>
+    public static Task<bool> DocToggleAsync(SwSession s, string doc, int toggle, bool? set = null) =>
+        s.RunAsync("test_doc_toggle", ctx =>
+        {
+            if (set is bool v) ctx.Doc.Extension.SetUserPreferenceToggle(toggle, 0, v);
+            return ctx.Doc.Extension.GetUserPreferenceToggle(toggle, 0);
+        }, RunOptions.Read(doc));
+
     /// <summary>The titles of all open documents.</summary>
     public static Task<List<string>> OpenTitlesAsync(SwSession s) =>
         s.RunAsync("test_titles", ctx => ctx.App.Documents().Select(ctx.Title).ToList());

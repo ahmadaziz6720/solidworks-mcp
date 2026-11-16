@@ -832,6 +832,14 @@ type libraries and writes `sldworks_api.txt`, `swconst_enums.txt`, `swcommands.t
   3 hidden lines grayed, 4 shaded, 5 shaded with edges. The old server was off by one.
 - **Hiding.** Document toggles `swDisplayPlanes = 5`, `swDisplaySketches = 196`, `swDisplayAxes = 4` and
   `swDisplayOrigins = 6` hide and show reference geometry, followed by `GraphicsRedraw2()`.
+- **Zoom to fit** (VERIFIED 2023 SP3). `ViewZoomtofit2()` fits the part's box (`IPartDoc.GetPartBox`), which takes in
+  every sketch whose feature is shown, even with `swDisplaySketches` off (a circle 300 mm out, the 3D sketch holding the
+  points of an axis through coordinates), and reference points; not a sketch hidden in the tree (absorbed by a feature),
+  not reference planes or axes (an axis of two planes 300 mm out, shown, left the fit as it was). Blanking or toggling
+  does not change the box. To fit what is shown: select the faces that reach each body's box extremes (`IEntity.Select4`)
+  and the shown sketches and points (`IFeature.Select2`), `ViewZoomToSelection()`, clear the selection; the margin is
+  `ViewZoomtofit2`'s. A body selected (`IBody2.Select2`) zooms to more than the body. `ViewZoomTo2` does not take a model
+  box (a 40 mm block's box overflowed the window).
 - **Background** is a *system* preference (305 appearance, 99 colour): avoid it or restore it. The user had 305 = 3 and
   99 = 13813955.
 - **Images.** `IModelDoc2.SaveBMP(path, w, h)` writes **BMP**. `SaveAs` to `.png` writes a real PNG of the window.

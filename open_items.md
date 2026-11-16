@@ -321,8 +321,8 @@ server change since build `20261114-024455`).
 - [x] S59 (c): committed (`d8dd2ee`)
 - [x] S65 (e): committed (`27408b8`)
 - [x] S65 (c): committed (`d339521`)
-- [x] S65 (b): committed
-- [ ] S65 (d): committed
+- [x] S65 (b): committed (`6826759`)
+- [x] S65 (d): committed
 - [ ] Group 4: full live tests and release (build: )
 - [ ] Group 4: scenario test (session id: ), its entry committed and sorted
 - [ ] S52: committed
@@ -1076,6 +1076,54 @@ the run, not the owner: no move tool or option in this run, because none exists 
 new one costs description bytes in a tool list at its budget, which is the owner's choice. Local:
 (b), the reading, on `sw2023`, in the commit that records it here; not yet in a build. Upstream:
 not yet decided.
+**Done in the run of 2026-11-16: (d).** **Left open: (b)'s move and (f).** (d) Cause: probed on 2023
+SP3, no reference axis is in the fit. `ViewZoomtofit2` fits the part's box (`GetPartBox`), which takes
+in every sketch whose feature is shown, even with the sketches toggle off (`hideSketches`), and
+reference points; not a sketch hidden in the tree (absorbed by a feature), not planes or axes: an axis
+of two planes 300 mm out, shown, left the fit as without it. An axis through coordinates (`ref_axis`
+`two_points` with `points`) keeps its points in a 3D sketch, shown; that sketch held a 40 mm block at
+0.5 % of the image with the axes toggle off, with the axis blanked, and with the sketches toggle off.
+So the session's 8 % was a sketch, shown or toggled off, not the axis, and hiding axes changes no fit.
+Fix (`ViewService.FitToWhatIsShown`): in a part whose box reaches past its visible bodies' box, the view
+is fitted to a selection of what the image shows, `ViewZoomToSelection`, the selection cleared after
+(the user's restored as before): per body the faces that reach its box's six extremes, the sketches
+shown unless `hideSketches` or the toggle hides them, the planes shown unless `hidePlanes`, and the
+reference points and coordinate systems shown; else `ViewZoomtofit2` as before. `view_screenshot`
+gains `hideAxes` (default true): the axes toggle off for the image and back after, as `hidePlanes`.
+Descriptions: the tool "… zoomed to fit, planes and axes hidden. The user's view, display, visibility,
+selection and window are restored after. Use it to check shape and orientation."; `hideSketches` "Hide
+sketches; in a part, also from the fit."; `zoomToFit`, `hidePlanes`, `maxSizePx`, `file` and `section`
+shortened to pay for it (tools/list 253,588 bytes, 16 under the budget, 7 before).
+`docs/solidworks-api-notes.md` (§13) gains the probe. Before, on the code before the fix (the fit
+switched back to `ViewZoomtofit2`),
+`VisualsLiveTests.Zoom_to_fit_takes_what_the_image_shows_and_axes_are_hidden` failed "with hideSketches
+the block's share 0,0053, without the axis 0,2524"; its first form, `hideAxes` alone on an axis through
+coordinates 300 mm out, failed "the block's share of the image with an axis 300 mm out: 0,0071, without
+it 0,2524", and read 0.0054 with the axes hidden. After: it passes (the block 25.24 % of a 512 × 236
+image alone; an axis through it hidden, drawn on 0.073 % of the image with `hideAxes:false`, the toggle
+on again after and left off where the document had it off; a hole whose absorbed sketch holds a
+centreline 150 mm out, 25.24 %; the axis through coordinates 300 mm out, its 3D sketch shown, 0.86 %,
+with `hideSketches` 25.18 %), with `A_section_cuts_the_image_and_is_removed_afterwards`,
+`M0LiveTests.Screenshot_returns_a_png_and_restores_display_settings`,
+`SimulationLiveTests.Plots_of_kept_studies_show_the_results_range_in_an_image` and
+`ContractTests.Tool_catalog_follows_the_conventions`, 5 of 5 live; unit tests 290 of 290;
+`--check-catalog` ok; `check_repo` ok. Made stricter: none (`hideSketches` now leaves sketches out of a
+part's fit as well as its image; where a part's box is its bodies' the fit is SOLIDWORKS' as before).
+Decided 2026-11-16 by the run, not the owner: the fit carries the fix, in a part to what the image
+shows, because the probe found toggled-off sketches in SOLIDWORKS' fit and no axis; a sketch shown stays
+in it, as it is in the image, so an axis through coordinates still needs `hideSketches:true`, which its
+text now says. Decided 2026-11-16 by the run, not the owner: `hideAxes` is added all the same, its text
+saying only that it hides them, because axes are drawn in the image as planes are and it is the option
+the owner chose; widening `hidePlanes` was not needed, the trims above paying for it. Decided 2026-11-16
+by the run, not the owner: assemblies and drawings keep `ViewZoomtofit2`, because a component's sketches
+in the fit were not probed and selecting its faces walks every body. Decided 2026-11-16 by the run, not
+the owner: the fit by selection only where the part's box reaches past its bodies' (by 1e-6 m), because
+elsewhere `ViewZoomtofit2` fits the same and the image stays as it was, and only the faces at each
+body's box extremes are selected, because their boxes make the body's and a part of thousands of faces
+would take a selection call each. Decided 2026-11-16 by the run, not the owner: the 3D sketch `ref_axis`
+keeps for points given as coordinates stays shown, because hiding it changes the reference tools,
+outside (d); for the next plan. Local: (d) on `sw2023`, in the commit that records it here; not yet in a
+build. Upstream: not yet decided.
 
 ### S71 - A frequency study with no fixtures fails in the solver - OPEN 2026-11-14
 
