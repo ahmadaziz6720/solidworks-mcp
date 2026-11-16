@@ -322,9 +322,17 @@ server change since build `20261114-024455`).
 - [x] S65 (e): committed (`27408b8`)
 - [x] S65 (c): committed (`d339521`)
 - [x] S65 (b): committed (`6826759`)
-- [x] S65 (d): committed
-- [ ] Group 4: full live tests and release (build: )
-- [ ] Group 4: scenario test (session id: ), its entry committed and sorted
+- [x] S65 (d): committed (`f91176e`)
+- [x] Group 4: full live tests and release (build: `20261116-205845`, `ba2ce83`)
+  Live: ReferenceLiveTests 47, SketchEditLiveTests 77, VisualsLiveTests 2, M0LiveTests 23,
+  ModellingLiveTests 9, PartFeatureLiveTests 49, all passed, no flake; unit 290. Run class by
+  class with SOLIDWORKS restarted between: the live tests took 43 min (7, 11, 1, 3, 2, 10 min
+  of test time), the whole release about 45 min, no "low on memory" dialog this time.
+  `docs/tools.md` regenerated and committed alone (`ba2ce83`). Cost this session (for
+  `learned.md` at the run's end), tokens / minutes: S59 (c) 127k/8, S65 (e) 171k/13,
+  S65 (c) 191k/15, S65 (b) 144k/7, S65 (d) 242k/26 (each the default model); group 4's
+  release 105k/45 (Sonnet).
+- [ ] Group 4: scenario test (session id: `5e28cb8b-9a48-46e6-addb-0c43e04ad1b8`), its entry committed and sorted
 - [ ] S52: committed
 - [ ] S61 (a): committed
 - [ ] S72: committed
@@ -983,7 +991,7 @@ owner: the merge is `sgMERGEPOINTS` on the two points, not SOLIDWORKS' inference
 the merge is one point with no relation, as the relation count and contour status read after
 (verified: 0 relations, 1 closed contour). 3D sketches take the same pass; there it was not
 probed, and a merge not made is warned. Local: (e) on `sw2023`, in the commit that records it
-here; not yet in a build. Upstream: not yet decided.
+here; in build `20261116-205845`. Upstream: not yet decided.
 **Done in the run of 2026-11-16: (c).** **Left open: (b), (d) and (f).** (c) Cause: `{at:[x,y]}`
 on a sketch point takes the nearest of the sketch's points (`EntityResolver.SketchPointAt`, the
 first of several at one place), and its label read "sketch point at [x, y]" whatever else sat
@@ -1036,7 +1044,7 @@ finding's call was a failure. Decided 2026-11-16 by the run, not the owner: `ske
 holds the point as before (through the first segment with an end or centre at its place), not by
 the point's own key, because in the probe that was the point the resolver took, and checking it
 costs a segment walk per point on every step (S55). Local: (c) on `sw2023`, in the commit that
-records it here; not yet in a build. Upstream: not yet decided.
+records it here; in build `20261116-205845`. Upstream: not yet decided.
 **Done in the run of 2026-11-16: (b), the reading; the move stays open.** **Left open: (b)'s
 move, (d) and (f).** (b) Cause: `sketch_info` lists a text as a segment (`SketchText1`, kind
 `text`, as `GetSketchSegments` returns it), but read only its string: every text read at [0, 0]
@@ -1074,7 +1082,7 @@ Decided 2026-11-16 by the run, not the owner: the angle is read as SOLIDWORKS st
 0° was read live, because no tool sets another (`sketch_add` takes none). Decided 2026-11-16 by
 the run, not the owner: no move tool or option in this run, because none exists to extend and a
 new one costs description bytes in a tool list at its budget, which is the owner's choice. Local:
-(b), the reading, on `sw2023`, in the commit that records it here; not yet in a build. Upstream:
+(b), the reading, on `sw2023`, in the commit that records it here; in build `20261116-205845`. Upstream:
 not yet decided.
 **Done in the run of 2026-11-16: (d).** **Left open: (b)'s move and (f).** (d) Cause: probed on 2023
 SP3, no reference axis is in the fit. `ViewZoomtofit2` fits the part's box (`GetPartBox`), which takes
@@ -1122,8 +1130,8 @@ elsewhere `ViewZoomtofit2` fits the same and the image stays as it was, and only
 body's box extremes are selected, because their boxes make the body's and a part of thousands of faces
 would take a selection call each. Decided 2026-11-16 by the run, not the owner: the 3D sketch `ref_axis`
 keeps for points given as coordinates stays shown, because hiding it changes the reference tools,
-outside (d); for the next plan. Local: (d) on `sw2023`, in the commit that records it here; not yet in a
-build. Upstream: not yet decided.
+outside (d); for the next plan. Local: (d) on `sw2023`, in the commit that records it here; in build `20261116-205845`.
+Upstream: not yet decided.
 
 ### S71 - A frequency study with no fixtures fails in the solver - OPEN 2026-11-14
 
@@ -1357,7 +1365,7 @@ the cut, so a circle landing elsewhere on the part would pass.
 
 **Upstream: PR #1, open.**
 
-### S59 - Reference geometry that cannot be made - BUILT 2026-11-16, proof: the scenario test of build <stamp>
+### S59 - Reference geometry that cannot be made - BUILT 2026-11-16, proof: the scenario test of build 20261116-205845
 
 On build `20261112-091908`. (a) No plane
 on a planar face: `ref_plane` `offset` 0 and `angle` 0 are refused (findings 2026-11-12,
@@ -1478,5 +1486,5 @@ it; (3) with `component` (an assembly) nothing is inferred, because a component'
 segment is not resolved by name today with the type either, a change of its own; (4) an
 `at` of three values with `sketch` is not taken as a sketch point, because a sketch point's
 `at` is [x, y] and dropping z would take a point the request did not name.
-Local: on `sw2023`, in the commit that moves it here; not yet in a build. Upstream: not yet
+Local: on `sw2023`, in the commit that moves it here; in build `20261116-205845`. Upstream: not yet
 decided.
