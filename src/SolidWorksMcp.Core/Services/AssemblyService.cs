@@ -126,6 +126,7 @@ public sealed class AsmComponentInfo
     public string? Path { get; init; }
     /// <summary>The referenced configuration.</summary>
     public string? Configuration { get; init; }
+    /// <summary>IComponent2.IsFixed; a child of flexible subassemblies as its node in the top assembly's tree marks it (S77).</summary>
     public bool Fixed { get; init; }
     /// <summary>resolved | lightweight | suppressed.</summary>
     public required string Suppression { get; init; }
@@ -136,7 +137,10 @@ public sealed class AsmComponentInfo
     public double[][]? Rotation { get; init; }
     /// <summary>The component's bounding box in assembly space.</summary>
     public BoxMm? Box { get; init; }
-    /// <summary>under | fully | over | no_solution | invalid | unknown | autosolve_off (IComponent2.GetConstrainedStatus).</summary>
+    /// <summary>
+    /// under | fully | over | no_solution | invalid | unknown | autosolve_off (IComponent2.GetConstrainedStatus); a child
+    /// of flexible subassemblies as its node in the top assembly's tree marks it (S77).
+    /// </summary>
     public string? Constrained { get; init; }
     /// <summary>The number of mates of this assembly that reference the component.</summary>
     public int? Mates { get; init; }
@@ -1468,23 +1472,52 @@ public sealed partial class AssemblyService(SwSession session)
         string path = CompPath(c);
         string? cfg = Safe<string?>(() => c.ReferencedConfiguration, null);
         int? cs = Safe<int?>(() => c.GetConstrainedStatus(), null);
+        var flex = Safe(() => FlexibleChildState(ctx, c), null);
         return new AsmComponentInfo
         {
             Name = name,
             Path = path.Length == 0 ? null : path,
             Configuration = string.IsNullOrEmpty(cfg) ? null : cfg,
-            Fixed = Safe(() => c.IsFixed(), false),
+            Fixed = flex?.Fixed ?? Safe(() => c.IsFixed(), false),
             Suppression = AsmParse.SuppressionName(supp),
             Visible = IsVisible(c),
             OriginMm = f is null ? null : Units.Mm(f.Origin),
             Rotation = f is null ? null : AsmMath.Rows(f.R),
             Box = BoxMm.FromMeters(box, approx),
-            Constrained = cs is int s ? AsmParse.ConstrainedName(s) : null,
+            Constrained = flex?.Constrained ?? (cs is int s ? AsmParse.ConstrainedName(s) : null),
             Mates = mates is null ? null : mates.TryGetValue(name, out int n) ? n : 0,
             Children = kids > 0 ? kids : null,
             Parent = parent,
             Flexible = IsSubassembly(c) ? IsFlexible(c) : null,
         };
+    }
+
+    /// <summary>
+    /// A child of flexible subassemblies, as the mark on its node in the top assembly's FeatureManager reads it (S77):
+    /// IComponent2.IsFixed and GetConstrainedStatus read every nested component fixed and fully defined, though a
+    /// flexible subassembly lets a child that floats in its own file move (VERIFIED 2026-11-16, 2023 SP3). Null for a
+    /// top-level component, under a rigid subassembly (it moves only with that) or when the node is not found.
+    /// </summary>
+    private static (bool Fixed, string Constrained)? FlexibleChildState(SwContext ctx, IComponent2 c)
+    {
+        var chain = new List<IComponent2> { c };
+        for (var p = ParentOf(c); p is not null; p = ParentOf(p))
+        {
+            if (!IsFlexible(p)) return null;
+            chain.Insert(0, p);
+        }
+        if (chain.Count < 2) return null;
+        var root = (object?)ctx.Doc.FeatureManager.GetFeatureTreeRootItem2((int)swFeatMgrPane_e.swFeatMgrPaneBottom) as ITreeControlItem;
+        ITreeControlItem? item = root?.GetFirstChild(), hit = null;
+        foreach (var link in chain)
+        {
+            for (hit = null; item is not null && hit is null; item = item.GetNext())
+                if (item.ObjectType == (int)swTreeControlItemType_e.swFeatureManagerItem_Component &&
+                    (object?)item.Object is IComponent2 k && Eq(k.Name2, link.Name2)) hit = item;
+            if (hit is null) return null;
+            item = hit.GetFirstChild();
+        }
+        return AsmMath.TreeMark(hit?.Text);
     }
 
     private static AsmComponentState State(IComponent2 c) => new()

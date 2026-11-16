@@ -17,7 +17,7 @@ Closed all the same, its PR named, and an open PR no longer holds an item in Wai
 item sent upstream ends with `**Upstream: PR #9, open.**`, one per PR or issue
 (`merged`, `closed unmerged`; an issue `open` or `closed`), kept to its state.
 
-**Open: S4, S5, S7, S10 to S12, S33, S34, S52, S59 to S61, S64, S65, S71, S72, S77 to S79.**
+**Open: S4, S5, S7, S10 to S12, S33, S34, S52, S59 to S61, S64, S65, S71, S72, S78, S79.**
 Sorted 2026-11-16, the scenario test of build `20261116-080311` (findings 2026-11-16):
 S68, S69, S70, S62 and S75 held and closed; S76, S77 and S78 new, taken into the run's
 group 3; S79 new, not in this run. Sorted 2026-11-16, the scenario test of build `20261116-050908` (findings 2026-11-16):
@@ -289,8 +289,8 @@ server change since build `20261114-024455`).
 - [x] S49: committed (`5c776ef`)
 - [x] S74: committed (`972bc54`)
 - [x] S67: committed (`1da8d57`)
-- [x] S76: committed
-- [ ] S77: committed
+- [x] S76: committed (`96dd93f`)
+- [x] S77: committed
 - [ ] S78: committed
 - [ ] Group 3: full live tests and release (build: )
 - [ ] Group 3: scenario test (session id: ), its entry committed and sorted
@@ -985,22 +985,6 @@ rolled back) when the density read differs from the database's by more than 1 % 
 body material of its own and no mass override, naming a restart at about 1 kg/m³. Taken
 into the run of 2026-11-16, group 5 (`## Run 2026-11-16`).
 
-### S77 - A child of a flexible subassembly reads `fixed: true`, `constrained: "fully"` - OPEN 2026-11-16
-
-Sorted out of the entry of 2026-11-16, point 6. On build `20261116-080311`, with S62 (b):
-a child of a flexible subassembly that floats in its own file, and that a mate had just
-moved, reads `fixed: true, constrained: "fully"` in `asm_component_list allLevels` and in
-the mate's `components`; the same while the subassembly was rigid. A caller cannot see
-from the rows that the child can move. Reported `ok`. Bears on S62 (Closed).
-
-Proposed: a probe first, what `IComponent2` reports for such a child (`IsFixed`,
-`GetConstrainedStatus`, read in the subassembly's context and in the top assembly's), then
-the row says the child can move when the subassembly is flexible. Local, the assembly
-files. Not decided.
-Decided 2026-11-16 by the run, not the owner: taken into the run of 2026-11-16, group 3, a
-probe first; if no reading tells it, the item records the probe and stays Open, because it
-is small and in group 2's files, so the next group, as the run's "How it runs" says.
-
 ### S78 - Mate results and origin references: `moved` short and incomplete, an origin needs a name and reads as a point - OPEN 2026-11-16
 
 Sorted out of the entry of 2026-11-16, points 7 and 3. On build `20261116-080311`, each
@@ -1324,5 +1308,69 @@ the bare code, because the probe found it in both cases tried, and other codes o
 the enum's mate names stay bare; the type is passed by every caller that names a feature's
 error (`feature_info`, `dimension_set`, `review`), not by `asm_mate_list` alone, because
 `dimension_set` showed the same wrong name for a mate.
+Local: on `sw2023`, in the commit that moves it here; not yet in a build. Upstream: not yet
+decided.
+
+### S77 - A child of a flexible subassembly reads `fixed: true`, `constrained: "fully"` - BUILT 2026-11-16, proof: the scenario test of group 3's build
+
+Sorted out of the entry of 2026-11-16, point 6. On build `20261116-080311`, with S62 (b):
+a child of a flexible subassembly that floats in its own file, and that a mate had just
+moved, reads `fixed: true, constrained: "fully"` in `asm_component_list allLevels` and in
+the mate's `components`; the same while the subassembly was rigid. A caller cannot see
+from the rows that the child can move. Reported `ok`. Bears on S62 (Closed).
+
+Proposed: a probe first, what `IComponent2` reports for such a child (`IsFixed`,
+`GetConstrainedStatus`, read in the subassembly's context and in the top assembly's), then
+the row says the child can move when the subassembly is flexible. Local, the assembly
+files. Not decided.
+Decided 2026-11-16 by the run, not the owner: taken into the run of 2026-11-16, group 3, a
+probe first; if no reading tells it, the item records the probe and stays Open, because it
+is small and in group 2's files, so the next group, as the run's "How it runs" says.
+Fixed in the run of 2026-11-16, group 3. Probe (a subassembly of a fixed cube A and a cube
+B floating in its file, in a top assembly with a fixed cube C; rigid, flexible, flexible
+with one top-level plane mate on B, with three): in the top assembly `IsFixed()` reads true
+and `GetConstrainedStatus` 3 for A and B in every case, from `GetComponents(false)` and
+from the subassembly's `GetChildren` alike; B in the subassembly's own document
+(`GetModelDoc2`) reads false and 2 (under) in every case, top-level mates not seen there;
+B's node in the top assembly's FeatureManager tree, under the subassembly's node, reads
+"(-)" rigid, flexible and with one mate, and no mark (fully defined) with three; A's reads
+"(f)". `Solving` of the subassembly reads 0 or 1 as set. Cause: the rows read `IsFixed` and
+`GetConstrainedStatus` of the nested component, which SOLIDWORKS answers for the
+subassembly's rigid body. Fix: a component under flexible subassemblies only (every parent
+up to the top flexible) reads `fixed` and `constrained` from the mark on its node in the
+top assembly's tree (`AssemblyService.FlexibleChildState`, the mark parsed by
+`AsmMath.TreeMark`: "(f)" fixed, "(-)" under, "(+)" over, "(?)" no solution, none fully),
+in every row built by `Info` (`asm_component_list`, a mate's `components`, `asm_insert`,
+`asm_component_set`, `asm_component_move`, the pattern tools); a node not found keeps the
+reading as before. Noted in `docs/solidworks-api-notes.md`.
+Test before: `AssemblyLiveTests.A_child_of_a_flexible_subassembly_reads_as_able_to_move`
+(the probe's assembly, flexible, B mated to C's top plane, then to its front and right
+planes) failed on the code before: "the mate's row for '<sub>-1/<B>-1' reads fixed: True,
+constrained: fully". After: it passes (B `fixed: false`, `under` after one mate in the
+mate's row and the list's, `fully` and not fixed after three, at C's origin; A `fixed:
+true`; B fixed while rigid), with the live tests that call the changed rows:
+`A_subassembly_is_solved_flexible_and_rigid_again_as_SOLIDWORKS_reads_it`,
+`Setting_a_subassembly_rigid_names_the_mates_it_puts_in_error`,
+`Subassemblies_are_inserted_and_listed_with_their_children`,
+`A_plane_of_a_component_inside_a_subassembly_takes_a_mate`,
+`A_top_level_component_is_reached_by_its_name_when_a_nested_one_has_the_same_short_name`,
+`A_limit_angle_mate_reads_fully_constrained_as_SOLIDWORKS_marks_it_in_the_tree`,
+`Component_set_floats_hides_suppresses_and_returns_the_previous_state`: 8/8 pass. Unit
+tests 289/289 (`A_tree_mark_reads_as_fixed_and_constrained` new); `check_repo` ok; no
+description changed. Made stricter: no test read a nested component's `fixed` or
+`constrained`; the new one asserts both for a floating and a fixed child, in the mate's row
+and the list's, under-defined and fully held, and the rigid case.
+Decided 2026-11-16 by the run, not the owner: the tree's mark, not the subassembly
+document's `IsFixed` and `GetConstrainedStatus`, because the document does not see the
+top-level mates (it read B under-defined while three mates held it) and the mark is what
+SOLIDWORKS shows in the top assembly.
+Decided 2026-11-16 by the run, not the owner: a child of a rigid subassembly keeps
+`fixed: true`, `constrained: "fully"`, because in the top assembly it moves only with its
+subassembly (the tree's "(-)" there is its own file's state); the parent's row says
+`flexible: false`.
+Decided 2026-11-16 by the run, not the owner: the rows only; `asm_mate_add`'s hint "both
+sides are fixed" on a failed mate and `review`'s count of floating components (a child of
+a flexible subassembly not counted) still read `IsFixed`, because they are not the rows
+the item names and each is a change of its own, to an item if a session meets it.
 Local: on `sw2023`, in the commit that moves it here; not yet in a build. Upstream: not yet
 decided.

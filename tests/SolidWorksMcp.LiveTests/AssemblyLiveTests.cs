@@ -1015,6 +1015,52 @@ public class AssemblyLiveTests(LiveFixture fx) : LiveTest(fx)
     }
 
     [Fact]
+    public async Task A_child_of_a_flexible_subassembly_reads_as_able_to_move()
+    {
+        // S77: a child floating in its subassembly's own file read fixed and fully constrained in every row, rigid or
+        // flexible, as IComponent2 reads it in the top assembly. Oracle: SOLIDWORKS' own mark on the child in the top
+        // assembly's FeatureManager tree ("(f)", "(-)", none when fully defined), as the probe of 2026-11-16 read it.
+        var a = await CubeAsync("flcA");
+        var b = await CubeAsync("flcB");
+        var c = await CubeAsync("flcC");
+        string sub = await NewAssemblyAsync("flc_sub");
+        await InsertAsync(sub, a.Path, [0, 0, 0]);
+        await InsertAsync(sub, b.Path, [40, 0, 0], fixedState: false);
+        var saved = await Docs.SaveAsync(sub, "as", Path.Combine(_dir, $"flc_sub_{_tag}.sldasm"), overwrite: false);
+
+        string top = await NewAssemblyAsync("flc_top");
+        string ns = (await InsertAsync(top, saved.SavedTo!, [0, 0, 100], fixedState: true)).Component.Name;
+        string nc = (await InsertAsync(top, c.Path, [40, 30, 100], fixedState: true)).Component.Name;
+        string nb = $"{ns}/{b.Name}-1", na = $"{ns}/{a.Name}-1";
+        async Task<AsmComponentInfo> Row(string name) =>
+            (await Asm.ComponentListAsync(top, allLevels: true, 100, 0)).Components.Single(x => x.Name == name);
+        static string Read(AsmComponentInfo r) => $"fixed: {r.Fixed}, constrained: {r.Constrained}";
+
+        // Rigid, B moves only with its subassembly: fixed in the top, as before.
+        Assert.True((await Row(nb)).Fixed);
+
+        // Flexible: B floats (one plane mate leaves it under-defined), A stays fixed as its own file has it.
+        await Set(new() { Doc = top, Component = ns, Flexible = true });
+        var m = await Mate(top, "coincident", Plane(nc, "top"), Plane(nb, "top"));
+        var mated = m.Components.Single(x => x.Name == nb);
+        Assert.False(mated.Fixed, $"the mate's row for '{nb}' reads {Read(mated)}");
+        Assert.Equal("under", mated.Constrained);
+        var listed = await Row(nb);
+        Assert.False(listed.Fixed, $"asm_component_list's row for '{nb}' reads {Read(listed)}");
+        Assert.Equal("under", listed.Constrained);
+        var fixedChild = await Row(na);
+        Assert.True(fixedChild.Fixed);
+        Assert.Equal("fully", fixedChild.Constrained);
+
+        // Two mates more hold B completely: fully defined, still not fixed.
+        await Mate(top, "coincident", Plane(nc, "front"), Plane(nb, "front"));
+        var held = (await Mate(top, "coincident", Plane(nc, "right"), Plane(nb, "right"))).Components.Single(x => x.Name == nb);
+        Assert.False(held.Fixed);
+        Assert.Equal("fully", held.Constrained);
+        AssertPoint([40, 30, 100], held.OriginMm);
+    }
+
+    [Fact]
     public async Task Setting_a_subassembly_rigid_names_the_mates_it_puts_in_error()
     {
         // S76: flexible, a mate holds the subassembly's floating child B at C's top plane (y 30), where the

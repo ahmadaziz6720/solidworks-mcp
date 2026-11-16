@@ -140,6 +140,19 @@ public class AssemblyMathTests
     }
 
     [Fact]
+    public void A_tree_mark_reads_as_fixed_and_constrained()
+    {
+        // The node texts SOLIDWORKS 2023 shows (S77's probe): a mark, then the name, the configuration, the display state.
+        Assert.Equal((true, "fully"), AsmMath.TreeMark("(f) a<1> (Default) <<Default>_Display State 1>"));
+        Assert.Equal((false, "under"), AsmMath.TreeMark("(-) b<1> (Default) <<Default>_Display State 1>"));
+        Assert.Equal((false, "fully"), AsmMath.TreeMark("b<1> (Default) <<Default>_Display State 1>"));
+        Assert.Equal((false, "over"), AsmMath.TreeMark("(+) b<1> (Default)"));
+        Assert.Equal((false, "no_solution"), AsmMath.TreeMark("(?) b<1> (Default)"));
+        Assert.Null(AsmMath.TreeMark(""));
+        Assert.Null(AsmMath.TreeMark(null));
+    }
+
+    [Fact]
     public void Distances_and_angles()
     {
         Assert.Equal(-2, AsmMath.PointToPlane(new Vec3(0, 1, 0), Vec3.UnitY, new Vec3(5, -1, 7)), 12);

@@ -105,6 +105,21 @@ internal static class AsmMath
         return among.Count == 1 ? hits >= 1 : hits >= 2;
     }
 
+    /// <summary>
+    /// A component's state from the mark on its FeatureManager node (S77): "(f)" fixed, "(-)" under-defined, "(+)"
+    /// over-defined, "(?)" not solved, no mark fully defined; named as asm_component_list's 'constrained'.
+    /// </summary>
+    public static (bool Fixed, string Constrained)? TreeMark(string? text)
+    {
+        string t = (text ?? "").TrimStart();
+        if (t.Length == 0) return null;
+        return t.StartsWith("(f) ", StringComparison.Ordinal) ? (true, "fully")
+            : t.StartsWith("(-) ", StringComparison.Ordinal) ? (false, "under")
+            : t.StartsWith("(+) ", StringComparison.Ordinal) ? (false, "over")
+            : t.StartsWith("(?) ", StringComparison.Ordinal) ? (false, "no_solution")
+            : (false, "fully");
+    }
+
     /// <summary>Signed distance of <paramref name="q"/> from the plane through <paramref name="p"/> with unit normal <paramref name="n"/>.</summary>
     public static double PointToPlane(Vec3 p, Vec3 n, Vec3 q) => n.Dot(q - p);
 

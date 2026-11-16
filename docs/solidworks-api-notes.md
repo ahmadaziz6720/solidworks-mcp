@@ -467,6 +467,11 @@ type libraries and writes `sldworks_api.txt`, `swconst_enums.txt`, `swcommands.t
   `IAssemblyDoc.CompConfigProperties4(suppression, solving, visible, useNamedConfig, configName, excludeFromBom)`, the
   other values passed as they are, sets it, and `Solving` reads it back after `EditRebuild3`. Flexible, a floating
   child follows a top-level mate on its plane while the subassembly stays where it is.
+  A child read in the top assembly (`GetComponents(false)` or the subassembly's `GetChildren`) answers `IsFixed()` true
+  and `GetConstrainedStatus` 3 (fully), rigid or flexible, floating in its own file or not (VERIFIED 2026-11-16, 2023
+  SP3). The same component in the subassembly's own document (`GetModelDoc2`) reads its file's state, with no top-level
+  mate. The child's node in the top assembly's FeatureManager tree, under the subassembly's node, carries the true mark:
+  "(f)" fixed, "(-)" under-defined, none once top-level mates hold it fully (three plane mates, flexible).
 - **Interference counts** (VERIFIED 2026-11-13). On a fresh manager with `TreatCoincidenceAsInterference = true`, the
   first `GetInterferenceCount()` can answer 1 (the overlaps only) while `GetInterferences` lists 3 (the overlap and two
   touching pairs, volume 0); the list is right, and a second `GetInterferenceCount()` after the list matched it in
