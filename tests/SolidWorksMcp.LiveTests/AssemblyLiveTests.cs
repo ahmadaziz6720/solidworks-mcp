@@ -386,6 +386,41 @@ public class AssemblyLiveTests(LiveFixture fx) : LiveTest(fx)
         AssertBox(comps.Components[0].Box, [-10, -10, -10], [10, 10, 10]);
     }
 
+    [Fact]
+    public async Task A_step_s_surface_bodies_have_the_box_of_their_faces_as_imported()
+    {
+        // S52, the STEP case of 2026-11-14: a cube and a shaft r 5 × 30 turned 45° about [1, 1, 0], written to STEP and
+        // opened. SOLIDWORKS 2023 brings the shaft in as 3 surface bodies at the identity, its turn lost and its two
+        // caps bounded by two spline curves out to x 6, z 5.43 (S5, the import). Its row's box must be those faces'
+        // extremes, or say it is approximate. Oracle: the faces' tessellation (within its chord tolerance).
+        var cube = await CubeAsync("stepcyl_cube");
+        var shaft = await ShaftAsync("stepcyl_shaft");
+        string asm = await NewAssemblyAsync("stepcyl_asm");
+        await InsertAsync(asm, cube.Path, [40, 0, 0]);
+        await InsertAsync(asm, shaft.Path, [0, 0, 0], Rot([1, 1, 0], 45));
+        string step = Path.Combine(_dir, $"stepcyl_{_tag}.step");
+        await new ExportService(S).ExportAsync(new ExportRequest { Doc = asm, Path = step, StepAp = 214 });
+        await Docs.CloseAsync(asm, save: false, discard: true);
+        await Docs.CloseAsync(cube.Doc, save: false, discard: true);
+        await Docs.CloseAsync(shaft.Doc, save: false, discard: true);
+
+        var before = (await Docs.ListAsync()).Documents.Select(d => d.Handle).ToHashSet();
+        var r = await new OpenService(S).OpenAsync(step, false, null);
+        _asms.Add(r.Document.Handle);
+        foreach (var d in (await Docs.ListAsync()).Documents.Where(d => !before.Contains(d.Handle) && d.Handle != r.Document.Handle))
+            Track(d.Handle);
+        var row = (await Asm.ComponentListAsync(r.Document.Handle, false, 100, 0)).Components
+            .Single(c => c.Name.Contains("stepcyl_shaft", StringComparison.OrdinalIgnoreCase));
+        Assert.NotNull(row.Box);
+        if (row.Box.Approximate == true) return;
+        var tess = await TestHooks.TessBoxAsync(S, r.Document.Handle, row.Name);
+        AssertBox(row.Box, tess[..3], tess[3..], 0.05);
+        for (int i = 0; i < 3; i++)
+            Assert.True(row.Box.Min[i] <= tess[i] + 1e-6 && row.Box.Max[i] >= tess[i + 3] - 1e-6,
+                $"box [{string.Join(", ", row.Box.Min)}] .. [{string.Join(", ", row.Box.Max)}] does not hold the faces' " +
+                $"tessellation [{string.Join(", ", tess)}]");
+    }
+
     // ------------------------------------------------------------------ ref_plane / ref_axis in an assembly (S59 b)
 
     private static double PlaneDist(RefFrame f, double[] p) => p.Select((v, i) => (v - f.OriginMm[i]) * f.Normal![i]).Sum();
@@ -1012,6 +1047,38 @@ public class AssemblyLiveTests(LiveFixture fx) : LiveTest(fx)
         var all = (await Asm.ComponentListAsync(top, allLevels: true, 100, 0)).Components;
         AssertPoint([40, 30, 100], all.Single(x => x.Name == nb).OriginMm);
         AssertPoint([0, 0, 100], all.Single(x => x.Name == ns).OriginMm);
+    }
+
+    [Fact]
+    public async Task A_flexible_subassembly_s_box_covers_its_children_as_they_are_placed()
+    {
+        // S52 (c): a subassembly gives no bodies, so its row kept IComponent2.GetBox, the box of its own file's
+        // placement, marked approximate: after a top-level mate moved its floating child out, the box no longer held it.
+        // Oracle: the cubes' own extents, A at (0, 0, 100) and B mated to C's top plane (y 60) at x 40, z 100.
+        var a = await CubeAsync("fbxA");
+        var b = await CubeAsync("fbxB");
+        var c = await CubeAsync("fbxC");
+        string sub = await NewAssemblyAsync("fbx_sub");
+        await InsertAsync(sub, a.Path, [0, 0, 0]);
+        await InsertAsync(sub, b.Path, [40, 0, 0], fixedState: false);
+        var saved = await Docs.SaveAsync(sub, "as", Path.Combine(_dir, $"fbx_sub_{_tag}.sldasm"), overwrite: false);
+
+        string top = await NewAssemblyAsync("fbx_top");
+        string ns = (await InsertAsync(top, saved.SavedTo!, [0, 0, 100], fixedState: true)).Component.Name;
+        string nc = (await InsertAsync(top, c.Path, [80, 60, 100], fixedState: true)).Component.Name;
+        string nb = $"{ns}/{b.Name}-1";
+        var rigid = await ComponentAsync(top, ns);
+        AssertBox(rigid.Box, [-10, -10, 90], [50, 10, 110], 1e-3);
+
+        await Set(new() { Doc = top, Component = ns, Flexible = true });
+        await Mate(top, "coincident", Plane(nc, "top"), Plane(nb, "top"));
+        AssertPoint([40, 60, 100], (await Asm.ComponentListAsync(top, allLevels: true, 100, 0)).Components.Single(x => x.Name == nb).OriginMm);
+        var row = await ComponentAsync(top, ns);
+        AssertBox(row.Box, [-10, -10, 90], [50, 70, 110], 1e-3);
+        Assert.Null(row.Box!.Approximate);
+        var set = await Set(new() { Doc = top, Component = ns, Visible = true });
+        AssertBox(set.Component.Box, [-10, -10, 90], [50, 70, 110], 1e-3);
+        Assert.Null(rigid.Box!.Approximate); // rigid, from its children's bodies too
     }
 
     [Fact]

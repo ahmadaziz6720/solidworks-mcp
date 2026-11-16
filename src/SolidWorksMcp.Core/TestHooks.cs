@@ -64,6 +64,31 @@ internal static class TestHooks
             return ctx.Doc.Extension.GetUserPreferenceToggle(toggle, 0);
         }, RunOptions.Read(doc));
 
+    /// <summary>
+    /// The box (mm, assembly space) of the tessellation of a top-level component's faces, solid and surface bodies:
+    /// an oracle for its row's box that does not use IBody2.GetExtremePoint (within the chord tolerance).
+    /// </summary>
+    public static Task<double[]> TessBoxAsync(SwSession s, string doc, string component) =>
+        s.RunAsync("test_tess_box", ctx =>
+        {
+            var comps = (object?)((SolidWorks.Interop.sldworks.IAssemblyDoc)ctx.Doc).GetComponents(true) as object[] ?? [];
+            var c = comps.OfType<SolidWorks.Interop.sldworks.IComponent2>().Single(k => k.Name2 == component);
+            var xf = new Geometry.Xform(ComArgs.Doubles((object?)c.Transform2.ArrayData));
+            double[] r = [double.MaxValue, double.MaxValue, double.MaxValue, double.MinValue, double.MinValue, double.MinValue];
+            foreach (var b in c.Bodies(swBodyType_e.swSolidBody).Concat(c.Bodies(swBodyType_e.swSheetBody)))
+                foreach (var f in b.Faces())
+                {
+                    var t = ComArgs.Doubles((object?)f.GetTessTriangles(true));
+                    for (int i = 0; i + 2 < t.Length; i += 3)
+                    {
+                        var p = xf.ApplyPoint(new Geometry.Vec3(t[i], t[i + 1], t[i + 2]));
+                        r[0] = Math.Min(r[0], p.X); r[1] = Math.Min(r[1], p.Y); r[2] = Math.Min(r[2], p.Z);
+                        r[3] = Math.Max(r[3], p.X); r[4] = Math.Max(r[4], p.Y); r[5] = Math.Max(r[5], p.Z);
+                    }
+                }
+            return r.Select(v => v * 1000).ToArray();
+        }, RunOptions.Read(doc));
+
     /// <summary>The titles of all open documents.</summary>
     public static Task<List<string>> OpenTitlesAsync(SwSession s) =>
         s.RunAsync("test_titles", ctx => ctx.App.Documents().Select(ctx.Title).ToList());

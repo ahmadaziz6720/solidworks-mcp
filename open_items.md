@@ -358,7 +358,7 @@ server change since build `20261114-024455`).
   owner's word (and resumed unasked from then on, the check's rule above), detached, and
   ended the same evening: all five held, the entry `4f8700f`, sorted into S59 (closed), S65
   (b) to (e) (closed), S87 and S88 (group 5), S89 (Open), S5 met again.
-- [ ] S52: committed
+- [x] S52: committed
 - [ ] S61 (a): committed
 - [ ] S72: committed
 - [ ] S71: committed
@@ -398,6 +398,10 @@ Met again 2026-11-16 (findings 2026-11-16, build `20261116-124830`, point 9): th
 shelled tray's STEP, 16 surface bodies, as before.
 Met again 2026-11-16 (findings 2026-11-16, build `20261116-205845`, point 7): the same, 16
 surface bodies.
+Probed 2026-11-16 by the run (S52): the STEP of a 20 mm cube and a shaft r 5 × 30 turned
+45° about [1, 1, 0] brings the shaft in at the identity, its turn lost, as 3 surface
+bodies: the side exact (942.478 mm²), each cap a plane bounded by two spline curves from
+(0, ·, -5) to (6, ·, 5), 89.816 mm² against a Ø10 disc's 78.540.
 
 **Upstream: issue #2, open.**
 
@@ -528,6 +532,46 @@ Met again 2026-11-16 (findings 2026-11-16, "a part edited by rollback", point 9)
 `equation_set` and `model_mass` boxes said 149.016716, the same body, nothing changed
 between. New: `body_list`'s box is not the tight box (`IBody2.GetBodyBox` through
 `SwExt.Box`, it seems), so two tools give two boxes for one body.
+**Done in the run of 2026-11-16: the STEP case, not reproduced as a fault of the box.**
+Test `A_step_s_surface_bodies_have_the_box_of_their_faces_as_imported`, the scenario's case
+(a 20 mm cube and a shaft r 5 × 30 turned 45° about [1, 1, 0], STEP AP214 by `model_export`,
+opened by `doc_open`). With the oracle of an r 5 cylinder as placed it failed on the code
+before: "box [-5.000116, 0, -5] .. [6, 30, 5.427307], expected [-5, 0, -5] .. [5, 30, 5]".
+The probe showed the box is already tight and true to what SOLIDWORKS imported: the row
+reads the surface bodies too (sheet bodies are taken since the run of 2026-11-13), and the
+shaft came in at the identity, its turn lost, its caps planes bounded by two spline curves
+out to x 6 and z 5.427 (89.816 mm² each, a Ø10 disc being 78.540): `GetExtremePoint`,
+`GetBodyBox`, the faces' boxes and their tessellation all reach there. Both are the
+import's (S5, the probe recorded there). Decided 2026-11-16 by the run, not the owner: the
+STEP case done as not reproduced, with no code change, because the box is the extremes of
+the faces the document holds, and a box of the shape before the export would describe
+geometry that is not there. The test kept with the oracle of the faces' tessellation
+(within 0.05 mm, a new test hook `TestHooks.TessBoxAsync`; an `approximate` box passes),
+passing on the code before and after.
+**Done in the run of 2026-11-16: (c), fixed.** Cause: a subassembly gives no bodies through
+`IComponent2.GetBodies3`, so its row fell back to `IComponent2.GetBox`, the box of its own
+file's placement, marked approximate. Fix (`AssemblyService.CompBox`): a component without
+bodies takes the union of its unsuppressed children's boxes as they are placed, each child
+by the same rule (its bodies' extremes through its own transform, a nested subassembly its
+children's), approximate only when a child's is; SOLIDWORKS' box stays the last fallback
+(lightweight, empty). Decided 2026-11-16 by the run, not the owner: for every subassembly,
+rigid too, not only a flexible one, because a rigid one's `GetBox` is the same turned and
+re-boxed bound that (b) replaced for parts, and one rule is a smaller change than one per
+solving. Test before: `A_flexible_subassembly_s_box_covers_its_children_as_they_are_placed`
+(a subassembly of two 20 mm cubes at [0, 0, 100], made flexible, its floating child mated to
+a cube's top plane at y 60): "box [-10, -10, 90] .. [50, 10, 110], expected [-10, -10, 90]
+.. [50, 70, 110]". After: it passes (the flexible row [-10, -10, 90] .. [50, 70, 110] in
+`asm_component_list` and `asm_component_set`, the rigid row exact, neither approximate),
+with the live tests that read component boxes and subassemblies
+(`Subassemblies_are_inserted_…`, the S61 STEP import, the flexible and rigid ones of S62,
+S76 to S78, `A_tilted_…`, `Insert_puts_the_origin_…`, `Move_translates_…`, the subassembly
+mate, `Two_components_form_a_subassembly_…`; 13/13 with the two new); unit tests 290/290;
+`check_repo` ok; no description changed.
+Made stricter: none. Local: on `sw2023`, in the commit that records it; not yet in a build.
+Upstream: not yet decided.
+Decided 2026-11-16 by the run, not the owner: the item stays Open, not to Waiting, for
+`body_list`'s box (met again 2026-11-16, above), a point found after the plan and not in
+the run, because an item marked fixed would hide it.
 
 ### S60 - What a session cannot tell about the process it runs on - OPEN 2026-11-12, parked: (a) not reproduced, taken up when met again
 

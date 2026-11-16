@@ -1452,14 +1452,28 @@ public sealed partial class AssemblyService(SwSession session)
     }
 
     /// <summary>
-    /// A component's box in the assembly: its bodies' extreme points mapped through its transform (S52); without bodies
-    /// (lightweight, an empty sub-assembly) SOLIDWORKS' own box, which is the part's box turned and re-boxed: approximate.
+    /// A component's box in the assembly: its bodies' extreme points mapped through its transform (S52); a subassembly's,
+    /// the union of its unsuppressed children's boxes as they are placed (S52 c: a flexible one's child moves out of its
+    /// file's placement, which IComponent2.GetBox keeps); with neither (lightweight, an empty subassembly) SOLIDWORKS'
+    /// own box, which is the part's box turned and re-boxed: approximate.
     /// </summary>
     private static (double[]? Box, bool Approximate) CompBox(IComponent2 c)
     {
         var bodies = c.Bodies(swBodyType_e.swSolidBody).Concat(c.Bodies(swBodyType_e.swSheetBody)).ToList();
         if (bodies.Count > 0 && c.Transform2 is IMathTransform t)
             return TightBox.Of(bodies, new Xform(ComArgs.Doubles((object?)t.ArrayData)));
+        double[]? box = null;
+        bool approx = false;
+        foreach (var k in c.AsmChildren())
+        {
+            if (k.GetSuppression2() == (int)swComponentSuppressionState_e.swComponentSuppressed) continue;
+            var (kb, ka) = CompBox(k);
+            if (kb is null) continue;
+            approx |= ka;
+            box = box is null ? kb : [Math.Min(box[0], kb[0]), Math.Min(box[1], kb[1]), Math.Min(box[2], kb[2]),
+                Math.Max(box[3], kb[3]), Math.Max(box[4], kb[4]), Math.Max(box[5], kb[5])];
+        }
+        if (box is not null) return (box, approx);
         var loose = c.AsmCompBox();
         return loose.Length == 6 ? (loose, true) : (null, false);
     }
