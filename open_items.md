@@ -320,8 +320,8 @@ server change since build `20261114-024455`).
   3 124k/4 and 111k/3; group 2's scenario test resumed once, group 3's in one run.
 - [x] S59 (c): committed (`d8dd2ee`)
 - [x] S65 (e): committed (`27408b8`)
-- [x] S65 (c): committed
-- [ ] S65 (b): committed
+- [x] S65 (c): committed (`d339521`)
+- [x] S65 (b): committed
 - [ ] S65 (d): committed
 - [ ] Group 4: full live tests and release (build: )
 - [ ] Group 4: scenario test (session id: ), its entry committed and sorted
@@ -1037,6 +1037,45 @@ holds the point as before (through the first segment with an end or centre at it
 the point's own key, because in the probe that was the point the resolver took, and checking it
 costs a segment walk per point on every step (S55). Local: (c) on `sw2023`, in the commit that
 records it here; not yet in a build. Upstream: not yet decided.
+**Done in the run of 2026-11-16: (b), the reading; the move stays open.** **Left open: (b)'s
+move, (d) and (f).** (b) Cause: `sketch_info` lists a text as a segment (`SketchText1`, kind
+`text`, as `GetSketchSegments` returns it), but read only its string: every text read at [0, 0]
+with no height or angle, so a text moved also read unchanged in the edit tools' diffs. Probed on
+2023 SP3: `ISketchText.GetCoordinates()` reads the point `InsertSketchText` was given, in sketch
+coordinates on the Top plane (whose frame is not the model's); extruded, the outlines start
+0.77 mm right of it and stand on it up to the height, round letters overshooting both by 0.26 mm,
+so it is the left end of the baseline. Fix (`SketchEditService.ReadText`): a text's entry gains
+`atMm` (that point, sketch mm [x, y] as the other entities), `heightMm` (its format's
+`CharHeight`) and `angleDeg` (its format's `Escapement`); the point is also the text's place in
+the before/after diff, so an edit that moved a text lists it in `changed`. No description
+changed. The move: no tool moves sketch entities (the sketch tools trim, extend, offset, fillet,
+chamfer, pattern, mirror, convert, set construction and delete), so none takes a text, and (b)
+stays Open for it; `ISketchText.SetCoordinates(x, y, z)` exists, not probed. Before, on the code
+before the fix (the fields added, not filled),
+`SketchEditLiveTests.Info_gives_a_texts_position_height_and_angle_where_it_was_added` failed
+"Assert.NotNull() Failure: Value is null" (`atMm`). After: it passes (a 10 mm "MCP 42" added at
+[-30, -5] on the Top plane reads [-30, -5], 10 mm, 0°, open and finished; extruded, its box starts
+at x -29.23 and spans sketch y -5.26 to 5.26), with `Info_lists_segments_contours_frame_and_dimensions`,
+`Edit_reopens_a_finished_sketch_with_its_frame`,
+`ModellingLiveTests.Sketch_text_at_its_height_engraves_the_top_face_with_a_cut`,
+`Linear_pattern_of_a_circle_places_3_circles_20_apart`,
+`Offset_rectangle_5_outward_is_110_by_70_and_inward_90_by_50`,
+`Merge_and_coincident_join_two_line_ends_into_one_point` and
+`Constrain_defines_a_rectangle_fully_in_one_call`, 8 of 8 live; unit tests 290 of 290;
+`check_repo` ok. `docs/solidworks-api-notes.md` (WP9) gains the probe. Made stricter: none
+(a reading; a text that moved now reads as changed, where it read unchanged at [0, 0]). Decided
+2026-11-16 by the run, not the owner: the position, height and angle go on the text's own entry
+in `segments`, not a list of their own, because `sketch_info` already lists the text there by
+the name and kind other tools see, and a second list would give it twice. Decided 2026-11-16 by
+the run, not the owner: the position is the point SOLIDWORKS keeps (`GetCoordinates`), the left
+end of the baseline, in sketch mm as the other entities, not the outlines' box, because it is the
+`at` that `sketch_add` was given and the one a move would take, and the box depends on the font.
+Decided 2026-11-16 by the run, not the owner: the angle is read as SOLIDWORKS stores it, and only
+0° was read live, because no tool sets another (`sketch_add` takes none). Decided 2026-11-16 by
+the run, not the owner: no move tool or option in this run, because none exists to extend and a
+new one costs description bytes in a tool list at its budget, which is the owner's choice. Local:
+(b), the reading, on `sw2023`, in the commit that records it here; not yet in a build. Upstream:
+not yet decided.
 
 ### S71 - A frequency study with no fixtures fails in the solver - OPEN 2026-11-14
 

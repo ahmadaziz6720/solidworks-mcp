@@ -28,6 +28,12 @@ public sealed class SketchSegmentInfo
     /// <summary>In 'changed' lists: the length before the call.</summary>
     public double? LengthBeforeMm { get; init; }
     public string? Text { get; init; }
+    /// <summary>A text: its position, the point sketch_add's 'at' placed, the left end of its baseline (ISketchText.GetCoordinates).</summary>
+    public double[]? AtMm { get; init; }
+    /// <summary>A text: its character height.</summary>
+    public double? HeightMm { get; init; }
+    /// <summary>A text: its angle, the text format's escapement in degrees (0: along sketch +x).</summary>
+    public double? AngleDeg { get; init; }
 }
 
 /// <summary>sketch_edit: the re-opened sketch.</summary>
@@ -2141,7 +2147,8 @@ public sealed class SketchEditService(SwSession session)
 
     /// <summary>Geometry of one segment (sketch coordinates in m; model coordinates in a 3D sketch).</summary>
     private sealed record Geo(string Kind, Vec3 Start, Vec3 End, Vec3 Center, double Radius, double Length, bool Construction,
-        bool HasEnds, int Dir = 1, double Major = 0, double Minor = 0, string? Text = null)
+        bool HasEnds, int Dir = 1, double Major = 0, double Minor = 0, string? Text = null, Vec3? At = null, double Height = double.NaN,
+        double Angle = double.NaN)
     {
         /// <summary>The point that follows the segment through a pattern or mirror: the center of round segments, else the mid point.</summary>
         public Vec3 Anchor => Kind switch
@@ -2191,17 +2198,46 @@ public sealed class SketchEditService(SwSession session)
                 return new Geo("spline", a, b, (a + b) / 2, 0, len, cons, pts.Count > 0);
             }
             case (int)swSketchSegments_e.swSketchTEXT:
-            {
-                string? text = null;
-                try { text = (s as ISketchText)?.Text; }
-                catch (Exception ex) when (!ComArgs.IsDisconnect(ex)) { /* optional */ }
-                return new Geo("text", Vec3.Zero, Vec3.Zero, Vec3.Zero, 0, 0, cons, false, Text: text);
-            }
+                return ReadText(s as ISketchText, cons);
             case (int)swSketchSegments_e.swSketchPARABOLA:
                 return new Geo("parabola", Vec3.Zero, Vec3.Zero, Vec3.Zero, 0, len, cons, false);
             default:
                 return new Geo("other", Vec3.Zero, Vec3.Zero, Vec3.Zero, 0, len, cons, false);
         }
+    }
+
+    /// <summary>
+    /// A sketch text: its position (ISketchText.GetCoordinates, sketch coordinates in m: the point InsertSketchText was
+    /// given, the left end of the text's baseline) as <see cref="Geo.Center"/>, so a moved text reads as changed; its
+    /// character height and angle (the format's escapement, rad) from its text format. Each is optional: what cannot be
+    /// read stays out (NaN).
+    /// </summary>
+    private static Geo ReadText(ISketchText? t, bool cons)
+    {
+        string? text = null;
+        Vec3? at = null;
+        double height = double.NaN, angle = double.NaN;
+        if (t is not null)
+        {
+            try { text = t.Text; }
+            catch (Exception ex) when (!ComArgs.IsDisconnect(ex)) { /* optional */ }
+            try
+            {
+                if ((object?)t.GetCoordinates() is double[] { Length: >= 3 } c) at = new Vec3(c[0], c[1], c[2]);
+            }
+            catch (Exception ex) when (!ComArgs.IsDisconnect(ex)) { /* optional */ }
+            try
+            {
+                if ((object?)t.GetTextFormat() is ITextFormat tf)
+                {
+                    height = tf.CharHeight;
+                    angle = tf.Escapement;
+                }
+            }
+            catch (Exception ex) when (!ComArgs.IsDisconnect(ex)) { /* optional */ }
+        }
+        var p = at ?? Vec3.Zero;
+        return new Geo("text", p, p, p, 0, 0, cons, false, Text: text, At: at, Height: height, Angle: angle);
     }
 
     private static Vec3 V(ISketchPoint? p) => p is null ? Vec3.Zero : new Vec3(p.X, p.Y, p.Z);
@@ -2363,6 +2399,9 @@ public sealed class SketchEditService(SwSession session)
         LengthMm = g.Kind == "text" ? null : Units.Mm(g.Length),
         LengthBeforeMm = lengthBefore is double lb && Math.Abs(lb - g.Length) > Tol ? Units.Mm(lb) : null,
         Text = g.Text,
+        AtMm = g.At is Vec3 at ? Pt(at, is3D) : null,
+        HeightMm = double.IsNaN(g.Height) ? null : Units.Mm(g.Height),
+        AngleDeg = double.IsNaN(g.Angle) ? null : Math.Round(g.Angle * 180 / Math.PI, 9),
     };
 
     private static double[] Pt(Vec3 p, bool is3D) => is3D ? Units.Mm(p) : P2(p);

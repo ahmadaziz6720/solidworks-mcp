@@ -158,6 +158,36 @@ public class SketchEditLiveTests(LiveFixture fx) : LiveTest(fx)
     }
 
     [Fact]
+    public async Task Info_gives_a_texts_position_height_and_angle_where_it_was_added()
+    {
+        // On the Top plane, where sketch [x, y] is model [x, 0, -y]: a position in model coordinates would read otherwise.
+        var (doc, sketch, added) = await SketchAsync("text_at", "top", new SketchEntity { Kind = "text", Text = "MCP 42", At = [-30, -5], HeightMm = 10 });
+        string name = Name(added, 0);
+        foreach (var info in new[] { await Ed.InfoAsync(doc, null), await FinishedInfoAsync() })
+        {
+            var t = Assert.Single(info.Segments, s => s.Name == name);
+            Assert.Equal("text", t.Kind);
+            Assert.Equal("MCP 42", t.Text);
+            Near([-30, -5], t.AtMm);
+            Assert.Equal(10, t.HeightMm!.Value, L);
+            Assert.Equal(0, t.AngleDeg!.Value, 1e-6);
+        }
+        // The position is the left end of the baseline: the outlines start a side bearing to its right and stand on it,
+        // up to the height (round letters overshoot both lines a little). Sketch y is model -z here.
+        await new FeatureService(S).ExtrudeAsync(new ExtrudeRequest { Doc = doc, Sketch = sketch, DepthMm = 2 });
+        var box = (await new InspectService(S).ModelInfoAsync(doc)).Box!;
+        Assert.InRange(box.Min[0], -30, -29);
+        Assert.InRange(-box.Max[2], -5.5, -5);
+        Assert.InRange(-box.Min[2], 5, 5.5);
+
+        async Task<SketchInfoResult> FinishedInfoAsync()
+        {
+            await Sk.FinishAsync(doc);
+            return await Ed.InfoAsync(doc, sketch);
+        }
+    }
+
+    [Fact]
     public async Task Info_needs_an_open_sketch_or_a_sketch_name()
     {
         string doc = await NewPartAsync("info_neg");

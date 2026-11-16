@@ -257,6 +257,11 @@ type libraries and writes `sldworks_api.txt`, `swconst_enums.txt`, `swcommands.t
   - Sketch text: `IModelDoc2.InsertSketchText(x, y, z, text, 0, 0, 0, 100, 100)` in sketch coordinates; set the height on
     its own format (`GetTextFormat`, `CharHeight` in m, `SetTextFormat(false, tf)`) and read it back. Text is not a
     segment (`ISketch.GetSketchTextSegments`); a cut extrude of a text-only sketch engraves it.
+    `GetSketchSegments` lists it all the same, type `swSketchTEXT` (`SketchText1`), with one sketch point
+    (VERIFIED 2026-11-16). `ISketchText.GetCoordinates()` reads the point `InsertSketchText` was given, in sketch
+    coordinates (m) on a plane whose frame is not the model's: the left end of the baseline, the outlines starting a
+    side bearing to its right (~0.8 mm at 10 mm high) and round letters overshooting the baseline and the height by
+    ~0.26 mm. The angle is the format's `Escapement` (rad). `SetCoordinates(x, y, z)` exists; not probed.
   - DXF into a sketch: `ISldWorks.GetImportFileData(path)` as `IImportDxfDwgData`, `set_ImportMethod("",
     ImportToExistingPart)`, `set_LengthUnit("", swMM)`, `SetMergePoints("", true, 1e-7)`, select the plane, then
     `IFeatureManager.InsertDwgOrDxfFile2(path, data)`: the sketch keeps the drawing's coordinates. A minimal R12 file
