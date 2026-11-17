@@ -1539,3 +1539,21 @@ sheet's there), which S1 found false for sections and details; its live test onl
 the cut, so a circle landing elsewhere on the part would pass.
 
 **Upstream: PR #1, open.**
+
+### S91 - `weldment_member` cannot reach a one-size profile at `<standard>\<type>\<size>.sldlfp` - BUILT 2026-11-18, proof: the scenario test, a custom one-size profile swept from its type folder
+
+Sorted out of the entry of 2026-11-18 (a custom weldment profile with one size), point 1;
+that entry's other points, and the other entries of 2026-11-17 and 2026-11-18, are not
+sorted yet. SOLIDWORKS reads a profile of several sizes at `<standard>\<type>.sldlfp`
+(sizes as its configurations) and a profile of one size only at
+`<standard>\<type>\<size>.sldlfp` (the folder the type, the file name the size). The server
+read only the first: a one-configuration file in the standard folder was inserted and
+made a Weldment with no member, reported `VERIFY_FAILED` with a hint about the path.
+
+Local: `e663d05` on `sw2023`. `WeldmentSpec.PickProfile` takes a type as a file of two or
+more sizes or as a subfolder of size files; a size file is inserted with no configuration
+named (with its own one, `"Default"`, no member was made in each of 3 runs, with `""` the
+members in each of 4); a one-configuration file directly in the standard folder is refused before
+anything changes, naming the layout that works; "No profile" lists both kinds of type.
+Live test `WeldmentLiveTests.A_one_size_profile_is_read_from_its_type_folder_and_refused_directly_in_the_standard_folder`,
+failing without the fix. Not in any build yet.
