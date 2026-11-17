@@ -1556,4 +1556,5 @@ named (with its own one, `"Default"`, no member was made in each of 3 runs, with
 members in each of 4); a one-configuration file directly in the standard folder is refused before
 anything changes, naming the layout that works; "No profile" lists both kinds of type.
 Live test `WeldmentLiveTests.A_one_size_profile_is_read_from_its_type_folder_and_refused_directly_in_the_standard_folder`,
-failing without the fix. Not in any build yet.
+failing without the fix. In build `20261118-060615` (tag `build-20261118-060615` on
+`ab34750`); scenario test not run yet.
