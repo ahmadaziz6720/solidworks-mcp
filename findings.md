@@ -1865,3 +1865,66 @@ started again by hand (point 6).
 started, 3 after the restart of point 6; 1 refusal meant).
 
 Sorted into S87 (2), new, S65 (e) held; S88 (5), new, S65 (d) held; S89 (6), new, S60 again; S5 (7), met again. Held: S59 (1), closed; S65 (3, 4), parts (c) and (b), closed.
+
+**2026-11-17: scenario test of build 20261117-012659 (S52 (c), S61 (a), S72, S71, S87, S88)**
+
+Build `bin\0.1.0-20261117-012659` (`serverVersion` `0.1.0-sw2023-20261117-012659+098a10b`, tag
+`build-20261117-012659`), SOLIDWORKS 2023 SP3 started from its exe by the session (not by `launch`,
+S89), `sw_connect` attached at once.
+
+1. S61 (a), held for a STEP inserted as an assembly's first component; **not held when another
+   component is already in the assembly**, reported `ok`. `asm_insert` of a STEP of a 20 mm cube:
+   every time one component, "1 solid body (8000 mm³)", "linked … by 3D Interconnect", the part
+   named `<step folder>\<name>.step.SLDPRT` and "not written until the assembly is saved". Five
+   cases, each with a fresh copy of the STEP in its own folder:
+   (a) first component of a new assembly (fixed by SOLIDWORKS), `doc_save as` in the STEP's
+   folder: part written there; (b) the same with the assembly saved one folder up: written beside
+   the STEP; (c) a part inserted first, then the STEP (floating), `doc_save as`: **not written**;
+   (d) the STEP inserted into an assembly already holding a subassembly and a part, `doc_save as`
+   then `doc_save` in place: **not written**; (e) the STEP inserted, after a subassembly, into the
+   saved assembly of (b), `doc_save` in place: **not written**. In (c) to (e) the part stays open,
+   `dirty: true`, listed `foreign` (so `doc_save` cannot save it either), and nothing in any result
+   says so; `doc_save` reports the assembly saved. Closing the assembly closed the part unsaved
+   (warning "SOLIDWORKS also closed: …step.SLDPRT" only). Reopened, (c) reads `missingReferences`
+   `<assembly folder>\<name>.step.sldprt` (the assembly's folder, not the STEP's) and the component
+   `suppression: suppressed`: the STEP's component is lost from the saved assembly. The live test
+   covers the first-component case only. Also seen: the assemblies of (d) and (e) read `dirty:
+   true` again after their in-place save, with no change made, once other documents had been
+   activated. Proposed: after the assembly's save, check that each such part was written, and save
+   it (the component's document) when not, or say in the save's result that it was not.
+2. S52 (c), held. A subassembly of two 20 mm cubes (one fixed, one floating) at [0, 0, 100], made
+   flexible, its floating child mated by Top/Front/Right planes onto a top-level cube at [50, 40,
+   0]: `asm_component_list` row of the subassembly [0, 0, 0] .. [70, 60, 120], not `approximate`
+   (the union of its children as placed); rigid at insert [0, 0, 100] .. [20, 35, 150] exact; made
+   rigid again (`asm_component_set`) [0, 0, 100] .. [20, 35, 150] with the three mates named in
+   error (S76 held), flexible again [0, 0, 0] .. [70, 60, 120].
+3. S88, held. A 40 mm block and an axis by `ref_axis two_points` at z 300: the default screenshot
+   warns "The fit takes in 3DSketch1, shown past the bodies, which leaves them small in the image;
+   hideSketches:true leaves sketches out of the image and the fit."; with `hideSketches:true` the
+   block fills the image and no warning.
+4. S71, held. `sim_run frequency` on the same 40 mm AISI 1020 block, 8 modes, no fixtures: check
+   "solver FFEPlus for the free body (read back)", solver status 0, six modes 0 .. 0.0021 Hz, then
+   35 490.8 Hz, 13.5 s; with the bottom face fixed, 4 modes from 13 380 Hz and no solver check.
+5. S87, held. The polyline typed to 4 decimals and the arc centre [30, 10] r 5, −60° to 60°, in one
+   call: both merges read "0.000027 mm apart" (the gap as drawn); `sketch_info` gives the polyline's
+   ends exactly as typed (y 14.3301 and 5.6699) and the arc's centre at x 29.999953, radius 5 (the
+   arc took the gap). The same arc onto an older polyline in a later call: 0.000027 twice; the arc
+   0.2 mm off not merged.
+6. S72, held as far as can be tried: `material_set` AISI 1020 "density 7900 kg/m³ matches the
+   database", PETG from the custom library 1270 the same, no warning. The refusal (a process that
+   applies 1 kg/m³) was not met, so not tried.
+7. Small, met in three scenario tests now: `drw_view_section` with no `atMm` places Section B-B of
+   a 1:2 plan so that its own view label overlaps the title block by about 0.2 mm, and warns of it
+   ("view label … overlaps the title block"). The warning is right; the free-space placement could
+   count the label it is about to make.
+8. Held, regression: the shelled tray rebuilt from the procedure, every volume exact (1 617 000 →
+   201 850.83 → 160 562.414 → 174 928.873 → −318.086 → 174 346.977, the 6.5 c'sink kept after a
+   force rebuild), PETG 221.42 g, a dimension-linked property `3,00`, the design-intent round clean
+   with 1 body; both sketches `fully` in one `sketch_constrain` (11.2 s / 7.8 s);
+   `feature_chamfer` `equal` 2 mm on a Ø20 bore's edge −134.041; a hand-mated assembly's two mates
+   without error, 127 402.659 → +6283.185 → back, the shaft's box Ø20 × 60 tight; interference 0
+   in a saved hinge assembly; a 1:2 sheet and the tray's two sections (1 and 3 hatched faces). STEP
+   of the shelled tray still 16 surface bodies (S5, met again).
+
+128 calls, 73.0k characters of results; 1 error (`doc_close` `DIRTY` on an assembly that had
+read clean after its save, point 1).
