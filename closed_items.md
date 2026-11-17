@@ -3012,6 +3012,38 @@ screenshot warned "The fit takes in 3DSketch1, shown past the bodies, which leav
 small in the image; hideSketches:true leaves sketches out of the image and the fit."; with
 `hideSketches:true` the block filled the image, no warning.
 
+### S91 - `weldment_member` cannot reach a one-size profile at `<standard>\<type>\<size>.sldlfp` - CLOSED 2026-11-18
+
+Sorted out of the entry of 2026-11-18 (a custom weldment profile with one size), point 1;
+that entry's other points, and the other entries of 2026-11-17 and 2026-11-18, were sorted
+2026-11-18 (S92 to S102). SOLIDWORKS reads a profile of several sizes at `<standard>\<type>.sldlfp`
+(sizes as its configurations) and a profile of one size only at
+`<standard>\<type>\<size>.sldlfp` (the folder the type, the file name the size). The server
+read only the first: a one-configuration file in the standard folder was inserted and
+made a Weldment with no member, reported `VERIFY_FAILED` with a hint about the path.
+
+Local: `e663d05` on `sw2023`. `WeldmentSpec.PickProfile` takes a type as a file of two or
+more sizes or as a subfolder of size files; a size file is inserted with no configuration
+named (with its own one, `"Default"`, no member was made in each of 3 runs, with `""` the
+members in each of 4); a one-configuration file directly in the standard folder is refused before
+anything changes, naming the layout that works; "No profile" lists both kinds of type.
+Live test `WeldmentLiveTests.A_one_size_profile_is_read_from_its_type_folder_and_refused_directly_in_the_standard_folder`,
+failing without the fix. In build `20261118-060615` (tag `build-20261118-060615` on
+`ab34750`); scenario test not run yet.
+Upstream: not yet decided.
+Held 2026-11-18: the scenario test of build `20261118-060615` (findings 2026-11-18, point
+1): a custom one-size profile laid out as `<standard>\<type>\<size>.sldlfp`, in a profile
+folder already registered in SOLIDWORKS: `weldment_member` along a 100 mm line, `size` typed
+`"20x40"`, read `profile` `<standard> / <type> / 20 x 40` with the size file as
+`profilePath`, one member, 29 998.945 mm³, the same as that profile swept by hand; along a
+closed 300 × 200 rectangle with mitered corners, 4 members, lengths 320 and 220, one body
+each. A wrong type refused listing the subfolder type, a wrong size listing `20 x 40`. A copy
+of the same file directly in the standard folder refused `INVALID_ARGUMENT` "has one
+configuration ... would make no member", the hint naming `<standard>\<name>\<size>.sldlfp`,
+no feature added. A shipped iso `square tube 40 x 40 x 4` in the same part still worked
+(53 479.645 mm³ on 100 mm). One gap met with it is S102 (the refused file still listed as a
+type).
+
 ## Not items
 
 - **SW 2023 interop patch** (`27e8c25`): `swCustomInfoEquation` case removed,

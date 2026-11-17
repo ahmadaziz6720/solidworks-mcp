@@ -17,7 +17,13 @@ Closed all the same, its PR named, and an open PR no longer holds an item in Wai
 item sent upstream ends with `**Upstream: PR #9, open.**`, one per PR or issue
 (`merged`, `closed unmerged`; an issue `open` or `closed`), kept to its state.
 
-**Open: S4, S5, S7, S10 to S12, S33, S34, S52, S60, S61, S64, S65, S79 to S86, S89, S90.**
+**Open: S4, S5, S7, S10 to S12, S33, S34, S52, S60, S61, S64, S65, S79 to S86, S89, S90, S92 to S102.**
+Sorted 2026-11-18, 22 working sessions' entries of 2026-11-17 and 2026-11-18 on build
+`20261117-012659` and the scenario test of build `20261118-060615`: S91 held and closed;
+S92 to S102 new, reported `ok` while wrong S92 (b) and S100 (d); S64 (m) to (p) and S65 (g)
+to (j) new parts, S84 (c) a new part; S5, S52, S64, S80, S81, S84 to S86 and S89 met again.
+Next: the owner's decisions on S92 to S102 and the new parts, for the next plan; S92 (the
+equation state, five sessions in one day) and S100 (d) first.
 Sorted 2026-11-17, the scenario test of build `20261117-012659` (findings 2026-11-17): S71,
 S72, S87 and S88 held and closed, S52 (c) held and closed (S52 stays Open for `body_list`'s
 box); S61 (a) not held (a STEP inserted into an assembly that already holds a component is
@@ -435,6 +441,8 @@ Probed 2026-11-16 by the run (S52): the STEP of a 20 mm cube and a shaft r 5 × 
 45° about [1, 1, 0] brings the shaft in at the identity, its turn lost, as 3 surface
 bodies: the side exact (942.478 mm²), each cap a plane bounded by two spline curves from
 (0, ·, -5) to (6, ·, 5), 89.816 mm² against a Ø10 disc's 78.540.
+Met again 2026-11-18 (findings 2026-11-18, the scenario test of build `20261118-060615`,
+point 4): the shelled tray's STEP, 16 surface bodies, as before.
 
 **Upstream: issue #2, open.**
 
@@ -613,6 +621,13 @@ union of its children as placed; rigid at insert [0, 0, 100] .. [20, 35, 150], e
 rigid again the same, flexible again [0, 0, 0] .. [70, 60, 120]. (c) closed 2026-11-17 by
 the run's rule (*Per group, the check*: held, closed); the item stays Open for `body_list`'s
 box.
+Met again 2026-11-17 (findings 2026-11-17, "a turned printed part with two swept internal
+threads", point 5; "a turned printed part with a flange and a swept internal thread", point
+4), build `20261117-012659`: `body_list`'s box read Y -2.03 to 104.80 for a part with swept
+threads where `model.box` in every feature result read 0 to 102.89, the part's real extent
+(the sweeps trimmed at both ends), and 99.86 against 97.954 in the other part. The same
+point as above (`body_list`'s box is not the tight box), the gap much larger on B-spline
+faces: it reads like their control points' box. Workaround: read `model.box` for extents.
 
 ### S60 - What a session cannot tell about the process it runs on - OPEN 2026-11-12, parked: (a) not reproduced, taken up when met again
 
@@ -1049,6 +1064,61 @@ cut from it worked (volume to the hand figure). (f) fixed an over-count on a fac
 2026-11-14); this is an under-count, on a build with that fix. Proposed: a probe of the
 region count for a polygon on a plane and on a face; when SOLIDWORKS gives 0 for a closed
 contour, the regions counted from the closed contours. Local. Not decided.
+(m) Sorted out of the entry of 2026-11-17 ("fillets and a trim cut on three parts of an
+assembly", point 3), on build `20261117-012659`: `feature_extrude` of a boss whose end lands
+coplanar with an existing face, so its cap merges into that face, failed `VERIFY_FAILED: ...
+no cap face at 12.2 mm along [0, -1, 0]` and was rolled back, though the boss was right.
+Worked round with `keepOnFailure: true` and `model_mass` before and after (+1 280.58, as by
+hand less what was solid already); two calls lost. The boss's side of (a) (S40 let a cut
+off). Proposed: when no cap face is found, accept a face of the merged body lying in the
+cap's plane, or report the volume and say the cap merged. Local. Not decided.
+(n) Sorted out of the entry of 2026-11-17 ("a part's hole positions driven by globals after
+a restart", point 2), the same build: `feature_chamfer {type:"distance_distance",
+distanceMm:2, distance2Mm:3.464}` on six convex edges, then the same with `flip:true`: both
+`VERIFY_FAILED` with the identical text "no chamfer face with legs 2/3.464 mm along edge E23
+(found legs 2/3.011938 mm)"; `keepOnFailure` showed the 3.464 leg on the 3 wide face both
+times, so `flip` changed nothing. The values swapped, no flip, held (-2 081.668 against
+-2 081.73 by hand). Bears on (j): there an `angle_distance` side was swapped per edge; here
+`flip` on a `distance_distance` had no effect at all, and the hint again pointed at the
+distances. Not reported `ok`. Proposed: a probe of `flip` on a `distance_distance` chamfer;
+the hint names the swap when the found legs hold the asked ones the other way round. Local.
+Not decided.
+(o) Sorted out of the same entry, point 3: `sketch_offset {segments:[Line1], chain:true,
+side:"inward"}` on a loop drawn by one `sketch_add` polyline `closed:true,
+construction:true` (6 lines) was refused `INVALID_ARGUMENT: The segments form an open chain,
+which has no inside`. All six segments without `chain` worked, the offset lines regular, as
+wanted. Either `chain` does not follow construction segments or a closed polyline's closing
+joint is not merged for it. Proposed: a probe of which, and `chain` following the closed
+loop. Local. Not decided.
+(p) Sorted out of the entry of 2026-11-17 ("a turned printed part with two swept internal
+threads", point 3), the same build: (g) again, closed 2026-11-14. `feature_sweep`, merged,
+the same profile and helix: at the end of the tree it said "the start face is 2.103 mm², but
+the profile sketch encloses 2.113 mm²: the rest lies inside the existing body" ((g)'s
+let-off); inserted before the rollback bar it warned "(SOLIDWORKS may have used only some of
+its contours)" for the same geometry. The result was right both times. Proposed: a probe of
+the check with the bar mid-tree (the bodies the ray test reads may be those after the bar).
+Local. Not decided.
+Met again 2026-11-17 ((l); findings 2026-11-17, "a printed part with a plate tilted 20°",
+point 1), build `20261117-012659`: a closed 4-point polyline on a face tilted 20° from
+vertical, with one converted construction edge in the sketch, read `"closedContours":1,
+"regions":0`; the through-all cut from it was the hand figure exactly.
+Met again 2026-11-17 ((i); findings 2026-11-17, "a flat printed plate with holes", point 1),
+the same build: an equation on `D1` of an equal chamfer left `D3` at its old value at a
+second set of variables, +11.272 mm³, `equation_set` `ok` with no warning; driving `D3` too
+gave the figure. New: the workaround is on no `Usage` line, so a session reading only those
+does not meet it.
+Met again 2026-11-17 ((l); findings 2026-11-17, "three printed parts of a box and its lid",
+point 1), the same build: two closed profiles on a planar face, each a 3-point arc of 270°
+and a 2-segment polyline whose ends merged onto it, read `"closedContours":2,"regions":0`;
+the boss and the cut from them were the hand figures.
+Met again 2026-11-17 ((l), narrowed; findings 2026-11-17, "a printed bracket of one extruded
+profile", point 1), the same build: on one planar face a circle Ø3.2 read `"regions":1`;
+after the through cut from it, a concentric circle Ø6.5 on the same face, enclosing the new
+hole's edge, read `"regions":0`, and the blind cut from it was the figure. So the under-count
+is met when the region the contour closes holds an inner loop of the face: (f)'s rule counts
+a region only when every edge lies on the sketch's own contour, and the hole's edge is a
+model edge. Proposed by the session for (l): a model edge that is an inner loop of the face,
+wholly inside the contour, does not disqualify the region.
 
 ### S65 - Missing options met while modelling - OPEN 2026-11-12
 
@@ -1319,6 +1389,34 @@ fit; (e) a 4-decimal polyline and an arc on its ends one closed contour, a later
 one 0.2 mm off not. Those parts closed 2026-11-16 by the run's rule (*Per group, the
 check*: held, closed); the item stays Open for (b)'s move and (f). Two gaps met in the same
 test are S87 ((e)) and S88 ((d)).
+(g) Sorted out of the entry of 2026-11-17 ("one corner of a multi-edge fillet raised to its
+own radius", point 1), on build `20261117-012659`: no way to change the edge set of an
+existing fillet. Two edges of a ten-edge constant fillet taking a larger radius cost
+`feature_delete` (dry run and real), `feature_rollback {before}`, `feature_fillet` on the
+other eight, a new `feature_fillet` on the two, `feature_rollback {to:'end'}`: 6 calls where
+an edit of the edges and a new fillet would be 2. Proposed by the session: `feature_fillet
+{edit:"<name>", removeEdges, addEdges}` or a `feature_edges_set`. Local. Not decided.
+(h) Sorted out of the entry of 2026-11-17 ("two assemblies re-linked after their parts were
+moved into a subfolder", point 1), the same build: no call repoints an assembly's component
+references to a new folder. Workaround that held: `doc_open {readOnly:true}` of the assembly
+listed every missing path in `missingReferences`, then each moved part opened read-only
+(one call each), then the assembly opened editable with no load warning and saved in place:
+24 opens for 20 parts. Proposed by the session: `doc_relink {from, to}` or `doc_open
+{searchFolders}`, two calls. Local. Not decided.
+(i) Sorted out of the entry of 2026-11-17 ("an existing printed bracket's copy edited",
+point 1), the same build: no change to an existing extrude's end condition. A base extruded
+blind from a standard plane had to grow on both sides of a plane 22 from its sketch plane;
+`feature_extrude` makes a new extrude only, and `dimension_set` reaches only its depth.
+Workaround: the same consumed sketch extruded a second time, `direction:"reverse"`, its
+depth driven by an equation: one more feature for one function. Proposed by the session: an
+`edit` on `feature_extrude`, as `feature_chamfer` has, taking `end`, a second direction's
+depth and a start offset. Local. Not decided.
+(j) Sorted out of the same entry, point 2: a dimension's entities are not given.
+`sketch_info` and `dimension_list` returned two 6 mm dimensions of one profile sketch (`D1`,
+`D2`) with no word of which segments or points each measures; telling the web's thickness
+from the flange's took a `dimension_set` probe and a hand-figured volume. Proposed by the
+session: each dimension in `sketch_info` (and `dimension_list {sketch}`) names its kind and
+the entities it measures (`Line6`-`Line8`, horizontal). Local. Not decided.
 
 ### S79 - `doc_undo` undoes the step before an `equation_set`, reported `ok`, and is refused after a chamfer split by `flipEdges` - OPEN 2026-11-16
 
@@ -1378,6 +1476,16 @@ Proposed: (a) `sketch_add` compares each point it was given with where the solve
 has it, and warns, naming the relation, when one moved more than the sketch's tolerance;
 (b) the description says a 3-point arc's centre is merged like its ends, or the centre is
 not merged; weighed with S65 (e). Local. Not decided.
+Met again 2026-11-17 (findings 2026-11-17, "a printed C-profile part, two bands off its
+side face", point 1), build `20261117-012659`: a `rectangle` by corners on a planar face,
+its two short sides on the face's boundary edges, came back with "coincident: a model edge,
+Line1 start" and "coincident: a model entity, Line3 end" (a vertex), the corners as drawn;
+the next `sketch_constrain` dimension from the origin to a corner was refused as
+over-defining, nothing applied. Here the relations were what the part wanted (the band
+follows the base's edges) and were kept: one length dimension then fully defined it, and it
+held at a second set of variables; the same on a second band. New: the relations are
+sometimes wanted. Proposed by the session for the fix: an option to keep or drop relations
+to model geometry, the result naming them as now.
 
 ### S81 - "modified outside this server (by the user?)" again after the server's own changes - OPEN 2026-11-16
 
@@ -1398,6 +1506,12 @@ Proposed: a probe of the stamp the warning compares in the two cases (an assembl
 by `doc_activate allowEdit` after its parts' rebuild moved its stamp; a document only
 viewed in SOLIDWORKS); the stamp taken at adoption, or the warning saying what changed.
 Local. Not decided.
+Met again 2026-11-17 (findings 2026-11-17, "an edit to three parts and their assembly",
+point 6; "fillets and a trim cut on three parts of an assembly", point 1), build
+`20261117-012659`: `doc_save` of an assembly warned "'…' was modified outside this server
+since its last change (by the user?)" after this server had saved two (then three) of its
+parts and nothing else had touched it; the assembly was dirty only from their rebuild. As
+case (1) above, twice more.
 
 ### S82 - `sketch_constrain` angular where two lines meet only virtually turns the shape inside out, reported `ok` - OPEN 2026-11-16
 
@@ -1460,6 +1574,27 @@ Proposed: (a) when every instance face is found and the volume matches, the line
 ("faces merge differently from the seed's; volume and instance faces match"), or it is
 left out below a wider ratio; (b) the rebuild warnings read after the rename's rebuild,
 naming the renamed feature, a transient one dropped. Local. Not decided.
+(c) Sorted out of the entry of 2026-11-17 ("a printed part with a plate tilted 20°",
+point 2), on build `20261117-012659`: the same in another tool. `feature_extrude {cut,
+depthMm:4, direction:"+x"}` from a standard plane through a 4 mm wall, the depth equal to the
+wall on purpose, said in `checks` "no floor at 4 mm: the cut broke out of the body before its
+end (D1@... reads 4 mm)" (S64 (a)'s line); the volume matched (-45.804). A right result
+worded as a fault. Met again the same day ("three printed parts of a box and its lid", point
+2), a blind cut 2 deep through a 2 mm wall, the volume exact. Proposed by the session: a
+blind cut whose depth equals the material it crosses says "through: the end lies on the far
+face". Local. Not decided.
+Met again 2026-11-17 ((a); findings 2026-11-17, "an edit to three parts and their assembly",
+point 4; "three printed parts of a box and its lid", point 2), build `20261117-012659`:
+"the copy's faces have 1.004 x the seed's area: it meets the body differently from the
+seed" on a mirror of three features whose volume closed exactly against the hand figure (to
+0.01 mm³); 1.021 x and 1.003 x on two more mirrors, "instance faces 8/8" and "7/7", the
+volumes exact.
+Met again 2026-11-17 ((b), in another tool; findings 2026-11-17, "a turned printed part with
+two swept internal threads", point 4), the same build: `feature_delete` of a sweep reported
+"'<revolve cut>' now has rebuild error 51 (swSketchErrorExtRefFail)" for the next feature,
+whose sketch is on a standard plane with the origin only; after the sweep was made again
+before it, `model_review` read no error. Whether the error was real while it lasted is not
+known.
 
 ### S85 - `feature_delete`'s dry run lists as kept an absorbed sketch the real call removes - OPEN 2026-11-16
 
@@ -1472,6 +1607,15 @@ did not say what the call would do. Bears on S64 (d) and S54 (Closed parts and i
 
 Proposed: a probe of how SOLIDWORKS lists such a reference; the plan counts it as going
 with the feature that holds it. Local. Not decided.
+Met again 2026-11-17 (findings 2026-11-17, "an existing printed bracket's copy edited",
+point 3), build `20261117-012659`, and its cause seen: `feature_extrude` of an already
+consumed sketch returned `"consumedSketch":"<the profile sketch>"`, while `feature_list` then
+showed the new feature's child as `<the profile sketch><3>`, a derived copy SOLIDWORKS makes
+for a shared sketch. Deleting a first such extrude warned "SOLIDWORKS also removed '<the
+profile sketch><2>' (absorbed by ...), which was not planned": the copy the server's own
+extrude had made. Nothing was lost (the volume came back exactly). Proposed by the session:
+the extrude result names the derived copy when the sketch was already consumed, and the
+delete's dry run lists it as absorbed, not unplanned.
 
 ### S86 - `sketch_delete` removes a polygon's construction circle unasked, with its dimensions and relations - OPEN 2026-11-16
 
@@ -1489,6 +1633,13 @@ warning came (S54, Closed).
 Proposed: (a) a warning naming each segment removed that was not named, with the
 dimensions and relations that went with it; (b) a probe that S54 (c)'s warning fires after
 `sketch_delete` and a new dimension of a freed name. Local. Not decided.
+Met again 2026-11-17 ((b); findings 2026-11-17, "a part's two plates cut back by
+redrawing one sketch", point 2), build `20261117-012659`: a sketch redrawn reuses the
+dimension names `D1@`, `D2@`... in the order the new dimensions are added, so an old name can
+point at another size (`D5@<sketch>` was a 12.2 bound to a global before, a 20 after).
+Deleting the equation before deleting the geometry held, with no rebuild error 51, and the new
+binding went to the name `sketch_constrain` returned. Not said whether S54 (c)'s warning
+fired; the order the session used avoided the case.
 
 ### S89 - SOLIDWORKS started by `sw_connect launch` cannot be reached from a later server process - OPEN 2026-11-16
 
@@ -1508,6 +1659,26 @@ Proposed: `launch` starts the exe, so any later process attaches; the `NOT_CONNE
 names a SOLIDWORKS started with `-Embedding` by another server process. Local, in
 `SessionService` and `SessionNotes`, not group 4's files: for the next plan, not this run.
 Not decided.
+Met again 2026-11-17 (findings 2026-11-17, "a turned printed part with a flange and a swept
+internal thread", point 1), build `20261117-012659`: SOLIDWORKS started by an earlier
+session's `sw_connect {launch:true}` (after a restart for S92) still ran and responded, with
+no main window title, when the next session's server started; `sw_status` and `sw_connect`
+both gave `NOT_CONNECTED: ... it may still be starting, or it runs with different privileges
+…`, no other `solidworks-mcp` process running. Workaround as above. A tell the hint could
+use: a process with no main window and no other server alive is this case, never "still
+starting".
+Met again 2026-11-17 (findings 2026-11-17, "a part's hole positions driven by globals after a
+restart", point 5), the same build, another side of it: `sw_connect {launch:true}` started
+SOLIDWORKS with no visible window (`MainWindowTitle` empty). The user, seeing none, started a
+second instance and opened an assembly there; the next `doc_open` of a part in the hidden
+instance came back `"readOnly":true` with "the file is open elsewhere (sharing violation)",
+and `sw_status` listed only the hidden instance's documents. The warning was clear; nothing
+showed that a second `SLDWORKS.exe` was running. Workaround: the hidden instance's documents
+closed (none dirty), its process ended, `sw_connect` attached to the user's, then
+`doc_activate {allowEdit:true}` on the user's word. Proposed by the session: `sw_status`
+lists every `SLDWORKS.exe` with its start time and which one the server is attached to, and
+`launch` shows the window (or says it is hidden); the proposal above (`launch` starts the exe)
+covers the second.
 
 ### S90 - `drw_view_section` with no `atMm` places a section so its own label overlaps the title block - OPEN 2026-11-17
 
@@ -1520,6 +1691,216 @@ while wrong; the free-space placement does not count the label the call is about
 Proposed: the free-space placement counts the view's label with the view before it places
 it. Local, in the drawing code, not group 5's files: for the next plan, not this run. Not
 decided.
+
+### S92 - SOLIDWORKS' state that refuses every equation (S58 (b)) again: hints that blame the expression, `equation_list` wrong, a restart not told - OPEN 2026-11-18
+
+Sorted out of four entries of 2026-11-17 ("an edit to three parts and their assembly",
+points 1 to 3; "a strip and its children deleted", point 1; "a part's hole positions driven
+by globals after a restart", point 1; "a turned printed part with two swept internal
+threads", point 1), on build `20261117-012659`, which has S58 (b)'s message (Closed). Where
+that message fired ("SOLIDWORKS rejected the equation ... though the equation is valid ...
+restart") it was right; a restart (a new process) cleared the state each time. Five
+sessions met it on one day. What is new:
+(a) In that state other refusals blame the expression. `equation_set` of three globals that
+already existed failed `VERIFY_FAILED` "SOLIDWORKS kept the previous equation "<var>"= 100mm
+and did not take 73.5mm (a value the dimension can't have, such as 0?)", hint "Check the
+expression (units, quoted names, existing variables)"; a dimension equation a sketch already
+had failed `VERIFY_FAILED: ... the equation evaluates to 0`, rolled back. Not reported `ok`.
+(b) **A result reported `ok` while wrong.** `equation_list` in that state, before any write,
+read every global set to a number truncated (`= 60.4mm` as 60, 3.4 as 3, 2.5 as 2,
+`59.614mm` as 59) and `0` for every row defined from others, with no warning; after a
+restart the same model read right.
+(c) What brings it on is not known. Met at a session's first write on a new empty part, and
+after some 80 calls in a part where a `feature_delete {deleteAbsorbed, deleteEquations}` of
+a sweep, a `feature_rollback`, a new sketch inserted and renamed to the deleted one's name
+had gone before (equations on that sketch's dimensions refused, a plain `30.47039mm` too,
+while `"Above" = 4mm` on an existing variable was taken). One entry names a long session of
+many `equation_set` and `feature_delete {deleteEquations}` across parts.
+(d) The restart. No tool exits SOLIDWORKS: it was `Stop-Process` from the shell, every
+document saved first. `CloseMainWindow` with nothing dirty closed the window and left the
+process running, most likely held by the COM references of the `solidworks-mcp` processes
+`sw_status.otherServerPids` listed. Once the user said SOLIDWORKS had been restarted when it
+had not: its start time, read outside the server, was 44 min before the first refusal. After
+a real restart `sw_connect {launch:true}` said "a new one (before: pid …)" (S60 (c), held).
+Not restarted in one session (sixteen documents open): the dimension was left a plain value.
+
+Proposed by the sessions: (a) the `VERIFY_FAILED` path tries one plain equation on a scratch
+part, or names the restart, before blaming the expression; (b) `equation_list` and
+`equation_set` warn when a global set to a number reads back another value, which shows the
+state before the first write too; (d) `sw_status` gives SOLIDWORKS' process start time beside
+its pid and the refusal names it, so "restarted?" is read, not asked; an exit tool that
+refuses with a dirty document open; the hint may say that closing the window can leave the
+process alive under another server's references. Local. Not decided.
+
+### S93 - A write that rebuilds does not name a feature far from the change that gained a rebuild warning - OPEN 2026-11-18
+
+Sorted out of the entry of 2026-11-17 ("a part's two plates cut back by redrawing one
+sketch", points 1 and 4), on build `20261117-012659`. `dimension_set` of one sketch
+dimension, then a sketch redrawn (`equation_delete` of its one equation, `sketch_edit`,
+`sketch_delete` of all five segments, `sketch_add` of a closed polyline, `sketch_constrain`,
+`sketch_finish`) and `equation_set` binding the new dimension to the old global: none of the
+results named that a fillet at the end of the tree now had rebuild warning 13
+(`swFeatureErrorFilletNoEdge`), one of its four edges lost; `equation_set` read
+`"volumeDeltaMm3":0` and the model's volume. Only `model_review` showed it; the hand figure
+caught it first (+37.6 mm³). Met again in the same session on a second redraw: the same edge
+dropped, named by no write's result. The fillet references a mirrored body's edge far from
+the sketch; by `at` on the same four points three edges resolved to the same ids as before
+and the dropped one to a new id each time. `equation_set` reads new rebuild errors and
+warnings since S58 (a) (Closed); here the warning came with the redraw, whose sketch tools
+do not. Reported `ok`, the result incomplete, not wrong. Workaround: `model_review` after
+every sketch redrawn; the fillet deleted and remade by `at` (3 calls).
+
+Proposed by the session: a write that rebuilds compares the tree's rebuild errors and
+warnings before and after, and names each feature that gained one. Local. Not decided.
+
+### S94 - `feature_helix` and `feature_sweep`: where a helix starts, and a profile off the start of a tapered helix, not in the descriptions - OPEN 2026-11-18
+
+(a) Sorted out of the entry of 2026-11-17 ("a turned printed part with a flange and a swept
+internal thread", point 2), on build `20261117-012659`: the same inputs as a helix built
+earlier that day (a circle at the origin on a planar face with normal +Y, frame xAxis
+[1,0,0], yAxis [0,0,-1]; `height_pitch`, `clockwise:true`, `startAngleDeg` 0): that one
+started at +Z, this one at -X (`startMm` [-29.25, …, 0], `profilePlaneNormal` [0,0,1]). The
+description says 0 is at Z for a top-like sketch. The part had no phase to keep, so the
+profile went on the plane the result named and the volume matched. Read `startMm`, not the
+description. Proposed by the session: find what sets the start (the circle's start point?)
+and say it, or measure `startAngleDeg` from a stated axis whatever the circle.
+(b) Sorted out of the entry of 2026-11-17 ("a turned printed part with two swept internal
+threads", point 2), the same build: `feature_sweep` along a tapered `feature_helix` carries
+the profile without tilting with the taper, so a profile placed above or below the helix's
+start gives a thread whose depth is off by that height × tan(taper): about 0.03 mm deep
+against the taper, 120 mm³ on one thread, for a profile 1 mm below; drawn with each point's
+radius on the taper, it matched. Reported `ok` both ways, rightly: the geometry is
+SOLIDWORKS'. Proposed by the session: one line in a description ("a profile off the start of
+a tapered helix: draw its points on the taper").
+
+Local, descriptions (the tool list is at its byte budget). Not decided.
+
+### S95 - `dimension_list` marks a dimension an equation drives `driven: true`, which its description gives as a reference dimension - OPEN 2026-11-18
+
+Sorted out of the entry of 2026-11-17 ("a read-only check of a printed part driven by global
+variables", point 1), on build `20261117-012659`. `dimension_list` marked 38 of 42 dimensions
+`driven: true`, every one an equation drives, and only the four plain values without it. Its
+description says the flag is for reference dimensions, so the result reads as 38 reference
+dimensions in a part whose sketches are all fully defined. The values were right; reported
+`ok`. SOLIDWORKS gives `swDimensionDriven` for a dimension an equation drives (met in
+`dimension_set`, S74, Closed); earlier entries read `driven:true` as "an equation drives it"
+(S54, Closed).
+
+Proposed by the session: two fields, `reference` (a true reference dimension) and `equation`
+(the equation's text when one drives it), or the description saying what the flag means.
+Local. Not decided.
+
+### S96 - `sketch_constrain` does not check a relation to a model edge - OPEN 2026-11-18
+
+Sorted out of the entry of 2026-11-17 ("three printed parts of a box and its lid", point 3),
+on build `20261117-012659`. `sketch_constrain {relation:"concentric"}` between a sketch
+circle and a model circular edge `{at, type:"edge"}` lying in the sketch's face: `checks`
+"geometry not checked (model geometry, or a segment of a non-parallel sketch)", relation
+added, `ok`. It was right (read after the cut by `face_list {surface:"cylinder", radiusMm}`),
+but it is the check a session needs most for a relation to a model edge.
+
+Proposed by the session: for a circular edge parallel to the sketch, the check reads the
+edge's centre and radius against the sketch circle's centre. Local. Not decided.
+
+### S97 - `material_list` with no match does not say which databases it read - OPEN 2026-11-18
+
+Sorted out of the entry of 2026-11-17 ("a printed plate with two walls standing off it in an
+L", point 2), on build `20261117-012659`. `material_list {filter}` with no match returned
+`"materials":[]`, `"databases":[]` and a warning naming the closest names. `databases` lists
+only the databases the filter reaches, so a miss does not show which were read, and a caller
+cannot tell that a custom database was searched before calling a material missing (one is on
+the machine, not named). Reported `ok`.
+
+Proposed by the session: on a miss, `databases` lists every database searched with its
+count, as a call with no filter does. Local. Not decided.
+
+### S98 - `doc_open {readOnly:true}` reports `access: owned` and says the server may edit it - OPEN 2026-11-18
+
+Sorted out of the entry of 2026-11-17 ("read-only checks of rebuilt parts and an assembly",
+point 1). A read-only check opened six parts and an assembly with `readOnly: true`; each came
+back `access: "owned"`, with the line that this server may edit it. Nothing was written only
+because the session's brief said so: the result invites an edit the open was meant to rule
+out.
+
+Proposed by the session: a read-only open reports its own access (`readOnly`), and the edit
+tools refuse on it with NOT_OWNED's hint. Local. Not decided.
+
+### S99 - `sketch_import` of a DXF whose geometry is in a block, and an imported sketch `sketch_edit` refuses - OPEN 2026-11-18
+
+(a) Sorted out of the entry of 2026-11-17 ("a weldment profile made from a vendor's DXF",
+point 1), on build `20261117-012659`: an R12 DXF whose geometry sits in a BLOCK placed by one
+INSERT (ENTITIES holds only the INSERT at 0,0, scale 1) failed `FEATURE_FAILED: The sketch
+from '...' has no segments; it was removed. Hint: Check the drawing's layers and units.` The
+hint points at layers and units; the cause is the block. Workaround: the block's 106 LINE and
+8 ARC entities written flat into ENTITIES by a short script; the import then read 114
+segments, and a 100 mm extrude of it 29 998.945 mm³ against 29 998.9 figured from the loops.
+Proposed by the session: explode INSERTs on import, or say the drawing holds only block
+references.
+(b) The same entry, point 2: `sketch_edit` refused the imported sketch twice, `FEATURE_FAILED:
+SOLIDWORKS did not open sketch '<name>' for editing. Hint: It may be suppressed, rolled back
+or derived`; none of the three held (renamed by `feature_rename`, its test extrude deleted,
+kept, not suppressed, `feature_list` showing it as `ProfileFeature` under the Front Plane).
+So its 114 segments could not be fixed or dimensioned. Not probed whether the rename (a name
+starting with a digit) or the import is the cause. Proposed: a probe of which.
+
+Local. Not decided.
+
+### S100 - Library feature parts (.sldlfp): not opened or saved through the server, read as a wrapper, and a save that lost the sketch, reported `ok` - OPEN 2026-11-18
+
+Sorted out of the entries of 2026-11-17 ("a weldment profile made from a vendor's DXF",
+points 3 and 4) and 2026-11-18 ("reading a hand-saved weldment profile", point 2; "a custom
+weldment profile with one size made to work", points 3 and 4), on build `20261117-012659`.
+A weldment profile is a library feature part, the file `weldment_member` reads (S91).
+(a) `doc_open` refuses `.sldlfp` ("can't open '.SLDLFP' files"): a profile could not be read
+back, and a shipped one had to be opened by the user for a comparison; the read tools then
+read it with `doc` given (foreign, not adopted).
+(b) `doc_save` refuses any extension but the native one ("doc_save writes native .sldprt
+files") and `model_export` has no such format, so a custom profile cannot be made end to end:
+the user saved it as `.sldlfp` by hand and added the folder to File Locations. Proposed by
+the session: `doc_save` takes `.sldlfp` for a part (SaveAs3 to that extension), and a tool or
+an option adds a profile folder to the Weldment Profiles file location.
+(c) `feature_list` on a library feature part shows its marked sketch inside a `LibFeat1` of
+type `LibraryFeature`, where the FeatureManager shows the sketch at the top level marked L
+and no `LibFeat1`. A session took that as the profile's fault, which cost two hand re-saves
+(Dissolve Library Feature, Add to Library). Proposed by the session: `feature_list` says the
+wrapper is internal, or lists the sketch as the library feature it is.
+(d) **A result reported `ok` while wrong.** `doc_save` of an adopted library feature part
+reported success and the profile sketch was gone on reopening. On a copy of a shipped
+profile, adopted by `doc_activate {allowEdit:true}`: its configuration table deleted
+(`feature_delete`, one table refused "Could not select"), `config_add` and three
+`config_delete`, `sketch_edit` of the profile sketch, `sketch_delete` of all 16 segments,
+`sketch_add` of 112, `sketch_finish` (4 closed contours), `doc_save` (`savedTo` the .sldlfp,
+41 145 bytes against 74 903 before), `doc_close`. Reopened by the user: no profile sketch,
+`LibFeat1` with no children. Not known which step dropped it; nothing reported a fault. A
+`feature_list` after the save would have caught it before the close. Proposed: a probe of
+which step, and `doc_save` of a library feature part checking its library feature still
+holds its sketch.
+
+Local. Not decided.
+
+### S101 - `sketch_add` of a hundred entities takes minutes and times out - OPEN 2026-11-18
+
+Sorted out of the entry of 2026-11-18 ("a custom weldment profile with one size made to
+work", point 5), on build `20261117-012659`. `sketch_add` of 112 entities (106 lines, 4 arcs,
+2 circles) took 183 s in a library feature part and 254 s in a new part, `TIMEOUT` at 50 s
+both times, completed later (`sw_status` `lateCompletions`, succeeded): about 1.6 to 2.3 s an
+entity. A profile of a hundred segments needs a batch path or a longer limit for large adds.
+`sketch_import` of the same geometry from a DXF was the way that worked (S99).
+
+Proposed: a probe of where the time goes (the per-entity checks, S65 (e)'s merge pass, the
+contour read), then a batch path or a limit that grows with the count. Local. Not decided.
+
+### S102 - `weldment_member`'s "No profile" lists a one-configuration file it then refuses - OPEN 2026-11-18
+
+Sorted out of the entry of 2026-11-18 (the scenario test of build `20261118-060615`), point
+2; met in S91's own fix (Closed). With a one-configuration copy of a profile directly in the
+standard folder, a wrong `type` was refused "Profiles: <the copy's name>, <the subfolder
+type>". The copy is offered as a type although the next call with it is refused
+(`INVALID_ARGUMENT` "has one configuration ... would make no member"). Not reported `ok`.
+
+Proposed by the session: leave a one-configuration file in the standard folder out of the
+list, or mark it ("not usable: one configuration"). Local. Not decided.
+
 
 ## Waiting
 
@@ -1539,22 +1920,3 @@ sheet's there), which S1 found false for sections and details; its live test onl
 the cut, so a circle landing elsewhere on the part would pass.
 
 **Upstream: PR #1, open.**
-
-### S91 - `weldment_member` cannot reach a one-size profile at `<standard>\<type>\<size>.sldlfp` - BUILT 2026-11-18, proof: the scenario test, a custom one-size profile swept from its type folder
-
-Sorted out of the entry of 2026-11-18 (a custom weldment profile with one size), point 1;
-that entry's other points, and the other entries of 2026-11-17 and 2026-11-18, are not
-sorted yet. SOLIDWORKS reads a profile of several sizes at `<standard>\<type>.sldlfp`
-(sizes as its configurations) and a profile of one size only at
-`<standard>\<type>\<size>.sldlfp` (the folder the type, the file name the size). The server
-read only the first: a one-configuration file in the standard folder was inserted and
-made a Weldment with no member, reported `VERIFY_FAILED` with a hint about the path.
-
-Local: `e663d05` on `sw2023`. `WeldmentSpec.PickProfile` takes a type as a file of two or
-more sizes or as a subfolder of size files; a size file is inserted with no configuration
-named (with its own one, `"Default"`, no member was made in each of 3 runs, with `""` the
-members in each of 4); a one-configuration file directly in the standard folder is refused before
-anything changes, naming the layout that works; "No profile" lists both kinds of type.
-Live test `WeldmentLiveTests.A_one_size_profile_is_read_from_its_type_folder_and_refused_directly_in_the_standard_folder`,
-failing without the fix. In build `20261118-060615` (tag `build-20261118-060615` on
-`ab34750`); scenario test not run yet.
