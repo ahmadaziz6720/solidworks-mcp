@@ -30,6 +30,58 @@ public class WeldmentSpecTests
         Assert.Null(WeldmentSpec.MatchName(types, "tube"));
     }
 
+    // A standard folder: "square tube" with its sizes as configurations, "flat bar" as one file per size in its folder,
+    // "solo" a one-configuration file directly in the standard folder (SOLIDWORKS ignores it there), "empty" a folder of none.
+    private static readonly string[] StdFiles = [@"p\custom\square tube.sldlfp", @"p\custom\solo.sldlfp"];
+    private static readonly string[] StdFolders = [@"p\custom\flat bar", @"p\custom\empty"];
+
+    private static IReadOnlyList<string> FilesIn(string dir) => Path.GetFileName(dir) switch
+    {
+        "flat bar" => [@"p\custom\flat bar\40 x 5.sldlfp", @"p\custom\flat bar\50 X 8.sldlfp"],
+        "solo" => [@"p\custom\solo\40 x 5.sldlfp"],
+        _ => [],
+    };
+
+    private static IReadOnlyList<string> Configs(string file) => Path.GetFileNameWithoutExtension(file) switch
+    {
+        "square tube" => ["20 x 20 x 2", "40 x 40 x 4"],
+        _ => ["Default"],
+    };
+
+    private static ProfilePick Pick(string type, string size, string[]? files = null, string[]? folders = null) =>
+        WeldmentSpec.PickProfile("custom", files ?? StdFiles, folders ?? StdFolders, FilesIn, Configs, type, size);
+
+    [Fact]
+    public void A_profile_is_a_file_of_sizes_or_a_folder_of_one_file_per_size()
+    {
+        var file = Pick("Square_Tube", "40x40x4");
+        Assert.Equal(new ProfilePick(@"p\custom\square tube.sldlfp", "square tube", "40 x 40 x 4", "40 x 40 x 4"), file);
+        var folder = Pick("flat-bar", "50x8");
+        Assert.Equal(new ProfilePick(@"p\custom\flat bar\50 X 8.sldlfp", "flat bar", "50 X 8", ""), folder); // a size file: no configuration named
+        // A one-configuration file and a folder of the same type: the folder is what SOLIDWORKS lists.
+        var both = Pick("solo", "40 x 5", folders: [@"p\custom\solo"]);
+        Assert.Equal(@"p\custom\solo\40 x 5.sldlfp", both.Path);
+    }
+
+    [Fact]
+    public void A_one_size_file_in_the_standard_folder_is_refused_with_the_layout_that_works()
+    {
+        var e = Assert.Throws<SwException>(() => Pick("solo", "Default"));
+        Assert.Equal(ErrorCodes.InvalidArgument, e.Code);
+        Assert.Contains("one configuration", e.Message);
+        Assert.Contains(@"custom\solo\<size>.sldlfp", e.Hint);
+    }
+
+    [Fact]
+    public void Unknown_types_and_sizes_list_both_layouts()
+    {
+        var type = Assert.Throws<SwException>(() => Pick("hexagon bar", "10"));
+        Assert.Equal("Profiles: empty, flat bar, solo, square tube.", type.Hint);
+        Assert.Contains("40 x 5, 50 X 8", Assert.Throws<SwException>(() => Pick("flat bar", "60 x 10")).Hint);
+        Assert.Contains("20 x 20 x 2, 40 x 40 x 4", Assert.Throws<SwException>(() => Pick("square tube", "60 x 60 x 5")).Hint);
+        Assert.Contains("holds no .sldlfp", Assert.Throws<SwException>(() => Pick("empty", "1")).Message);
+    }
+
     [Fact]
     public void Corners_map_to_the_end_condition_codes()
     {

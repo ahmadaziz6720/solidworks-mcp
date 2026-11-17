@@ -25,6 +25,34 @@ internal static class TestHooks
             return ctx.Title(d);
         });
 
+    /// <summary>
+    /// Saves a copy of a part as a library feature part (.sldlfp) with <paramref name="sketch"/> selected, which makes
+    /// that sketch the library feature, as a weldment profile is made by hand.
+    /// </summary>
+    public static Task SaveSketchAsProfileAsync(SwSession s, string doc, string sketch, string path) =>
+        s.RunAsync("test_save_profile", ctx =>
+        {
+            var d = ctx.Doc;
+            d.ClearSelection2(true);
+            if (!d.Extension.SelectByID2(sketch, "SKETCH", 0, 0, 0, false, 0, null, 0))
+                throw new SwException(ErrorCodes.EntityNotFound, $"Could not select '{sketch}'.");
+            int e = 0, w = 0;
+            bool ok = d.Extension.SaveAs3(path, (int)swSaveAsVersion_e.swSaveAsCurrentVersion,
+                (int)(swSaveAsOptions_e.swSaveAsOptions_Silent | swSaveAsOptions_e.swSaveAsOptions_Copy), null, null, ref e, ref w);
+            d.ClearSelection2(true);
+            if (!ok || !File.Exists(path)) throw new SwException(ErrorCodes.IoError, $"SaveAs3 to '{path}' failed (error {e}, warning {w}).");
+            return 0;
+        }, RunOptions.Write(doc));
+
+    /// <summary>The Weldment Profiles file location (folders separated by ';'): read, and set first when <paramref name="set"/> is given.</summary>
+    public static Task<string> WeldmentProfileFoldersAsync(SwSession s, string? set = null) =>
+        s.RunAsync("test_weldment_profiles", ctx =>
+        {
+            const int pref = (int)swUserPreferenceStringValue_e.swFileLocationsWeldmentProfiles;
+            if (set is not null) ctx.App.SetUserPreferenceStringValue(pref, set);
+            return ctx.App.GetUserPreferenceStringValue(pref) ?? "";
+        });
+
     /// <summary>Closes a document by title through the raw API (test cleanup only).</summary>
     public static Task CloseRawAsync(SwSession s, string title) =>
         s.RunAsync("test_close_raw", ctx =>

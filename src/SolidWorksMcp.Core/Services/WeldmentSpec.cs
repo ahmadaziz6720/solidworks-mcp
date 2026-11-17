@@ -47,12 +47,69 @@ public sealed record WeldmentFinishRequest
     public bool KeepOnFailure { get; init; }
 }
 
+/// <summary>A weldment profile picked from a standard folder: the file, the names it goes by, and the configuration to insert.</summary>
+internal sealed record ProfilePick(string Path, string Type, string Size, string Configuration);
+
 /// <summary>
-/// The names weldment_member takes (pure; offline-tested). Profiles live in the weldment-profile folder as
-/// &lt;standard&gt;\&lt;type&gt;.sldlfp, and each size is a configuration of that file ("40 x 40 x 4").
+/// The names weldment_member takes (pure; offline-tested). Profiles live in the weldment-profile folder in two layouts,
+/// as SOLIDWORKS reads them: &lt;standard&gt;\&lt;type&gt;.sldlfp with each size a configuration of that file
+/// ("40 x 40 x 4"), the shipped profiles' layout; or &lt;standard&gt;\&lt;type&gt;\&lt;size&gt;.sldlfp, one file per size.
 /// </summary>
 internal static class WeldmentSpec
 {
+    /// <summary>
+    /// The profile <paramref name="type"/> / <paramref name="size"/> of a standard folder, from its listing:
+    /// <paramref name="files"/> the .sldlfp files directly in it, <paramref name="folders"/> its subfolders,
+    /// <paramref name="filesIn"/> a subfolder's .sldlfp files, <paramref name="configurations"/> a file's configurations.
+    /// The configuration to insert is the size for a file of sizes, and none ("") for a size file.
+    /// A file directly in the standard folder with fewer than two configurations is refused: SOLIDWORKS does not list it
+    /// as a type, and inserting it makes no member (VERIFIED on 2023 SP3). Unknown names list what there is.
+    /// </summary>
+    public static ProfilePick PickProfile(string standard, IReadOnlyList<string> files, IReadOnlyList<string> folders,
+        Func<string, IReadOnlyList<string>> filesIn, Func<string, IReadOnlyList<string>> configurations, string type, string size)
+    {
+        string? key = Norm(type);
+        string? file = files.FirstOrDefault(f => Norm(Path.GetFileNameWithoutExtension(f)) == key);
+        string? folder = folders.FirstOrDefault(f => Norm(Path.GetFileName(f)) == key);
+        if (file is not null)
+        {
+            string fileType = Path.GetFileNameWithoutExtension(file);
+            var sizes = configurations(file);
+            if (sizes.Count >= 2)
+            {
+                if (MatchSize(sizes, size) is { } got) return new ProfilePick(file, fileType, got, got);
+                if (folder is null)
+                    throw SwException.InvalidArgument($"'{fileType}' has no size '{size}'.", $"Sizes: {Few(sizes, 20)}.");
+            }
+            else if (folder is null)
+            {
+                throw SwException.InvalidArgument(
+                    $"'{fileType}.sldlfp' in the {standard} standard has {(sizes.Count == 1 ? "one configuration" : "no configurations")}: " +
+                    "SOLIDWORKS does not read a one-size profile there, and would make no member.",
+                    $"Put a profile with one size in {standard}\\{fileType}\\<size>.sldlfp (the folder is the type, the file name " +
+                    $"the size); one with several sizes keeps them as configurations of {standard}\\{fileType}.sldlfp.");
+            }
+        }
+        if (folder is not null)
+        {
+            string folderType = Path.GetFileName(folder);
+            var sizeFiles = filesIn(folder);
+            if (sizeFiles.Count == 0)
+                throw SwException.InvalidArgument($"The '{folderType}' folder of the {standard} standard holds no .sldlfp profile.",
+                    $"A profile there is {standard}\\{folderType}\\<size>.sldlfp, one file per size.");
+            var names = sizeFiles.Select(f => Path.GetFileNameWithoutExtension(f)).ToList();
+            string got = MatchSize(names, size)
+                         ?? throw SwException.InvalidArgument($"'{folderType}' has no size '{size}'.", $"Sizes: {Few(names, 20)}.");
+            // A size file is inserted with no configuration named. VERIFIED (2023 SP3): with the file's own one
+            // configuration ("Default") InsertStructuralWeldment5 made a Weldment with no member in each of 3 runs; with ""
+            // it made the members in each of 4.
+            return new ProfilePick(sizeFiles[names.IndexOf(got)], folderType, got, "");
+        }
+        var types = files.Select(f => Path.GetFileNameWithoutExtension(f)).Concat(folders.Select(f => Path.GetFileName(f)))
+            .Distinct(StringComparer.OrdinalIgnoreCase).Order(StringComparer.OrdinalIgnoreCase);
+        throw SwException.InvalidArgument($"No profile '{type}' in the {standard} standard.", $"Profiles: {Few(types)}.");
+    }
+
     public static string? Norm(string? s) =>
         string.IsNullOrWhiteSpace(s) ? null : Regex.Replace(s.Trim().ToLowerInvariant().Replace('_', ' ').Replace('-', ' '), @"\s+", " ");
 

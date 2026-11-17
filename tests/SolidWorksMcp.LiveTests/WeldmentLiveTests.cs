@@ -288,6 +288,50 @@ public class WeldmentLiveTests(LiveFixture fx) : LiveTest(fx)
     }
 
     [Fact]
+    public async Task A_one_size_profile_is_read_from_its_type_folder_and_refused_directly_in_the_standard_folder()
+    {
+        // The profile: a 40 × 20 rectangle centred on the front plane's origin, saved as a library feature part (its
+        // sketch selected) with the part's one configuration; a member of it has 800 mm² of section.
+        string dir = Path.Combine(Path.GetTempPath(), $"swmcp_weld_{Guid.NewGuid():N}");
+        string std = Path.Combine(dir, "custom");
+        Directory.CreateDirectory(Path.Combine(std, "flat bar"));
+        string prof = await NewPartAsync("wm_profile");
+        await Sk.StartAsync(prof, new EntityRef { Name = "front" }, false);
+        await Sk.AddAsync(prof, [new SketchEntity { Kind = "rectangle", Center = [0, 0], WidthMm = 40, HeightMm = 20 }]);
+        await Sk.FinishAsync(prof);
+        string lfp = Path.Combine(dir, "profile.sldlfp");
+        await TestHooks.SaveSketchAsProfileAsync(S, prof, "Sketch1", lfp);
+        File.Copy(lfp, Path.Combine(std, "flat bar", "40 x 20.sldlfp"));
+        File.Copy(lfp, Path.Combine(std, "solo.sldlfp"));
+
+        string roots = await TestHooks.WeldmentProfileFoldersAsync(S);
+        await TestHooks.WeldmentProfileFoldersAsync(S, roots.Length == 0 ? dir : roots + ";" + dir);
+        try
+        {
+            string doc = await RectangleAsync("wm_folder");
+            var r = await Wm.MemberAsync(new WeldmentMemberRequest { Doc = doc, Standard = "custom", Type = "flat bar", Size = "40x20", Corner = "none" });
+            Assert.Equal("custom / flat bar / 40 x 20", r.Profile);
+            Assert.Equal(Path.Combine(std, "flat bar", "40 x 20.sldlfp"), r.ProfilePath, ignoreCase: true);
+            Assert.Equal(4, r.Members.Count);
+            Assert.All(r.Members, m => Assert.Equal(800, Area(m), 0.01));
+            Assert.Equal(800 * 1400, r.Verified.VolumeDeltaMm3, 1);
+
+            // The same file directly in the standard folder: SOLIDWORKS would make no member of it, so it is refused.
+            string doc2 = await RectangleAsync("wm_solo");
+            var solo = await Assert.ThrowsAsync<SwException>(() => Wm.MemberAsync(new WeldmentMemberRequest { Doc = doc2, Standard = "custom", Type = "solo", Size = "40 x 20" }));
+            Assert.Equal(ErrorCodes.InvalidArgument, solo.Code);
+            Assert.Contains("one configuration", solo.Message);
+            Assert.Contains(@"custom\solo\<size>.sldlfp", solo.Hint);
+        }
+        finally
+        {
+            Assert.Equal(roots, await TestHooks.WeldmentProfileFoldersAsync(S, roots));
+            try { Directory.Delete(dir, recursive: true); }
+            catch (Exception e) when (e is IOException or UnauthorizedAccessException) { /* SOLIDWORKS still holds a profile: the fixture sweeps it */ }
+        }
+    }
+
+    [Fact]
     public async Task Unknown_profiles_sizes_and_segments_are_refused_with_what_there_is()
     {
         string doc = await RectangleAsync("wm_bad");

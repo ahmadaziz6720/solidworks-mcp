@@ -77,7 +77,8 @@ public sealed partial class WeldmentService(SwSession session)
     {
         var part = ctx.Part();
         var d = (IModelDoc2)part;
-        var (path, profile, size) = Profile(ctx, q.Standard ?? "iso", q.Type!, q.Size!);
+        var (stdName, pick) = Profile(ctx, q.Standard ?? "iso", q.Type!, q.Size!);
+        string path = pick.Path;
         var (sketchFeat, sketch) = PathSketch(ctx, d, q.Sketch);
         var s2m = sketch.Is3D() ? Xform.Identity : SketchService.SketchToModel(sketch);
         var all = sketch.Segments().Where(s => !s.ConstructionGeometry &&
@@ -119,7 +120,7 @@ public sealed partial class WeldmentService(SwSession session)
         object? api = null;
         try
         {
-            api = fm.InsertStructuralWeldment5(path, 1, false, new[] { new DispatchWrapper(group) }, size);
+            api = fm.InsertStructuralWeldment5(path, 1, false, new[] { new DispatchWrapper(group) }, pick.Configuration);
         }
         catch (COMException e) when (!ComArgs.IsDisconnect(e))
         {
@@ -127,7 +128,7 @@ public sealed partial class WeldmentService(SwSession session)
         }
         d.ClearSelection2(true);
 
-        string profileName = $"{profile.Standard} / {profile.Type} / {size}";
+        string profileName = $"{stdName} / {pick.Type} / {pick.Size}";
         var o = BodyKit.Verify(ctx, d, before, MemberSpec, (main, after, checks) => MemberIntent(part, bodiesBefore, paths, checks),
             q.KeepOnFailure, api, attempts.Count > 0 ? string.Join("; ", attempts) : "The segments must form a path a profile can follow (no zero-length or overlapping lines).",
             guessedType: true);
@@ -149,13 +150,12 @@ public sealed partial class WeldmentService(SwSession session)
 
     // ------------------------------------------------------------------ profiles
 
-    private sealed record ProfileName(string Standard, string Type);
-
     /// <summary>
-    /// The profile file and size: &lt;weldment profiles&gt;\&lt;standard&gt;\&lt;type&gt;.sldlfp and one of its configurations.
+    /// The profile file, its names and the configuration to insert: &lt;weldment profiles&gt;\&lt;standard&gt;\&lt;type&gt;.sldlfp
+    /// and one of its configurations, or &lt;standard&gt;\&lt;type&gt;\&lt;size&gt;.sldlfp (WeldmentSpec.PickProfile).
     /// Unknown names list what there is.
     /// </summary>
-    private static (string Path, ProfileName Profile, string Size) Profile(SwContext ctx, string standard, string type, string size)
+    private static (string Standard, ProfilePick Pick) Profile(SwContext ctx, string standard, string type, string size)
     {
         var roots = (ctx.App.GetUserPreferenceStringValue((int)swUserPreferenceStringValue_e.swFileLocationsWeldmentProfiles) ?? "")
             .Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).Where(Directory.Exists).ToList();
@@ -165,15 +165,11 @@ public sealed partial class WeldmentService(SwSession session)
         var stdDir = standards.FirstOrDefault(s => WeldmentSpec.Norm(Path.GetFileName(s)) == WeldmentSpec.Norm(standard))
                      ?? throw SwException.InvalidArgument($"No weldment standard '{standard}'.",
                          $"Standards: {WeldmentSpec.Few(standards.Select(Path.GetFileName).OfType<string>().Distinct())}.");
-        var files = Directory.GetFiles(stdDir, "*.sldlfp").ToList();
-        var file = files.FirstOrDefault(f => WeldmentSpec.Norm(Path.GetFileNameWithoutExtension(f)) == WeldmentSpec.Norm(type))
-                   ?? throw SwException.InvalidArgument($"No profile '{type}' in the {Path.GetFileName(stdDir)} standard.",
-                       $"Profiles: {WeldmentSpec.Few(files.Select(Path.GetFileNameWithoutExtension).OfType<string>())}.");
-        var sizes = ComArgs.Strings((object?)ctx.App.GetConfigurationNames(file)).ToList();
-        string got = WeldmentSpec.MatchSize(sizes, size)
-                     ?? throw SwException.InvalidArgument($"'{Path.GetFileNameWithoutExtension(file)}' has no size '{size}'.",
-                         $"Sizes: {WeldmentSpec.Few(sizes, 20)}.");
-        return (file, new ProfileName(Path.GetFileName(stdDir), Path.GetFileNameWithoutExtension(file)), got);
+        string stdName = Path.GetFileName(stdDir);
+        var pick = WeldmentSpec.PickProfile(stdName, Directory.GetFiles(stdDir, "*.sldlfp"), Directory.GetDirectories(stdDir),
+            dir => Directory.GetFiles(dir, "*.sldlfp"),
+            file => ComArgs.Strings((object?)ctx.App.GetConfigurationNames(file)).ToList(), type, size);
+        return (stdName, pick);
     }
 
     // ------------------------------------------------------------------ sketch and segments
