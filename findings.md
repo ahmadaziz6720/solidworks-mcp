@@ -1928,3 +1928,5 @@ S89), `sw_connect` attached at once.
 
 128 calls, 73.0k characters of results; 1 error (`doc_close` `DIRTY` on an assembly that had
 read clean after its save, point 1).
+
+Sorted into S61 (1), part (a) failed, reported `ok` while wrong; S90 (7), new; S5 (8), met again, the rest of the regression held. Held: S52 (2), part (c), closed (S76 held again there); S88 (3), S71 (4), S87 (5) and S72 (6), closed.

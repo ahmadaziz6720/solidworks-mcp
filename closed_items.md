@@ -2770,6 +2770,248 @@ point 1): (c) `ref_plane` `angle` 30° on `top` about `{name:"Line1", sketch:"Sk
 `type`, resolved "sketch segment Line1" and checked at 30°; `ref_axis` `two_points` through
 two `{at:[x, y], sketch}` points, no `type`, along them. (a), (b) and (d) held 2026-11-14.
 
+### S72 - A SOLIDWORKS process in a bad state: a material applied at 1 kg/m³ with a warning only, a linked property in metres, every equation refused - CLOSED 2026-11-17
+
+In the scenario test of build
+`20261114-024455` (findings 2026-11-14, point 1), on a SOLIDWORKS process started before
+the session (what ran in it earlier is not known): every equation was refused, a batch of
+ten globals and then `"W" = 60mm` alone in a new part, with S58 (b)'s message as designed.
+In the same process `material_set "AISI 1020"`, with or without a configuration, applied
+the material at 1 kg/m³: `densityKgM3: 1`, `databaseDensityKgM3: 7900`, the check
+"material reads back" and only a warning ("The mass properties give 1 kg/m³, the database
+7900 kg/m³ (bodies with their own material, or an overridden mass?)"), no error, though
+the description says the mass properties are verified to show its density. A user-library
+material at 1270 kg/m³ read right in that process. A property linked to a 3 mm dimension
+(`"D1@<feature>"`) resolved `0,0030000000000000`, metres. After a restart of SOLIDWORKS
+the equations went in at once and a database material read 2700 kg/m³, its database
+density. The same three symptoms were met together once before, in an old SOLIDWORKS
+session (S28's test). Reported `ok` while wrong. Proposed by the session: `material_set`
+refuses (`VERIFY_FAILED`, rolled back) when the density read differs from the database's,
+as it once did, and its message, like S58 (b)'s, names a restart when a database material
+reads ~1 kg/m³. Bears on S58 (b), S30. Local. Not yet decided.
+Decided 2026-11-16 in the plan, not by the owner, because the description promises the
+density verified and the session proposed it: `material_set` refuses (`VERIFY_FAILED`,
+rolled back) when the density read differs from the database's by more than 1 % with no
+body material of its own and no mass override, naming a restart at about 1 kg/m³. Taken
+into the run of 2026-11-16, group 5 (`## Run 2026-11-16`).
+
+Only the material point is this run's; the linked property in metres (S30) and the
+equations refused (S58 (b)'s message, as designed) stay as they are.
+Cause: `material_set` compared the density read with the database's and only warned
+when they differed, so a material named and read back at 1 kg/m³ was reported `ok`.
+Fix: the rule is `MaterialDensity.Judge` (interop-free, in the unit tests): within 0.5 %
+the check "matches the database"; off by more than 1 % with no solid body of another
+material and Mass Properties' "override mass" off (`IMassProperty2.GetOverrideOptions`,
+`OverrideMass`), `VERIFY_FAILED`, the previous material put back (in the configuration
+given) and read back, the message ending "Rolled back to '<prev>'." or "Rolled back: no
+material, as before."; at 0.5 to 1.5 kg/m³ it adds "SOLIDWORKS can come to apply every
+database material at 1 kg/m³, in a new part too, until it is restarted.", hint "Save the
+open documents, restart SOLIDWORKS and repeat the call."; otherwise a warning naming why
+(bodies with their own material, the mass overridden, within 1 %).
+Test before: `MaterialDensityTests` (7 cases) did not compile, CS0103 "The name
+'MaterialDensity' does not exist in the current context". After: unit tests 297 passed
+(290 + 7). The bad state was met live on the fix's own first run, in a SOLIDWORKS
+process that had run earlier work: the live tests that apply a database material were
+refused with the new message, "the mass properties give 1 kg/m³, the database 7900
+kg/m³ … until it is restarted. Rolled back to 'AISI 1020'." (or "no material, as
+before"). After a restart of SOLIDWORKS, the live tests that call `material_set`, each by
+`--filter-method`: 12 of 13 cases passed (`ConfigurationLiveTests` A_material_named_…
+(2) and A_material_set_in_one_configuration_…, `M0LiveTests`
+Status_gives_a_failed_call_…, `PropertiesLiveTests` Material_set_AISI_1020_…,
+Material_set_rejects_unknown_names_…, A_material_library_that_does_not_parse_…,
+Foreign_documents_…, `ReferenceLiveTests` Cost_of_the_machined_block_… and
+Review_reports_…, `SimulationLiveTests` Two_bonded_halves_…); the 13th,
+`PropertiesLiveTests` A_custom_material_is_listed_…, fails at `material_add`'s
+byte-for-byte check of the library (line 67), before its `material_set`, and fails the
+same on the code before the fix: the machine's custom library holds a second
+classification with a material this server wrote, which the test's layout check does not
+expect. `python tools/check_repo.py` ok; no tool description changed.
+Made stricter: a density off by more than 1 % with no body material and no override was a
+warning, now a refusal.
+Decided 2026-11-16 by the run, not the owner: between 0.5 % and 1 % off it stays a
+warning, as the match check was 0.5 % already, because the plan set the refusal at 1 % and
+that is the smaller change.
+Decided 2026-11-16 by the run, not the owner: "about 1 kg/m³" is 0.5 to 1.5 kg/m³,
+because the bad state reads 1 and no database material is that light.
+Decided 2026-11-16 by the run, not the owner: a body material or mass override that
+cannot be read counts as present (a warning, not a refusal), because a refusal on an
+unknown reading would refuse a material that may be right.
+Decided 2026-11-16 by the run, not the owner: the rollback puts back the previous name as
+read, a name SOLIDWORKS kept without applying it (S30) included, because that is the state
+before the call.
+Local: on `sw2023`, in the commit that moves it here; in build `20261117-012659`. Upstream: not yet
+decided.
+Held 2026-11-17 as far as the scenario test could try it: the scenario test of build
+`20261117-012659` (findings 2026-11-17, point 6): `material_set` AISI 1020 read "density
+7900 kg/m³ matches the database", PETG from the custom library at 1270 kg/m³ the same, no
+warning and no false refusal. A process applying 1 kg/m³ was not met there, so the refusal
+was not tried in it.
+Decided 2026-11-17 by the run, not the owner: closed, because the refusal was met live by the
+session that made the fix (the live tests applying a database material were refused at
+1 kg/m³ in a process in the bad state and rolled back, above) and its rule is unit-tested
+(`MaterialDensityTests`), and the scenario test showed no false refusal.
+
+### S71 - A frequency study with no fixtures fails in the solver - CLOSED 2026-11-17
+
+Seen in the release runs
+of 2026-11-14: `SimulationLiveTests.Frequency_of_the_cantilever_column_matches_beam_theory_and_a_free_bar_has_six_rigid_body_modes`
+fails at its second study, the free-free column (`sim_run` frequency, 8 modes, no fixed
+faces, default mesh size, mesh quality High), with "The solver did not finish:
+RunAnalysis returned 24 (swsRunAnalysisErrorAnalysisFailed)" after ~40 s; its first study,
+the fixed-foot one (4 modes, 2.5 mm mesh), passes. Four runs of four, two of them on a
+fresh SOLIDWORKS with 1.6-2.0 GB free; the same on build `091908`'s code, and no commit
+since that build touches `SimulationService` or the test. The server picks no solver, so
+SOLIDWORKS 2023 chooses one for a stiffness matrix with six rigid-body modes. Not probed:
+whether a solver choice (FFEPlus, Direct Sparse), a mesh size or the soft-spring option
+lets it finish. Local, upstream's test. Decided 2026-11-14 by the run, not the owner: an
+item, open, as S67, not fixed in the release run, because it fails the same on the code
+before the run.
+Taken into the run of 2026-11-16, group 5, a probe of soft springs and the solver first
+(`## Run 2026-11-16`).
+Cause: the server left the solver to SOLIDWORKS (`FrequencyStudyOptions.SolverType` reads
+0, automatic, soft springs off), and SOLIDWORKS 2023 stops on a free body's six rigid-body
+modes with code 24 within 2-3 s of solving.
+Probe, 2026-11-16, the test's free-free study (default mesh, 8 modes), the option set
+after the mesh: automatic, 24; Direct Sparse (1), 24; Direct Sparse with soft springs
+(`UseSoftSpring2`), 24; FFEPlus (2), solved; automatic with soft springs, solved; FFEPlus
+with soft springs, solved. Each that solved passed the test's oracle (six modes below
+1 Hz, the first free bending mode within 2 % of 1293 Hz).
+Fix: `sim_run` frequency with no fixtures sets `SolverType` FFEPlus, reads it back
+(`VERIFY_FAILED` if it does not hold) and says "solver FFEPlus for the free body (read
+back)" in its checks; a study with fixtures keeps SOLIDWORKS' choice. The probe is in
+`docs/solidworks-api-notes.md` (§14, Frequency).
+Test before: `SimulationLiveTests.Frequency_of_the_cantilever_column_…` failed at its
+free-free study, "The solver did not finish: RunAnalysis returned 24
+(swsRunAnalysisErrorAnalysisFailed)." After: it passes, with the FFEPlus check asserted
+for the free study and absent for the fixed one; with it, `Buckling_of_the_fixed_free_…`,
+`Sim_run_refuses_loads_on_a_frequency_study_…` and `Plots_of_kept_studies_…`: 4 of 4
+passed. Unit tests 297 passed; `python tools/check_repo.py` ok; no tool description
+changed.
+Made stricter: the test asserts the solver check of the free study, and its absence with
+fixtures.
+Decided 2026-11-16 by the run, not the owner: FFEPlus, not soft springs, because soft
+springs add stiffness to the model the results are read from, while FFEPlus solves the
+model as it is; both are one setting.
+Decided 2026-11-16 by the run, not the owner: only with no fixtures, because the fixed
+study solves under SOLIDWORKS' own choice and the item is the free body.
+Local: on `sw2023`, in the commit that moves it here; in build `20261117-012659`. Upstream: not yet
+decided.
+Held 2026-11-17: the scenario test of build `20261117-012659` (findings 2026-11-17,
+point 4): `sim_run frequency` on a 40 mm AISI 1020 block, 8 modes, no fixtures, checked
+"solver FFEPlus for the free body (read back)", solver status 0, six modes 0 to 0.0021 Hz
+then 35 490.8 Hz, in 13.5 s; with the bottom face fixed, 4 modes from 13 380 Hz and no
+solver check.
+
+### S87 - `sketch_add`'s second merge reports the distance after the first and moves an end twice the gap - CLOSED 2026-11-17
+
+Sorted out of the entry of 2026-11-16 (the scenario test of build `20261116-205845`), point
+2. An open polyline typed to 4 decimals and an arc on its ends, in one call: `endsMerged: 2`,
+one closed contour (S65 (e) held). Reported `ok`: the second merge read "0.000054 mm apart"
+where the drawn gap was 0.000027; the first merge had moved the arc (its centre to y
+10.000027), and the second moved the line's end 0.000054 from where it was typed
+(`sketch_info`: y 14.330154, typed 14.3301). Within the 1e-4 tolerance, the geometry right;
+the reported distance is the one after the earlier merge, and one end moved twice the gap.
+
+Proposed: each merge reports the gap as drawn, and moves an end by at most that gap (the
+second merge onto the point the first left, or both measured before either moves). Local,
+small, in group 4's files: by the run's rule a later item of this run, taken into group 5.
+Taken into the run of 2026-11-16, group 5 (`## Run 2026-11-16`).
+Cause: `MergeEnds` measured each gap on the sketch as it stood, after the merges before
+it, and left SOLIDWORKS' solver to pick which point moves. The arc merged onto one
+polyline end moved as a whole, its other end then 0.000054 off the other polyline end,
+and that merge pulled the polyline end onto it.
+Fix: the ends are read once before any merge, and each gap reported and checked against
+the 1e-4 mm tolerance is the one as drawn; before each merge the new end is set onto the
+other with `ISketchPoint.SetCoords`, the arc bending and the polyline staying, so the merge
+moves nothing; a merge that still moves the other end more than the drawn gap warns,
+naming it. In `docs/solidworks-api-notes.md` (Merge).
+Test before: `SketchEditLiveTests.Sketch_add_merges_an_arc_drawn_on_a_polyline_s_ends_into_one_closed_contour`,
+extended: "Assert.EndsWith() Failure ... (Line3 end), 0.000054 mm apart, Expected end:
+0.000027 mm apart"; with the report fixed alone, "the polyline's end typed at [34.3301,
+12.5] reads [34.330154, 12.5]". After: it passes; with it,
+`Sketch_add_lists_the_relations_and_merges_SOLIDWORKS_made`,
+`Merge_and_coincident_join_two_line_ends_into_one_point`,
+`Constrain_follows_a_point_through_a_merge`,
+`Info_lists_segments_contours_frame_and_dimensions` and
+`A_point_where_offset_arcs_centres_and_line_ends_sit_…`: 6 of 6 passed. Unit tests 297
+passed; `python tools/check_repo.py` ok; no tool description changed.
+Made stricter: the test asserts both merges' gaps and the polyline's ends within the
+drawn gap of where they were typed.
+Decided 2026-11-16 by the run, not the owner: the new end set onto the other before the
+merge, not only both gaps measured before either merge, because measuring alone makes the
+report true while the polyline's end still moves twice the gap; setting the end needs no
+relation added and removed, as fixing the other end would.
+Decided 2026-11-16 by the run, not the owner: a warning when a merge moves the other end
+more than the drawn gap, because the result then says so instead of a silent move.
+Local: on `sw2023`, in the commit that moves it here; in build `20261117-012659`. Upstream: not yet
+decided.
+Held 2026-11-17: the scenario test of build `20261117-012659` (findings 2026-11-17,
+point 5): the polyline typed to 4 decimals and an arc centre [30, 10] r 5, −60° to 60°, in
+one call: both merges read "0.000027 mm apart", the gap as drawn; `sketch_info` gave the
+polyline's ends as typed (y 14.3301 and 5.6699), the arc taking the gap (centre x
+29.999953, r 5). The same arc onto an older polyline in a later call: 0.000027 twice; an
+arc 0.2 mm off not merged.
+
+### S88 - `view_screenshot` fits a part small to an axis made through points, with no warning - CLOSED 2026-11-17
+
+Sorted out of the entry of 2026-11-16 (the scenario test of build `20261116-205845`), point
+5. A 40 mm block and an axis by `ref_axis two_points` at z 300: the default screenshot
+showed the block at about a tenth of the image beside two near-invisible dots (the axis's 3D
+sketch points); with `hideSketches:true` it filled the image. Reported `ok`, nothing in the
+result saying the fit took in a sketch past the bodies, which the server checks for (S65
+(d)'s fit by selection). As designed in S65 (d) ("an axis through coordinates still needs
+`hideSketches:true`"), but a caller who wants the part gets a small one, the case that opened
+(d).
+
+Proposed: a warning when the fit takes in a shown sketch that reaches past the bodies,
+naming it and `hideSketches`. Hiding the 3D sketch `ref_axis` makes for its points was left
+by S65 (d)'s run for the next plan (it changes the reference tools) and is not taken here.
+Local, small, in group 4's files: by the run's rule the warning is a later item of this run,
+taken into group 5. Not decided.
+Taken into the run of 2026-11-16, group 5 (`## Run 2026-11-16`).
+Cause: S65 (d)'s fit selects the sketches shown, as the image shows them, and the result
+said nothing when one of them reached past the bodies: the 3D sketch of an axis through
+points is shown, so the fit took it in and left the part small, reported `ok`.
+Fix (`ViewService.FitToWhatIsShown`, `FitReach`): when the fit is by selection, each sketch
+selected is boxed in model space as the fit takes it in (its points but the centres of arcs
+and ellipses, its line and arc ends, a 2D arc's circle at the axis extremes on its sweep);
+one past the bodies' box by more than 10 % of its largest side is named in a warning: "The
+fit takes in 3DSketch1, shown past the bodies, which leaves them small in the image;
+hideSketches:true leaves sketches out of the image and the fit." Not with `hideSketches`,
+the sketches toggle off or `zoomToFit:false`. The rule and the arc's extremes in an
+interop-free file with unit tests. Probed live: a shallow arc's centre 180 mm out is not in
+the fit (the block's share 0.2126, 0.2125 without the arc); in
+`docs/solidworks-api-notes.md` (Zoom to fit). No tool description changed.
+Test before: `VisualsLiveTests.A_fit_that_takes_in_a_shown_sketch_past_the_bodies_warns`,
+a 40 mm block and an axis by `two_points` at z 300: "no warning of the fit taking in the
+axis's sketch: []". After: it passes (the axis's sketch named, not with `hideSketches` nor
+unfitted, none for the block alone nor for a shown arc 3 mm past it whose circle, r ≈ 200
+mm, reaches far past; that case warned falsely while arc centres were counted, now fixed);
+with it `Zoom_to_fit_takes_what_the_image_shows_and_axes_are_hidden`,
+`A_section_cuts_the_image_and_is_removed_afterwards`,
+`M0LiveTests.Screenshot_returns_a_png_and_restores_display_settings` and
+`SimulationLiveTests.Plots_of_kept_studies_show_the_results_range_in_an_image`: 5 of 5
+passed. Unit tests 299 of 299 (`FitReachTests`, 2 new); `python tools/check_repo.py` ok.
+Made stricter: none (a warning added; the fit and the image as before).
+Decided 2026-11-16 by the run, not the owner: a sketch warns when it reaches past the
+bodies' box by more than 10 % of its largest side, not by any amount, because below that
+the part's share of the image barely changes and the warning would read as a fault on a
+right result (S84).
+Decided 2026-11-16 by the run, not the owner: a sketch's box leaves out arc and ellipse
+centres and takes a 2D arc's extremes on its sweep only, and gives a 3D arc, an ellipse or
+a spline its points only, because the warning must not claim a reach the fit does not take
+(a centre 180 mm out did not move the fit); it may fall short on a bulge, never past.
+Decided 2026-11-16 by the run, not the owner: the warning only, no description change,
+because `hideSketches`' text already says it leaves sketches out of the fit and the tool
+list is at its byte budget.
+Local: on `sw2023`, in the commit that moves it here; in build `20261117-012659`. Upstream: not yet
+decided.
+Held 2026-11-17: the scenario test of build `20261117-012659` (findings 2026-11-17,
+point 3): a 40 mm block and an axis by `ref_axis two_points` at z 300: the default
+screenshot warned "The fit takes in 3DSketch1, shown past the bodies, which leaves them
+small in the image; hideSketches:true leaves sketches out of the image and the fit."; with
+`hideSketches:true` the block filled the image, no warning.
+
 ## Not items
 
 - **SW 2023 interop patch** (`27e8c25`): `swCustomInfoEquation` case removed,
