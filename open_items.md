@@ -396,7 +396,7 @@ its point.
 - [x] S83: committed (49a57fb)
 - [x] S107: committed (70e23a3)
 - [x] S110: committed (f3617b0)
-- [x] Group 1: full live tests and release (build: `20261121-205309`, `1fb1fda`)
+- [x] Group 1: full live tests and release (build: `20261121-205309`, `1fb1fda`) (`4b8cb7c`)
   Live: AssemblyLiveTests 62, AssemblyStructureLiveTests 2, TopDownLiveTests 4, M0LiveTests 23, ExportLiveTests 22,
   ConfigurationLiveTests 6, HardwareLiveTests 3, SimulationLiveTests 17, FeatureManagementLiveTests 36 (the classes that
   save, close or insert in an assembly, call `dimension_set`, or whose tests pass `doc` through `SwContext.Bind` for S107,
@@ -418,7 +418,8 @@ its point.
   `claude_solidworks`, `clove sorter` (its `SWMCP_VBA=on` kept) and this repo, each read back from `~/.claude.json` on the
   new exe; tag `build-20261121-205309` pushed and read back, release page with no files.
   Cost: Sonnet, see the report.
-- [ ] Group 1: scenario test (session id: ), its entry committed and sorted
+- [ ] Group 1: scenario test (session id: `287fca18-c22d-4f64-a5fc-e3c50a4efba2`), its entry committed and sorted
+  Started 20:55 2026-11-21, free memory 2174 MB with SOLIDWORKS restarted from its exe; launcher check1.ps1 in the session's scratchpad.
 - [ ] S92 (c): probed
 - [ ] S92 (a) and (b): committed
 - [ ] S79 (b): committed
