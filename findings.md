@@ -2332,3 +2332,49 @@ process of the previous build was still running beside it (`otherServerPids`), n
    and 3 hatched faces, `doc_save as` .SLDDRW written; a hinge assembly read-only, interference 0.
 
 Sorted into S111 (5), new; S5 (7), met again, the rest of the regression held. Held: S61 (1), S83 (3), S110 (4), S107 (6). Not filed (2): seen with S61 (a), not faults (the STEP component named `<name>.step-2`, which the result names; the reopen order).
+
+**2026-11-22: scenario test of S112, S113 and S95, with a short regression run**
+
+Build `bin\0.1.0-20261122-002030` (`serverVersion` `0.1.0-sw2023-20261122-002030+c2026da`).
+
+1. **S112, held in the good state.** A 60 × 40 × 10 block; one `equation_set` with `g` = 60.4mm,
+   `k` = 2.5mm, `s` = 0.5mm, `h` = "g" / 2 and the boss depth = "k" * 4 + "s": read back 60.4,
+   2.5, 0.5, 30.2, 10.5, +1200 mm³, no warning; `equation_list` the same values, no warning. On a
+   part with ten globals and thirteen linked dimensions, `equation_list` clean and one batch of the
+   ten globals to new values and back: 173 487.816 then 108 553.103 mm³, `bodies` 1, no warning.
+   The restart state did not occur, so its warning and refusal wording stay proved by unit tests only.
+2. **S113, held.** On the block: `doc_undo` after the `equation_set` refused `NOT_SUPPORTED`,
+   naming `equation_set` and the step it would take back, the server's `feature_extrude`. A second
+   boss, then `prop_set`: refused the same, naming `prop_set`. `dimension_set` 5 → 6 on the second
+   boss, then `doc_undo`: ran, −78.54 mm³. `feature_rename`: refused. `feature_suppress_set`, then
+   `doc_undo`: ran, +392.699 mm³. A part opened read-only, force `doc_rebuild`, then `doc_undo`:
+   `NOT_OWNED` (the rebuild is not counted). A drawing: refused as before.
+3. **S113, wording.** After a `doc_undo` had taken back the server's `dimension_set`, the refusal
+   after `feature_rename` said "undo would take back a step before it that isn't the server's",
+   though the step it would take back is the server's own `feature_extrude` (the second boss): after
+   an undo the server no longer knows which of its steps is next. The refusal itself was right.
+4. **S113, assembly: a component's dimension.** In a two-part assembly (opened read-only),
+   `dimension_set` `D1@Boss-Extrude1@<component>-1.Part` 60 → 80 (+6283.185 mm³), then `doc_undo`:
+   `VERIFY_FAILED` "Nothing changed: SOLIDWORKS had nothing to undo, or the last step can't be
+   undone. Hint: Check the model with feature_list."; the length stayed 80. Again with a mate
+   suppressed first (`feature_suppress_set`, which leaves an undo step there: suppress alone, then
+   `doc_undo`, ran), then the component `dimension_set`, then `doc_undo`: the same `VERIFY_FAILED`,
+   the mate still suppressed, the length 80. So a component's dimension set from an assembly leaves
+   no undo step the assembly's undo reaches, the server still counts it as one, and the answer is
+   the generic "Nothing changed" instead of S113's refusal naming `dimension_set`. Nothing was lost
+   in either case. The undo that did run (the mate's unsuppress taken back) returned only
+   `{"steps":1}`, without naming the mate or its state, where the description promises the features
+   removed or restored.
+5. **S95, held.** On the part of point 1's second half, `dimension_list` gave `equation` (the
+   equation's text) and no `driven` for each of the 14 dimensions an equation drives; the five
+   others (three Hole Wizard values, two pattern counts, a fillet) plain. On the block the depth the
+   same. Not tested: a true reference dimension (`vbaEnabled` false, and the server makes none).
+6. Missing, small: `dimension_list` on an assembly returned `"dimensions":[], "total":0`, though a
+   component's dimension is set from there by `D1@<feature>@<component>-1.Part`; the name had to be
+   known beforehand.
+7. Held, regression: a part opened read-only, force rebuild 174 346.977 mm³, mass 221.42 g, area
+   116 546.84 mm², box 233 × 68.28 × 174; STEP export and `doc_open` of it, 16 surface bodies (S5,
+   as before); a hinge assembly read-only, interference 0; a hand-built two-part assembly, 2
+   components, plate fixed, shaft 2 mates without error, 127 402.659 mm³, shaft 60 → 80 from the
+   assembly, 133 685.844 mm³, back to 60, closed discarded, files unchanged; a 1:2 plan with two
+   sections on the owner's A3 template, 1 and 3 hatched faces.
