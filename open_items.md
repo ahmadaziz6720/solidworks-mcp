@@ -477,7 +477,7 @@ its point.
 - [x] S81: committed (probed, not reproduced; stays Open, guard test kept. Seen in one variant: the fixture's "System preferences changed by this test: Double2", cause unknown, for the report) (`efde59f`)
 - [x] S109: probed, not reproduced (stays Open, guard test kept; lead: the finding's SOLIDWORKS started by launch, S89) (`167edbd`)
 - [x] S114: committed (doc_undo's description changed: docs/tools.md at the release) (`624b0f3`)
-- [x] Group 3: full live tests and release (build: `20261122-030022`, `b45312d`)
+- [x] Group 3: full live tests and release (build: `20261122-030022`, `b45312d`) (`cf05f6c`)
   Live: M0LiveTests 25, PropertiesLiveTests 25 of 26, FeatureManagementLiveTests 39, DrawingLiveTests 57, TopDownLiveTests 4,
   RecognitionLiveTests 1, AssemblyLiveTests 65, and by method AdvancedFeatureLiveTests 1 (`Helix_revolutions_read_…`) and
   ReferenceLiveTests 1 (`Review_reports_a_broken_shell_…`), the classes that call what group 3 changed: `sw_connect` and `sw_status`
@@ -499,7 +499,8 @@ its point.
   tag `build-20261122-030022` pushed and read back, release page with no files (`ahmadaziz6720/solidworks-mcp` releases,
   `build-20261122-030022`). S81 and S109 stay Open (probes not reproduced; their guard tests ran in the classes above).
   Cost: Sonnet, see the report.
-- [ ] Group 3: scenario test (session id: ), its entry committed and sorted
+- [ ] Group 3: scenario test (session id: `ba47a581-7e48-4a8e-98dc-dda2b296ae23`), its entry committed and sorted
+  Started 03:03 2026-11-22, free memory 2602 MB with SOLIDWORKS restarted from its exe; launcher `%LOCALAPPDATA%\solidworks-mcp\livetest\run-1121\check3.ps1` (`-Resume` to resume), pid 17092, output check3.out.txt and check3.err.txt beside it; watched by a background until-loop of the session.
 - [ ] S84 (a) and (c): committed
 - [ ] S84 (b): committed
 - [ ] S64 (l): committed
