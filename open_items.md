@@ -68,16 +68,18 @@ chosen (2026-11-13), and stay open. The round before (S37 to S46, S6's wording, 
 S24, S32) went out in build `20261112-091908` (`276d378`) and its scenario test of
 2026-11-12; the record is in each item.
 
-A run is planned, `## Run 2026-11-16` below: 20 points of 16 items in five groups, each
-its own build and scenario test; S60 parked and S64 (b) left out on the owner's word.
+The run of 2026-11-16 was closed 2026-11-21 on the owner's word, with S61 (a) a third time
+not started, its section in `closed_items.md`. A run is planned, `## Run 2026-11-21` below:
+39 points of 27 items in seven groups, each its own build and scenario test, S61 (a) first.
 
-## Run 2026-11-16
+## Run 2026-11-21
 
-The run takes 20 points of 16 open items (S49, S51, S52, S59 (c), S61 (a), S62 (b), S64
-(c) and (h), S65 (b) to (e), S67 to S74) in five groups, each group its own build and its
-own scenario test. Phase 2 (`backlog:run`) goes unattended after the opening answer below,
-across as many sessions as it needs, from the first step not ticked under *Where the run
-stands*.
+The run takes 39 points of 27 open items in seven groups, 33 steps each done by one
+subagent, each group its own build and its own scenario test: S61 (a), carried from the run
+of 2026-11-16 (closed 2026-11-21 on the owner's word, its section in `closed_items.md`),
+with the items found since. Phase 2 (`backlog:run`) goes unattended after the opening
+answer below, across as many sessions as it needs, from the first step not ticked under
+*Where the run stands*.
 
 ### How it runs
 
@@ -86,363 +88,357 @@ stands*.
   smaller change when two are equal, written into its item as "Decided <date> by the run,
   not the owner: ..., because ..." and listed in the report. Plugin questions later in the
   run (`clockify`'s offer after a commit, `git-workflow`'s push notes) are not asked; each
-  is named in one line of the report.
+  is named in one line of the report. No timer is kept by the run (no `clockify` config in
+  this repo).
 - **Never stop on one item.** A fix that does not hold after a fair try, or a probe that
   finds no way, stays Open with what was tried written into it, its partial code in a
-  stash named for it (`git stash push -m run-1116-<S> -- <files>`), and the run goes on.
+  stash named for it (`git stash push -m run-1121-<S> -- <files>`), and the run goes on.
   SOLIDWORKS hung or gone: end it and start it again (granted). A permission prompt or a
   dialog nobody answers is the one thing it cannot pass: it writes where it stood below,
   and stops.
 - **One SOLIDWORKS, so serial** (`serial: true`): one item at a time, in the main tree on
   `sw2023`, and never a live test beside the scenario session. **One fresh subagent per
-  item** (the run of 2026-11-13: one resumed agent reached ~450k tokens, a fresh one per
-  item ~160-180k), the main session thin: it hands the item over, reads the ten-line
-  report and the diff, and commits. Models: the default model for every fix and probe
-  below (each needs diagnosis) and for the check; Sonnet for a group's tests and release.
-- **Per item**, as `CONTRIBUTING.md` (*Tests*) and the owner's rules give it: first the
+  step**, the main session thin: it hands the step over, reads the ten-line report and the
+  diff, and commits. Models as each step names: the default model for a fix or a probe that
+  needs diagnosis and for the check, Sonnet for a step whose fix is written out here and for
+  a group's tests and release; the run moves a step up or down by its reading, with a line
+  in the report.
+- **Per step**, as `CONTRIBUTING.md` (*Tests*) and the owner's rules give it: first the
   live test that shows the fault, run on the current code (a test that does not fail
-  closes the item instead, the test kept when worth keeping); then the fix; then that test
+  closes the point instead, the test kept when worth keeping); then the fix; then that test
   and the live tests that call the changed code (`--filter-method`, about 18 s each, never
   the whole area); unit tests offline; `python tools/check_repo.py`; a description changed
   means `--check-catalog` and `ContractTests.Tool_catalog_follows_the_conventions` (the
-  tool list is at its byte budget, 11 bytes under: any new option is paid for by trimming,
-  as S51, S59 and S65 (a) did). A probe item is a live probe first, its result written into
-  the item; the fix follows when it shows the cause, else the item stays Open with the
-  probe recorded.
-- **A subagent's brief**: its item as written here and in the item; read `CLAUDE.md`,
+  tool list is at its byte budget: any new option or line is paid for by trimming, as S51,
+  S59 and S65 (a) did; a field in a result costs none of it). A probe step is a live probe
+  first, its result written into the item; the fix follows when it shows the cause, else
+  the point stays Open with the probe recorded. Where the fault cannot be made live (a
+  SOLIDWORKS state), the rule goes into an interop-free function with a unit test, as S72's
+  did.
+- **A subagent's brief**: its step as written here and its item; read `CLAUDE.md`,
   `CONTRIBUTING.md`, the parts of `docs/solidworks-api-notes.md` it needs, and this
   section; never switch branches, touch `.claude/worktrees/*`, commit, push, tag or reset;
   a stash only by name and file. SOLIDWORKS 2023 (`C:\Program Files\SOLIDWORKS
-  Corp\SOLIDWORKS\SLDWORKS.exe`) started if not running; live tests as
-  `$env:SWMCP_LIVE_TESTS=1; dotnet test --project tests/SolidWorksMcp.LiveTests
-  --filter-method "<Class>.<Method>"`. Then the item: moved to the end of Waiting with its
-  cause, fix, the test before (its message), the tests after with counts, "Made stricter:
-  …", its "Decided … by the run" lines, and "Local: on `sw2023`, in the commit that moves it
-  here; not yet in a build. Upstream: not yet decided."; for a lettered item only the
-  point done, the item staying Open for the rest; the `**Open: …**` line from `board.py
-  --open-line` and `board.py --check` clean. `findings.md` is not the subagent's. Report,
-  ten lines: the outcome, the failing test before, the tests after with counts, every file
-  changed, its decisions, a proposed commit subject and body. Nothing that names where a
-  finding came from (`findings.md`'s top).
-- **Commits**: one per item (or per point of a lettered item), its fix and its note, as
-  `git-workflow:pr` gives a commit on `sw2023`: as the owner, no trailer. Pushed at the
-  group's release; no PR upstream (each upstream line stays "not yet decided").
+  Corp\SOLIDWORKS\SLDWORKS.exe`) started from its exe if not running, never by `sw_connect
+  launch` (S89); live tests as `$env:SWMCP_LIVE_TESTS=1; dotnet test --project
+  tests/SolidWorksMcp.LiveTests --filter-method "<Class>.<Method>"`. Then the item: the
+  point moved to the end of Waiting with its cause, fix, the test before (its message), the
+  tests after with counts, "Made stricter: …", its "Decided … by the run" lines, and
+  "Local: on `sw2023`, in the commit that moves it here; not yet in a build. Upstream: not
+  yet decided."; for a lettered item only the point done, the item staying Open for the
+  rest; the `**Open: …**` line from `board.py --open-line` and `board.py --check` clean.
+  `findings.md` is not the subagent's. Report, ten lines: the outcome, the failing test
+  before, the tests after with counts, every file changed, its decisions, a proposed commit
+  subject and body. Nothing that names where a finding came from (`findings.md`'s top).
+- **Commits**: one per step, its fix and its note, as `git-workflow:pr` gives a commit on
+  `sw2023`: as the owner, no trailer. Pushed at the group's release; no PR upstream (each
+  upstream line stays "not yet decided").
 - **Per group, the release**: the area's live tests in full once, on what is to be built
-  (the owner's global `CLAUDE.md`); `docs/tools.md` regenerated when a description
-  changed; then `CLAUDE.md`'s *Build, release and run*, steps 1 to 5: push `sw2023`,
-  publish from a clean tree at the pushed commit, `--check-catalog`, register
-  `solidworks-mcp` (scope local) on the new exe in both projects `~/.claude.json` lists
-  (`claude_solidworks` and `Upwork/Project/clove sorter`, both on `0.1.0-20261114-024455`
-  at planning), tag `build-<stamp>` pushed alone and read back, the release page with no
-  files and "Scenario test: not run yet". The items of the group move to Waiting naming the
-  build, status `BUILT <date>, proof: the scenario test of build <stamp>`.
-- **Per group, the check**: the scenario test of that build, run headless from
-  `claude_solidworks` so it loads the build just registered there: a session id made
-  first and written on the group's check line, then `claude -p "Uji skenario build
-  …-<stamp> (<S-items>), menurut reports/uji-skenario.md. Tanpa nanya apa-apa."
-  --session-id <uuid> --permission-mode auto --allowedTools mcp__solidworks-mcp
-  --add-dir "<the fork>"`; cut short, `claude -p --resume <uuid>` from the same folder,
-  with the same flags. **So it does not stop half-way** (the owner, 2026-11-16, after
-  group 4's was ended for low memory): before it, `dotnet build-server shutdown` and read
-  free memory (7.3 GB in all here; SOLIDWORKS takes about 1 GB more once it opens); start
-  it detached, by `Start-Process` with its output to a file, not as a background task of
-  the running session, which Claude Code ends when memory runs low; watch it by its
-  process and by the session's transcript
-  (`~/.claude/projects/<claude_solidworks>/<uuid>.jsonl`). Stopped with no `findings.md`
-  entry, or the transcript unwritten for 30 minutes with the process still there (stop it
-  first): resume it at once, unasked, up to three times, then Blocked with what was seen.
-  A SOLIDWORKS the stopped session started by `sw_connect launch` is out of reach of the
-  resumed one (S89): it is closed and started from its exe, what is open in it the test's
-  own copies.
-  It starts with `sw_status` reading the new version (step 6's short check). Its `findings.md` entry is committed here unasked and
-  sorted (`backlog:sort`), the release page's notes updated (step 7). What it finds goes
-  four ways: **held**, the item to `closed_items.md`, `CLOSED <date>`; **a fix of this
-  group not holding**, fixed and its group built and checked again before the next group;
-  **a new point, small and in the group's files**, a later item of this run, a new
-  S-number, taken into the next group; **a new point needing the owner** (a choice, a
-  large change), a new Open item, not in this run. The next group starts only after the
-  check is sorted.
+  (the owner's global `CLAUDE.md`), class by class with SOLIDWORKS restarted between and
+  `dotnet build-server shutdown` before (the run of 2026-11-16's group 5 again: 2.5 to 2.9
+  GB free before each start, no "low on memory" dialog), the runner
+  `%LOCALAPPDATA%\solidworks-mcp\livetest\runall.ps1` where it serves; a flake rerun alone
+  after a restart and named. `docs/tools.md` regenerated when a description changed; then
+  `CLAUDE.md`'s *Build, release and run*, steps 1 to 5: push `sw2023`, publish from a clean
+  tree at the pushed commit, `--check-catalog`, register `solidworks-mcp` (scope local) on
+  the new exe in every project `~/.claude.json` lists with it (at planning
+  `claude_solidworks`, `Upwork/Project/clove sorter` with its `SWMCP_VBA=on` kept, and
+  this repo, all on `0.1.0-20261121-175345`), tag `build-<stamp>` pushed alone and read
+  back, the release page with no files and "Scenario test: not run yet". The points of the
+  group move to Waiting naming the build, status `BUILT <date>, proof: the scenario test of
+  build <stamp>`.
+- **Per group, the check**, written whole so the run works nothing out mid-way. Before it:
+  `dotnet build-server shutdown`, free memory read (about 2.7 GB free with SOLIDWORKS
+  started is enough; under 2 GB, SOLIDWORKS restarted first), SOLIDWORKS started from
+  `C:\Program Files\SOLIDWORKS Corp\SOLIDWORKS\SLDWORKS.exe`, never by the server's
+  `launch`. A session id made first (`[guid]::NewGuid()`) and written on the group's check
+  line, committed. A launcher `check<n>.ps1` in the running session's scratchpad, run from
+  `C:\Users\Ahmad Aziz\Data\Project\claude_solidworks` so it loads the build just
+  registered there: `claude -p "Uji skenario build …-<stamp> (<S-items>), menurut
+  reports/uji-skenario.md. Tanpa nanya apa-apa." --session-id <uuid> --permission-mode
+  auto --allowedTools mcp__solidworks-mcp --add-dir "C:\Users\Ahmad
+  Aziz\Data\Project\solidworks-mcp"`, its output to `check<n>.out.txt` and an `EXIT
+  <code>` line at its end; started detached by `Start-Process`, never as a background task
+  of the running session. Watched by its process and by the transcript's last write
+  (`~/.claude/projects/C--Users-Ahmad-Aziz-Data-Project-claude-solidworks/<uuid>.jsonl`), by
+  no background task; it took 6 to 13 minutes in the run of 2026-11-16. Stopped with no
+  `findings.md` entry, or the transcript unwritten for 30 minutes with the process still
+  there (stopped first): resumed at once, unasked, by the same launcher with `claude -p
+  --resume <uuid>` and the same flags, up to three times, then Blocked with what was seen.
+  A SOLIDWORKS the stopped session started by `sw_connect launch` is closed and started from
+  its exe (S89). It starts with `sw_status` reading the new version (step 6's short check).
+  Its `findings.md` entry is committed here unasked and sorted (`backlog:sort`), the release
+  page's notes updated (step 7). What it finds goes four ways: **held**, the point to
+  `closed_items.md`, `CLOSED <date>` (S1's proof in group 5: a `Held` line, and S1 closed,
+  its proof being a session that runs those tools); **a fix of this group not holding**,
+  back under `## Open`, fixed and its group built and checked again before the next group;
+  **a new point, small and in the group's files**, a later step of this run, a new
+  S-number (`board.py --next-code`), taken into the next group; **a new point needing the
+  owner** (a choice, a large change), a new Open item, not in this run. The next group
+  starts only after the check is sorted.
 
 ### Items
 
-Order: results reported `ok` while wrong first (S51, S73, S72), then the most met, then
-by files. Each group's test to start from fails on the code at planning (`a869c8a`, no
-server change since build `20261114-024455`).
+Order: S61 (a) first, carried; then the groups that hold a result reported `ok` while wrong
+or the most met item (S92, eleven times; S79 (b); S89, four; S81, four; S84, six; S106; S100
+(d)); then by files. Each step's test to start from is to fail on the code at planning
+(`bdfcf80`, no server change since build `20261121-175345`); one that does not fail closes
+its point.
 
-- **Group 1, feature tools** (`PartFeatureService.cs`, `FeatureService.Fillets.cs`, the
-  linear and circular pattern code):
-  - **S51**, `flipEdges` in `feature_chamfer`'s `edit` (a) and (d): decided by the
-    owner 2026-11-13 (per-edge flip), its fault in the scenario test of 2026-11-14. The
-    edit flips exactly the indexed edges, each edge's side read back; the mixed-sides
-    warning when the sides then differ. Test: the scenario's case, a `distance_distance`
-    1/2 chamfer on two bottom edges of a block meeting at a corner, then `edit` with
-    `flipEdges:[1]`: edge 0 keeps 1 mm on the bottom face, edge 1 takes it on its side
-    face (fails now: both flip); a new chamfer with `flipEdges:[1]` reads edge 0
-    unflipped. Not: `feature_mirror` of a chamfer.
-  - **S73**, circular pattern sense: a `reverse` option on `feature_pattern_circular`,
-    and the checks give the instances' angles about the axis as the caller named it,
-    saying when the reference's own direction runs the other way. Test: a 10° pattern of
-    a cut at 30° about a hole whose cylinder axis reads [0, 0, -1], three instances:
-    without `reverse` as now, its checks naming the sense about the hole's axis as read;
-    with `reverse` the instances at 40° and 50° (fails now: no option). Not: angles over
-    360°.
-  - **S64 (h)**, a pattern of a feature and its own pattern: a probe first, whether
-    SOLIDWORKS takes it by any selection (the pattern feature as a seed, bodies, the
-    pattern's own seed with more instances). A way found: used. None: the hint names it
-    ("a pattern cannot take its own pattern as a seed: …") in place of "the API returned
-    nothing", the test the refusal's text (fails now).
-  - **S64 (c)**, fillet or chamfer over a tangent chain failing `FEATURE_FAILED` with a
-    hint that misses: on that failure of a call of several edges, each edge is tried alone
-    (rolled back after) and the error names the edges that fail alone and the faces beside
-    them; nothing is left built. Test: the plate of S52's test (quarter-round ends into a
-    30° face), a 1 mm fillet over the top chain (fails now: the hint names the radius).
-    Not reproduced at 1 mm: the probe recorded, the item stays Open for (c).
-- **Group 2, assembly selection** (`AssemblyService.cs`, `AssemblyService.Structure.cs`,
-  `EntityResolver.cs`):
-  - **S68**, coincident mate with an origin: a probe of how the origin is selected
-    (its `SelectByID2` name and type, `swSelEXTSKETCHPOINT` "Point1@Origin"), then the
-    fix. Test: a coincident mate between the assembly's origin and a component's origin
-    puts the component's origin at the assembly's (fails now: status 0).
-  - **S69**, a named plane of a component inside a subassembly: the select path built
-    for a nested component. Test: a mate with `Top Plane` of `sub-1/part-1` (fails now:
-    "Could not select").
-  - **S70**, a top-level component resolving to a nested one of the same short name: a
-    probe first, an assembly with `part-1` top level and `sub-1/part-1`; `{component:
-    "part-1"}` must reach the top-level one. Holds already: closed, the test kept.
-  - **S62 (b)**, "solve as flexible": `asm_component_set` takes `flexible` for a
-    subassembly component (`IComponent2.Solving`), read back, refused for a part
-    component. Test: a subassembly set flexible and back, read from SOLIDWORKS (fails
-    now: no option).
-  - **S75**, taken in 2026-11-16 from group 1's scenario test: `newFaces` of a chamfer
-    call lists the faces of the chamfer an edge moved to as well. Test: S51's new chamfer
-    with `flipEdges:[1]` on two edges at a corner, `newFaces` two faces (fails now: one).
-- **Group 3, `dimension_set` and feature management** (`FeatureManagementService.cs`,
+- **Group 1, assembly save and STEP** (`DocumentService.cs` saves, `AssemblyService.cs`
+  insert and mates, `FeatureManagementService.cs` `dimension_set`'s refusals):
+  - **S61 (a) a third time** (default model): the check's proposal. The owned part a STEP
+    insert left unwritten is written to its path beside the STEP **before** the assembly's
+    own save, so the assembly stores the path the part has; where SOLIDWORKS still stores
+    the assembly's folder, the component is repointed to the written part after it. The
+    save then reads the reference back from the saved file (its dependencies,
+    `ISldWorks.GetDocumentDependencies2`, or a reopen in the test) before it says "Also
+    wrote"; a reference that does not name the part on disk is a warning naming both paths.
+    Test: the scenario's cases (g) and (e): a part inserted first, the STEP from a subfolder
+    of the assembly's folder and from an unrelated folder, `doc_save as` (and a saved
+    assembly saved in place), closed and reopened, the component resolved (fails now:
+    suppressed, `missingReferences` in the assembly's folder). The cases that held ((a),
+    (c), (d), (f)) rerun. Not: an assembly saved in place reading dirty again.
+  - **S83** (default model): with `flip` asked, the side warning says the part now lies on
+    the other side from where it was inserted, as asked; without `flip` as now. Test: a
+    distance mate of 80 between two parallel planes, `aligned`, `flip:true`, landing on the
+    insert's side: the warning's text (fails now: "If it should stay on the side it was on,
+    delete the mate").
+  - **S107** (Sonnet): the re-activation warning of a call with `doc` adds "the target is
+    still '<doc>'; doc_activate to change it". Test: `doc_new` of a part, `asm_insert
+    {doc:<assembly>}`: the warning names the target (fails now).
+  - **S110** (Sonnet): `dimension_set` of a limit mate's nominal outside its limits is
+    refused naming the limits read and `dimension_tolerance_set`. Test: a limit mate with
+    limits [20, 72.5], its nominal set to 15 (fails now: the limits not named).
+- **Group 2, equations and undo** (`FeatureManagementService.cs` equations and `doc_undo`,
+  `EquationBindings.cs`, `SwExt.FeatureManagement.cs`, `dimension_list`):
+  - **S92 (c)**, a probe first (default model): the third session's lead. A part with a
+    global `"g" = 60.4mm` and a row derived from it, `equation_list` read; an assembly
+    holding it opened read-only by the server and closed, read again; opened editable, a
+    mate dimension set, `asm_interference`, closed with `discard`, read again. Reproduced:
+    the step that brings the state on written into the item and
+    `docs/solidworks-api-notes.md`, the test kept (skipped with its reason if it leaves
+    SOLIDWORKS in the state; SOLIDWORKS restarted after) as (a) and (b)'s live case, and a
+    server-side way round where the probe shows one. Not reproduced: the point stays Open
+    with the probe recorded; (a) and (b) go on with unit tests.
+  - **S92 (a) and (b)** (default model): (b) `equation_list` and `equation_set` compare
+    each global defined by a plain number with the value SOLIDWORKS reads back; on a
+    difference (60.4 read as 60) a warning names S58 (b)'s state and the restart, and
+    `equation_list` says its values are not to be trusted; (a) while that sign shows,
+    `equation_set`'s `VERIFY_FAILED` ("kept the previous equation", "evaluates to 0") names
+    the state and the restart in place of the expression. Test: the comparison in an
+    interop-free function with unit tests (fails now: it does not exist), (c)'s live case
+    where it reproduced, the live tests of `equation_list` and `equation_set` passing.
+  - **S79 (b)** (default model): `doc_undo` right after a server change that left no
+    SOLIDWORKS undo step (`equation_set`, and the others the step finds) refuses, naming
+    that change and the step SOLIDWORKS would undo instead; when it does undo, it names the
+    features removed, as its description says. Test: the scenario's case, a 10 × 10 × 5
+    boss, `equation_set` linking a variable to its depth, `doc_undo`: refused, the boss kept
+    (fails now: `volumeDeltaMm3: -500`, reported `ok`).
+  - **S95** (Sonnet): `dimension_list` gives `equation` (its text) for a dimension an
+    equation drives and `driven: true` only for a reference dimension, as its description
+    says. Test: a part with a dimension an equation drives and a reference dimension: the
+    first `driven:false` with its equation, the second `driven:true` (fails now: both
+    `driven:true`, no equation).
+- **Group 3, session and connection** (`SessionService.cs`, `SessionNotes.cs`,
   `DocumentRegistry.cs`):
-  - **S49**, the wording of the line naming a changed part: always "'<title>' (<handle>,
-    <access>)", a part the server has not listed yet registered so it has a handle. Test:
-    a new assembly of parts the server has not listed, `dimension_set` through it, the
-    line with a handle (fails now: no handle).
-  - **S74**, a mate's dimension driven by an equation: refused naming the equation and
-    its variable, with `equation_set`, as for a part's dimension. Test: an angle mate
-    whose dimension an equation drives, `dimension_set` on it (fails now: "driven
-    (reference) dimension").
-  - **S67**, `feature_rollback` before the only feature: a probe of which of the rename,
-    the single feature or the check's reading of the bar causes it, then the fix. Test: a
-    part with one extrude, renamed, `feature_rollback {to, before:true}` (fails now:
-    `VERIFY_FAILED` "unexpected state: 'Sketch1'"); not renamed too.
-  - **S76**, taken in 2026-11-16 from group 2's scenario test: `asm_component_set` warns
-    of the mates a change put in error, and a mate's `errorName` comes from its own enum.
-    Test: a flexible subassembly whose floating child a mate holds elsewhere, set rigid
-    (fails now: "flexible → rigid" with no warning, `swSketchErrorExtRefFail`).
-  - **S77**, taken in 2026-11-16 from group 2's scenario test: a probe of what
-    `IComponent2` reports for a child of a flexible subassembly; a reading found, the row
-    says the child can move. Test: that child's row (fails now: `fixed: true`,
-    `constrained: "fully"`). None found: Open with the probe recorded.
-  - **S78**, taken in 2026-11-16 from group 2's scenario test: (a) `moved` gives full names
-    and every component that moved, (b) `{component, type:"origin"}` with no name takes
-    the origin, (c) an origin reads as one in a mate's row. Test: a mate that moves a
-    nested cube and, through earlier mates, a top-level one of the same short name (fails
-    now: one short name), and an origin mate by type alone (fails now: `INVALID_ARGUMENT`).
-- **Group 4, references and sketches** (`ReferenceService.cs`, `EntityResolver.cs`,
-  `SketchEditService.cs`, `SketchService.cs`, `ViewService.cs`):
-  - **S59 (c)**, a reference with `sketch` given and no `type` resolves in that sketch, a
-    segment or a point. Test: `ref_plane` `angle` with `axis: {name:"Line1",
-    sketch:"Sketch1"}` (fails now: `ENTITY_NOT_FOUND`).
-  - **S65 (e)**, decided 2026-11-16 by the owner: `sketch_add` merges segment ends that
-    meet (the same point within the sketch's tolerance) among the segments it adds and
-    the sketch's existing ends, and says how many it merged; no new reference form. Test:
-    a polyline and a separate arc drawn on its two ends close one contour (fails now:
-    "ManyOpen").
-  - **S65 (c)**, `{at}` on a point where several sketch points sit: `resolved` names the
-    point taken (its owner segment), and a warning lists the others there with the
-    `{name, sketch}` that picks each; which point it takes is not changed. Test: three
-    concentric arcs from `sketch_offset` and line ends on their centre, a relation on
-    `{at}` there (fails now: nothing says which).
-  - **S65 (b)**, a sketch text's position: `sketch_info` gives each text's position,
-    height and angle; a move only through a tool that already moves sketch entities, if
-    one takes a text, else read only and (b) stays Open for the move. Test: a text added
-    at a point, read back at it (fails now: no position).
-  - **S65 (d)**, `view_screenshot` with `hideAxes`, as `hidePlanes`. Test: a part with an
-    axis far out, the part's share of the image with `hideAxes` (fails now: no option).
-- **Group 5, import, material, simulation** (`OpenService.cs`, `TightBox.cs`,
-  `AssemblyService.cs` insert, `PropertiesService.cs`, `SimulationService.cs`):
-  - **S52**, the box of a component holding surface bodies only (a STEP import, S5):
-    the tight box reads surface bodies too, else the box is `approximate: true`. Test:
-    the scenario's case, an assembly with a cylinder turned 45° exported to STEP and
-    opened (fails now: a loose box without `approximate`). Not: S5 itself (upstream).
-    With it S52 (c), taken in 2026-11-16 from group 3's scenario test: a flexible
-    subassembly's box covers its children as they are placed, else says it is its file's
-    placement; test: a flexible subassembly whose child top-level mates move out of its
-    file's box (fails now: the file's box, `approximate: true`).
-  - **S61 (a)**, `asm_insert` takes a STEP: a probe of the insert with 3D Interconnect
-    on in a preference scope, the component linked to the file; refused with the way
-    round when the probe finds none. Test: a STEP of a 20 mm cube inserted, one solid of
-    8000 mm³ (fails now: refused).
-  - **S72**, `material_set` at 1 kg/m³. Decided 2026-11-16 in the plan, not by the owner
-    (the opening question held four others), because the description promises the
-    density verified and the session proposed it: refused `VERIFY_FAILED` and rolled back
-    when the density read differs from the database's by more than 1 % and no body has a
-    material of its own and the mass is not overridden; at about 1 kg/m³ the message names
-    a SOLIDWORKS restart, as S58 (b)'s does. The bad state cannot be made live: the rule
-    in an interop-free function with a unit test (fails now: it does not exist), and the
-    live tests of `material_set` passing. Not: the linked property in metres (noted, S30).
-  - **S71**, a frequency study with no fixtures: a probe of the soft-spring option and of
-    the solver (FFEPlus, Direct Sparse); one that finishes is set by `sim_run` for a
-    frequency study with no fixtures and said in its checks. Test: upstream's
-    `Frequency_of_the_cantilever_column_…` (fails now at its free-free study). None
-    finishes: Open with the probe recorded.
-  - **S87** and **S88**, taken in 2026-11-16 from group 4's scenario test (the run's rule:
-    small, in group 4's files): `sketch_add` reports each merge's gap as drawn and moves an
-    end by at most it; `view_screenshot` warns when its fit takes in a shown sketch past the
-    bodies, naming `hideSketches`. Tests: the scenario's polyline and arc, the reported
-    distance and the line's end (fails now: 0.000054, the end moved twice the gap); a block
-    and an axis through points 300 mm out (fails now: no warning).
-  - **S61 (a) again**: did not hold in the check of build `20261117-012659` (findings
-    2026-11-17, point 1): a STEP inserted into an assembly that already holds a component
-    has its part left unwritten by the assembly's save, open dirty and `foreign`, the
-    component lost on reopen, reported `ok`. Fixed again, and group 5 built and checked
-    again (the plan's rule, *Per group, the check*). Test: the scenario's case, a part
-    inserted first, then the STEP, the assembly saved (fails now: the part not written).
-  - **S61 (a) a third time**: did not hold in the check of build `20261121-175345`
-    (findings 2026-11-21, point 1): a STEP inserted after another component, the assembly
-    saved in another folder than the STEP: the part written beside the STEP, yet the
-    reopened assembly looks for it in its own folder, the component lost, reported `ok`
-    with "Also wrote …". Fixed again, and group 5 built and checked again. Test: the
-    scenario's case, a part inserted first, the STEP from a subfolder of the assembly's
-    folder (and from an unrelated folder), `doc_save as`, the assembly closed and reopened,
-    the component resolved (fails now: suppressed, `missingReferences` in the assembly's
-    folder).
-- **For the owner**: nothing to prepare. S1 in Waiting needs a session that runs
-  `drw_view_detail` and a view at an angle, outside this run.
+  - **S89** (default model): `sw_connect {launch}` starts `SLDWORKS.exe` as a process, its
+    window shown, waits for it in the running object table and attaches, so any later
+    process reaches it; `NOT_CONNECTED` with a SOLIDWORKS whose main window has no title and
+    no other server process alive names "started through COM by an earlier server process:
+    only it could reach it; close it and start SOLIDWORKS from its exe", never "still
+    starting". Test: SOLIDWORKS closed, `sw_connect {launch:true}`, then an outside COM
+    client (a VBScript `GetObject(, "SldWorks.Application")`) reaches it (fails now:
+    "Operation unavailable"); the hint in `SessionNoteTests`.
+  - **S92 (d)** (Sonnet): `sw_status` gives SOLIDWORKS' process start time beside its pid;
+    S58 (b)'s restart message names it, and its hint says that closing the window can leave
+    the process alive under the references of the server processes `otherServerPids`
+    lists. Test: `sw_status`'s start time equal to the process's own (fails now: absent;
+    if `sw_status` gives it already, the message's part alone, by a unit test).
+  - **S81** (default model): a probe of the stamp the warning compares in case (1): parts
+    edited and saved by the server, then their assembly adopted by `doc_activate
+    {allowEdit:true}`, `equation_set` and `doc_save` on it. The stamp taken at adoption,
+    and a change the server's own saves of its parts caused not read as an outside one.
+    Test: that case (fails now: "modified outside this server since its last change (by the
+    user?)"). Case (2) and the drawing of 2026-11-18 only if the probe shows the same cause.
+  - **S109**, a probe (default model): moves and rebuilds of a component in a limit-mate
+    configuration of an assembly whose subassembly is open beside it, `sw_status` and
+    `dialog_list` when the connection goes. A dialog found: the `NOT_CONNECTED` hint names a
+    modal dialog where one is up (read through Win32, not COM), a unit test of the hint. Not
+    reproduced: Open with the probe recorded.
+- **Group 4, feature results that read as faults** (`FeatureVerifier.cs`,
+  `PartFeatureService.Mirror.cs`, `PartFeatureService.cs`, `FeatureService.Fillets.cs`,
+  `SketchService.cs` regions, `Snapshot.cs`):
+  - **S84 (a) and (c)** (Sonnet): (a) when every instance face is found and the volume
+    matches, the area line reads "faces merge differently from the seed's; the volume and
+    the instance faces match"; (c) a blind cut whose depth equals the material it crosses
+    says "through: the end lies on the far face" in place of "no floor". Tests: a mirror
+    whose copy's area differs from the seed's, the volume exact (fails now: "meets the body
+    differently"); a cut 4 deep through a 4 mm wall (fails now: "no floor at 4 mm").
+  - **S84 (b)** (default model): the rebuild warnings are read after the call's own rename
+    and its rebuild, naming the feature by its new name; one gone after that rebuild is not
+    reported. Test: `feature_pattern_linear` with `name`, a case that gives warning 51 if
+    the step finds one; else a warning named by the new name, the test the name.
+  - **S64 (l)** (default model): the session's proposal: a model edge that is an inner loop
+    of the face, wholly inside the contour, does not disqualify the region. Test: a Ø3.2
+    circle cut through, a concentric Ø6.5 on the same face: `regions:1` (fails now: 0).
+  - **S64 (i)** (Sonnet): an equal chamfer's result names both its dimensions as its legs,
+    separate once one is driven; `equation_set` on one leg alone warns that the other stays,
+    naming it. Test: an `equal` chamfer, an equation on `D1` alone (fails now: no warning).
+  - **S64 (c)** (default model), decided by the owner: a fillet or chamfer that fails where
+    an edge in the call ends tangent to an edge not in it gets the hint "edge <id> ends
+    tangent to <id>, not in the call: turn `propagate` on or add it", not the radius. Test:
+    the probe's case on S52's plate, a round alone with `propagate` off (fails now: "A
+    radius too large …").
+  - **S93** (default model): the writes that rebuild and do not compare yet
+    (`sketch_finish`, `dimension_set`, `feature_delete`, the sketch tools that close a
+    sketch: the step lists them) compare the tree's rebuild errors and warnings before and
+    after, as `equation_set` does since S58 (a), and name each feature that gained one.
+    Test: a block, a fillet on one of its edges, the sketch redrawn so the edge goes:
+    `sketch_finish` names the fillet's warning (fails now: nothing).
+- **Group 5, drawings and reads** (`DrawingService.Tables.cs`,
+  `DrawingService.Placement.cs`, `DrawingLayout.cs`, `DrawingService.Annotations.cs`,
+  `BodyService.cs`, `PropertiesService.cs` materials, `OpenService.cs`, `DocumentService.cs`
+  `doc_new`):
+  - **S106** (default model): `drw_table_add` returns the table's `extentMm` and warns of
+    what it lands on (a view's bounds, an annotation, the title block); the note and
+    dimension checks count tables and the views' `boundsMm`. Tests: a table placed over a
+    view (fails now: no extent, no warning); a note across that table (fails now: "clear").
+  - **S90** (Sonnet): the free-space placement of a section with no `atMm` counts the label
+    the call will make. Test: the scenario's 1:2 plan, a section with no `atMm` (fails now:
+    the label overlaps the title block).
+  - **S52** (Sonnet), `body_list`'s box: from `TightBox`, as `model.box`. Test: a disc with
+    its top edge rounded, `body_list`'s box equal to `model.box` (fails now: loose).
+  - **S97 and S104** (Sonnet): database paths taken to their long form before they are
+    listed and searched, each once; on a miss `databases` lists every database searched
+    with its count. Tests: a filter matching nothing (fails now: `databases: []`); no
+    database twice (S104 needs an 8.3 path: the test feeds one, made by
+    `GetShortPathName`).
+  - **S98** (default model): `doc_open {readOnly:true}` reports `access: "readOnly"`, with
+    no line that the server may edit it, and the edit tools refuse on it with NOT_OWNED's
+    hint. Test: a saved part opened read-only, its access and a `feature_extrude` refused
+    (fails now: `owned`, the extrude made).
+  - **S108** (default model), decided by the owner: `doc_new {type:"drawing"}` with no
+    `template`, where SOLIDWORKS' default drawing template is not one it ships (not under
+    its install's templates folder), keeps that template's sheet format and units and says
+    so. Test: the default set to a custom template the test makes in a temp folder, the
+    preference restored after (the owner's own default is `gamtek a3.drwdot`): the format
+    and units kept (fails now: ISO, MMGS).
+  - **The check also proves S1** (the owner, extras): the scenario test runs
+    `drw_view_detail` and a view at an angle.
+- **Group 6, weldment and library feature parts** (`WeldmentService.cs`,
+  `WeldmentSpec.cs`, `OpenService.cs`, `DocumentService.cs` saves, `feature_list`):
+  - **S100 (a) and (b)** (default model): `doc_open` takes a `.sldlfp` (a part);
+    `doc_save {mode:"as"}` takes a `.sldlfp` path for a part, read back. Test: a shipped
+    profile copied to a temp folder opened; a part saved as `.sldlfp` and reopened (fails
+    now: both refused). Not: a folder added to File Locations.
+  - **S100 (c)** (Sonnet): `feature_list` on a library feature part marks the `LibFeat1`
+    row as SOLIDWORKS' internal wrapper and names its sketch as the library feature's
+    profile. Test: that copy's list (fails now: no mark).
+  - **S100 (d)** (default model): a probe of which step of the finding's sequence drops the
+    profile sketch (configuration table deleted, `config_add`, `config_delete`,
+    `sketch_edit`, segments deleted and added, `sketch_finish`, `doc_save`), on a copy; the
+    fix where found; and `doc_save` of a library feature part reads back that its library
+    feature still holds a sketch, else `VERIFY_FAILED` saying the file was written without
+    it. Test: the sequence on a copy, reopened (fails now: no sketch, reported `ok`).
+  - **S102** (Sonnet): "No profile" marks a one-configuration file in the standard folder
+    "not usable: one configuration". Test: S91's case (fails now: listed as a type).
+  - **S103 (a) and (b)** (default model): (a) a group SOLIDWORKS refuses as a path (no
+    faces) is tried again as one group per parallel set, the result saying so; (b) each
+    member gives its section's extents along the model axes. Tests: four lines, two vertical
+    and two horizontal, none touching: two groups, volumes exact (fails now:
+    `VERIFY_FAILED`); a member's extents (fails now: absent).
+- **Group 7, sketch warnings and speed** (`SketchService.cs`, `SketchEditService.cs`,
+  `SketchRelations.cs`), taken by the owner (extras):
+  - **S80 (a) and (c)** (default model): `sketch_add` compares each point it was given with
+    where the solved sketch has it and warns, naming the point, the distance and the
+    relation, when one moved more than the sketch's tolerance; a rectangle drawn square that
+    gets an `equal` is warned of. Test: a rectangle on a planar face, its bottom on the
+    face's boundary edge, drawn 3 tall (fails now: 2.5 tall, no warning).
+  - **S82 (a)** (default model): `sketch_constrain` angular, and `dimension_set` of a sketch
+    dimension, warn when a `changed` length drops by more than half (a warning, as the owner
+    decided S42). Test: the finding's trapezoid, angular 60 where the lines meet only
+    virtually (fails now: 126 to 6, no warning).
+  - **S86 (a)** (Sonnet): `sketch_delete` warns naming each segment it removed that was not
+    named, with the dimensions and relations that went with it. Test: a polygon's six lines
+    deleted (fails now: its circle gone unwarned).
+  - **S101**, a probe (default model): where the time goes in `sketch_add` of 100 lines
+    (the per-entity checks, S65 (e)'s merge pass, the contour read); the server's own passes
+    made once per call where they are the cost. Test: 100 lines in one call, time and
+    `TIMEOUT` (fails now: about 1.6 s an entity, past 50 s). SOLIDWORKS' own time: Open with
+    the probe recorded and a timeout that grows with the count.
+- **For the owner**: nothing to prepare. S1's proof is in group 5's check.
 - **Out of this run**: S4, S5, S7, S12 (wait on upstream); S10, S11, S33, S34 (parked,
-  taken up when a job needs them); S60 (a) (parked 2026-11-16 on the owner's word: probed
-  2026-11-13, not reproduced); S64 (b) (left out on the owner's word, the same).
+  taken up when a job needs them); S60 (a) (parked); S64 (b) (left out on the owner's word,
+  2026-11-16); S64 (j), (k), (m) to (p), S65 (b)'s move and (f) to (l), S80 (b), S82 (b),
+  S85, S86 (b), S94, S96, S99, S105 (new options or choices for the owner, not offered in
+  this run's question: the next plan; S64 (k), reported `ok` while wrong, first).
 
 ### Opening answer
 
-2026-11-16, the owner, in one `AskUserQuestion` call:
+2026-11-21, the owner, in one `AskUserQuestion` call:
 
-- Grants: **"Semua (Recommended)"**: "Push sw2023, tag build-<stamp>, halaman release
-  (tanpa file), registrasi exe baru di claude_solidworks DAN clove sorter (keduanya
-  sekarang di build 024455), uji skenario headless (claude -p dari claude_solidworks),
-  commit entry-nya tanpa nanya, restart SOLIDWORKS kalau hang. Tanpa PR upstream."
-- Builds: **"5 build, satu per grup (Recommended)"**.
-- S65 (e): **"sketch_add merge otomatis (Recommended)"**.
-- Extras, all four: park S60 (a) and S64 (b); S61 (a); S62 (b); S64 (c), S65 (b) and (d).
+- Grants: **"Semua (Recommended)"**: "Sama dengan run lalu: push sw2023, tag
+  build-<stamp>, halaman release tanpa file, registrasi exe baru di claude_solidworks,
+  clove sorter (SWMCP_VBA=on tetap) dan solidworks-mcp, uji skenario headless (claude -p
+  dari claude_solidworks) beserta stop/resume-nya, commit entry-nya tanpa nanya, restart
+  SOLIDWORKS kalau hang. Tanpa PR upstream."
+- Scope: **"6 grup, 27 poin (Recommended)"** (the question counted the 27 steps of groups
+  1 to 6, 32 points one per letter; with the extras 33 steps, 39 points).
+- S108: **"Pakai template default apa adanya (Recommended)"**.
+- Extras, all four: S1's proof in group 5's check; group 7, warnings in sketches (S80 (a)
+  and (c), S82 (a), S86 (a)); S64 (c)'s tangent-joint hint; the S101 probe.
 
 ### Where the run stands
 
-- [x] Phase 1: the opening question asked and answered (2026-11-16)
-- [x] S51: committed (`f665a18`)
-- [x] S73: committed (`9cd5638`)
-- [x] S64 (h): committed (`86e7042`)
-- [x] S64 (c): committed (`4a70a9b`)
-- [x] Group 1: full live tests and release (build: `20261116-050908`, `dedd986`)
-- [x] Group 1: scenario test (session id: `fe1d732c-6c26-4fe6-8249-8c5ce1e03251`),
-  its entry committed and sorted: resumed once after a stop for low memory; S51 and
-  S73 held and closed, S75 new (findings 2026-11-16, `4af10cc`)
-- [x] S68: committed (`5bd1037`)
-- [x] S69: committed (`3fc6c59`)
-- [x] S70: committed (`a6a28d6`)
-- [x] S62 (b): committed (`64cb0b0`)
-- [x] S75: committed (`643fc77`)
-- [x] Group 2: full live tests and release (build: `20261116-080311`, `643fc77`)
-- [x] Group 2: scenario test (session id: `98f558e8-fa78-4f15-bb54-1981e3df0738`), its
-  entry committed and sorted: resumed once after the stop for low memory; S68, S69, S70,
-  S62 (b), S75 held and closed, S76, S77, S78 and S79 new (findings 2026-11-16, `54ce718`)
-- [x] S49: committed (`5c776ef`)
-- [x] S74: committed (`972bc54`)
-- [x] S67: committed (`1da8d57`)
-- [x] S76: committed (`96dd93f`)
-- [x] S77: committed (`14a0e56`)
-- [x] S78: committed (`ad5f6ba`)
-- [x] Group 3: full live tests and release (build: `20261116-124830`, `ad5f6ba`)
-  Live: AssemblyLiveTests 53, FeatureManagementLiveTests 36, TopDownLiveTests 4,
-  AssemblyStructureLiveTests 2, SketchEditLiveTests 74, PartFeatureLiveTests 49,
-  ReferenceLiveTests 46, all passed (S74's test failed once in the full Assembly class run,
-  SOLIDWORKS refusing a valid equation, passed alone after a restart); unit 290.
-- [x] Group 3: scenario test (session id: `9f4eae18-a900-4e4a-8818-c5ee41ec6ad3`), its entry committed and sorted:
-  S49, S74, S67, S76, S77, S78 held and closed; S52 and S79 gained a point (findings 2026-11-16, `f236686`).
-  The run stopped here 2026-11-16 on the owner's word, to go on in a new session from
-  group 4. For the next releases: group 3's full live tests took 86 min, class by
-  class with SOLIDWORKS restarted between (one batch stopped by its "critically low
-  on memory" dialog, ~1.4 GB free); S74's live test failed once in the full class
-  run on SOLIDWORKS refusing every equation (S58 b's state) and passed alone after a
-  restart. Cost this session (for `learned.md` at the run's end), tokens / minutes:
-  S49 110k/9, S74 132k/9, S67 121k/8, S76 140k/12, S77 168k/15, S78 195k/21 (each
-  the default model); group 3's release 105k/87 (Sonnet); the sorts of groups 2 and
-  3 124k/4 and 111k/3; group 2's scenario test resumed once, group 3's in one run.
-- [x] S59 (c): committed (`d8dd2ee`)
-- [x] S65 (e): committed (`27408b8`)
-- [x] S65 (c): committed (`d339521`)
-- [x] S65 (b): committed (`6826759`)
-- [x] S65 (d): committed (`f91176e`)
-- [x] Group 4: full live tests and release (build: `20261116-205845`, `ba2ce83`)
-  Live: ReferenceLiveTests 47, SketchEditLiveTests 77, VisualsLiveTests 2, M0LiveTests 23,
-  ModellingLiveTests 9, PartFeatureLiveTests 49, all passed, no flake; unit 290. Run class by
-  class with SOLIDWORKS restarted between: the live tests took 43 min (7, 11, 1, 3, 2, 10 min
-  of test time), the whole release about 45 min, no "low on memory" dialog this time.
-  `docs/tools.md` regenerated and committed alone (`ba2ce83`). Cost this session (for
-  `learned.md` at the run's end), tokens / minutes: S59 (c) 127k/8, S65 (e) 171k/13,
-  S65 (c) 191k/15, S65 (b) 144k/7, S65 (d) 242k/26 (each the default model); group 4's
-  release 105k/45 (Sonnet).
-- [x] Group 4: scenario test (session id: `5e28cb8b-9a48-46e6-addb-0c43e04ad1b8`), its entry committed and sorted
-  Stopped 2026-11-16 before it wrote an entry: Claude Code ended the background session for
-  low system memory and says not to start it again unasked. Resumed 2026-11-16 on the
-  owner's word (and resumed unasked from then on, the check's rule above), detached, and
-  ended the same evening: all five held, the entry `4f8700f`, sorted into S59 (closed), S65
-  (b) to (e) (closed), S87 and S88 (group 5), S89 (Open), S5 met again.
-- [x] S52: committed (`44869a2`)
-- [x] S61 (a): committed (`1b0203a`)
-- [x] S72: committed (`47c9f62`)
-  For the release: `PropertiesLiveTests.A_custom_material_is_listed_…` fails on this
-  machine before and after S72 (a second classification in the custom library, from an
-  earlier run), not a fault of this group.
-- [x] S71: committed (`e18996e`)
-- [x] S87: committed (`0b7698f`)
-- [x] S88: committed (`5320223`)
-- [x] Group 5: full live tests and release (build: `20261117-012659`, `098a10b`)
-  Live: AssemblyLiveTests 56, AssemblyStructureLiveTests 2, PropertiesLiveTests 25, SimulationLiveTests 17,
-  SketchEditLiveTests 77, VisualsLiveTests 3, M0LiveTests 23; all passed but two. Known failure, not this group's:
-  `PropertiesLiveTests.A_custom_material_is_listed_…` (24/25, as before S72). Flake: `AssemblyLiveTests.
-  Dimension_set_on_a_mate_angle_an_equation_drives_…` refused a valid equation in the full class run (55/56) and passed
-  alone after a SOLIDWORKS restart. Run class by class with SOLIDWORKS restarted between, free memory 2.6 GB
-  before the first start after the build servers were shut down (0.5 GB with them up and SOLIDWORKS open); no "low on
-  memory" dialog. The live tests took 65 min of test time (37, 1, 3, 6, 13, 1, 3 min, and the 1 min rerun of the flake;
-  75 min on the clock with the restarts), the whole release about 82 min. Unit 299. `docs/tools.md` regenerated and committed alone (`098a10b`).
-  Cost (for `learned.md` at the run's end), tokens / minutes: S52 162k/19, S61 (a) 175k/15,
-  S72 139k/14 (resumed once after an API network error), S71 113k/13, S87 108k/25 (resumed
-  once after the usage limit), S88 136k/11 (each the default model); group 5's release
-  104k/83 (Sonnet); the scenario test 13 min, one run; its sort a subagent (default model).
-- [x] Group 5: scenario test (session id: `793c7f74-1bf1-46d3-9199-eed2f71d1e46`), its entry committed and sorted
-  One run, ~13 min, no resume; S71, S72, S87, S88 held and closed, S52 (c) held and closed;
-  S61 (a) not held, fixed again (below); S90 new; S5 met again (findings 2026-11-17, `da55ff5`).
-- [x] S61 (a) again: committed (`e3b1b7e`)
-  Cost: 153k tokens / 14 min (the default model, one run).
-- [x] Group 5 again: full live tests and release (build: `20261121-175345`, `e3b1b7e`)
-  Live: AssemblyLiveTests 57, AssemblyStructureLiveTests 2, TopDownLiveTests 4, M0LiveTests 23, ExportLiveTests 22,
-  ConfigurationLiveTests 7, HardwareLiveTests 3, SimulationLiveTests 17 (the classes that save or close an assembly through
-  `DocumentService`; TemplateLiveTests skips, the 2025 templates are not there); all passed but one. Flake, not this fix's:
-  `AssemblyLiveTests.Dimension_set_on_a_mate_angle_an_equation_drives_…` refused in the full class run (56/57) and passed
-  alone after a SOLIDWORKS restart. `PropertiesLiveTests` not run (no assembly save or close; its known failure stays).
-  Run class by class with SOLIDWORKS restarted between, free memory 2.5 to 2.9 GB before each start after the build
-  servers were shut down; no "low on memory" dialog. The live tests took 47 min of test time (28.2, 0.6, 1.4, 2.4, 3, 1.7,
-  3.9, 5.2 min, and the 0.5 min rerun of the flake; about 64 min on the clock with the restarts), the whole release about
-  75 min. Unit 302. No description changed, `docs/tools.md` not regenerated. Registered in `claude_solidworks` and
-  `clove sorter` (its `SWMCP_VBA=on` kept); tag `build-20261121-175345` pushed and read back, release page with no files.
-  Cost: Sonnet, see the report.
-- [x] Group 5 again: scenario test (session id: `9ec9afb8-62d2-437f-a8ca-22e1206ae72a`), its entry committed and sorted
-  Started 2026-11-21 17:56, detached (launcher pid 12152, `check5b.ps1` in the session's
-  scratchpad, its output `check5b.out.txt`, an `EXIT` line at its end), after `dotnet
-  build-server shutdown`, 2.7 GB free with SOLIDWORKS started from its exe.
-  Ended 18:02, one run (~6 min), no resume: S61 (a) not held (assembly in another folder
-  than the STEP), back to Open; the short checks held; S5 met again (findings 2026-11-21,
-  `3d1a7b3`). Cost (for `learned.md`), tokens / minutes: group 5 again's release 91k/67
-  (Sonnet), its sort 104k/2 (a subagent, the default model). The session of 2026-11-21
-  handed over here, its context at about 120k with a whole fix, release and check ahead.
+- [x] Phase 1: the opening question asked and answered (2026-11-21)
 - [ ] S61 (a) a third time: committed
-- [ ] Group 5 a third time: full live tests and release (build: )
-- [ ] Group 5 a third time: scenario test (session id: ), its entry committed and sorted
+- [ ] S83: committed
+- [ ] S107: committed
+- [ ] S110: committed
+- [ ] Group 1: full live tests and release (build: )
+- [ ] Group 1: scenario test (session id: ), its entry committed and sorted
+- [ ] S92 (c): probed
+- [ ] S92 (a) and (b): committed
+- [ ] S79 (b): committed
+- [ ] S95: committed
+- [ ] Group 2: full live tests and release (build: )
+- [ ] Group 2: scenario test (session id: ), its entry committed and sorted
+- [ ] S89: committed
+- [ ] S92 (d): committed
+- [ ] S81: committed
+- [ ] S109: probed
+- [ ] Group 3: full live tests and release (build: )
+- [ ] Group 3: scenario test (session id: ), its entry committed and sorted
+- [ ] S84 (a) and (c): committed
+- [ ] S84 (b): committed
+- [ ] S64 (l): committed
+- [ ] S64 (i): committed
+- [ ] S64 (c): committed
+- [ ] S93: committed
+- [ ] Group 4: full live tests and release (build: )
+- [ ] Group 4: scenario test (session id: ), its entry committed and sorted
+- [ ] S106: committed
+- [ ] S90: committed
+- [ ] S52: committed
+- [ ] S97 and S104: committed
+- [ ] S98: committed
+- [ ] S108: committed
+- [ ] Group 5: full live tests and release (build: )
+- [ ] Group 5: scenario test with S1's proof (session id: ), its entry committed and sorted
+- [ ] S100 (a) and (b): committed
+- [ ] S100 (c): committed
+- [ ] S100 (d): committed
+- [ ] S102: committed
+- [ ] S103 (a) and (b): committed
+- [ ] Group 6: full live tests and release (build: )
+- [ ] Group 6: scenario test (session id: ), its entry committed and sorted
+- [ ] S80 (a) and (c): committed
+- [ ] S82 (a): committed
+- [ ] S86 (a): committed
+- [ ] S101: probed
+- [ ] Group 7: full live tests and release (build: )
+- [ ] Group 7: scenario test (session id: ), its entry committed and sorted
 - [ ] The report
 
 ## Open
@@ -688,6 +684,7 @@ threads where `model.box` in every feature result read 0 to 102.89, the part's r
 (the sweeps trimmed at both ends), and 99.86 against 97.954 in the other part. The same
 point as above (`body_list`'s box is not the tight box), the gap much larger on B-spline
 faces: it reads like their control points' box. Workaround: read `model.box` for extents.
+Decided 2026-11-21 by the owner: `body_list`'s box taken into the run of 2026-11-21, group 5, from `TightBox` (`## Run 2026-11-21`).
 
 ### S60 - What a session cannot tell about the process it runs on - OPEN 2026-11-12, parked: (a) not reproduced, taken up when met again
 
@@ -942,6 +939,7 @@ the part has, or repoint the component after writing it; and read the reference 
 reopen, or the saved file's dependencies) before saying the part was written. By the run's
 rule (*Per group, the check*: a fix of this group not holding), (a) is fixed a third time
 and group 5 built and checked again (`## Run 2026-11-16`).
+Decided 2026-11-21 by the owner: (a) a third time taken into the run of 2026-11-21, group 1, as the check of build `20261121-175345` proposed: the part written before the assembly's save, repointed where SOLIDWORKS still stores the assembly's folder, the reference read back before "Also wrote" (`## Run 2026-11-21`).
 
 ### S64 - Feature calls refused, failed or counted wrong, with hints that miss - OPEN 2026-11-12
 
@@ -1247,6 +1245,7 @@ is met when the region the contour closes holds an inner loop of the face: (f)'s
 a region only when every edge lies on the sketch's own contour, and the hole's edge is a
 model edge. Proposed by the session for (l): a model edge that is an inner loop of the face,
 wholly inside the contour, does not disqualify the region.
+Decided 2026-11-21 by the owner: (c), (i) and (l) taken into the run of 2026-11-21, group 4: (c) the tangent-joint hint, (i) the equal chamfer's legs named and warned of, (l) the session's rule for an inner loop; (j), (k), (m) to (p) not in it, for the next plan, (k) first (`## Run 2026-11-21`).
 
 ### S65 - Missing options met while modelling - OPEN 2026-11-12
 
@@ -1591,6 +1590,7 @@ at least names the step it undid and the features it removed. Local. Not decided
 Decided 2026-11-16 by the run, not the owner: (b) stays Open, outside the run of
 2026-11-16, marked as a result reported `ok` while wrong for the next plan to take first,
 because `doc_undo` is in none of groups 4 and 5's files and the run's groups are set.
+Decided 2026-11-21 by the owner: (b) taken into the run of 2026-11-21, group 2: `doc_undo` refuses after a change that left no undo step, naming it and the step it would undo; (a) stays Open (`## Run 2026-11-21`).
 
 ### S80 - `sketch_add` relates what it draws to model edges and moves it off the coordinates given, with no warning - OPEN 2026-11-16
 
@@ -1634,6 +1634,8 @@ would later conflict. Listed in the result, so a read and not a fault; a closed 
 with horizontal and vertical from `sketch_constrain` held. Proposed: weighed with (a), the
 description saying a rectangle drawn square gets an `equal`, or no `equal` added. Local. Not
 decided.
+Decided 2026-11-21 by the owner: (a) and (c) taken into the run of 2026-11-21, group 7, warnings; (b) stays Open (`## Run 2026-11-21`).
+Decided 2026-11-21 in the plan, not the owner: no option to keep or drop relations to model geometry in this run, because it is a new option the owner was not asked, and the warning shows either case.
 
 ### S81 - "modified outside this server (by the user?)" again after the server's own changes - OPEN 2026-11-16
 
@@ -1667,6 +1669,7 @@ part", point 3), build `20261118-060615`: a part saved (`dirty:false`), then
 the user?)". New: a drawing made from the part, its views on a weldment configuration
 (`Default<As Welded>`); not known whether the user edited the part meanwhile or the views
 dirtied it. Not probed.
+Decided 2026-11-21 by the owner: taken into the run of 2026-11-21, group 3, a probe of the stamp in case (1) first (`## Run 2026-11-21`).
 
 ### S82 - `sketch_constrain` angular where two lines meet only virtually turns the shape inside out, reported `ok` - OPEN 2026-11-16
 
@@ -1697,6 +1700,7 @@ a refusal when `textAt` names one sector and the value moves the line into the o
 was decided a warning, not a refusal, by the owner); (b) `dimension_set` on a sketch
 dimension reads the sketch's contours after and warns when one became invalid. Local. Not
 decided.
+Decided 2026-11-21 by the owner: (a) taken into the run of 2026-11-21, group 7, a warning as S42 was decided; (b) stays Open (`## Run 2026-11-21`).
 
 ### S83 - `asm_mate_add` distance with `flip` that lands right warns in the words of a wrong side - OPEN 2026-11-16
 
@@ -1710,6 +1714,7 @@ a second failure. The side check on `originMm` held.
 
 Proposed: with `flip` asked, the warning says the side now differs from where the part
 was inserted, as asked, not that it may be wrong. Local. Not decided.
+Decided 2026-11-21 by the owner: taken into the run of 2026-11-21, group 1: with `flip` asked, the warning says the side differs from the insert's, as asked (`## Run 2026-11-21`).
 
 ### S84 - Feature results that read as faults on a right result: a mirror's area line, a pattern's rebuild warning under its old name - OPEN 2026-11-16
 
@@ -1755,6 +1760,7 @@ parts", point 5), build `20261118-060615`: `feature_pattern_linear` returned `ok
 "warning 51 (swSketchErrorExtRefFail)" on the new pattern; after an `equation_set` on its
 spacing the warning was gone and `model_review` clean. The session spent a review to tell
 whether it was real.
+Decided 2026-11-21 by the owner: (a), (b) and (c) taken into the run of 2026-11-21, group 4 (`## Run 2026-11-21`).
 
 ### S85 - `feature_delete`'s dry run lists as kept an absorbed sketch the real call removes - OPEN 2026-11-16
 
@@ -1800,6 +1806,7 @@ point at another size (`D5@<sketch>` was a 12.2 bound to a global before, a 20 a
 Deleting the equation before deleting the geometry held, with no rebuild error 51, and the new
 binding went to the name `sketch_constrain` returned. Not said whether S54 (c)'s warning
 fired; the order the session used avoided the case.
+Decided 2026-11-21 by the owner: (a) taken into the run of 2026-11-21, group 7; (b) stays Open (`## Run 2026-11-21`).
 
 ### S89 - SOLIDWORKS started by `sw_connect launch` cannot be reached from a later server process - OPEN 2026-11-16
 
@@ -1846,6 +1853,7 @@ turn on `SWMCP_VBA`), every call failed `NOT_CONNECTED` on a SOLIDWORKS that `sw
 failed the same way (`Operation unavailable`), which bears out the running object table as
 the cause. Workaround as above, by the user; unsaved drawing properties lost and set again
 (9 calls, two user round trips).
+Decided 2026-11-21 by the owner: taken into the run of 2026-11-21, group 3: `launch` starts the exe, so any later process attaches; the hint names a SOLIDWORKS started through COM (`## Run 2026-11-21`).
 
 ### S90 - `drw_view_section` with no `atMm` places a section so its own label overlaps the title block - OPEN 2026-11-17
 
@@ -1858,6 +1866,7 @@ while wrong; the free-space placement does not count the label the call is about
 Proposed: the free-space placement counts the view's label with the view before it places
 it. Local, in the drawing code, not group 5's files: for the next plan, not this run. Not
 decided.
+Decided 2026-11-21 by the owner: taken into the run of 2026-11-21, group 5 (`## Run 2026-11-21`).
 
 ### S92 - SOLIDWORKS' state that refuses every equation (S58 (b)) again: hints that blame the expression, `equation_list` wrong, a restart not told - OPEN 2026-11-18
 
@@ -1914,6 +1923,8 @@ the user in SOLIDWORKS' own window; opened editable by the server, a mate dimens
 the geometry unchanged (`body_list` the same volume). Not proved. Proposed by the session: a
 live test, a part with a global of `60.4mm` read, an assembly holding it opened and closed,
 read again; and until fixed, a usage line: edit the parts first and open the assembly last.
+Decided 2026-11-21 by the owner: (c) a probe first, (a) and (b) taken into the run of 2026-11-21, group 2, (d) taken into the run of 2026-11-21, group 3 (`## Run 2026-11-21`).
+Decided 2026-11-21 in the plan, not the owner: (a) names the restart from (b)'s sign, read from the document's own globals, with no plain equation tried on a scratch part, because that would make and close a document in the user's session at every refusal; (d) has no tool that exits SOLIDWORKS, because ending it is the owner's call and the opening question had no room for it.
 
 ### S93 - A write that rebuilds does not name a feature far from the change that gained a rebuild warning - OPEN 2026-11-18
 
@@ -1935,6 +1946,7 @@ every sketch redrawn; the fillet deleted and remade by `at` (3 calls).
 
 Proposed by the session: a write that rebuilds compares the tree's rebuild errors and
 warnings before and after, and names each feature that gained one. Local. Not decided.
+Decided 2026-11-21 by the owner: taken into the run of 2026-11-21, group 4 (`## Run 2026-11-21`).
 
 ### S94 - `feature_helix` and `feature_sweep`: where a helix starts, and a profile off the start of a tapered helix, not in the descriptions - OPEN 2026-11-18
 
@@ -1972,6 +1984,8 @@ dimensions in a part whose sketches are all fully defined. The values were right
 Proposed by the session: two fields, `reference` (a true reference dimension) and `equation`
 (the equation's text when one drives it), or the description saying what the flag means.
 Local. Not decided.
+Decided 2026-11-21 by the owner: taken into the run of 2026-11-21, group 2 (`## Run 2026-11-21`).
+Decided 2026-11-21 in the plan, not the owner: fields, `equation` given and `driven` only for a reference dimension, not the description's wording, because the tool list is at its byte budget and a field in a result costs none of it.
 
 ### S96 - `sketch_constrain` does not check a relation to a model edge - OPEN 2026-11-18
 
@@ -1996,6 +2010,7 @@ the machine, not named). Reported `ok`.
 
 Proposed by the session: on a miss, `databases` lists every database searched with its
 count, as a call with no filter does. Local. Not decided.
+Decided 2026-11-21 by the owner: taken into the run of 2026-11-21, group 5, with S104 (`## Run 2026-11-21`).
 
 ### S98 - `doc_open {readOnly:true}` reports `access: owned` and says the server may edit it - OPEN 2026-11-18
 
@@ -2007,6 +2022,7 @@ out.
 
 Proposed by the session: a read-only open reports its own access (`readOnly`), and the edit
 tools refuse on it with NOT_OWNED's hint. Local. Not decided.
+Decided 2026-11-21 by the owner: taken into the run of 2026-11-21, group 5: a read-only open reports `readOnly` and the edit tools refuse on it (`## Run 2026-11-21`).
 
 ### S99 - `sketch_import` of a DXF whose geometry is in a block, and an imported sketch `sketch_edit` refuses - OPEN 2026-11-18
 
@@ -2060,6 +2076,8 @@ which step, and `doc_save` of a library feature part checking its library featur
 holds its sketch.
 
 Local. Not decided.
+Decided 2026-11-21 by the owner: (a) to (d) taken into the run of 2026-11-21, group 6; not a folder added to File Locations (`## Run 2026-11-21`).
+Decided 2026-11-21 in the plan, not the owner: (d)'s save of a library feature part that no longer holds a sketch is `VERIFY_FAILED`, the file named as written, not `ok` with a warning, because `ok` is what let the session close it.
 
 ### S101 - `sketch_add` of a hundred entities takes minutes and times out - OPEN 2026-11-18
 
@@ -2072,6 +2090,7 @@ entity. A profile of a hundred segments needs a batch path or a longer limit for
 
 Proposed: a probe of where the time goes (the per-entity checks, S65 (e)'s merge pass, the
 contour read), then a batch path or a limit that grows with the count. Local. Not decided.
+Decided 2026-11-21 by the owner: taken into the run of 2026-11-21, group 7, a probe first (`## Run 2026-11-21`).
 
 ### S102 - `weldment_member`'s "No profile" lists a one-configuration file it then refuses - OPEN 2026-11-18
 
@@ -2083,6 +2102,8 @@ type>". The copy is offered as a type although the next call with it is refused
 
 Proposed by the session: leave a one-configuration file in the standard folder out of the
 list, or mark it ("not usable: one configuration"). Local. Not decided.
+Decided 2026-11-21 by the owner: taken into the run of 2026-11-21, group 6 (`## Run 2026-11-21`).
+Decided 2026-11-21 in the plan, not the owner: the file is marked "not usable: one configuration", not left out, because a file left out of the list reads as one the server did not find.
 
 ### S103 - `weldment_member`: lines in two directions that do not touch fail with the path hint, and the result does not say which way the section lies - OPEN 2026-11-21
 
@@ -2105,6 +2126,8 @@ Proposed by the session: (a) the server splits the segments into groups by that 
 group per parallel set, as groups of one feature), or the hint names the rule; (b) each
 member in the result gives its section's extents along the model axes, or the long side's
 direction, so a wrong rotation shows in the call that made it. Local. Not decided.
+Decided 2026-11-21 by the owner: (a) and (b) taken into the run of 2026-11-21, group 6 (`## Run 2026-11-21`).
+Decided 2026-11-21 in the plan, not the owner: (a) the server retries a refused group as one group per parallel set and says so, rather than the hint alone, because the hint would leave the split to every caller.
 
 ### S104 - `material_list` lists one database twice, under its short and its long path - OPEN 2026-11-21
 
@@ -2115,6 +2138,7 @@ path and under its long path. Reported `ok`. Bears on S97 (the databases a miss 
 
 Proposed: the database paths taken to their long form before they are listed and searched.
 Local. Not decided.
+Decided 2026-11-21 by the owner: taken into the run of 2026-11-21, group 5, with S97 (`## Run 2026-11-21`).
 
 ### S105 - No tool hides or shows reference geometry and sketches - OPEN 2026-11-21
 
@@ -2142,6 +2166,7 @@ and the side view's members; only the PDF showed it.
 Proposed by the session: `drw_table_add` returns the table's `extentMm` and warns of what it
 lands on; the note and dimension checks count tables and the views' `boundsMm`, not only
 annotations. Local. Not decided.
+Decided 2026-11-21 by the owner: taken into the run of 2026-11-21, group 5 (`## Run 2026-11-21`).
 
 ### S107 - `asm_insert {doc}` warns it re-activated the assembly, which reads as if the target changed - OPEN 2026-11-21
 
@@ -2154,6 +2179,7 @@ target still the new part. Right by the rules (the target is set by `doc_new` an
 
 Proposed by the session: the warning adds "the target is still '<part>'". Local. Not
 decided.
+Decided 2026-11-21 by the owner: taken into the run of 2026-11-21, group 1: the warning adds that the target is still the other document (`## Run 2026-11-21`).
 
 ### S108 - `doc_new {type:"drawing"}` with no `template` replaces a custom default template's format with ISO and its units with MMGS - OPEN 2026-11-21
 
@@ -2167,6 +2193,7 @@ reported wrong, but a user who set a default template does not get it.
 Proposed by the session: keep the template's sheet whenever the default drawing template is
 not the shipped one, and say so; or a server setting for the default drawing template.
 Local. Not decided.
+Decided 2026-11-21 by the owner: the default drawing template kept as it is when it is not one SOLIDWORKS ships, the result saying so; taken into the run of 2026-11-21, group 5 (`## Run 2026-11-21`).
 
 ### S109 - `NOT_CONNECTED` after `asm_component_move` and `doc_rebuild` on a subassembly open beside its parent, SOLIDWORKS responding - OPEN 2026-11-21
 
@@ -2182,6 +2209,7 @@ and S89 (the `NOT_CONNECTED` hint).
 Proposed: a probe, the same moves and rebuilds on a subassembly open beside its parent,
 `sw_status` and `dialog_list` when the connection goes; the hint names a modal dialog as a
 cause where one may be up. Local. Not decided.
+Decided 2026-11-21 by the owner: taken into the run of 2026-11-21, group 3, a probe; the hint names a modal dialog where one is up (`## Run 2026-11-21`).
 
 ### S110 - `dimension_set` of a limit mate's nominal outside its limits is refused without naming them - OPEN 2026-11-21
 
@@ -2193,6 +2221,7 @@ minimum was refused (`INVALID_ARGUMENT`, "rejected 15 mm ... as invalid") until
 
 Proposed by the session: the hint says a limit mate's nominal must lie inside its limits,
 and that `dimension_tolerance_set` moves them. Local. Not decided.
+Decided 2026-11-21 by the owner: taken into the run of 2026-11-21, group 1: the refusal names the limits and `dimension_tolerance_set` (`## Run 2026-11-21`).
 
 
 ## Waiting
