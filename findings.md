@@ -2275,3 +2275,5 @@ Build `bin\0.1.0-20261121-175345` (`serverVersion` `0.1.0-sw2023-20261121-175345
    export and `doc_open` of it, 16 surface bodies (S5, as before); a hinge assembly read-only,
    interference 0; a hand-built two-part assembly read-only, 2 components, 2 mates, 127 402.659
    mm³; a 1:2 plan with two sections, 1 and 3 hatched faces.
+
+Sorted into S61 (1), not held, back to Open; S5 (2), met again. Not filed (2): the other short checks held, no item waits on these tools.

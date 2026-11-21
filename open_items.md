@@ -17,7 +17,11 @@ Closed all the same, its PR named, and an open PR no longer holds an item in Wai
 item sent upstream ends with `**Upstream: PR #9, open.**`, one per PR or issue
 (`merged`, `closed unmerged`; an issue `open` or `closed`), kept to its state.
 
-**Open: S4, S5, S7, S10 to S12, S33, S34, S52, S60, S64, S65, S79 to S86, S89, S90, S92 to S110.**
+**Open: S4, S5, S7, S10 to S12, S33, S34, S52, S60, S61, S64, S65, S79 to S86, S89, S90, S92 to S110.**
+Sorted 2026-11-21, the scenario test of build `20261121-175345` (findings 2026-11-21): S61
+(a) not held again (a STEP inserted after another component, the assembly saved in another
+folder than the STEP, lost on reopen, reported `ok`), fixed a third time in the run, group
+5 built and checked again; S5 met again.
 Sorted 2026-11-21, six working sessions' entries of 2026-11-18 on build `20261118-060615`:
 S103 to S110 new, reported `ok` while wrong S106; S65 (k) and (l) and S80 (c) new parts;
 S10, S81, S84, S89 and S92 met again, S92 six times more, with a lead on what brings it on
@@ -299,6 +303,15 @@ server change since build `20261114-024455`).
     component lost on reopen, reported `ok`. Fixed again, and group 5 built and checked
     again (the plan's rule, *Per group, the check*). Test: the scenario's case, a part
     inserted first, then the STEP, the assembly saved (fails now: the part not written).
+  - **S61 (a) a third time**: did not hold in the check of build `20261121-175345`
+    (findings 2026-11-21, point 1): a STEP inserted after another component, the assembly
+    saved in another folder than the STEP: the part written beside the STEP, yet the
+    reopened assembly looks for it in its own folder, the component lost, reported `ok`
+    with "Also wrote …". Fixed again, and group 5 built and checked again. Test: the
+    scenario's case, a part inserted first, the STEP from a subfolder of the assembly's
+    folder (and from an unrelated folder), `doc_save as`, the assembly closed and reopened,
+    the component resolved (fails now: suppressed, `missingReferences` in the assembly's
+    folder).
 - **For the owner**: nothing to prepare. S1 in Waiting needs a session that runs
   `drw_view_detail` and a view at an angle, outside this run.
 - **Out of this run**: S4, S5, S7, S12 (wait on upstream); S10, S11, S33, S34 (parked,
@@ -418,10 +431,18 @@ server change since build `20261114-024455`).
   75 min. Unit 302. No description changed, `docs/tools.md` not regenerated. Registered in `claude_solidworks` and
   `clove sorter` (its `SWMCP_VBA=on` kept); tag `build-20261121-175345` pushed and read back, release page with no files.
   Cost: Sonnet, see the report.
-- [ ] Group 5 again: scenario test (session id: `9ec9afb8-62d2-437f-a8ca-22e1206ae72a`), its entry committed and sorted
+- [x] Group 5 again: scenario test (session id: `9ec9afb8-62d2-437f-a8ca-22e1206ae72a`), its entry committed and sorted
   Started 2026-11-21 17:56, detached (launcher pid 12152, `check5b.ps1` in the session's
   scratchpad, its output `check5b.out.txt`, an `EXIT` line at its end), after `dotnet
   build-server shutdown`, 2.7 GB free with SOLIDWORKS started from its exe.
+  Ended 18:02, one run (~6 min), no resume: S61 (a) not held (assembly in another folder
+  than the STEP), back to Open; the short checks held; S5 met again (findings 2026-11-21,
+  `3d1a7b3`). Cost (for `learned.md`), tokens / minutes: group 5 again's release 91k/67
+  (Sonnet), its sort 104k/2 (a subagent, the default model). The session of 2026-11-21
+  handed over here, its context at about 120k with a whole fix, release and check ahead.
+- [ ] S61 (a) a third time: committed
+- [ ] Group 5 a third time: full live tests and release (build: )
+- [ ] Group 5 a third time: scenario test (session id: ), its entry committed and sorted
 - [ ] The report
 
 ## Open
@@ -462,6 +483,8 @@ bodies: the side exact (942.478 mm²), each cap a plane bounded by two spline cu
 (0, ·, -5) to (6, ·, 5), 89.816 mm² against a Ø10 disc's 78.540.
 Met again 2026-11-18 (findings 2026-11-18, the scenario test of build `20261118-060615`,
 point 4): the shelled tray's STEP, 16 surface bodies, as before.
+Met again 2026-11-21 (findings 2026-11-21, the scenario test of build `20261121-175345`,
+point 2): the shelled tray's STEP, 16 surface bodies, as before.
 
 **Upstream: issue #2, open.**
 
@@ -735,6 +758,190 @@ warning; (b) is not named in the entry. Those parts closed 2026-11-14 on the own
 the item stays Open for (a).
 Parked 2026-11-16 by the owner: (a), probed 2026-11-13 and not reproduced, taken up when
 met again; the usage line above holds.
+
+### S61 - A STEP into an assembly - OPEN 2026-11-12
+
+On build `20261112-091908` (findings 2026-11-12, "STEP
+parts brought toward an existing assembly"). (a) `asm_insert` refuses a STEP; SOLIDWORKS
+inserts one by 3D Interconnect, linked to the file. (b) `doc_open` of a single-solid STEP
+came in as an assembly of one virtual component, reported `solidBodies: 0, surfaceBodies:
+0`, while `model_mass` read a solid: the body counts are wrong for an assembly import, and
+S5's usage line ("check `solidBodies`") reads 0 on a good solid. (c) The import left an
+empty `Part2` open, unnamed in the result, later closed with another assembly. Bears on
+S5. Not needed by that job. Taken into the run of 2026-11-13: (b) and (c), no choice in
+them: the body counts read through the components for an assembly import, the stray
+document named in the result. (a) offered 2026-11-13 and not chosen; stays open. (b) and
+(c) fixed in the run of 2026-11-13; (a) still open. What makes it an assembly (live, 2023
+SP3, 3D Interconnect off as `doc_open` sets it): a STEP with an assembly level in its
+product structure, here one written by `model_export` from an assembly of one 20 mm cube
+(the writer of the finding wraps a single solid the same way); a STEP of a single part
+still comes in as a part. The component points to `<step name>_1.sldprt` beside the STEP,
+not written until saved, and SOLIDWORKS leaves an empty part (`Part2`, `Part4`: no bodies,
+used by nothing) open; closing it leaves the assembly and its component whole (noted in
+`docs/solidworks-api-notes.md` §1). (b) Cause: `OpenService.Summarize` read only the
+component count and box of an assembly, so `solidBodies` and `surfaceBodies` kept their
+default 0. Fix: for an assembly import they are counted through the part components
+(`GetBodies3`, suppressed ones and subassemblies skipped), `volumeMm3` summed from those
+solids, and the message says "1 component(s) (1 solid body)". (c) Cause: the import marked
+every document it created as owned ("created by importing …") and named none but the
+result. Fix: `imported.otherDocuments` names each, as "D3 'Part4' (part, no bodies)", and
+the message says it was left open, with `doc_close {doc, discard:true}` for an empty one;
+it is not closed by the server. Before, on the code before the fix: the new
+`AssemblyLiveTests.A_step_imported_as_an_assembly_counts_bodies_through_its_components_and_names_what_it_left_open`
+failed ("… "SolidBodies":0,"SurfaceBodies":0 … "Components":1 … | new documents: D3
+'Part2' part owned"). After: it passes, with `ExportLiveTests.An_exported_step_imports_back_…`,
+`An_exported_stl_imports_back_with_a_body`, `Open_refuses_missing_files_…`,
+`A_file_that_is_already_open_…` and `RecognitionLiveTests.An_imported_step_block_…`, 6/6
+live; `FaceEditLiveTests.Delete_heals_a_hole_in_an_imported_STEP_body_without_history`
+fails the same before and after (the import reads volume 0: S5, not this item); unit tests
+284/284; `ContractTests` 7/7; `check_repo` ok; no description changed. Made stricter:
+none. Decided 2026-11-13 by the run, not the owner: (1) the empty part is named, with the
+close hint, and not closed by `doc_open`, because the decision was to name it and it is a
+document SOLIDWORKS opened; (2) every other document the import created is named, with its
+body count, not only empty parts, because the result then says all that the import left
+open; (3) `volumeMm3` is given for an assembly import too, from the components' solids,
+because a part import gives it and a count without it reads as less than `model_mass`
+shows; (4) only part components are counted (subassemblies skipped), because a
+subassembly's bodies are its parts' and would count twice. Local: (b) and (c) on `sw2023`,
+`a81f93d`; in build `20261114-024455`. Upstream: not yet decided.
+Held in the scenario test of build `20261114-024455` (findings 2026-11-14, points 5, 6):
+(b)'s message said "3 solid bodies, 3 surface bodies" plainly; (c) the empty part named.
+Those parts closed 2026-11-14 on the owner's word; the item stays Open for (a).
+Decided 2026-11-16 by the owner: (a) taken into the run of 2026-11-16, group 5, a probe of
+the insert through 3D Interconnect first (`## Run 2026-11-16`).
+(a) done 2026-11-16 in the run of 2026-11-16 (group 5). Probe (live, 2023 SP3, a STEP of a
+20 mm cube written from the part): `AddComponent5` of the STEP returns null, with 3D
+Interconnect on and with the STEP loaded first by `LoadFile4` (with Interconnect on, a
+part holding an `MBimport` feature and no path); `OpenDoc6` of it fails (2097152);
+`IAssemblyDoc.InsertImportedComponent` with 3D Interconnect on returns 0 and the
+component, one solid of 8000 mm³, linked to the file (`IFeature.Is3DInterconnectFeature`);
+with it off, 1 and nothing. Its part is `<step file name>.SLDPRT` in SOLIDWORKS' working
+directory (a folder of the user's, not the STEP's), not written until the assembly is
+saved, which writes it there. Cause: `asm_insert` took a .sldprt or .sldasm only
+(`ResolveFile`) and loaded it by `OpenDoc6` for `AddComponent5`, and neither takes a STEP.
+Fix: a .step or .stp goes in by `InsertImportedComponent` with 3D Interconnect on and
+Import Diagnostics off in a preference scope, the working directory set to the STEP's
+folder for the call, both restored after, so its part lies beside the STEP; then it is
+placed and verified as any component, and the checks add its solid bodies with their
+volume and its 3D Interconnect feature; surface bodies only warn, no bodies refuse and
+roll back; the message names the link and the part, not written until the assembly is
+saved; `configuration` with a STEP is refused; SOLIDWORKS refusing the insert gives
+`FEATURE_FAILED` with the way round (doc_open the STEP, doc_save it as a .sldprt,
+asm_insert that), and another format's refusal names the same. The `path` description
+names .step. Before: the new
+`AssemblyLiveTests.A_step_is_inserted_as_a_component_linked_to_the_file_with_its_solid`
+failed ("'path' must be a .sldprt or .sldasm file, not '.step' (got
+'…\stepins_….step')."). After: it passes (one component, origin [50, 0, 0], box ±10 mm
+about it, "1 solid body (8000 mm³)", `model_mass` 8000 mm³, the part beside the STEP and
+written by the assembly's save, `configuration` refused), with
+`Insert_puts_the_origin_at_originMm_…`, `Insert_with_a_rotation_…`,
+`Insert_refuses_unsaved_missing_and_foreign_files_…` (a missing STEP now an I/O error, an
+.igs still refused), `Subassemblies_are_inserted_…`,
+`Configurations_are_chosen_at_insert_…`, `Replace_swaps_the_file_…` and
+`A_step_imported_as_an_assembly_…`, 8/8 live; unit tests 290/290;
+`ContractTests.Tool_catalog_follows_the_conventions` 1/1; `--check-catalog` ok;
+`check_repo` ok. Noted in `docs/solidworks-api-notes.md` §8. Made stricter: none. Decided
+2026-11-16 by the run, not the owner: (1) the working directory is the STEP's folder for
+the insert, because SOLIDWORKS otherwise names the part in whatever folder its working
+directory is and the assembly's save writes it there; (2) a STEP that comes in as surface
+bodies only is kept with a warning, not refused, because the insert is what was asked and
+the result says what came in (S5's case); (3) only .step and .stp are taken, not IGES or
+the other formats 3D Interconnect reads, because the item and its test are a STEP's; (4)
+the `path` description adds ".step" and nothing more, the link named in the result,
+because the tool list is at its byte budget. Local: on `sw2023`, in the commit that
+records it; in build `20261117-012659` (the S61 (a) point). Upstream: not yet decided.
+(a) not held 2026-11-17, back to not done, reported `ok` while wrong: the scenario test of
+build `20261117-012659` (findings 2026-11-17, point 1). `asm_insert` of a STEP of a 20 mm
+cube in five cases, each a fresh copy of the STEP in its own folder: every result one
+component, "1 solid body (8000 mm³)", linked by 3D Interconnect, its part
+`<step folder>\<name>.step.SLDPRT`, "not written until the assembly is saved". Held where
+the STEP is the assembly's first component (fixed by SOLIDWORKS), the assembly saved in the
+STEP's folder or one folder up: the part written beside the STEP. Not held when the
+assembly already holds a component: a part inserted first and the STEP after (floating),
+then `doc_save as`; the STEP into an assembly holding a subassembly and a part,
+`doc_save as` then `doc_save` in place; the STEP after a subassembly into a saved assembly,
+`doc_save` in place. In each the part was not written: left open, `dirty: true`, listed
+`foreign` (so `doc_save` cannot save it), nothing in any result saying so, `doc_save`
+reporting the assembly saved. Closing the assembly closed the part unsaved, a warning
+naming it the only sign; reopened, the assembly read `missingReferences`
+`<assembly folder>\<name>.step.sldprt` (the assembly's folder, not the STEP's) and the
+component `suppression: suppressed`: the component lost from the saved assembly. The live
+test covers the first-component case only. Seen with it, possibly the same cause: the
+assemblies saved in place read `dirty: true` again after the save, with no change made,
+once other documents had been activated (a later `doc_close` refused `DIRTY` on one that
+had read clean after its save). Proposed by the session: after the assembly's save, check
+that each such part was written, and save it (the component's document) when not, or say
+in the save's result that it was not. By the run's rule (*Per group, the check*: a fix of
+this group not holding), (a) is fixed again and group 5 built and checked again
+(`## Run 2026-11-16`).
+(a) fixed again 2026-11-21 in the run of 2026-11-16 (group 5 again). Cause (live, 2023
+SP3): SOLIDWORKS' save of an assembly writes the part of a 3D Interconnect component only
+when it is the assembly's first component; inserted after another component (fixed or
+floating alike, probed), `SaveAs3` or `Save3` of the assembly reports success and leaves
+the part unwritten, open, dirty and hidden. The part's own `Save3` then fails with
+`swReadOnlySaveError` though it is not opened read-only, while `IModelDocExtension.SaveAs3`
+to its own path writes it. Nothing claimed the part, so it was `foreign` and `doc_save`
+could not save it either. Fix: `asm_insert` of a STEP registers the part it made (no file
+yet) as owned, "created by inserting <step>"; `doc_save` (every mode) and `doc_close
+{save}` of an assembly then write each owned component part not on disk by `SaveAs3` to
+its own path, read back, the save's message naming it ("Also wrote '…': the assembly's
+save left it unwritten."); a component file not on disk that is not the server's, not
+loaded, or not written is named in a warning ("… will be missing when the assembly is
+reopened"), so the save no longer reports `ok` silently. Before: the new
+`AssemblyLiveTests.A_step_inserted_after_a_part_is_written_by_the_assemblys_save_and_resolves_on_reopen`
+(a part inserted, then the STEP floating, `doc_save as`, closed and reopened) failed
+("…\stepafter_….step.SLDPRT was not written by the assembly's save: {… "Dirty":false,
+"Access":"owned" …} | open: D1 'stepafter_block_….SLDPRT' owned dirty=False, D4
+'stepafter_….step.SLDPRT' foreign dirty=True, D3 'stepafter_asm_….SLDASM' owned
+dirty=False"). After: it passes (the part owned after the insert, written beside the STEP
+by the save and clean; reopened with no missing reference, the component resolved), with
+`A_step_is_inserted_as_a_component_linked_…`, 2/2; then `Insert_puts_the_origin_at_originMm_…`,
+`Subassemblies_are_inserted_…`, `Replace_swaps_the_file_…`,
+`Insert_refuses_unsaved_missing_and_foreign_files_…`, `A_step_imported_as_an_assembly_…`,
+`Pack_and_go_copies_…`, `AssemblyStructureLiveTests.A_speedpak_configuration_…`,
+`TopDownLiveTests.Saved_bodies_become_parts_…`, `M0LiveTests.Dirty_owned_documents_need_save_or_discard`
+and `Save_copy_writes_a_fresh_file_…`, 10/10 live; unit tests 302/302; `check_repo` ok; no
+description changed. Noted in `docs/solidworks-api-notes.md` §8. Made stricter: every
+assembly save warns of a component file it leaves off disk. Not looked into: assemblies
+saved in place reading `dirty: true` again once others were activated; not shown to share
+this cause (the test's assembly read clean after its save). Decided 2026-11-21 by the run,
+not the owner: (1) the part a STEP insert makes is owned by the server, only when its file
+did not exist before the insert, because the server created it and `doc_save` and
+`doc_close` must be able to act on it, while an existing file stays the user's; (2) the
+check runs after every assembly save (in place, as, copy, `doc_close {save}`), at all
+levels and for any component, not only 3D Interconnect parts, because any component whose
+file is not on disk is lost on reopen and the result should say so; (3) a part that cannot
+be written is a warning, not an error, because the assembly itself was written and an
+error would read as if it had not; (4) the part is written under the write-folder policy
+(`ForWrite`), a refusal named in the warning, because a server write outside the allowed
+folders is refused everywhere else too. Local: on `sw2023`, in the commit that records it;
+in build `20261121-175345`. Upstream: not yet decided.
+(a) not held 2026-11-21, back to not done, reported `ok` while wrong: the scenario test of
+build `20261121-175345` (findings 2026-11-21, point 1). `asm_insert` of a STEP of a 20 mm
+cube, each case a fresh copy of the STEP in its own folder: every result one component, "1
+solid body (8000 mm³)", linked by 3D Interconnect, its part `<step folder>\<name>.step.SLDPRT`,
+now listed `owned` (was `foreign`). Held, reopened with every component resolved: (a) the
+STEP first, the assembly saved in the STEP's folder; (c) a part first, the STEP after,
+`doc_save as` in the STEP's folder: "Also wrote '<step folder>\<name>.step.SLDPRT': the
+assembly's save left it unwritten", the part clean, 2 components on reopen; (d) the STEP
+after a subassembly and a part, `doc_save as` then `doc_save` in place, the assembly no
+longer dirty again after the in-place save; (f) a part first, the assembly saved, the STEP
+inserted, `doc_close {save:true}`: "Also wrote …". Not held where the assembly is saved in
+another folder than the STEP: (e) the STEP after a subassembly into a saved assembly in
+another folder, `doc_save` in place; (g) a part first, the STEP from a subfolder of the
+assembly's folder, `doc_save as`; (h) as (g), with a second `doc_save` in place after the
+part was on disk. In each the part was written beside the STEP and the save said "Also
+wrote …", yet the reopened assembly read `missingReferences`
+`<assembly folder>\<name>.step.sldprt`, the component `suppression: suppressed`, the
+assembly `dirty: true` on open; the second in-place save of (h) did not help. The cause as
+the check reads it: the assembly file stores the part as if it lay in the assembly's own
+folder, so the cases that held are those where that folder is the STEP's; the fix's live
+test saves the assembly in the STEP's folder and so cannot see it. Proposed by the session:
+write the owned unwritten part before the assembly's save, so the assembly stores the path
+the part has, or repoint the component after writing it; and read the reference back (a
+reopen, or the saved file's dependencies) before saying the part was written. By the run's
+rule (*Per group, the check*: a fix of this group not holding), (a) is fixed a third time
+and group 5 built and checked again (`## Run 2026-11-16`).
 
 ### S64 - Feature calls refused, failed or counted wrong, with hints that miss - OPEN 2026-11-12
 
@@ -2006,161 +2213,3 @@ sheet's there), which S1 found false for sections and details; its live test onl
 the cut, so a circle landing elsewhere on the part would pass.
 
 **Upstream: PR #1, open.**
-
-### S61 - A STEP into an assembly - BUILT 2026-11-21, proof: the scenario test of build 20261121-175345
-
-On build `20261112-091908` (findings 2026-11-12, "STEP
-parts brought toward an existing assembly"). (a) `asm_insert` refuses a STEP; SOLIDWORKS
-inserts one by 3D Interconnect, linked to the file. (b) `doc_open` of a single-solid STEP
-came in as an assembly of one virtual component, reported `solidBodies: 0, surfaceBodies:
-0`, while `model_mass` read a solid: the body counts are wrong for an assembly import, and
-S5's usage line ("check `solidBodies`") reads 0 on a good solid. (c) The import left an
-empty `Part2` open, unnamed in the result, later closed with another assembly. Bears on
-S5. Not needed by that job. Taken into the run of 2026-11-13: (b) and (c), no choice in
-them: the body counts read through the components for an assembly import, the stray
-document named in the result. (a) offered 2026-11-13 and not chosen; stays open. (b) and
-(c) fixed in the run of 2026-11-13; (a) still open. What makes it an assembly (live, 2023
-SP3, 3D Interconnect off as `doc_open` sets it): a STEP with an assembly level in its
-product structure, here one written by `model_export` from an assembly of one 20 mm cube
-(the writer of the finding wraps a single solid the same way); a STEP of a single part
-still comes in as a part. The component points to `<step name>_1.sldprt` beside the STEP,
-not written until saved, and SOLIDWORKS leaves an empty part (`Part2`, `Part4`: no bodies,
-used by nothing) open; closing it leaves the assembly and its component whole (noted in
-`docs/solidworks-api-notes.md` §1). (b) Cause: `OpenService.Summarize` read only the
-component count and box of an assembly, so `solidBodies` and `surfaceBodies` kept their
-default 0. Fix: for an assembly import they are counted through the part components
-(`GetBodies3`, suppressed ones and subassemblies skipped), `volumeMm3` summed from those
-solids, and the message says "1 component(s) (1 solid body)". (c) Cause: the import marked
-every document it created as owned ("created by importing …") and named none but the
-result. Fix: `imported.otherDocuments` names each, as "D3 'Part4' (part, no bodies)", and
-the message says it was left open, with `doc_close {doc, discard:true}` for an empty one;
-it is not closed by the server. Before, on the code before the fix: the new
-`AssemblyLiveTests.A_step_imported_as_an_assembly_counts_bodies_through_its_components_and_names_what_it_left_open`
-failed ("… "SolidBodies":0,"SurfaceBodies":0 … "Components":1 … | new documents: D3
-'Part2' part owned"). After: it passes, with `ExportLiveTests.An_exported_step_imports_back_…`,
-`An_exported_stl_imports_back_with_a_body`, `Open_refuses_missing_files_…`,
-`A_file_that_is_already_open_…` and `RecognitionLiveTests.An_imported_step_block_…`, 6/6
-live; `FaceEditLiveTests.Delete_heals_a_hole_in_an_imported_STEP_body_without_history`
-fails the same before and after (the import reads volume 0: S5, not this item); unit tests
-284/284; `ContractTests` 7/7; `check_repo` ok; no description changed. Made stricter:
-none. Decided 2026-11-13 by the run, not the owner: (1) the empty part is named, with the
-close hint, and not closed by `doc_open`, because the decision was to name it and it is a
-document SOLIDWORKS opened; (2) every other document the import created is named, with its
-body count, not only empty parts, because the result then says all that the import left
-open; (3) `volumeMm3` is given for an assembly import too, from the components' solids,
-because a part import gives it and a count without it reads as less than `model_mass`
-shows; (4) only part components are counted (subassemblies skipped), because a
-subassembly's bodies are its parts' and would count twice. Local: (b) and (c) on `sw2023`,
-`a81f93d`; in build `20261114-024455`. Upstream: not yet decided.
-Held in the scenario test of build `20261114-024455` (findings 2026-11-14, points 5, 6):
-(b)'s message said "3 solid bodies, 3 surface bodies" plainly; (c) the empty part named.
-Those parts closed 2026-11-14 on the owner's word; the item stays Open for (a).
-Decided 2026-11-16 by the owner: (a) taken into the run of 2026-11-16, group 5, a probe of
-the insert through 3D Interconnect first (`## Run 2026-11-16`).
-(a) done 2026-11-16 in the run of 2026-11-16 (group 5). Probe (live, 2023 SP3, a STEP of a
-20 mm cube written from the part): `AddComponent5` of the STEP returns null, with 3D
-Interconnect on and with the STEP loaded first by `LoadFile4` (with Interconnect on, a
-part holding an `MBimport` feature and no path); `OpenDoc6` of it fails (2097152);
-`IAssemblyDoc.InsertImportedComponent` with 3D Interconnect on returns 0 and the
-component, one solid of 8000 mm³, linked to the file (`IFeature.Is3DInterconnectFeature`);
-with it off, 1 and nothing. Its part is `<step file name>.SLDPRT` in SOLIDWORKS' working
-directory (a folder of the user's, not the STEP's), not written until the assembly is
-saved, which writes it there. Cause: `asm_insert` took a .sldprt or .sldasm only
-(`ResolveFile`) and loaded it by `OpenDoc6` for `AddComponent5`, and neither takes a STEP.
-Fix: a .step or .stp goes in by `InsertImportedComponent` with 3D Interconnect on and
-Import Diagnostics off in a preference scope, the working directory set to the STEP's
-folder for the call, both restored after, so its part lies beside the STEP; then it is
-placed and verified as any component, and the checks add its solid bodies with their
-volume and its 3D Interconnect feature; surface bodies only warn, no bodies refuse and
-roll back; the message names the link and the part, not written until the assembly is
-saved; `configuration` with a STEP is refused; SOLIDWORKS refusing the insert gives
-`FEATURE_FAILED` with the way round (doc_open the STEP, doc_save it as a .sldprt,
-asm_insert that), and another format's refusal names the same. The `path` description
-names .step. Before: the new
-`AssemblyLiveTests.A_step_is_inserted_as_a_component_linked_to_the_file_with_its_solid`
-failed ("'path' must be a .sldprt or .sldasm file, not '.step' (got
-'…\stepins_….step')."). After: it passes (one component, origin [50, 0, 0], box ±10 mm
-about it, "1 solid body (8000 mm³)", `model_mass` 8000 mm³, the part beside the STEP and
-written by the assembly's save, `configuration` refused), with
-`Insert_puts_the_origin_at_originMm_…`, `Insert_with_a_rotation_…`,
-`Insert_refuses_unsaved_missing_and_foreign_files_…` (a missing STEP now an I/O error, an
-.igs still refused), `Subassemblies_are_inserted_…`,
-`Configurations_are_chosen_at_insert_…`, `Replace_swaps_the_file_…` and
-`A_step_imported_as_an_assembly_…`, 8/8 live; unit tests 290/290;
-`ContractTests.Tool_catalog_follows_the_conventions` 1/1; `--check-catalog` ok;
-`check_repo` ok. Noted in `docs/solidworks-api-notes.md` §8. Made stricter: none. Decided
-2026-11-16 by the run, not the owner: (1) the working directory is the STEP's folder for
-the insert, because SOLIDWORKS otherwise names the part in whatever folder its working
-directory is and the assembly's save writes it there; (2) a STEP that comes in as surface
-bodies only is kept with a warning, not refused, because the insert is what was asked and
-the result says what came in (S5's case); (3) only .step and .stp are taken, not IGES or
-the other formats 3D Interconnect reads, because the item and its test are a STEP's; (4)
-the `path` description adds ".step" and nothing more, the link named in the result,
-because the tool list is at its byte budget. Local: on `sw2023`, in the commit that
-records it; in build `20261117-012659` (the S61 (a) point). Upstream: not yet decided.
-(a) not held 2026-11-17, back to not done, reported `ok` while wrong: the scenario test of
-build `20261117-012659` (findings 2026-11-17, point 1). `asm_insert` of a STEP of a 20 mm
-cube in five cases, each a fresh copy of the STEP in its own folder: every result one
-component, "1 solid body (8000 mm³)", linked by 3D Interconnect, its part
-`<step folder>\<name>.step.SLDPRT`, "not written until the assembly is saved". Held where
-the STEP is the assembly's first component (fixed by SOLIDWORKS), the assembly saved in the
-STEP's folder or one folder up: the part written beside the STEP. Not held when the
-assembly already holds a component: a part inserted first and the STEP after (floating),
-then `doc_save as`; the STEP into an assembly holding a subassembly and a part,
-`doc_save as` then `doc_save` in place; the STEP after a subassembly into a saved assembly,
-`doc_save` in place. In each the part was not written: left open, `dirty: true`, listed
-`foreign` (so `doc_save` cannot save it), nothing in any result saying so, `doc_save`
-reporting the assembly saved. Closing the assembly closed the part unsaved, a warning
-naming it the only sign; reopened, the assembly read `missingReferences`
-`<assembly folder>\<name>.step.sldprt` (the assembly's folder, not the STEP's) and the
-component `suppression: suppressed`: the component lost from the saved assembly. The live
-test covers the first-component case only. Seen with it, possibly the same cause: the
-assemblies saved in place read `dirty: true` again after the save, with no change made,
-once other documents had been activated (a later `doc_close` refused `DIRTY` on one that
-had read clean after its save). Proposed by the session: after the assembly's save, check
-that each such part was written, and save it (the component's document) when not, or say
-in the save's result that it was not. By the run's rule (*Per group, the check*: a fix of
-this group not holding), (a) is fixed again and group 5 built and checked again
-(`## Run 2026-11-16`).
-(a) fixed again 2026-11-21 in the run of 2026-11-16 (group 5 again). Cause (live, 2023
-SP3): SOLIDWORKS' save of an assembly writes the part of a 3D Interconnect component only
-when it is the assembly's first component; inserted after another component (fixed or
-floating alike, probed), `SaveAs3` or `Save3` of the assembly reports success and leaves
-the part unwritten, open, dirty and hidden. The part's own `Save3` then fails with
-`swReadOnlySaveError` though it is not opened read-only, while `IModelDocExtension.SaveAs3`
-to its own path writes it. Nothing claimed the part, so it was `foreign` and `doc_save`
-could not save it either. Fix: `asm_insert` of a STEP registers the part it made (no file
-yet) as owned, "created by inserting <step>"; `doc_save` (every mode) and `doc_close
-{save}` of an assembly then write each owned component part not on disk by `SaveAs3` to
-its own path, read back, the save's message naming it ("Also wrote '…': the assembly's
-save left it unwritten."); a component file not on disk that is not the server's, not
-loaded, or not written is named in a warning ("… will be missing when the assembly is
-reopened"), so the save no longer reports `ok` silently. Before: the new
-`AssemblyLiveTests.A_step_inserted_after_a_part_is_written_by_the_assemblys_save_and_resolves_on_reopen`
-(a part inserted, then the STEP floating, `doc_save as`, closed and reopened) failed
-("…\stepafter_….step.SLDPRT was not written by the assembly's save: {… "Dirty":false,
-"Access":"owned" …} | open: D1 'stepafter_block_….SLDPRT' owned dirty=False, D4
-'stepafter_….step.SLDPRT' foreign dirty=True, D3 'stepafter_asm_….SLDASM' owned
-dirty=False"). After: it passes (the part owned after the insert, written beside the STEP
-by the save and clean; reopened with no missing reference, the component resolved), with
-`A_step_is_inserted_as_a_component_linked_…`, 2/2; then `Insert_puts_the_origin_at_originMm_…`,
-`Subassemblies_are_inserted_…`, `Replace_swaps_the_file_…`,
-`Insert_refuses_unsaved_missing_and_foreign_files_…`, `A_step_imported_as_an_assembly_…`,
-`Pack_and_go_copies_…`, `AssemblyStructureLiveTests.A_speedpak_configuration_…`,
-`TopDownLiveTests.Saved_bodies_become_parts_…`, `M0LiveTests.Dirty_owned_documents_need_save_or_discard`
-and `Save_copy_writes_a_fresh_file_…`, 10/10 live; unit tests 302/302; `check_repo` ok; no
-description changed. Noted in `docs/solidworks-api-notes.md` §8. Made stricter: every
-assembly save warns of a component file it leaves off disk. Not looked into: assemblies
-saved in place reading `dirty: true` again once others were activated; not shown to share
-this cause (the test's assembly read clean after its save). Decided 2026-11-21 by the run,
-not the owner: (1) the part a STEP insert makes is owned by the server, only when its file
-did not exist before the insert, because the server created it and `doc_save` and
-`doc_close` must be able to act on it, while an existing file stays the user's; (2) the
-check runs after every assembly save (in place, as, copy, `doc_close {save}`), at all
-levels and for any component, not only 3D Interconnect parts, because any component whose
-file is not on disk is lost on reopen and the result should say so; (3) a part that cannot
-be written is a warning, not an error, because the assembly itself was written and an
-error would read as if it had not; (4) the part is written under the write-folder policy
-(`ForWrite`), a refusal named in the warning, because a server write outside the allowed
-folders is refused everywhere else too. Local: on `sw2023`, in the commit that records it;
-in build `20261121-175345`. Upstream: not yet decided.
