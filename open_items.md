@@ -404,9 +404,20 @@ server change since build `20261114-024455`).
 - [x] Group 5: scenario test (session id: `793c7f74-1bf1-46d3-9199-eed2f71d1e46`), its entry committed and sorted
   One run, ~13 min, no resume; S71, S72, S87, S88 held and closed, S52 (c) held and closed;
   S61 (a) not held, fixed again (below); S90 new; S5 met again (findings 2026-11-17, `da55ff5`).
-- [x] S61 (a) again: committed
+- [x] S61 (a) again: committed (`e3b1b7e`)
   Cost: 153k tokens / 14 min (the default model, one run).
-- [ ] Group 5 again: full live tests and release (build: )
+- [x] Group 5 again: full live tests and release (build: `20261121-175345`, `e3b1b7e`)
+  Live: AssemblyLiveTests 57, AssemblyStructureLiveTests 2, TopDownLiveTests 4, M0LiveTests 23, ExportLiveTests 22,
+  ConfigurationLiveTests 7, HardwareLiveTests 3, SimulationLiveTests 17 (the classes that save or close an assembly through
+  `DocumentService`; TemplateLiveTests skips, the 2025 templates are not there); all passed but one. Flake, not this fix's:
+  `AssemblyLiveTests.Dimension_set_on_a_mate_angle_an_equation_drives_…` refused in the full class run (56/57) and passed
+  alone after a SOLIDWORKS restart. `PropertiesLiveTests` not run (no assembly save or close; its known failure stays).
+  Run class by class with SOLIDWORKS restarted between, free memory 2.5 to 2.9 GB before each start after the build
+  servers were shut down; no "low on memory" dialog. The live tests took 47 min of test time (28.2, 0.6, 1.4, 2.4, 3, 1.7,
+  3.9, 5.2 min, and the 0.5 min rerun of the flake; about 64 min on the clock with the restarts), the whole release about
+  75 min. Unit 302. No description changed, `docs/tools.md` not regenerated. Registered in `claude_solidworks` and
+  `clove sorter` (its `SWMCP_VBA=on` kept); tag `build-20261121-175345` pushed and read back, release page with no files.
+  Cost: Sonnet, see the report.
 - [ ] Group 5 again: scenario test (session id: ), its entry committed and sorted
 - [ ] The report
 
@@ -1993,7 +2004,7 @@ the cut, so a circle landing elsewhere on the part would pass.
 
 **Upstream: PR #1, open.**
 
-### S61 - A STEP into an assembly - BUILT 2026-11-21, proof: the scenario test of the next build
+### S61 - A STEP into an assembly - BUILT 2026-11-21, proof: the scenario test of build 20261121-175345
 
 On build `20261112-091908` (findings 2026-11-12, "STEP
 parts brought toward an existing assembly"). (a) `asm_insert` refuses a STEP; SOLIDWORKS
@@ -2149,4 +2160,4 @@ be written is a warning, not an error, because the assembly itself was written a
 error would read as if it had not; (4) the part is written under the write-folder policy
 (`ForWrite`), a refusal named in the warning, because a server write outside the allowed
 folders is refused everywhere else too. Local: on `sw2023`, in the commit that records it;
-not yet in a build. Upstream: not yet decided.
+in build `20261121-175345`. Upstream: not yet decided.
