@@ -435,7 +435,8 @@ public sealed partial class AssemblyService(SwSession session)
             Message = string.Join(" ", new[]
             {
                 file.Step
-                    ? $"'{name}' is linked to '{System.IO.Path.GetFileName(file.Full)}' by 3D Interconnect; its part '{CompPath(c)}' is not written until the assembly is saved."
+                    ? $"'{name}' is linked to '{System.IO.Path.GetFileName(file.Full)}' by 3D Interconnect; its part '{CompPath(c)}' " +
+                      (System.IO.File.Exists(CompPath(c)) ? "is written beside the STEP." : "is not written until the assembly is saved.")
                     : null,
                 solidworksFixed
                     ? $"SOLIDWORKS fixed '{name}' (the first component of an assembly is fixed); asm_component_set {{component:'{name}', fixed:false}} floats it."
@@ -474,8 +475,50 @@ public sealed partial class AssemblyService(SwSession session)
                 "The way round: doc_open the STEP (translated, not linked), doc_save it as a .sldprt, and asm_insert that file.");
         // The part the insert made (no file yet) is the server's, so doc_save and doc_close can act on it (S61 a).
         if (c.GetModelDoc2() is IModelDoc2 part && CompPath(c) is { Length: > 0 } file && !System.IO.File.Exists(file))
+        {
             ctx.Documents.SetClass(part, DocClass.Owned, $"created by inserting {System.IO.Path.GetFileName(step)}");
+            c = WriteAndRepoint(ctx, asm, c, part, file);
+        }
         return c;
+    }
+
+    /// <summary>
+    /// S61 (a), VERIFIED 2026-11-21 on 2023 SP3: a 3D Interconnect component inserted after another component is not among
+    /// the assembly's references (IModelDoc2.GetDependencies2 leaves it out), and the saved assembly stores its part in
+    /// the assembly's own folder, written beside the STEP before or after the save alike: reopened, it is suppressed and
+    /// missing. A component of the part written to disk is a plain reference and resolves. So the part is written at once
+    /// and the linked component replaced by a component of that file (added first, then the linked one deleted; there are
+    /// no mates yet), its transform and fixed state kept. The part keeps its link to the STEP (its MBimport feature).
+    /// A write refused (the path policy) leaves the linked component, with a warning.
+    /// </summary>
+    private static IComponent2 WriteAndRepoint(SwContext ctx, IAssemblyDoc asm, IComponent2 c, IModelDoc2 part, string file)
+    {
+        var d = (IModelDoc2)asm;
+        string lost = $"'{c.Name2}' may be missing when the assembly is reopened";
+        if (DocumentService.TryWrite(ctx, part, file) is { } why)
+        {
+            ctx.Warn($"Could not write '{file}' ({why}): {lost}.");
+            return c;
+        }
+        MathTransform xf = c.Transform2;
+        bool wasFixed = c.IsFixed();
+        d.ClearSelection2(true);
+        bool deleted = SelectComponent(d, c, false, 0) && d.Extension.DeleteSelection2(0);
+        d.ClearSelection2(true);
+        if (!deleted)
+        {
+            ctx.Warn($"Wrote '{file}', but the linked component could not be deleted in favour of it: {lost}.");
+            return c;
+        }
+        var n = asm.AddComponent5(file, (int)swAddComponentConfigOptions_e.swAddComponentConfigOptions_CurrentSelectedConfig, "", false, "", 0, 0, 0);
+        if (n is null || !SamePath(CompPath(n), file))
+            throw new SwException(ErrorCodes.FeatureFailed,
+                $"asm_insert: the linked component of the STEP was deleted to be replaced by its written part '{file}', and SOLIDWORKS did not add that part; the assembly is as it was.",
+                "asm_insert the written .SLDPRT itself.");
+        n.Transform2 = xf;
+        if (wasFixed && !n.IsFixed()) SetFixed(d, asm, n, true);
+        if (n.GetModelDoc2() is IModelDoc2 m) ctx.Documents.SetClass(m, DocClass.Owned, $"written by inserting {System.IO.Path.GetFileName(file)}");
+        return n;
     }
 
     /// <summary>A STEP component's bodies, volume and link, read back (the import may bring surfaces only, S5).</summary>

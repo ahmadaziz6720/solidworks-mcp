@@ -187,6 +187,7 @@ public sealed class DocumentService(SwSession session)
             int errors = 0, warnings = 0;
             string saved;
             string? backup = null;
+            List<string> parts;
             switch (mode.Trim().ToLowerInvariant())
             {
                 case "inplace" or "in_place" or "":
@@ -197,6 +198,7 @@ public sealed class DocumentService(SwSession session)
                         throw SwException.InvalidArgument($"'{ctx.Title(target)}' has never been saved, so it has no file yet.",
                             "Use mode 'as' with a path (e.g. bracket.sldprt, saved under the output folder).");
                     CheckVersionUpgrade(ctx, saved);
+                    parts = WriteUnwrittenComponents(ctx, target);
                     if (!target.Save3((int)swSaveAsOptions_e.swSaveAsOptions_Silent, ref errors, ref warnings) || errors != 0)
                         throw new SwException(ErrorCodes.IoError, $"Save failed ({SaveErrors(errors)}).", "Check that the file isn't read-only or open elsewhere.");
                     break;
@@ -209,6 +211,7 @@ public sealed class DocumentService(SwSession session)
                     saved = ctx.Paths.ForWrite(WithNativeExtension(path!, target.GetType()), overwrite, out backup);
                     int options = (int)swSaveAsOptions_e.swSaveAsOptions_Silent | (copy ? (int)swSaveAsOptions_e.swSaveAsOptions_Copy : 0);
                     var before = File.Exists(saved) ? File.GetLastWriteTimeUtc(saved) : DateTime.MinValue;
+                    parts = WriteUnwrittenComponents(ctx, target);
                     bool ok = target.Extension.SaveAs3(saved, (int)swSaveAsVersion_e.swSaveAsCurrentVersion, options, null, null, ref errors, ref warnings);
                     if (!ok || errors != 0)
                         throw new SwException(ErrorCodes.IoError, $"Save As '{saved}' failed ({SaveErrors(errors)}).");
@@ -224,7 +227,7 @@ public sealed class DocumentService(SwSession session)
             if (!fi.Exists || fi.Length == 0)
                 throw new SwException(ErrorCodes.VerifyFailed, $"SOLIDWORKS reported success but '{saved}' is missing or empty.");
             if (warnings != 0) ctx.Warn($"Save warnings: {SaveWarnings(warnings)}.");
-            var parts = WriteUnwrittenComponents(ctx, target);
+            parts = CheckComponentFiles(ctx, target, saved, parts);
             return new DocResult
             {
                 Doc = ctx.Title(target),
@@ -232,50 +235,95 @@ public sealed class DocumentService(SwSession session)
                 SavedTo = saved,
                 FileSizeBytes = fi.Length,
                 BackupPath = backup,
-                Message = parts.Count > 0 ? $"Also wrote {string.Join(", ", parts.Select(p => $"'{p}'"))}: the assembly's save left it unwritten." : null,
+                Message = AlsoWrote(parts),
             };
         }, RunOptions.Write(doc), ct);
+
+    private static string? AlsoWrote(List<string> parts) =>
+        parts.Count > 0 ? $"Also wrote {string.Join(", ", parts.Select(p => $"'{p}'"))}: the assembly's save does not write it." : null;
 
     /// <summary>
     /// S61 (a), VERIFIED 2026-11-21 on 2023 SP3: the save of an assembly can leave a component's part unwritten (a STEP
     /// inserted through 3D Interconnect after another component: its part stays dirty and its own Save3 refuses with
     /// swReadOnlySaveError, while SaveAs3 to its own path writes it), and the reopened assembly then misses the component.
-    /// After an assembly is saved, each component file not on disk is written that way when the server owns its document,
-    /// read back; any other is named in a warning. Returns the files written.
+    /// asm_insert now writes that part and repoints the component at once (AssemblyService.WriteAndRepoint), as a part
+    /// written before or after the save alone is still stored in the assembly's folder; what the insert could not write is
+    /// written here <b>before</b> the assembly is saved, each component file not on disk whose document the server owns,
+    /// and read back after it (CheckComponentFiles). Returns the files written.
     /// </summary>
     internal static List<string> WriteUnwrittenComponents(SwContext ctx, IModelDoc2 doc)
     {
         var written = new List<string>();
+        foreach (var (c, p, m) in Unwritten(doc))
+            if (m is not null && ctx.Documents.IsOwned(m) && TryWrite(ctx, m, p) is null) written.Add(p);
+        return written;
+    }
+
+    /// <summary>
+    /// After an assembly's save: a component file still not on disk is written when the server owns it, else named in a
+    /// warning; then the saved file's references are read back (ISldWorks.GetDocumentDependencies2, as last saved), and a
+    /// part written here that the assembly references under another path is a warning naming both. Returns the files
+    /// written whose reference names them.
+    /// </summary>
+    internal static List<string> CheckComponentFiles(SwContext ctx, IModelDoc2 doc, string saved, List<string> written)
+    {
         if (doc.GetType() != (int)swDocumentTypes_e.swDocASSEMBLY) return written;
+        foreach (var (c, p, m) in Unwritten(doc))
+        {
+            string? why = m is null ? "its document is not loaded"
+                : !ctx.Documents.IsOwned(m) ? "its document is not the server's to save"
+                : TryWrite(ctx, m, p);
+            if (why is null) { written.Add(p); continue; }
+            ctx.Warn($"The assembly references '{p}', which is not on disk ({why}): '{c.Name2}' will be missing when the assembly is reopened.");
+        }
+        if (written.Count == 0) return written;
+        // The saved file's references; the open assembly's own too, as the file's list leaves out a 3D Interconnect component
+        // that does resolve (the first component's, VERIFIED 2026-11-21).
+        var deps = ComArgs.Strings((object?)ctx.App.GetDocumentDependencies2(saved, false, false, false))
+            .Concat(Try(() => ComArgs.Strings((object?)doc.GetDependencies2(true, false, false))) ?? []).ToArray();
+        var refs = Enumerable.Range(0, deps.Length / 2).Select(i => deps[2 * i + 1]).Where(f => f.Length > 0).ToList();
+        var held = new List<string>();
+        foreach (var p in written)
+        {
+            if (refs.Any(r => SamePath(r, p))) { held.Add(p); continue; }
+            string? stored = refs.FirstOrDefault(r => string.Equals(Path.GetFileName(r), Path.GetFileName(p), StringComparison.OrdinalIgnoreCase));
+            ctx.Warn($"Wrote '{p}', but the saved assembly references it as '{stored ?? "(not at all)"}': the component will be missing when the assembly is reopened.");
+        }
+        return held;
+    }
+
+    /// <summary>The components (all levels, each file once, virtual ones skipped) whose file is not on disk.</summary>
+    private static IEnumerable<(IComponent2 Comp, string Path, IModelDoc2? Doc)> Unwritten(IModelDoc2 doc)
+    {
+        if (doc.GetType() != (int)swDocumentTypes_e.swDocASSEMBLY) yield break;
         var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         foreach (var c in ((IAssemblyDoc)doc).Components(false))
         {
             string p = Try(() => c.GetPathName()) ?? "";
             if (p.Length == 0 || Try(() => c.IsVirtual) || !seen.Add(p) || File.Exists(p)) continue;
-            var m = Try(() => c.GetModelDoc2() as IModelDoc2);
-            string why;
-            if (m is null) why = "its document is not loaded";
-            else if (!ctx.Documents.IsOwned(m)) why = "its document is not the server's to save";
-            else
-            {
-                int e = 0, w = 0;
-                try
-                {
-                    ctx.Paths.ForWrite(p, overwrite: false, out _);
-                    if (m.Extension.SaveAs3(p, (int)swSaveAsVersion_e.swSaveAsCurrentVersion, (int)swSaveAsOptions_e.swSaveAsOptions_Silent,
-                            null, null, ref e, ref w) && File.Exists(p))
-                    {
-                        ctx.Paths.RecordWritten(p);
-                        written.Add(p);
-                        continue;
-                    }
-                    why = $"writing it failed ({SaveErrors(e)})";
-                }
-                catch (SwException ex) { why = ex.Message; }
-            }
-            ctx.Warn($"The assembly references '{p}', which is not on disk ({why}): '{c.Name2}' will be missing when the assembly is reopened.");
+            yield return (c, p, Try(() => c.GetModelDoc2() as IModelDoc2));
         }
-        return written;
+    }
+
+    /// <summary>Writes a component's document to its own path (SaveAs3: its Save3 refuses, S61 a); null, or why not.</summary>
+    internal static string? TryWrite(SwContext ctx, IModelDoc2 m, string p)
+    {
+        int e = 0, w = 0;
+        try
+        {
+            ctx.Paths.ForWrite(p, overwrite: false, out _);
+            bool ok = m.Extension.SaveAs3(p, (int)swSaveAsVersion_e.swSaveAsCurrentVersion, (int)swSaveAsOptions_e.swSaveAsOptions_Silent,
+                null, null, ref e, ref w);
+            if (ok && File.Exists(p)) { ctx.Paths.RecordWritten(p); return null; }
+            return $"writing it failed ({SaveErrors(e)})";
+        }
+        catch (SwException ex) { return ex.Message; }
+    }
+
+    private static bool SamePath(string a, string b)
+    {
+        try { return string.Equals(Path.GetFullPath(a), Path.GetFullPath(b), StringComparison.OrdinalIgnoreCase); }
+        catch (Exception ex) when (ex is ArgumentException or NotSupportedException or PathTooLongException) { return false; }
     }
 
     private static T? Try<T>(Func<T> f)
@@ -328,9 +376,10 @@ public sealed class DocumentService(SwSession session)
                 if (string.IsNullOrEmpty(info.Path))
                     throw SwException.InvalidArgument($"'{info.Title}' has no file yet.", "Save it first with doc_save mode 'as'.");
                 int e = 0, w = 0;
+                var parts = WriteUnwrittenComponents(ctx, target);
                 if (!target.Save3((int)swSaveAsOptions_e.swSaveAsOptions_Silent, ref e, ref w) || e != 0)
                     throw new SwException(ErrorCodes.IoError, $"Saving before close failed ({SaveErrors(e)}).");
-                foreach (var p in WriteUnwrittenComponents(ctx, target)) ctx.Warn($"Also wrote '{p}': the assembly's save left it unwritten.");
+                if (AlsoWrote(CheckComponentFiles(ctx, target, info.Path!, parts)) is { } also) ctx.Warn(also);
             }
 
             // Close by identity: CloseDoc takes a title, so make sure that title names exactly this document.

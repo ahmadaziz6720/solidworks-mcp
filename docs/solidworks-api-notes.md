@@ -447,8 +447,16 @@ type libraries and writes `sldworks_api.txt`, `swconst_enums.txt`, `swcommands.t
   another component (fixed or floating alike), `SaveAs3` or `Save3` of the assembly reports success and leaves the part
   unwritten, open, dirty and hidden, and the reopened assembly misses it (suppressed, its file a missing reference).
   The part's own `Save3` then fails with `swReadOnlySaveError` (2) though `IsOpenedReadOnly` is false, while
-  `IModelDocExtension.SaveAs3` to its own path writes it. `doc_save` and `doc_close {save}` of an assembly write each
-  owned component part not on disk this way and warn of any other.
+  `IModelDocExtension.SaveAs3` to its own path writes it. **Written so, before or after the assembly's save, the part is
+  still lost on reopen when the assembly lies in another folder** (VERIFIED 2026-11-21): such a component is not among
+  the assembly's references (`IModelDoc2.GetDependencies2` leaves it out), and the saved file stores the part in the
+  assembly's own folder. `ISldWorks.GetDocumentDependencies2` of the saved file never lists a 3D Interconnect component,
+  not even the first one, which resolves. `ReplaceComponents2` with the same file returns false. What holds: write the
+  part, **delete** the linked component, then `AddComponent5` the written file and set the old transform: a plain
+  reference, listed by both, resolved on reopen; the part keeps its `MBimport` feature, so its link to the STEP. Added
+  before the linked one is deleted, the new component shares its fault. `asm_insert` does this at once (no mates yet);
+  `doc_save` and `doc_close {save}` still write an owned component part not on disk before the save, read the
+  references back after it, and warn of any other.
 - **In-context parts** (VERIFIED 2026-10-31). `IAssemblyDoc.InsertNewPart2(path, face)` returns 1 on success and leaves the
   assembly editing the new part (`GetEditTargetComponent`) with its Front plane on the face; open a sketch on the face
   if none is active. `SketchUseEdge3(chain, innerLoops)` with the face selected converts its outer loop only

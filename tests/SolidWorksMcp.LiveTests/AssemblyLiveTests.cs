@@ -375,19 +375,21 @@ public class AssemblyLiveTests(LiveFixture fx) : LiveTest(fx)
         Assert.Contains(r.Verified, c => c.Contains("3D Interconnect", StringComparison.Ordinal));
         var mass = await new MeasureService(S).MassAsync(asm, null);
         Assert.Equal(8000, mass.VolumeMm3, 0.5);
-        // The part SOLIDWORKS makes for it lies beside the STEP, not yet written.
+        // The part SOLIDWORKS makes for it lies beside the STEP, written at once (S61 a: the component then a plain reference).
         Assert.Equal(Path.Combine(_dir, $"stepins_{_tag}.step.SLDPRT"), r.Component.Path, ignoreCase: true);
         Assert.Contains(r.Component.Path!, r.Message);
+        Assert.Contains("is written beside the STEP", r.Message);
+        Assert.True(File.Exists(r.Component.Path), r.Message);
 
         // A STEP has no configurations to choose.
         var ex = await Assert.ThrowsAsync<SwException>(() => InsertAsync(asm, step, configuration: "Default"));
         Assert.Equal(ErrorCodes.InvalidArgument, ex.Code);
         Assert.Equal(1, (await Asm.ComponentListAsync(asm, false, 100, 0)).Total);
 
-        // Saving the assembly writes that part.
-        Assert.False(File.Exists(r.Component.Path));
-        await Docs.SaveAsync(asm, "as", Path.Combine(_dir, $"stepins_asm_{_tag}.sldasm"), overwrite: false);
-        Assert.True(File.Exists(r.Component.Path), $"{r.Component.Path} was not written by the assembly's save");
+        // Saving the assembly keeps that part, with no warning of a missing component file.
+        var saved = await Docs.SaveAsync(asm, "as", Path.Combine(_dir, $"stepins_asm_{_tag}.sldasm"), overwrite: false);
+        Assert.True(File.Exists(r.Component.Path), $"{r.Component.Path} is gone after the assembly's save");
+        Assert.DoesNotContain(saved.Warnings ?? [], w => w.Contains("missing", StringComparison.Ordinal));
     }
 
     [Fact]
@@ -437,6 +439,94 @@ public class AssemblyLiveTests(LiveFixture fx) : LiveTest(fx)
         var comps = (await Asm.ComponentListAsync(o.Document.Handle, false, 100, 0)).Components;
         var stepComp = Assert.Single(comps, c => string.Equals(c.Path, part, StringComparison.OrdinalIgnoreCase));
         Assert.Equal("resolved", stepComp.Suppression);
+    }
+
+    [Fact]
+    public async Task A_step_from_a_subfolder_inserted_after_a_part_resolves_on_reopen_after_save_as()
+    {
+        // S61 (a) a third time, the scenario's case (g): a part first, the STEP from a subfolder of the assembly's folder,
+        // doc_save as. The part was written beside the STEP, yet the assembly stored it in its own folder: lost on reopen.
+        var block = await BoxAsync("stepsub_block");
+        string step = await StepOfCubeAsync("stepsub", Path.Combine(_dir, "steps"));
+        string asm = await NewAssemblyAsync("stepsub_asm");
+        await InsertAsync(asm, block.Path);
+        var ins = await InsertStepAsync(asm, step, [80, 0, 0]);
+        string part = ins.Component.Path!;
+        Assert.Equal(step + ".SLDPRT", part, ignoreCase: true);
+
+        string asmPath = Path.Combine(_dir, $"stepsub_asm_{_tag}.sldasm");
+        var saved = await Docs.SaveAsync(asm, "as", asmPath, overwrite: false);
+        await AssertStepPartWrittenAndResolvedAsync(asm, asmPath, part, saved, ins);
+    }
+
+    [Fact]
+    public async Task A_step_from_an_unrelated_folder_inserted_into_a_saved_assembly_resolves_on_reopen_after_save_in_place()
+    {
+        // S61 (a) a third time, the scenario's case (e): an assembly saved in its folder, the STEP from a folder beside it
+        // inserted after a part, doc_save in place.
+        var block = await BoxAsync("stepin_block");
+        string step = await StepOfCubeAsync("stepin", Path.Combine(_dir, "vendor"));
+        string asm = await NewAssemblyAsync("stepin_asm");
+        await InsertAsync(asm, block.Path);
+        Directory.CreateDirectory(Path.Combine(_dir, "asm"));
+        string asmPath = Path.Combine(_dir, "asm", $"stepin_asm_{_tag}.sldasm");
+        await Docs.SaveAsync(asm, "as", asmPath, overwrite: false);
+        var ins = await InsertStepAsync(asm, step, [80, 0, 0]);
+        string part = ins.Component.Path!;
+        Assert.Equal(step + ".SLDPRT", part, ignoreCase: true);
+
+        var saved = await Docs.SaveAsync(asm, "inPlace", null, overwrite: false);
+        await AssertStepPartWrittenAndResolvedAsync(asm, asmPath, part, saved, ins);
+    }
+
+    /// <summary>A STEP of a 20 mm cube in <paramref name="dir"/> (the cube's part closed).</summary>
+    private async Task<string> StepOfCubeAsync(string name, string dir)
+    {
+        var cube = await CubeAsync(name);
+        Directory.CreateDirectory(dir);
+        string step = Path.Combine(dir, $"{name}_{_tag}.step");
+        await new ExportService(S).ExportAsync(new ExportRequest { Doc = cube.Doc, Path = step, StepAp = 214 });
+        await Docs.CloseAsync(cube.Doc, save: false, discard: true);
+        return step;
+    }
+
+    /// <summary>asm_insert of a STEP, the documents it leaves open tracked for cleanup.</summary>
+    private async Task<AsmInsertResult> InsertStepAsync(string asm, string step, double[] origin)
+    {
+        var before = (await Docs.ListAsync()).Documents.Select(d => d.Handle).ToHashSet();
+        try
+        {
+            return await InsertAsync(asm, step, origin);
+        }
+        finally
+        {
+            foreach (var d in (await Docs.ListAsync()).Documents.Where(d => !before.Contains(d.Handle) && d.Handle != asm))
+                Track(d.Handle);
+        }
+    }
+
+    /// <summary>
+    /// After the assembly's save: the STEP's part is on disk and clean, the save warned of nothing, the saved assembly
+    /// references the part where it lies, and closed and reopened the assembly finds it (no missing reference, resolved).
+    /// </summary>
+    private async Task AssertStepPartWrittenAndResolvedAsync(string asm, string asmPath, string part, DocResult saved, AsmInsertResult ins)
+    {
+        var docs = (await Docs.ListAsync()).Documents;
+        string state = $"insert: {ins.Component.Name} {ins.Message} {string.Join(" ", ins.Warnings ?? [])} | " +
+                       System.Text.Json.JsonSerializer.Serialize(saved) + " | open: " +
+                       string.Join(", ", docs.Select(d => $"{d.Handle} '{d.Title}' {d.Access} dirty={d.Dirty}"));
+        Assert.True(File.Exists(part), $"{part} was not written by the assembly's save: {state}");
+        Assert.DoesNotContain(docs, d => d.Dirty && string.Equals(d.Path, part, StringComparison.OrdinalIgnoreCase));
+        Assert.True(saved.Warnings is null or { Count: 0 }, state);
+
+        await Docs.CloseAsync(asm, save: false, discard: true);
+        var o = await new OpenService(S).OpenAsync(asmPath, false, null);
+        _asms.Add(o.Document.Handle);
+        string reopened = System.Text.Json.JsonSerializer.Serialize(o) + " | save: " + state;
+        Assert.True(o.MissingReferences is null, reopened);
+        var comps = (await Asm.ComponentListAsync(o.Document.Handle, false, 100, 0)).Components;
+        var stepComp = comps.SingleOrDefault(c => string.Equals(c.Path, part, StringComparison.OrdinalIgnoreCase));
+        Assert.True(stepComp is { Suppression: "resolved" }, System.Text.Json.JsonSerializer.Serialize(comps) + " | " + reopened);
     }
 
     // ------------------------------------------------------------------ doc_open of a STEP that comes in as an assembly (S61 b, c)
