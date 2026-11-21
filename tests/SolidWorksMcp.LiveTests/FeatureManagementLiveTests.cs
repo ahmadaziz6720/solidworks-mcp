@@ -714,6 +714,41 @@ public class FeatureManagementLiveTests(LiveFixture fx) : LiveTest(fx)
     }
 
     [Fact]
+    public async Task Undo_refuses_after_a_change_that_left_no_undo_step()
+    {
+        // S79 (b): equations, custom properties and a rename leave no SOLIDWORKS undo step, so EditUndo2 took back the boss
+        // before them (volumeDeltaMm3 -500, reported ok) and left them in place.
+        string doc = await NewPartAsync("fm_undo_nostep");
+        var sk = new SketchService(S);
+        await sk.StartAsync(doc, new EntityRef { Name = "top" }, false);
+        await sk.AddAsync(doc, [new SketchEntity { Kind = "rectangle", Center = [0, 0], WidthMm = 10, HeightMm = 10 }]);
+        var boss = await new FeatureService(S).ExtrudeAsync(new ExtrudeRequest { Doc = doc, DepthMm = 5 });
+        string depth = boss.Dimensions!.First(x => x.Unit == "mm").Name;
+        var p = new PropertiesService(S);
+        await p.EquationSetManyAsync(doc, [new EquationInput { Lhs = "T", Expression = "5mm" }, new EquationInput { Lhs = depth, Expression = "\"T\"" }]);
+
+        var ex = await Assert.ThrowsAsync<SwException>(() => M.UndoAsync(doc, 1));
+        Assert.Equal(ErrorCodes.NotSupported, ex.Code);
+        Assert.Contains("equation_set", ex.Message);
+        Assert.Contains("feature_extrude", ex.Message); // the step SOLIDWORKS would undo instead
+        Assert.Equal(500, await VolumeAsync(doc), 1e-3);
+        Assert.Contains((await p.EquationListAsync(doc)).Equations, e => e.Lhs == "T");
+
+        await p.PropSetAsync(doc, "PartNo", "X1");
+        await M.RenameAsync(doc, boss.Feature.Name, "Blok");
+        ex = await Assert.ThrowsAsync<SwException>(() => M.UndoAsync(doc, 1));
+        Assert.Contains("prop_set", ex.Message);
+        Assert.Contains("feature_rename", ex.Message);
+        Assert.Equal(500, await VolumeAsync(doc), 1e-3);
+
+        // A change that is an undo step of its own is undone again, and the result names what came back.
+        await M.SuppressAsync(doc, ["Blok"], true);
+        var r = await M.UndoAsync(doc, 1);
+        Assert.Equal(500, r.VolumeDeltaMm3!.Value, 1e-3);
+        Assert.Equal(500, await VolumeAsync(doc), 1e-3);
+    }
+
+    [Fact]
     public async Task Undo_units_rebuild_and_delete_refuse_the_users_documents()
     {
         string title = await TestHooks.NewForeignPartAsync(S);

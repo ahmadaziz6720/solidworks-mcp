@@ -138,9 +138,9 @@ public sealed class DocumentStateTools(SwSession session)
         Output.Json(_svc.RebuildAsync(doc, force, cancellationToken), progress, "doc_rebuild");
 
     [McpServerTool(Name = "doc_undo", Title = "Undo", ReadOnly = false, Destructive = true, Idempotent = false, OpenWorld = false)]
-    [Description("Undoes the last SOLIDWORKS undo steps (one feature creation is one step), only in documents this server may edit, " +
-                 "only while nobody else changed them since the server's last change, and never more steps than the server made. " +
-                 "Parts and assemblies only: refused in drawings (NOT_SUPPORTED), where what an undo takes back can't be checked. " +
+    [Description("Undoes the last SOLIDWORKS undo steps (a feature creation is one step) in documents the server may edit, while " +
+                 "nobody else changed them since its last change, never more steps than it made. Refused (NOT_SUPPORTED) in drawings " +
+                 "and right after a change that leaves no undo step (equation, property, rename, appearance, units, rollback). " +
                  "Returns the features removed or restored and the volume change.")]
     public Task<string> DocUndo(
         IProgress<ProgressNotificationValue> progress,

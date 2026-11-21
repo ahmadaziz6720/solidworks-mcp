@@ -439,8 +439,8 @@ its point.
 - [x] Group 1: scenario test (session id: `287fca18-c22d-4f64-a5fc-e3c50a4efba2`), its entry committed and sorted (entry `351a58f`, sort `d5cf498`)
   Started 20:55 2026-11-21, free memory 2174 MB with SOLIDWORKS restarted from its exe; launcher `%LOCALAPPDATA%\solidworks-mcp\livetest\run-1121\check1.ps1` (`-Resume` to resume), first run from the first session's scratchpad, pid 13972, output check1.out.txt and check1.err.txt beside the launcher it ran from. Stopped 21:00 at the 5-hour usage limit (`EXIT 1`, no entry). Resume 1 at 21:56, free memory 2463 MB with SOLIDWORKS restarted from its exe, pid 5944, from the scratchpad copy (its output there: `%TEMP%\claude\8c3a0854f52f5604\96549089-56a6-40d7-a892-5e462fc37ecc\scratchpad\check1.out.txt`); a later resume runs the copy under `run-1121`, its output beside it. Resume 1 ended `EXIT 0` 21:58 with the entry. Sorted: S61 (a), S83, S107 and S110 held and closed; S111 new (not in this run); S5 met again. Release page notes updated with the result.
 - [x] S92 (c): probed, not reproduced (recorded in S92; (a) and (b) go on with unit tests) (`c3e8f9e`)
-- [x] S92 (a) and (b): committed (split out as S112 in Waiting, as the format splits an item)
-- [ ] S79 (b): committed
+- [x] S92 (a) and (b): committed (split out as S112 in Waiting, as the format splits an item) (`f2d3dc2`)
+- [x] S79 (b): committed (split out as S113; `doc_undo`'s description changed: docs/tools.md at the release)
 - [ ] S95: committed
 - [ ] Group 2: full live tests and release (build: )
 - [ ] Group 2: scenario test (session id: ), its entry committed and sorted
@@ -1448,6 +1448,7 @@ Decided 2026-11-16 by the run, not the owner: (b) stays Open, outside the run of
 2026-11-16, marked as a result reported `ok` while wrong for the next plan to take first,
 because `doc_undo` is in none of groups 4 and 5's files and the run's groups are set.
 Decided 2026-11-21 by the owner: (b) taken into the run of 2026-11-21, group 2: `doc_undo` refuses after a change that left no undo step, naming it and the step it would undo; (a) stays Open (`## Run 2026-11-21`).
+**Done in the run of 2026-11-21: (b), split out as S113 (Waiting).** **Left open: (a).**
 
 ### S80 - `sketch_add` relates what it draws to model edges and moves it off the coordinates given, with no warning - OPEN 2026-11-16
 
@@ -2153,5 +2154,50 @@ told from a document whose globals were edited outside the server's rule.
 Decided 2026-11-21 by the run, not the owner: an `Add2` refusal (`FEATURE_FAILED`) while the
 sign shows names the state too, beyond the plan's `VERIFY_FAILED`, because its hint blamed
 the syntax on the same evidence; a refused function name keeps its own reason.
+Local: on `sw2023`, in the commit that moves it here; not yet in a build. Upstream: not yet
+decided.
+
+### S113 - S79 (b): `doc_undo` refuses after a server change that left no SOLIDWORKS undo step, naming it and the step it would take back - BUILT 2026-11-21, proof: the scenario test of the group 2 build
+
+S79 (b), split out of S79 (which stays Open for (a)) in the run of 2026-11-21, group 2.
+`doc_undo` right after an `equation_set` that linked a variable to a 10 × 10 × 5 boss's
+depth took back the boss (`volumeDeltaMm3: -500`) and left the equation, reported `ok`.
+Cause: SOLIDWORKS keeps no undo step for some writes, so `EditUndo2` takes back the step
+before them, and the server counted them as steps of its own. Probed live on 2023 SP3
+(a boss, the call, `doc_undo`): no undo step after `equation_set`, `equation_delete`,
+`prop_set`, `prop_delete`, `feature_rename` and `appearance_set` (each took back the boss
+or the `dimension_set` before it); an undo step of its own after `material_set`,
+`dimension_set` and `feature_suppress_set`; `config_add` gave "Nothing changed". Fix: a
+write that leaves no undo step says so with `SwContext.NoUndoStep(change)` (replacing
+`FeatureManagementService`'s own helper, which only kept the count for `feature_rollback`,
+`doc_rebuild` and `doc_units_set`); `AfterWrite` then does not count it and, for a change
+(all of them but `doc_rebuild`), records the tool in the document's `NoUndoChanges` until
+the next counted write, which records itself as `LastUndoStep`. `doc_undo` refuses while
+any is on record (`NOT_SUPPORTED`): "The server's last change in 'X' (equation_set) left no
+SOLIDWORKS undo step: undo would take back the step before it instead, the server's
+feature_extrude, and leave the equation_set in place.", the hint naming the change's own
+tool, `feature_delete` and `dimension_set`. The description says it (trimmed, 400 to 398
+bytes). The undo that does run already names the features it removes
+(`Undo_after_a_fillet_removes_it`, and the probe's `removed: ["Boss-Extrude3"]`).
+Before: the new `FeatureManagementLiveTests.Undo_refuses_after_a_change_that_left_no_undo_step`
+failed, "Assert.Throws() Failure: No exception was thrown" (the undo ran). After: it
+passes (the equation, then `prop_set` and `feature_rename` refused with the boss kept, then
+a suppress undone again); with every `doc_undo`, `feature_rollback`, `doc_rebuild`,
+`doc_units_set`, `feature_rename` and equation-on-delete test of
+`FeatureManagementLiveTests`, the custom property, equation and appearance tests of
+`PropertiesLiveTests` and the two `doc_undo` tests of `DrawingLiveTests`, 36/36; the undo
+tests and `ContractTests.Tool_catalog_follows_the_conventions` again on the final code,
+6/6; unit tests 310/310; `--check-catalog` ok; `check_repo` ok.
+Made stricter: `doc_undo` refuses after those writes where it took back the wrong step;
+nothing else that passed is refused.
+Decided 2026-11-21 by the run, not the owner: the refusal holds until the next write that
+is an undo step, also after the change is set back with its own tool (which is itself no
+undo step), because the server cannot tell what `EditUndo2` would take back then either;
+the hint points to `feature_delete` and `dimension_set` for the step before.
+Decided 2026-11-21 by the run, not the owner: `feature_rollback` and `doc_units_set` refuse
+an undo after them too, `doc_rebuild` does not, because the first two change what the user
+would expect an undo to take back and the rebuild changes nothing.
+Decided 2026-11-21 by the run, not the owner: (b) moved to Waiting as a new item split out
+of S79, as S112 was out of S92, because one number heads one item.
 Local: on `sw2023`, in the commit that moves it here; not yet in a build. Upstream: not yet
 decided.

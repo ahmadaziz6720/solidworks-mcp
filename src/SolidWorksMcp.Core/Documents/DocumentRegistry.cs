@@ -56,6 +56,13 @@ internal sealed class DocumentRegistry
         public int ServerWrites { get; set; }
         /// <summary>The update stamp right after the last counted server write (the count holds only while it matches).</summary>
         public int? ServerWritesStamp { get; set; }
+        /// <summary>
+        /// S79 (b): the server's changes since its last counted write that left no SOLIDWORKS undo step (equation_set,
+        /// prop_set, ...): EditUndo2 would take back the step before them, so doc_undo refuses while any is on record.
+        /// </summary>
+        public List<string> NoUndoChanges { get; } = [];
+        /// <summary>The tool of the server's last write that SOLIDWORKS keeps as an undo step (what EditUndo2 takes back next).</summary>
+        public string? LastUndoStep { get; set; }
         /// <summary>The sketch the server opened and is editing (null when none).</summary>
         public string? ServerSketch { get; set; }
         /// <summary>The last sketch the server finished in this document (feature tools default to it).</summary>

@@ -571,6 +571,7 @@ public sealed partial class PropertiesService(SwSession session)
             if (dateReformatted) ctx.Warn($"SOLIDWORKS stored the date as '{now.Value}' (requested '{v}').");
             if (!SameType(code, now.Type))
                 ctx.Warn($"'{target}' reads back as type {now.Type} (requested {TypeName(code)}).");
+            ctx.NoUndoStep(); // S79 (b): a custom property is no SOLIDWORKS undo step
             return new PropSetResult { Doc = ctx.Title(d), Configuration = cfg.Length == 0 ? null : cfg, Property = now, Previous = previous };
         }, RunOptions.Write(doc), ct);
 
@@ -598,6 +599,7 @@ public sealed partial class PropertiesService(SwSession session)
             var after = PropNames(mgr);
             if (FindProp(after, existing) is not null)
                 throw new SwException(ErrorCodes.VerifyFailed, $"'{existing}' is still present after SOLIDWORKS reported it deleted.");
+            ctx.NoUndoStep(); // S79 (b)
             return new PropDeleteResult { Doc = ctx.Title(d), Configuration = cfg.Length == 0 ? null : cfg, Deleted = before, Remaining = after.Length };
         }, RunOptions.Write(doc), ct);
 
@@ -896,6 +898,7 @@ public sealed partial class PropertiesService(SwSession session)
             ctx.Warn($"'{e.Feature}' now has rebuild warning {e.Code} ({e.Error}).");
         if (!rebuilt && newErrors.Count == 0) ctx.Warn("The rebuild reported problems; feature_list shows features with errors.");
         var snapAfter = part ? Snapshot.Take(d) : null;
+        ctx.NoUndoStep(); // S79 (b): an equation is no SOLIDWORKS undo step
         return new EquationRun(ctx.Title(d),
             plan.Select((p, i) => new EquationChange
             {
@@ -1047,6 +1050,7 @@ public sealed partial class PropertiesService(SwSession session)
                   $"the other {targets.Count - left.Count} are gone.");
         if (after.Count != all.Count - targets.Count)
             ctx.Warn($"The document had {all.Count} equations and now has {after.Count}.");
+        ctx.NoUndoStep(); // S79 (b)
         return (d, targets, after.Count);
     }
 
@@ -1384,6 +1388,7 @@ public sealed partial class PropertiesService(SwSession session)
                     $"The appearance of {label} reads [{string.Join(", ", now.Select(F))}] after setting [{string.Join(", ", values.Select(F))}].{restored}",
                     r is null ? "A body or face appearance may override the part color; target it directly." : "Try the whole part (omit 'target').");
             }
+            ctx.NoUndoStep(); // S79 (b): an appearance is no SOLIDWORKS undo step
             return new AppearanceSetResult
             {
                 Doc = ctx.Title(d),

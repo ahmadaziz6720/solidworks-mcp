@@ -803,6 +803,7 @@ public sealed partial class FeatureManagementService(SwSession session)
                 var entry = ctx.DocEntry;
                 if (entry.LastSketch == previous) entry.LastSketch = target;
                 if (entry.ServerSketch == previous) entry.ServerSketch = target;
+                ctx.NoUndoStep(); // S79 (b): a rename is no SOLIDWORKS undo step
             }
             var dims = FeatureVerifier.Dimensions(f);
             return new FeatureRenameResult
@@ -834,7 +835,6 @@ public sealed partial class FeatureManagementService(SwSession session)
             var history = History(d);
             int first = toEnd ? history.Count : origin ? 0 : FirstRolledBack(history, f!, before);
             var snapBefore = Snapshot.Take(d);
-            int stamp = d.GetUpdateStamp();
             using var prefs = ctx.SystemPrefs();
             prefs.Toggle(SystemPrefIds.ShowErrorsEveryRebuild, false); // the What's Wrong box is modal
 
@@ -859,7 +859,7 @@ public sealed partial class FeatureManagementService(SwSession session)
                 ctx.Warn($"{rolled.Count} feature(s) below the rollback bar are inactive, and new features are inserted at the bar. " +
                          "Call feature_rollback {to:'end'} when done.");
             var after = Snapshot.Take(d);
-            NoUndoStep(ctx, d, stamp);
+            ctx.NoUndoStep(); // the rollback bar moved: EditUndo2 would take back the step before it
             return new FeatureRollbackResult
             {
                 Doc = ctx.Title(d),
@@ -1156,13 +1156,12 @@ public sealed partial class FeatureManagementService(SwSession session)
         {
             var d = ctx.Doc;
             RequireNoOpenSketch(ctx, d, "a rebuild would close it");
-            int stamp = d.GetUpdateStamp();
             using var prefs = ctx.SystemPrefs();
             prefs.Toggle(SystemPrefIds.ShowErrorsEveryRebuild, false); // the What's Wrong box is modal
             var sw = Stopwatch.StartNew();
             bool ok = force ? d.ForceRebuild3(false) : d.EditRebuild3();
             sw.Stop();
-            NoUndoStep(ctx, d, stamp);
+            ctx.NoUndoStep(change: false);
             return new RebuildResult
             {
                 Doc = ctx.Title(d),
@@ -1219,6 +1218,19 @@ public sealed partial class FeatureManagementService(SwSession session)
                     "was rolled back, or through another document), so undo could revert work that isn't the server's.",
                     "Ask the user to undo in SOLIDWORKS (Ctrl+Z), or repair the model with the feature tools (feature_delete, dimension_set).");
             int mine = entry.ServerWritesStamp == stamp ? entry.ServerWrites : 0;
+            if (entry.NoUndoChanges.Count > 0)
+            {
+                // S79 (b): EditUndo2 would take back the step before them and report it, leaving them in place.
+                string what = string.Join(", ", entry.NoUndoChanges);
+                string instead = mine > 0 && entry.LastUndoStep is { } step
+                    ? $"the step before it instead, the server's {step}"
+                    : "a step before it that isn't the server's";
+                throw new SwException(ErrorCodes.NotSupported,
+                    $"The server's last change in '{entry.Title}' ({what}) left no SOLIDWORKS undo step: undo would take back {instead}, " +
+                    $"and leave the {what} in place.",
+                    $"Set it back with its own tool ({what}, or its _set/_delete pair); remove an earlier feature with feature_delete " +
+                    "or change it with dimension_set.");
+            }
             if (mine == 0)
                 throw new SwException(ErrorCodes.NotOwned,
                     $"No change by this server is on record in '{entry.Title}' since it was opened or last changed by someone else, " +
@@ -1289,7 +1301,6 @@ public sealed partial class FeatureManagementService(SwSession session)
             var ext = d.Extension;
             const int pref = (int)swUserPreferenceIntegerValue_e.swUnitSystem;
             const int noOption = (int)swUserPreferenceOption_e.swDetailingNoOptionSpecified;
-            int stamp = d.GetUpdateStamp();
             int previous = ext.GetUserPreferenceInteger(pref, noOption);
             if (previous == want)
                 return new UnitsResult { Doc = ctx.Title(d), Previous = DocumentService.UnitName(previous), Units = DocumentService.UnitName(want) };
@@ -1322,7 +1333,7 @@ public sealed partial class FeatureManagementService(SwSession session)
                         "Write units into those equations (e.g. 60mm instead of 60), then retry.");
                 }
             }
-            NoUndoStep(ctx, d, stamp);
+            ctx.NoUndoStep();
             return new UnitsResult
             {
                 Doc = ctx.Title(d),
@@ -1394,17 +1405,6 @@ public sealed partial class FeatureManagementService(SwSession session)
         try { status = d.Extension.NeedsRebuild2; }
         catch (Exception ex) when (!ComArgs.IsDisconnect(ex)) { status = -1; }
         if (status != (int)swModelRebuildStatus_e.swModelRebuildStatus_FullyRebuilt) d.EditRebuild3();
-    }
-
-    /// <summary>
-    /// For a write that leaves no SOLIDWORKS undo step (rebuild, rollback bar, units): doc_undo's count of server steps stays
-    /// as it was (or restarts at 0 after an outside change) instead of counting this call (see SwContext.AfterWrite).
-    /// </summary>
-    private static void NoUndoStep(SwContext ctx, IModelDoc2 d, int stampAtStart)
-    {
-        var e = ctx.DocEntry;
-        if (e.ServerWritesStamp != stampAtStart) e.ServerWrites = 0;
-        e.ServerWritesStamp = d.GetUpdateStamp();
     }
 
     private static void RequireNoOpenSketch(SwContext ctx, IModelDoc2 d, string why)
