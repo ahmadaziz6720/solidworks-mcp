@@ -2239,3 +2239,39 @@ Build `0.1.0-sw2023-20261118-060615`.
 6. **The connection was lost after `asm_component_move` and `doc_rebuild` on a subassembly open beside its parent.** In an assembly's limit-mate configuration, a component was moved twice (13.2 s and 14.5 s) with a rebuild after each (the second 6.7 s); the next call, `asm_component_list`, failed `NOT_CONNECTED` "SOLIDWORKS is running (pid ...) but can't be reached over COM". The process answered `Responding: True` with a 77 MB working set, its window title naming the subassembly as dirty. The user brought it back by hand; what it showed is not known. Before it, `dimension_tolerance_set` had changed a limit mate's range (type `limit`, lower -23.5), read back as `limits: [15, 72.5]`; `dimension_set` of the nominal to the new minimum was refused first (`INVALID_ARGUMENT`, "rejected 15 mm ... as invalid") until the tolerance was widened. Proposed: `dimension_set`'s hint could say a limit mate's nominal must lie inside its limits, and `dimension_tolerance_set` is the way to move them.
 
 Sorted into S92 (1, 3, 4), met again; S84 (5), met again; S109 (6), new; S110 (6), new. Not filed (2): held, no item waits on these tools.
+
+**2026-11-21: scenario test of build 20261121-175345 (S61 (a) again)**
+
+Build `bin\0.1.0-20261121-175345` (`serverVersion` `0.1.0-sw2023-20261121-175345+e3b1b7e`, tag
+`build-20261121-175345`), SOLIDWORKS 2023 SP3 already running, attached at once.
+
+1. **S61 (a), not held where the assembly is saved in another folder than the STEP; reported `ok`
+   with "Also wrote …".** `asm_insert` of a STEP of a 20 mm cube, each case a fresh copy of the STEP
+   in its own folder, the STEP never the first component unless said. Every insert: one component,
+   "1 solid body (8000 mm³)", linked by 3D Interconnect, part `<step folder>\<name>.step.SLDPRT`, and
+   that part now listed `owned` (was `foreign`). Held, reopened with every component `resolved`:
+   (a) STEP first, assembly saved in the STEP's folder (no "Also wrote", SOLIDWORKS wrote it);
+   (c) a part first, the STEP after, `doc_save as` in the STEP's folder: "Also wrote '<step
+   folder>\<name>.step.SLDPRT': the assembly's save left it unwritten", the part `dirty: false`,
+   reopened 2 components, 16 000 mm³; (d) the STEP after a subassembly and a part, `doc_save as`
+   then `doc_save` in place (the in-place save quiet, the assembly not dirty again); (f) a part
+   first, the assembly saved, the STEP inserted, `doc_close {save:true}`: warning "Also wrote …",
+   reopened resolved. **Not held** where the assembly lies in another folder than the STEP: (e) the
+   STEP inserted after a subassembly into a saved assembly whose folder is not the STEP's, `doc_save`
+   in place: "Also wrote '<step folder>\<name>.step.SLDPRT'", the file there, yet `doc_open` of the
+   assembly read `missingReferences` `<assembly folder>\<name>.step.sldprt`, the component
+   `suppression: suppressed`, the assembly `dirty: true` on open. Proved twice more: (g) a part
+   first, the STEP in a subfolder of the assembly's folder, `doc_save as`: written, reopened the same
+   way, missing in the assembly's folder; (h) the same with a second `doc_save` in place after the
+   part was on disk (the file grew 49 635 → 50 683 bytes): still missing on reopen. So the assembly
+   file stores the part as if it lay in the assembly's own folder; the cases that held are the ones
+   where that folder is the STEP's. The live test of the fix saves the assembly in the STEP's folder,
+   so it cannot see this. The STEP as first component in another folder (assembly one folder up)
+   resolved as before. Proposed: write the owned unwritten part before the assembly's save, so the
+   assembly stores the path the part has, or repoint the component after writing it; and read the
+   reference back (reopen, or the saved file's dependencies) before saying the part was written.
+2. Held, short checks: a part's `doc_save as` with no message; a drawing's `doc_save as`
+   (.SLDDRW) written; a part opened read-only, force rebuild 174 346.977 mm³, mass 221.42 g; STEP
+   export and `doc_open` of it, 16 surface bodies (S5, as before); a hinge assembly read-only,
+   interference 0; a hand-built two-part assembly read-only, 2 components, 2 mates, 127 402.659
+   mm³; a 1:2 plan with two sections, 1 and 3 hatched faces.
