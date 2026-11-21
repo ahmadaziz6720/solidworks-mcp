@@ -476,8 +476,29 @@ its point.
 - [x] S92 (d): committed (split out as S116) (`a72b20f`)
 - [x] S81: committed (probed, not reproduced; stays Open, guard test kept. Seen in one variant: the fixture's "System preferences changed by this test: Double2", cause unknown, for the report) (`efde59f`)
 - [x] S109: probed, not reproduced (stays Open, guard test kept; lead: the finding's SOLIDWORKS started by launch, S89) (`167edbd`)
-- [x] S114: committed (doc_undo's description changed: docs/tools.md at the release)
-- [ ] Group 3: full live tests and release (build: )
+- [x] S114: committed (doc_undo's description changed: docs/tools.md at the release) (`624b0f3`)
+- [x] Group 3: full live tests and release (build: `20261122-030022`, `b45312d`)
+  Live: M0LiveTests 25, PropertiesLiveTests 25 of 26, FeatureManagementLiveTests 39, DrawingLiveTests 57, TopDownLiveTests 4,
+  RecognitionLiveTests 1, AssemblyLiveTests 65, and by method AdvancedFeatureLiveTests 1 (`Helix_revolutions_read_…`) and
+  ReferenceLiveTests 1 (`Review_reports_a_broken_shell_…`), the classes that call what group 3 changed: `sw_connect` and `sw_status`
+  (M0, whose new S89 test ends SOLIDWORKS and launches it; SOLIDWORKS was restarted from its exe by `swrestart.ps1` before every later
+  class and at the end), the equation tools, `dimension_list`, `doc_undo` and every write through `SwContext` and `DocumentRegistry`.
+  All passed but one, not a fault of this group: `PropertiesLiveTests.A_custom_material_is_listed_…` (25/26) fails on the machine's
+  custom material library, before and after (closed_items.md, the run of 2026-11-16, S72). (1) One flake: in the full
+  AssemblyLiveTests run `An_assembly_adopted_after_the_server_saved_its_parts_does_not_read_as_changed_by_the_user` failed with
+  SOLIDWORKS refusing the equation `adoptW` = 12 ("SOLIDWORKS can come to refuse every equation ... until it is restarted", S112's
+  message, after earlier tests in the same SOLIDWORKS); rerun alone after a restart it passed 1/1 (it passed in group 2's run too).
+  (2) Guard stops, not test failures: free memory 0.5 to 0.8 GB with SOLIDWORKS running, so `runall.ps1`'s 800 MB guard stopped
+  AssemblyLiveTests once (14 tests done, the rest requeued one by one) and two tests alone (`A_subassembly_is_solved_flexible_…`,
+  `Moves_and_rebuilds_in_a_limit_mate_configuration_…`, the latter a test of S109's guard); both passed rerun alone after a restart each
+  with the guard at 250 MB, 2/2. No guard stop in the other classes. No "low on memory" dialog. Run class by class with SOLIDWORKS
+  restarted before each and `dotnet build-server shutdown`. The live tests took about 88 min on the clock (01:31 to 02:59, the guard
+  requeues and the rerun included), the whole release about 92 min. Unit 323, `check_repo` ok. `doc_undo`'s description changed:
+  `--check-catalog` ok (165 tools, 247.7 KB), `docs/tools.md` regenerated and committed alone (`b45312d`). Registered in
+  `claude_solidworks`, `clove sorter` (its `SWMCP_VBA=on` kept) and this repo, each read back from `~/.claude.json` on the new exe;
+  tag `build-20261122-030022` pushed and read back, release page with no files (`ahmadaziz6720/solidworks-mcp` releases,
+  `build-20261122-030022`). S81 and S109 stay Open (probes not reproduced; their guard tests ran in the classes above).
+  Cost: Sonnet, see the report.
 - [ ] Group 3: scenario test (session id: ), its entry committed and sorted
 - [ ] S84 (a) and (c): committed
 - [ ] S84 (b): committed
@@ -2124,7 +2145,7 @@ the cut, so a circle landing elsewhere on the part would pass.
 
 **Upstream: PR #1, open.**
 
-### S89 - SOLIDWORKS started by `sw_connect launch` cannot be reached from a later server process - BUILT 2026-11-22, proof: the scenario test of the group 3 build
+### S89 - SOLIDWORKS started by `sw_connect launch` cannot be reached from a later server process - BUILT 2026-11-22, proof: the scenario test of build 20261122-030022
 
 Sorted out of the entry of 2026-11-16 (the scenario test of build `20261116-205845`), point
 6; S60 (b) again, closed 2026-11-14 for another cause. SOLIDWORKS started by `sw_connect
@@ -2209,10 +2230,10 @@ SOLIDWORKS started through COM is named so too, the hint naming that process, be
 Decided 2026-11-22 by the run, not the owner: the live test ends SOLIDWORKS itself and
 skips when a document is open, because launch can only be tested with none running and
 the assembly fixture needs one at its start.
-Local: on `sw2023`, in the commit that moves it here; not yet in a build. Upstream: not yet
+Local: on `sw2023`, `46920a1`; in build `20261122-030022`. Upstream: not yet
 decided.
 
-### S116 - S92 (d): `sw_status` gives SOLIDWORKS' process start time, and the restart messages name it - BUILT 2026-11-22, proof: the scenario test of the group 3 build
+### S116 - S92 (d): `sw_status` gives SOLIDWORKS' process start time, and the restart messages name it - BUILT 2026-11-22, proof: the scenario test of build 20261122-030022
 
 S92 (d), split out of S92 (which stays Open for (c)) in the run of 2026-11-21, group 3.
 Whether SOLIDWORKS had been restarted was asked, not read: a session was told it had been
@@ -2252,10 +2273,10 @@ Decided 2026-11-22 by the run, not the owner: no tool that exits SOLIDWORKS and 
 end it yourself" in the hint, because S92 (d)'s plan decided ending it is the owner's
 call; the hint says to read `solidWorksStarted` again, and a process not restarted is for
 the owner to end.
-Local: on `sw2023`, in the commit that moves it here; not yet in a build. Upstream: not yet
+Local: on `sw2023`, `a72b20f`; in build `20261122-030022`. Upstream: not yet
 decided.
 
-### S114 - `doc_undo` after S113: the server's own step called not the server's, a component's dimension answered "Nothing changed", an undo that names nothing - BUILT 2026-11-22, proof: the scenario test of the group 3 build
+### S114 - `doc_undo` after S113: the server's own step called not the server's, a component's dimension answered "Nothing changed", an undo that names nothing - BUILT 2026-11-22, proof: the scenario test of build 20261122-030022
 
 Sorted out of the entry of 2026-11-22 (the scenario test of build `20261122-002030`), points
 3 and 4, on S113's fix (Closed). (a) After a `doc_undo` had taken back the server's
@@ -2329,5 +2350,5 @@ because that is the cause itself (the change lands outside the assembly) and S49
 already reads it; a mate's dimension changes no other document and stays an undo step.
 Decided 2026-11-22 by the run, not the owner: (c) an undone dimension names the dimension,
 not its feature, because the dimension is what changed and its name carries the feature.
-Local: on `sw2023`, in the commit that moves it here; not yet in a build. Upstream: not yet
+Local: on `sw2023`, `624b0f3`; in build `20261122-030022`. Upstream: not yet
 decided.
