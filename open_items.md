@@ -464,7 +464,7 @@ its point.
   no files (`ahmadaziz6720/solidworks-mcp` releases, `build-20261122-002030`).
   Cost: Sonnet, see the report.
 - [ ] Group 2: scenario test (session id: `f634dedd-ccc6-4d15-b29a-e09cb7db3fd5`), its entry committed and sorted
-  Started 00:23 2026-11-22, free memory 2165 MB with SOLIDWORKS restarted from its exe; launcher `%LOCALAPPDATA%\solidworks-mcp\livetest\run-1121\check2.ps1` (`-Resume` to resume), pid 17196, output check2.out.txt and check2.err.txt beside it; watched by a Haiku subagent.
+  Started 00:23 2026-11-22, free memory 2165 MB with SOLIDWORKS restarted from its exe; launcher `%LOCALAPPDATA%\solidworks-mcp\livetest\run-1121\check2.ps1` (`-Resume` to resume), pid 17196 died at once (the launcher path, holding a space, not quoted in `-File`), started again 00:24 quoted, pid 16752, output check2.out.txt and check2.err.txt beside it; watched by a Haiku subagent.
 - [ ] S89: committed
 - [ ] S92 (d): committed
 - [ ] S81: committed
