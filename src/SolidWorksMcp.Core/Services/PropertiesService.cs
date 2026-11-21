@@ -240,6 +240,11 @@ public sealed class AppearanceSetResult : ToolResult
 /// </summary>
 public sealed partial class PropertiesService(SwSession session)
 {
+    /// <summary>When the SOLIDWORKS process started, for the restart messages (S92 d); null when it can't be read.</summary>
+    private static DateTime? SwStarted(SwContext ctx) => ctx.Session.ProcessId is int pid ? SessionNotes.StartTime(pid) : null;
+
+    private static IReadOnlyList<int> OtherServers() => SessionNotes.OtherServerProcesses().Select(o => o.Pid).ToList();
+
     /// <summary>Rebuilds can take a while on large models (progress is reported by the tool layer).</summary>
     private static readonly TimeSpan RebuildTimeout = TimeSpan.FromSeconds(120);
 
@@ -750,7 +755,7 @@ public sealed partial class PropertiesService(SwSession session)
             var rows = ReadEquations(EquationMgr(d));
             var (lin, ang) = DocUnitFactors(d);
             // S92 (b): a global set to a number read back as another is the state that refuses equations; nothing here is true then.
-            if (Misreads(rows, lin, ang) is { Count: > 0 } misread) ctx.Warn(EquationReadback.ListWarning(misread));
+            if (Misreads(rows, lin, ang) is { Count: > 0 } misread) ctx.Warn(EquationReadback.ListWarning(misread, SwStarted(ctx)));
             return new EquationListResult { Doc = ctx.Title(d), Equations = rows };
         }, RunOptions.Read(doc), ct);
 
@@ -843,9 +848,10 @@ public sealed partial class PropertiesService(SwSession session)
             if (at >= 0) em.Equation[at] = p.Text; // assigning Equation(i) updates in place (VERIFIED)
             else if (em.Add2(-1, p.Text, true) < 0)
             {
-                var (why, hint) = EquationText.Refused(p.Key, p.Expr, p.IsDim);
+                var (why, hint) = EquationText.Refused(p.Key, p.Expr, p.IsDim, SwStarted(ctx), OtherServers());
                 if (misreadBefore.Count > 0 && !why.Contains("SOLIDWORKS function")) // S92: the state, not the expression
-                    (why, hint) = ($". {EquationReadback.Sign(misreadBefore)}.", EquationReadback.RestartHint);
+                    (why, hint) = ($". {EquationReadback.Sign(misreadBefore)}.{EquationReadback.StartedClause(SwStarted(ctx))}",
+                        EquationReadback.RestartHintFor(OtherServers()));
                 throw new SwException(ErrorCodes.FeatureFailed,
                     $"SOLIDWORKS rejected the equation {p.Text}{why}{(written.Count == 0 ? "" : " " + Restore())}", hint);
             }
@@ -874,10 +880,10 @@ public sealed partial class PropertiesService(SwSession session)
                   string.Join(" | ", failed.Take(4).Select(i => $"{plan[i].Text}: {string.Join("; ", found[i].Problems)}")) +
                   (failed.Count > 4 ? $" | and {failed.Count - 4} more" : "");
             // S92 (a): while the sign shows, the state and the restart are named in place of the expression.
-            var (message, hint) = EquationReadback.VerifyFailed(what, rb, misread);
+            var (message, hint) = EquationReadback.VerifyFailed(what, rb, misread, SwStarted(ctx), OtherServers());
             throw new SwException(ErrorCodes.VerifyFailed, message, hint);
         }
-        if (misread.Count > 0) ctx.Warn(EquationReadback.SetWarning(misread));
+        if (misread.Count > 0) ctx.Warn(EquationReadback.SetWarning(misread, SwStarted(ctx)));
         for (int i = 0; i < plan.Count; i++)
         {
             var now = found[i].Row!;
@@ -1908,15 +1914,16 @@ internal static class EquationText
     /// set to a plain number is valid unless its name is a function's; SOLIDWORKS can come to refuse every equation, in a
     /// new part too, until it is restarted, and that is the likelier cause then.
     /// </summary>
-    public static (string Why, string Hint) Refused(string lhs, string expression, bool dimension)
+    public static (string Why, string Hint) Refused(string lhs, string expression, bool dimension,
+        DateTime? swStarted = null, IReadOnlyList<int>? otherServerPids = null)
     {
         if (!dimension && RefusedNames.Contains(lhs))
             return ($": \"{lhs}\" is the name of a SOLIDWORKS function, which it refuses as a variable name.",
                 $"Give the variable another name, e.g. {lhs}1.");
         if (!dimension && Literal(expression) is not null)
             return (", though the equation is valid: a global variable set to a number. SOLIDWORKS can come to refuse every " +
-                    "equation, in a new part too, until it is restarted.",
-                EquationReadback.RestartHint);
+                    "equation, in a new part too, until it is restarted." + EquationReadback.StartedClause(swStarted),
+                EquationReadback.RestartHintFor(otherServerPids));
         return (".", "Check the syntax: names in double quotes, units on numbers (60mm), operators and function names; and that the " +
                      "value is one the dimension can take (a depth of 0 is refused). If a plain \"W\" = 1mm is refused too, SOLIDWORKS " +
                      "refuses every equation until it is restarted.");

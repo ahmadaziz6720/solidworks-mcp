@@ -472,8 +472,8 @@ its point.
   Cost: Sonnet, see the report.
 - [x] Group 2: scenario test (session id: `f634dedd-ccc6-4d15-b29a-e09cb7db3fd5`), its entry committed and sorted (entry `561c437`) (`17d73cb`)
   Started 00:23 2026-11-22, free memory 2165 MB with SOLIDWORKS restarted from its exe; launcher `%LOCALAPPDATA%\solidworks-mcp\livetest\run-1121\check2.ps1` (`-Resume` to resume), pid 17196 died at once (the launcher path, holding a space, not quoted in `-File`), started again 00:24 quoted, pid 16752, output check2.out.txt and check2.err.txt beside it. The Haiku watcher returned twice before the check ended, so the session watched it by a background until-loop of its own instead. Ended `EXIT 0` 00:29 with the entry. Sorted: S112, S113 and S95 held and closed; S114 new (S113's edges), taken into group 3; S115 new, not in this run; S5 met again. Release page notes updated.
-- [x] S89: committed
-- [ ] S92 (d): committed
+- [x] S89: committed (`46920a1`)
+- [x] S92 (d): committed (split out as S116)
 - [ ] S81: committed
 - [ ] S109: probed
 - [ ] S114: committed
@@ -1780,8 +1780,8 @@ would settle it, for the next session that meets the state: `equation_set "q" = 
 on a scratch part; taken there, the cause is the separator. No server-side way round
 found: (c) stays Open, and (a) and (b) go on with unit tests, with no live case of the
 state.
-**Done in the run of 2026-11-21: (a) and (b), split out as S112 (Waiting).** **Left open:
-(c) and (d).**
+**Done in the run of 2026-11-21: (a) and (b), split out as S112 (Waiting).** **Done in the
+run of 2026-11-21, group 3: (d), split out as S116 (Waiting).** **Left open: (c).**
 
 ### S93 - A write that rebuilds does not name a feature far from the change that gained a rebuild warning - OPEN 2026-11-18
 
@@ -2198,5 +2198,48 @@ SOLIDWORKS started through COM is named so too, the hint naming that process, be
 Decided 2026-11-22 by the run, not the owner: the live test ends SOLIDWORKS itself and
 skips when a document is open, because launch can only be tested with none running and
 the assembly fixture needs one at its start.
+Local: on `sw2023`, in the commit that moves it here; not yet in a build. Upstream: not yet
+decided.
+
+### S116 - S92 (d): `sw_status` gives SOLIDWORKS' process start time, and the restart messages name it - BUILT 2026-11-22, proof: the scenario test of the group 3 build
+
+S92 (d), split out of S92 (which stays Open for (c)) in the run of 2026-11-21, group 3.
+Whether SOLIDWORKS had been restarted was asked, not read: a session was told it had been
+when it had not (its start time, read outside the server, was 44 min before the first
+refusal), and closing the window left the process alive, most likely held by the COM
+references of the other server processes. Cause: `sw_status` gave the pid only (`sw_connect`
+gave `processStarted` since S60 (c)). Fix: `sw_status` gives `solidWorksStarted` (local
+time, `yyyy-MM-dd HH:mm:ss`, null where the process can't be read) beside `solidWorksPid`,
+in the partial result too (a blocked or busy SOLIDWORKS). The restart message of S58 (b)
+and S92 (a), (b) names it where it is read: the `equation_set` refusal ("though the
+equation is valid ... restarted") and the `VERIFY_FAILED` of the state say "The SOLIDWORKS
+process started <time>; after a restart sw_status solidWorksStarted reads a later time",
+and `equation_list`'s and `equation_set`'s warning of the state the same. Their hint
+(`EquationReadback.RestartHintFor`) adds "Closing the window can leave the process alive
+under the references of the server processes sw_status otherServerPids lists (<pids>): if
+solidWorksStarted did not change, it was not restarted." Files: `SessionService.cs`,
+`EquationReadback.cs`, `PropertiesService.cs`. No description changed (a field in a result
+costs none of the catalog's budget).
+Before: the new `M0LiveTests.Status_gives_the_start_time_of_the_SOLIDWORKS_process_beside_its_pid`
+failed, "Assert.Equal() Failure: Strings differ; Expected: "2026-11-22 00:38:47"; Actual:
+null" (the process's own start time against `sw_status`'s). After: it passes, 1/1; with
+`Status_names_the_commit_the_server_was_built_from`,
+`Connect_says_whether_it_found_the_same_SOLIDWORKS_process_as_before`,
+`PropertiesLiveTests.A_refused_plain_global_points_to_a_restart` (extended: the message's
+time and the hint's pids), `Equation_errors_are_typed_and_bare_numbers_warn`,
+`Equation_delete_takes_a_list_checked_before_anything_goes` and
+`A_global_variable_drives_the_extrude_depth`, 7/7; unit tests 323/323 (new in
+`EquationReadbackTests`: the message names the start time, the hint the window and the
+pids, the clause is left out where the time can't be read; the state itself is S92 (c),
+not reproduced, so the message is proved by these tests alone); `check_repo` ok.
+Made stricter: nothing that passed is refused; a message and a hint say more.
+Decided 2026-11-22 by the run, not the owner: the start time is named in the restart
+messages of the equation tools only (S58 (b), S92 (a), (b)), not in `sw_connect`'s
+`NOT_CONNECTED` hints, because the plan names S58 (b)'s message and `sw_connect` already
+gives `processStarted`.
+Decided 2026-11-22 by the run, not the owner: no tool that exits SOLIDWORKS and no "never
+end it yourself" in the hint, because S92 (d)'s plan decided ending it is the owner's
+call; the hint says to read `solidWorksStarted` again, and a process not restarted is for
+the owner to end.
 Local: on `sw2023`, in the commit that moves it here; not yet in a build. Upstream: not yet
 decided.

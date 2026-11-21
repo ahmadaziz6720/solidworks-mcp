@@ -34,6 +34,8 @@ public sealed class StatusResult : ToolResult
     public required bool Attached { get; init; }
     public string? Revision { get; init; }
     public int? SolidWorksPid { get; init; }
+    /// <summary>When that SLDWORKS.exe started (local time): a restart is a later one (S92 d).</summary>
+    public string? SolidWorksStarted { get; init; }
     public bool UiBlocked { get; init; }
     public IReadOnlyList<DialogRow>? Dialogs { get; init; }
     public string? RunningOperation { get; init; }
@@ -98,6 +100,8 @@ public sealed class SessionService(SwSession session)
         bool blocked = session.IsUiBlocked;
         var current = session.Dispatcher.Current;
         var others = SessionNotes.OtherServerProcesses().Select(o => o.Pid).ToList();
+        string? started = session.ProcessId is int swPid
+            ? SessionNotes.StartTime(swPid)?.ToString("yyyy-MM-dd HH:mm:ss", System.Globalization.CultureInfo.InvariantCulture) : null;
         var pending = session.Journal.Entries.Select(e => new JournalRow
         {
             Preference = $"{e.Kind} {e.Pref}", Original = e.OldValue, Operation = e.Operation,
@@ -109,6 +113,7 @@ public sealed class SessionService(SwSession session)
             Attached = session.IsAttached,
             Revision = session.Revision,
             SolidWorksPid = session.ProcessId,
+            SolidWorksStarted = started,
             UiBlocked = blocked,
             Dialogs = dialogs.Count == 0 ? null : dialogs,
             RunningOperation = current is null ? null : $"{current.Name} ({current.ElapsedS:0.0} s)",
@@ -144,6 +149,7 @@ public sealed class SessionService(SwSession session)
                     Attached = true,
                     Revision = session.Revision,
                     SolidWorksPid = session.ProcessId,
+                    SolidWorksStarted = st.SolidWorksStarted,
                     UiBlocked = st.UiBlocked,
                     Dialogs = st.Dialogs,
                     RunningOperation = st.RunningOperation,

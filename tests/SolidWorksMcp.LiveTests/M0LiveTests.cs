@@ -44,6 +44,17 @@ public class M0LiveTests(LiveFixture fx) : LiveTest(fx)
     }
 
     [Fact]
+    public async Task Status_gives_the_start_time_of_the_SOLIDWORKS_process_beside_its_pid()
+    {
+        // S92 (d): "restarted?" was asked, not read: a session was told SOLIDWORKS had been restarted when it had not.
+        var st = await new SessionService(S).StatusAsync();
+        Assert.NotNull(st.SolidWorksPid);
+        using var p = System.Diagnostics.Process.GetProcessById(st.SolidWorksPid!.Value);
+        Assert.Equal(p.StartTime.ToString("yyyy-MM-dd HH:mm:ss", System.Globalization.CultureInfo.InvariantCulture), st.SolidWorksStarted);
+        Assert.Contains("\"solidWorksStarted\":\"" + st.SolidWorksStarted + "\"", ResultJson.Serialize(st));
+    }
+
+    [Fact]
     public async Task Launch_starts_a_SOLIDWORKS_that_any_later_process_reaches()
     {
         // S89: SOLIDWORKS started through COM (-Embedding) was not in the running object table, so only the server process

@@ -468,6 +468,11 @@ public class PropertiesLiveTests(LiveFixture fx) : LiveTest(fx)
         Assert.Contains("syntax", dim.Hint);
         Assert.Contains("restarted", dim.Hint);
         Assert.Equal(".", EquationText.Refused("W", "\"H\" / 2", false).Why);
+
+        // S92 (d): the message names the process start time, the hint the window that leaves the process alive.
+        var named = EquationText.Refused("X", "60mm", false, new DateTime(2026, 11, 22, 9, 5, 3), [4120]);
+        Assert.Contains("started 2026-11-22 09:05:03", named.Why);
+        Assert.Contains("otherServerPids lists (4120)", named.Hint);
     }
 
     [Fact]

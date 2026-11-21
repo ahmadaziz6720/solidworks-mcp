@@ -21,6 +21,23 @@ internal static class EquationReadback
 
     public const string RestartHint = "Save the open documents, restart SOLIDWORKS and repeat the call; the equation needs no change.";
 
+    /// <summary>
+    /// The restart's message part (S92 d): when the SOLIDWORKS process started, so a restart is read as a later time (sw_status
+    /// solidWorksStarted) and not asked; empty when the time can't be read.
+    /// </summary>
+    public static string StartedClause(DateTime? started) => started is { } t
+        ? $" The SOLIDWORKS process started {t.ToString("yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture)}; after a restart sw_status solidWorksStarted reads a later time."
+        : "";
+
+    /// <summary>
+    /// The restart's hint (S92 d): closing the window can leave the process alive, held by the COM references of the other
+    /// server processes (sw_status otherServerPids), so the start time is read again before the call is repeated.
+    /// </summary>
+    public static string RestartHintFor(IReadOnlyList<int>? otherServerPids) =>
+        RestartHint + " Closing the window can leave the process alive under the references of the server processes sw_status " +
+        "otherServerPids lists" + (otherServerPids is { Count: > 0 } ? $" ({string.Join(", ", otherServerPids)})" : "") +
+        ": if solidWorksStarted did not change, it was not restarted.";
+
     /// <summary>A single literal such as "60mm", "2.5in", "30deg" or "12": its value and lower-case unit ("" for none).</summary>
     public static (double Value, string Unit)? Literal(string expression)
     {
@@ -95,22 +112,24 @@ internal static class EquationReadback
         "every equation, in any document, until it is restarted";
 
     /// <summary>equation_list's warning: its values are not to be trusted.</summary>
-    public static string ListWarning(IReadOnlyList<GlobalMisread> misreads) =>
+    public static string ListWarning(IReadOnlyList<GlobalMisread> misreads, DateTime? started = null) =>
         Sign(misreads) + ". The values listed are not to be trusted (rows defined from others read wrong too). Save the open " +
-        "documents and restart SOLIDWORKS before any equation_set, then read again.";
+        "documents and restart SOLIDWORKS before any equation_set, then read again." + StartedClause(started);
 
     /// <summary>equation_set's warning after a call whose own checks passed.</summary>
-    public static string SetWarning(IReadOnlyList<GlobalMisread> misreads) =>
-        Sign(misreads) + ". Values read in this state are not to be trusted; save the open documents and restart SOLIDWORKS.";
+    public static string SetWarning(IReadOnlyList<GlobalMisread> misreads, DateTime? started = null) =>
+        Sign(misreads) + ". Values read in this state are not to be trusted; save the open documents and restart SOLIDWORKS." +
+        StartedClause(started);
 
     /// <summary>
     /// equation_set's VERIFY_FAILED message and hint: <paramref name="what"/> is what failed, <paramref name="restored"/> the
     /// rollback's sentence. While the sign shows, the state and the restart are named in place of the expression.
     /// </summary>
-    public static (string Message, string Hint) VerifyFailed(string what, string restored, IReadOnlyList<GlobalMisread> misreads) =>
+    public static (string Message, string Hint) VerifyFailed(string what, string restored, IReadOnlyList<GlobalMisread> misreads,
+        DateTime? started = null, IReadOnlyList<int>? otherServerPids = null) =>
         misreads.Count == 0
             ? ($"{what}. {restored}", "Check the expression (units, quoted names, existing variables) and the dimension name.")
-            : ($"{what}. {Sign(misreads)}; the expression is likely not at fault. {restored}", RestartHint);
+            : ($"{what}. {Sign(misreads)}; the expression is likely not at fault.{StartedClause(started)} {restored}", RestartHintFor(otherServerPids));
 
     /// <summary>An equation changed in place that SOLIDWORKS dropped, keeping the old text; the guess at the value only without the sign.</summary>
     public static string KeptPrevious(string previous, string expression, bool stateShown) =>

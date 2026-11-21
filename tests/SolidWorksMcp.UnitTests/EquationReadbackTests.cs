@@ -86,6 +86,29 @@ public class EquationReadbackTests
     }
 
     [Fact]
+    public void The_restart_message_names_the_process_start_time_and_the_hint_the_window_that_leaves_it_alive()
+    {
+        // S92 (d): "restarted?" is read from sw_status solidWorksStarted; closing the window left the process alive.
+        var started = new DateTime(2026, 11, 22, 9, 5, 3);
+        var m = EquationReadback.Misreads([Row("g", "60.4mm", 60)], Lin, Ang);
+        var state = EquationReadback.VerifyFailed("equation_set \"W\" = 73.5mm: SOLIDWORKS kept it", "Nothing was changed.", m, started, [4120, 5588]);
+        Assert.Contains("started 2026-11-22 09:05:03", state.Message);
+        Assert.Contains("solidWorksStarted", state.Message);
+        Assert.EndsWith("Nothing was changed.", state.Message);
+        Assert.Contains("closing the window can leave the process alive", state.Hint, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("otherServerPids", state.Hint);
+        Assert.Contains("(4120, 5588)", state.Hint);
+        Assert.Contains("restart SOLIDWORKS", state.Hint);
+
+        Assert.Contains("started 2026-11-22 09:05:03", EquationReadback.ListWarning(m, started));
+        Assert.Contains("started 2026-11-22 09:05:03", EquationReadback.SetWarning(m, started));
+
+        // No start time to read, no other server process: the clause is left out, the hint still says it.
+        Assert.DoesNotContain("started 20", EquationReadback.ListWarning(m));
+        Assert.DoesNotContain("(", EquationReadback.RestartHintFor(null).Replace("(sw_status", ""));
+    }
+
+    [Fact]
     public void The_kept_previous_text_guesses_at_the_value_only_without_the_sign()
     {
         Assert.Contains("such as 0?", EquationReadback.KeptPrevious("\"W\" = 100mm", "73.5mm", stateShown: false));
