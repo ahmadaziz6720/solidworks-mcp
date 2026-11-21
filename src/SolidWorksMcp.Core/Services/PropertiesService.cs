@@ -745,7 +745,11 @@ public sealed partial class PropertiesService(SwSession session)
         session.RunAsync("equation_list", ctx =>
         {
             var d = ctx.DocOfType(swDocumentTypes_e.swDocPART, swDocumentTypes_e.swDocASSEMBLY);
-            return new EquationListResult { Doc = ctx.Title(d), Equations = ReadEquations(EquationMgr(d)) };
+            var rows = ReadEquations(EquationMgr(d));
+            var (lin, ang) = DocUnitFactors(d);
+            // S92 (b): a global set to a number read back as another is the state that refuses equations; nothing here is true then.
+            if (Misreads(rows, lin, ang) is { Count: > 0 } misread) ctx.Warn(EquationReadback.ListWarning(misread));
+            return new EquationListResult { Doc = ctx.Title(d), Equations = rows };
         }, RunOptions.Read(doc), ct);
 
     public Task<EquationSetResult> EquationSetAsync(string? doc, string? lhs, string? expression, CancellationToken ct = default) =>
@@ -805,6 +809,8 @@ public sealed partial class PropertiesService(SwSession session)
                     "Dimension names look like D1@Sketch1 or D1@Boss-Extrude1; feature and sketch results list them.");
         var em = EquationMgr(d);
         var before = ReadEquations(em);
+        var (lin, ang) = DocUnitFactors(d);
+        var misreadBefore = Misreads(before, lin, ang); // S92: the sign of S58 (b)'s state, read before the first write
         var prevs = plan.Select(p => before.FirstOrDefault(e => EquationText.SameLhs(e.Lhs, p.Key))).ToList();
         // The equations as they will stand after the call: a name another row of the batch defines is a known one.
         var planned = before.Where(e => !plan.Any(p => EquationText.SameLhs(e.Lhs, p.Key)))
@@ -836,6 +842,8 @@ public sealed partial class PropertiesService(SwSession session)
             else if (em.Add2(-1, p.Text, true) < 0)
             {
                 var (why, hint) = EquationText.Refused(p.Key, p.Expr, p.IsDim);
+                if (misreadBefore.Count > 0 && !why.Contains("SOLIDWORKS function")) // S92: the state, not the expression
+                    (why, hint) = ($". {EquationReadback.Sign(misreadBefore)}.", EquationReadback.RestartHint);
                 throw new SwException(ErrorCodes.FeatureFailed,
                     $"SOLIDWORKS rejected the equation {p.Text}{why}{(written.Count == 0 ? "" : " " + Restore())}", hint);
             }
@@ -843,7 +851,7 @@ public sealed partial class PropertiesService(SwSession session)
         }
         bool rebuilt = d.EditRebuild3(); // one rebuild for the whole batch
 
-        var (lin, ang) = DocUnitFactors(d);
+        var misread = misreadBefore;
         var found = Verify();
         if (found.Any(c => c.Problems.Count > 0 && c.Row is not null))
         {
@@ -863,9 +871,11 @@ public sealed partial class PropertiesService(SwSession session)
                 : $"equation_set, {failed.Count} of {plan.Count} equations: " +
                   string.Join(" | ", failed.Take(4).Select(i => $"{plan[i].Text}: {string.Join("; ", found[i].Problems)}")) +
                   (failed.Count > 4 ? $" | and {failed.Count - 4} more" : "");
-            throw new SwException(ErrorCodes.VerifyFailed, $"{what}. {rb}",
-                "Check the expression (units, quoted names, existing variables) and the dimension name.");
+            // S92 (a): while the sign shows, the state and the restart are named in place of the expression.
+            var (message, hint) = EquationReadback.VerifyFailed(what, rb, misread);
+            throw new SwException(ErrorCodes.VerifyFailed, message, hint);
         }
+        if (misread.Count > 0) ctx.Warn(EquationReadback.SetWarning(misread));
         for (int i = 0; i < plan.Count; i++)
         {
             var now = found[i].Row!;
@@ -897,7 +907,8 @@ public sealed partial class PropertiesService(SwSession session)
         List<EquationCheck> Verify()
         {
             var now = ReadEquations(em);
-            return plan.Select((p, i) => VerifyEquation(d, now, p, prevs[i], lin, ang)).ToList();
+            misread = [.. Misreads(now, lin, ang), .. misreadBefore.Where(b => !now.Any(e => EquationText.SameLhs(e.Lhs, b.Lhs)))];
+            return plan.Select((p, i) => VerifyEquation(d, now, p, prevs[i], lin, ang, misread.Count > 0)).ToList();
         }
 
         // The last written first: a new variable goes after the equations that use it.
@@ -914,7 +925,7 @@ public sealed partial class PropertiesService(SwSession session)
 
     /// <summary>Tier B for one equation: it is there, evaluates to the literal it was given, and drives its dimension.</summary>
     private static EquationCheck VerifyEquation(IModelDoc2 d, IReadOnlyList<EquationRow> now, EquationPlan p, EquationRow? prev,
-        double lin, double ang)
+        double lin, double ang, bool stateShown)
     {
         var checks = new List<string>();
         var row = now.FirstOrDefault(e => EquationText.SameLhs(e.Lhs, p.Key));
@@ -922,8 +933,7 @@ public sealed partial class PropertiesService(SwSession session)
         // An equation changed in place to one SOLIDWORKS won't take (a depth of 0) is dropped without an error: the old
         // text stays, and the value and the dimension then agree with each other, on the old equation.
         if (prev is not null && !EquationText.SameText(row.Text, p.Text) && EquationText.SameText(row.Text, prev.Text))
-            return new(row, null, checks,
-                [$"SOLIDWORKS kept the previous equation {prev.Text} and did not take {p.Expr} (a value the dimension can't have, such as 0?)"]);
+            return new(row, null, checks, [EquationReadback.KeptPrevious(prev.Text, p.Expr, stateShown)]);
         checks.Add($"equation for \"{p.Key}\" present");
         if (row.Value is not double value) return new(row, null, checks, [$"{row.Text} does not evaluate to a number"]);
         var problems = new List<string>();
@@ -1180,17 +1190,16 @@ public sealed partial class PropertiesService(SwSession session)
     /// A value SOLIDWORKS reports agrees with an SI quantity, read either in SI or in document units (which one
     /// IEquationMgr.Value uses is not pinned down, so both are accepted; the check still catches wrong values).
     /// </summary>
-    private static bool Agrees(double reported, double si, double docFactor) =>
-        Close(reported, si) || (docFactor > 0 && Close(reported, si / docFactor));
+    private static bool Agrees(double reported, double si, double docFactor) => EquationReadback.Agrees(reported, si, docFactor);
 
-    private static bool LiteralAgrees(double reported, (double Value, string Unit) lit, double lin, double ang)
-    {
-        if (lit.Unit.Length == 0) return Close(reported, lit.Value) || Close(reported, lit.Value * lin) || Close(reported, lit.Value * ang);
-        if (EquationText.UnitFactor(lit.Unit) is not { } u) return true; // a unit this check doesn't know: not judged
-        return Agrees(reported, lit.Value * u.Factor, u.Angle ? ang : lin);
-    }
+    private static bool LiteralAgrees(double reported, (double Value, string Unit) lit, double lin, double ang) =>
+        EquationReadback.LiteralAgrees(reported, lit, lin, ang);
 
-    private static bool Close(double a, double b) => Math.Abs(a - b) <= 1e-6 * Math.Max(1, Math.Abs(b));
+    private static bool Close(double a, double b) => EquationReadback.Close(a, b);
+
+    /// <summary>The globals set to a plain number that read back as another value (S92: the sign of S58 b's state).</summary>
+    private static List<GlobalMisread> Misreads(IEnumerable<EquationRow> rows, double lin, double ang) =>
+        EquationReadback.Misreads(rows.Select(e => (e.Lhs, e.Text, e.Global == true, e.Value)), lin, ang);
 
     // ------------------------------------------------------------------ configurations
 
@@ -1701,7 +1710,6 @@ internal static class EquationText
 {
     private static readonly Regex LhsRx = new(@"^\s*""([^""]+)""\s*=", RegexOptions.CultureInvariant);
     private static readonly Regex QuotedRx = new(@"""([^""]+)""", RegexOptions.CultureInvariant);
-    private static readonly Regex LiteralRx = new(@"^\s*([+-]?(?:\d+\.?\d*|\.\d+)(?:[eE][+-]?\d+)?)\s*([A-Za-zµ°'""]*)\s*$", RegexOptions.CultureInvariant);
     private static readonly Regex DocSuffixRx = new(@"\.(part|assembly|sldprt|sldasm)$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
 
     /// <summary>The left-hand side of an equation (without quotes), or null.</summary>
@@ -1903,35 +1911,17 @@ internal static class EquationText
         if (!dimension && Literal(expression) is not null)
             return (", though the equation is valid: a global variable set to a number. SOLIDWORKS can come to refuse every " +
                     "equation, in a new part too, until it is restarted.",
-                "Save the open documents, restart SOLIDWORKS and repeat the call; the equation needs no change.");
+                EquationReadback.RestartHint);
         return (".", "Check the syntax: names in double quotes, units on numbers (60mm), operators and function names; and that the " +
                      "value is one the dimension can take (a depth of 0 is refused). If a plain \"W\" = 1mm is refused too, SOLIDWORKS " +
                      "refuses every equation until it is restarted.");
     }
 
     /// <summary>A single literal such as "60mm", "2.5in", "30deg" or "12": its value and lower-case unit ("" for none).</summary>
-    public static (double Value, string Unit)? Literal(string expression)
-    {
-        var m = LiteralRx.Match(expression);
-        if (!m.Success || !double.TryParse(m.Groups[1].Value, NumberStyles.Float, CultureInfo.InvariantCulture, out double v)) return null;
-        return (v, m.Groups[2].Value.ToLowerInvariant());
-    }
+    public static (double Value, string Unit)? Literal(string expression) => EquationReadback.Literal(expression);
 
     /// <summary>SI factor of an equation unit (meters or radians per unit), or null for a unit not known here.</summary>
-    public static (double Factor, bool Angle)? UnitFactor(string unit) => unit switch
-    {
-        "mm" => (1e-3, false),
-        "cm" => (1e-2, false),
-        "m" => (1, false),
-        "um" or "µm" => (1e-6, false),
-        "nm" => (1e-9, false),
-        "in" or "\"" => (0.0254, false),
-        "ft" or "'" => (0.3048, false),
-        "mil" => (2.54e-5, false),
-        "deg" or "°" => (Math.PI / 180, true),
-        "rad" => (1, true),
-        _ => null,
-    };
+    public static (double Factor, bool Angle)? UnitFactor(string unit) => EquationReadback.UnitFactor(unit);
 
     /// <summary>
     /// Numbers written without a unit, outside quoted names, that are not plain factors (operands of *, / or ^):

@@ -553,6 +553,18 @@ public class PropertiesLiveTests(LiveFixture fx) : LiveTest(fx)
     }
 
     [Fact]
+    public async Task Globals_with_decimals_read_back_as_written_and_carry_no_warning()
+    {
+        // S92 (b): in S58 (b)'s state SOLIDWORKS reads 60.4mm as 60 and equation_list now warns; the good state reads clean.
+        var (doc, depth) = await BlockAsync("equations_readback");
+        var r = await P.EquationSetManyAsync(doc, [Eq("g", "60.4mm"), Eq("k", "2.5mm"), Eq("s", "0.5mm"), Eq("h", "\"g\" / 2"), Eq(depth, "\"k\" * 8")]);
+        Assert.Null(r.Warnings);
+        var list = await P.EquationListAsync(doc);
+        Assert.Null(list.Warnings);
+        Assert.Equal([60.4, 2.5, 0.5, 30.2, 20], list.Equations.OrderBy(e => e.Lhs == depth).Select(e => Math.Round(e.Value!.Value, 6)));
+    }
+
+    [Fact]
     public async Task A_batch_with_a_row_that_fails_leaves_the_model_as_it_was()
     {
         var (doc, depth, slotDepth, _) = await SlotBlockAsync("equations_batch_bad");

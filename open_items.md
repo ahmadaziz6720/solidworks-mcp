@@ -438,8 +438,8 @@ its point.
   Cost: Sonnet, see the report.
 - [x] Group 1: scenario test (session id: `287fca18-c22d-4f64-a5fc-e3c50a4efba2`), its entry committed and sorted (entry `351a58f`, sort `d5cf498`)
   Started 20:55 2026-11-21, free memory 2174 MB with SOLIDWORKS restarted from its exe; launcher `%LOCALAPPDATA%\solidworks-mcp\livetest\run-1121\check1.ps1` (`-Resume` to resume), first run from the first session's scratchpad, pid 13972, output check1.out.txt and check1.err.txt beside the launcher it ran from. Stopped 21:00 at the 5-hour usage limit (`EXIT 1`, no entry). Resume 1 at 21:56, free memory 2463 MB with SOLIDWORKS restarted from its exe, pid 5944, from the scratchpad copy (its output there: `%TEMP%\claude\8c3a0854f52f5604\96549089-56a6-40d7-a892-5e462fc37ecc\scratchpad\check1.out.txt`); a later resume runs the copy under `run-1121`, its output beside it. Resume 1 ended `EXIT 0` 21:58 with the entry. Sorted: S61 (a), S83, S107 and S110 held and closed; S111 new (not in this run); S5 met again. Release page notes updated with the result.
-- [x] S92 (c): probed, not reproduced (recorded in S92; (a) and (b) go on with unit tests)
-- [ ] S92 (a) and (b): committed
+- [x] S92 (c): probed, not reproduced (recorded in S92; (a) and (b) go on with unit tests) (`c3e8f9e`)
+- [x] S92 (a) and (b): committed (split out as S112 in Waiting, as the format splits an item)
 - [ ] S79 (b): committed
 - [ ] S95: committed
 - [ ] Group 2: full live tests and release (build: )
@@ -1795,6 +1795,8 @@ would settle it, for the next session that meets the state: `equation_set "q" = 
 on a scratch part; taken there, the cause is the separator. No server-side way round
 found: (c) stays Open, and (a) and (b) go on with unit tests, with no live case of the
 state.
+**Done in the run of 2026-11-21: (a) and (b), split out as S112 (Waiting).** **Left open:
+(c) and (d).**
 
 ### S93 - A write that rebuilds does not name a feature far from the change that gained a rebuild warning - OPEN 2026-11-18
 
@@ -2100,3 +2102,56 @@ the cut, so a circle landing elsewhere on the part would pass.
 
 **Upstream: PR #1, open.**
 
+
+### S112 - S92 (a) and (b): the equation tools read S58 (b)'s state from the document's globals and name the restart - BUILT 2026-11-21, proof: the scenario test of the group 2 build
+
+S92 (a) and (b), split out of S92 (which stays Open for (c) and (d)) in the run of
+2026-11-21, group 2. (b) `equation_list` read every global set to a number cut at its
+decimal point (`60.4mm` as 60) and every derived row as 0, reported `ok`, in the state that
+refuses every equation until SOLIDWORKS is restarted; (a) in that state `equation_set`'s
+`VERIFY_FAILED` ("kept the previous equation ... (a value the dimension can't have, such as
+0?)", "evaluates to 0") blamed the expression. Cause: nothing compared a global's own
+number with the value SOLIDWORKS read back. Fix: a new interop-free
+`EquationReadback.Misreads` (`src/SolidWorksMcp.Core/Services/EquationReadback.cs`, linked
+into the unit tests) takes each global whose right-hand side is a plain number in a known
+unit and compares it with the value read, by the rule `equation_set`'s tier B already used
+(SI or document units; `Literal`, `UnitFactor`, `Agrees`, `LiteralAgrees` moved there,
+`EquationText` and `PropertiesService` forwarding). (b) `equation_list` warns on a
+difference, naming each global as read ("SOLIDWORKS reads "g" = 60.4mm as 60: ... the sign
+of the state in which SOLIDWORKS refuses or misreads every equation, in any document, until
+it is restarted. The values listed are not to be trusted ... restart SOLIDWORKS before any
+equation_set"); `equation_set` reads the sign before its first write and after its rebuild,
+and warns the same on a call whose checks passed. (a) While the sign shows, its
+`VERIFY_FAILED` names the state ("the expression is likely not at fault") with the hint
+"Save the open documents, restart SOLIDWORKS and repeat the call; the equation needs no
+change" in place of "Check the expression ...", and "kept the previous equation" drops its
+guess at the value; an `Add2` refusal says the same (not for a function's name). Before:
+`EquationReadbackTests` (8 tests) did not build, "error CS2001: Source file
+...\Services\EquationReadback.cs could not be found" (the function did not exist). After:
+unit tests 310/310 (the 8 new among them); live, the new
+`PropertiesLiveTests.Globals_with_decimals_read_back_as_written_and_carry_no_warning`
+(`g` = 60.4mm, `k` = 2.5mm, `s` = 0.5mm, `h` = "g" / 2 and a depth from `k`: no warning
+from `equation_set` or `equation_list`, the values 60.4, 2.5, 0.5, 30.2, 20) with every
+live test that calls `equation_list` or `equation_set` (the eleven equation tests of
+`PropertiesLiveTests` with `A_refused_plain_global_points_to_a_restart`, four of
+`FeatureManagementLiveTests`, the mate-angle one of `AssemblyLiveTests`), 17/17;
+`PropertiesOfflineTests` 22/22; `check_repo` ok; no description changed. No live case of
+the state: S92 (c)'s probe did not bring it on, so the warning and the refusal's words are
+proved by the unit tests only, and the scenario test reads the good state clean.
+Made stricter: `equation_list` and `equation_set` warn where they were silent; nothing
+that passed is refused.
+Decided 2026-11-21 by the run, not the owner: (a) and (b) moved to Waiting as a new item
+split out of S92, not as a second S92 heading, because one number heads one item
+(`board.py --check` fails a second one) and the format splits an item that way.
+Decided 2026-11-21 by the run, not the owner: only a global set to a plain number in a known
+unit is judged, not a row defined from others, because only its expected value is known
+without evaluating SOLIDWORKS' expression; a derived row read 0 is named in the warning's
+words instead.
+Decided 2026-11-21 by the run, not the owner: the sign is a warning, and `equation_set`
+writes on, because the plan asks for a warning and a refusal before the write could not be
+told from a document whose globals were edited outside the server's rule.
+Decided 2026-11-21 by the run, not the owner: an `Add2` refusal (`FEATURE_FAILED`) while the
+sign shows names the state too, beyond the plan's `VERIFY_FAILED`, because its hint blamed
+the syntax on the same evidence; a refused function name keeps its own reason.
+Local: on `sw2023`, in the commit that moves it here; not yet in a build. Upstream: not yet
+decided.

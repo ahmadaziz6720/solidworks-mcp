@@ -67,6 +67,7 @@
     <Compile Include="..\..\src\SolidWorksMcp.Core\Services\AssemblyBom.cs" Link="Core\Services\AssemblyBom.cs" />
     <Compile Include="..\..\src\SolidWorksMcp.Core\Services\MaterialXml.cs" Link="Core\Services\MaterialXml.cs" />
     <Compile Include="..\..\src\SolidWorksMcp.Core\Services\MaterialDensity.cs" Link="Core\Services\MaterialDensity.cs" />
+    <Compile Include="..\..\src\SolidWorksMcp.Core\Services\EquationReadback.cs" Link="Core\Services\EquationReadback.cs" />
     <Compile Include="..\..\src\SolidWorksMcp.Core\Services\HardwareCatalog.cs" Link="Core\Services\HardwareCatalog.cs" />
   </ItemGroup>
 
