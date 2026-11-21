@@ -753,7 +753,7 @@ public sealed partial class AssemblyService(SwSession session)
                         : MateIntent(ctx, typeName, a, b, mc, md, mp, spec, main, checks);
                     if (problems.Count > 0) problem = string.Join("; ", problems);
                     else if (ga0 is AsmGeo a0 && gb0 is AsmGeo b0 &&
-                             AsmMateIntent.Side(a0, b0, ToAsm(ctx, a), ToAsm(ctx, b), $"a ({a.Label})", $"b ({b.Label})") is { } side)
+                             AsmMateIntent.Side(a0, b0, ToAsm(ctx, a), ToAsm(ctx, b), $"a ({a.Label})", $"b ({b.Label})", q.Flip) is { } side)
                     {
                         // The mate is right either side; which side it took is the caller's to judge (S50).
                         checks.Add(side.Line);

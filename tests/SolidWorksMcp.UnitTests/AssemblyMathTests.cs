@@ -227,6 +227,11 @@ public class AssemblyMateIntentTests
         var crossed = AsmMateIntent.Side(a0, b, Plane(new Vec3(-0.075, 0.01, 0), Vec3.UnitX), b, "a", "b")!.Value;
         Assert.Equal("a at -75 mm along the normal of b [1, 0, 0]", crossed.Line);
         Assert.Contains("other side", crossed.Warning);
+        Assert.Contains("If it should stay on the side it was on", crossed.Warning);
+        // S83: with flip asked, the crossing is what was asked, and said so; not worded as a fault.
+        var flipped = AsmMateIntent.Side(a0, b, Plane(new Vec3(-0.075, 0.01, 0), Vec3.UnitX), b, "a", "b", flip: true)!.Value;
+        Assert.Contains("other side of b from where it was before the mate, as flip asks: 75 mm along its normal before, -75 mm after.", flipped.Warning);
+        Assert.DoesNotContain("If it should stay", flipped.Warning);
         var stayed = AsmMateIntent.Side(a0, b, Plane(new Vec3(0.075, 0, 0.02), -Vec3.UnitX), b, "a", "b")!.Value;
         Assert.Equal("a at 75 mm along the normal of b [1, 0, 0]", stayed.Line);
         Assert.Null(stayed.Warning);

@@ -328,9 +328,11 @@ internal static class AsmMateIntent
     /// The side a distance mate put <paramref name="a1"/> on (S50): its signed offset along the normal of the plane
     /// <paramref name="b1"/> (a plane or a point of a; or, with b a point and a a plane, b's offset along a's normal), as a
     /// check line; and a warning when that sign is not the one before the mate (<paramref name="a0"/>, <paramref name="b0"/>):
-    /// the component crossed to the other side. Null for geometry without a plane.
+    /// the component crossed to the other side. With <paramref name="flip"/> asked the crossing is what was asked, and
+    /// the warning says so rather than read as a fault (S83). Null for geometry without a plane.
     /// </summary>
-    public static (string Line, string? Warning)? Side(AsmGeo a0, AsmGeo b0, AsmGeo a1, AsmGeo b1, string aLabel, string bLabel)
+    public static (string Line, string? Warning)? Side(AsmGeo a0, AsmGeo b0, AsmGeo a1, AsmGeo b1, string aLabel, string bLabel,
+        bool flip = false)
     {
         double? Offset(AsmGeo a, AsmGeo b) =>
             IsPlane(b) && (IsPlane(a) || IsPoint(a)) ? AsmMath.PointToPlane(b.P, b.D, a.P)
@@ -341,9 +343,11 @@ internal static class AsmMateIntent
             : $"{bLabel} at {Mm(now)} mm along the normal of {aLabel} [{Dir(a1.D)}]";
         string? warn = null;
         if (Offset(a0, b0) is double was && Math.Abs(was) > PosTol && Math.Abs(now) > PosTol && Math.Sign(was) != Math.Sign(now))
-            warn = $"The distance mate put {(alongB ? aLabel : bLabel)} on the other side of {(alongB ? bLabel : aLabel)}: {Mm(was)} mm along its " +
-                   $"normal before, {Mm(now)} mm after. If it should stay on the side it was on, delete the mate and add it again with flip " +
-                   "the other way.";
+            warn = $"The distance mate put {(alongB ? aLabel : bLabel)} on the other side of {(alongB ? bLabel : aLabel)}" +
+                   (flip ? " from where it was before the mate, as flip asks" : "") +
+                   $": {Mm(was)} mm along its normal before, {Mm(now)} mm after. " +
+                   (flip ? "If it should have stayed, add the mate again without flip."
+                         : "If it should stay on the side it was on, delete the mate and add it again with flip the other way.");
         return (what, warn);
     }
 

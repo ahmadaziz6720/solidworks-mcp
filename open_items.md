@@ -17,7 +17,7 @@ Closed all the same, its PR named, and an open PR no longer holds an item in Wai
 item sent upstream ends with `**Upstream: PR #9, open.**`, one per PR or issue
 (`merged`, `closed unmerged`; an issue `open` or `closed`), kept to its state.
 
-**Open: S4, S5, S7, S10 to S12, S33, S34, S52, S60, S64, S65, S79 to S86, S89, S90, S92 to S110.**
+**Open: S4, S5, S7, S10 to S12, S33, S34, S52, S60, S64, S65, S79 to S82, S84 to S86, S89, S90, S92 to S110.**
 Sorted 2026-11-21, the scenario test of build `20261121-175345` (findings 2026-11-21): S61
 (a) not held again (a STEP inserted after another component, the assembly saved in another
 folder than the STEP, lost on reopen, reported `ok`), fixed a third time in the run, group
@@ -392,8 +392,8 @@ its point.
 ### Where the run stands
 
 - [x] Phase 1: the opening question asked and answered (2026-11-21)
-- [x] S61 (a) a third time: committed
-- [ ] S83: committed
+- [x] S61 (a) a third time: committed (0d05bd7)
+- [x] S83: committed
 - [ ] S107: committed
 - [ ] S110: committed
 - [ ] Group 1: full live tests and release (build: )
@@ -1517,20 +1517,6 @@ dimension reads the sketch's contours after and warns when one became invalid. L
 decided.
 Decided 2026-11-21 by the owner: (a) taken into the run of 2026-11-21, group 7, a warning as S42 was decided; (b) stays Open (`## Run 2026-11-21`).
 
-### S83 - `asm_mate_add` distance with `flip` that lands right warns in the words of a wrong side - OPEN 2026-11-16
-
-Sorted out of the entry of 2026-11-16 ("a part edited by rollback", point 5), on build
-`20261116-124830`. `asm_mate_add` distance between two parallel planes, `alignment:
-aligned`, 80: it landed on the far side (origin at -80, the part inserted at +80), with
-the warning that says so (S50, Closed: held). Again with `flip: true` it landed right
-(origin read back +80) but warned in the same words ("80 mm along its normal before, -80
-mm after... If it should stay on the side it was on, delete the mate..."), which reads as
-a second failure. The side check on `originMm` held.
-
-Proposed: with `flip` asked, the warning says the side now differs from where the part
-was inserted, as asked, not that it may be wrong. Local. Not decided.
-Decided 2026-11-21 by the owner: taken into the run of 2026-11-21, group 1: with `flip` asked, the warning says the side differs from the insert's, as asked (`## Run 2026-11-21`).
-
 ### S84 - Feature results that read as faults on a right result: a mirror's area line, a pattern's rebuild warning under its old name - OPEN 2026-11-16
 
 (a) Sorted out of three entries of 2026-11-16 ("a part edited by rollback", point 6; "an
@@ -2290,3 +2276,41 @@ file's, because the file's list leaves out a 3D Interconnect component that does
 Waiting, because (b) and (c) are closed and (a) was its last open point, and one number
 heads one item. Local: on `sw2023`, in the commit that moves it here; not yet in a build.
 Upstream: not yet decided.
+
+### S83 - `asm_mate_add` distance with `flip` that lands right warns in the words of a wrong side - BUILT 2026-11-21, proof: the scenario test of the group 1 build
+
+Sorted out of the entry of 2026-11-16 ("a part edited by rollback", point 5), on build
+`20261116-124830`. `asm_mate_add` distance between two parallel planes, `alignment:
+aligned`, 80: it landed on the far side (origin at -80, the part inserted at +80), with
+the warning that says so (S50, Closed: held). Again with `flip: true` it landed right
+(origin read back +80) but warned in the same words ("80 mm along its normal before, -80
+mm after... If it should stay on the side it was on, delete the mate..."), which reads as
+a second failure. The side check on `originMm` held.
+
+Proposed: with `flip` asked, the warning says the side now differs from where the part
+was inserted, as asked, not that it may be wrong. Local. Not decided.
+Decided 2026-11-21 by the owner: taken into the run of 2026-11-21, group 1: with `flip` asked, the warning says the side differs from the insert's, as asked (`## Run 2026-11-21`).
+Fixed 2026-11-21 in the run of 2026-11-21 (group 1). Cause (live, 2023 SP3, reproduced
+by hand first): the side check (`AsmMateIntent.Side`, S50) compares the component's side of
+b just before the mate with its side after, and warned of a crossing in one wording
+whatever `flip` was. In the finding's sequence the first mate (no flip) took the part from
++80 to -80; the mate deleted, the part stayed at -80, so the flipped mate's "before" was
+-80 and its move back to +80, the insert's side, read as a crossing worded as a fault.
+Fix: `Side` takes `flip`; with it asked, a crossing warns "… on the other side of b from
+where it was before the mate, as flip asks: … before, … after. If it should have stayed,
+add the mate again without flip."; without `flip` the warning is as before. Before: the
+new `AssemblyLiveTests.A_distance_mate_with_flip_that_crosses_says_so_as_asked` (a cube
+inserted at x +80, distance 80 `aligned` to the fixed cube's right plane, landing at -80;
+the mate deleted, added again with `flip:true`, landing at +80) failed ("Assert.Contains()
+Failure: Sub-string not found. String: "The distance mate put a (plane 'Right Plane' of
+fl"··· Not found: "as flip asks""). After: it passes, with
+`A_distance_mate_says_which_side_the_component_landed_on` and
+`Plane_mates_coincident_and_distance_reproduce_the_4000_mm3_overlap`, 3/3 live; unit tests
+302/302 (`AssemblyMathTests` asserts both wordings); `check_repo` ok; no description
+changed. Made stricter: the unit test asserts the no-flip wording too. Decided 2026-11-21
+by the run, not the owner: the flipped warning says "from where it was before the mate",
+not "from where it was inserted", because the check compares with the position just before
+the mate, which in the finding's own case was not the insert's (the insert's side is where
+the flipped mate brought it back to); it stays a warning, as the owner's decision words it.
+Local: on `sw2023`, in the commit that moves it here; not yet in a build. Upstream: not yet
+decided.

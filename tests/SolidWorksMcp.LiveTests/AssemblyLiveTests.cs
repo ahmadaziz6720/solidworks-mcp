@@ -818,6 +818,34 @@ public class AssemblyLiveTests(LiveFixture fx) : LiveTest(fx)
     }
 
     [Fact]
+    public async Task A_distance_mate_with_flip_that_crosses_says_so_as_asked()
+    {
+        // S83: a cube inserted at x +80, a distance mate of 80 (aligned) took it to -80, warned (S50); the mate deleted and
+        // added again with flip took it back to +80, and the warning said "if it should stay on the side it was on, delete
+        // the mate", a second failure in its words. With flip asked, crossing is what was asked: said so.
+        var a = await CubeAsync("flipA");
+        var b = await CubeAsync("flipB");
+        string asm = await NewAssemblyAsync("asm_flip");
+        string na = (await InsertAsync(asm, a.Path, [0, 0, 0])).Component.Name;
+        string nb = (await InsertAsync(asm, b.Path, [80, 0, 0])).Component.Name;
+        var req = new AsmMateRequest
+        {
+            Doc = asm, Type = "distance", A = Plane(nb, "right"), B = Plane(na, "right"), DistanceMm = 80, Alignment = "aligned",
+        };
+        var m1 = await Asm.MateAddAsync(req);
+        double at1 = m1.Components.Single(x => x.Name == nb).OriginMm![0];
+        Assert.Equal(80, Math.Abs(at1), P);
+        await new FeatureManagementService(S).DeleteAsync(asm, [m1.Mate.Name]);
+
+        var m2 = await Asm.MateAddAsync(req with { Flip = true });
+        double at2 = m2.Components.Single(x => x.Name == nb).OriginMm![0];
+        Assert.True(Math.Abs(at2 + at1) <= P, $"precondition: flip moved the cube from {at1} to {at2} mm, not across");
+        var w = Assert.Single(m2.Warnings ?? [], x => x.Contains("other side"));
+        Assert.Contains("as flip asks", w);
+        Assert.DoesNotContain("If it should stay on the side it was on", w);
+    }
+
+    [Fact]
     public async Task Plane_mates_coincident_and_distance_reproduce_the_4000_mm3_overlap()
     {
         var a = await CubeAsync("mateA");
