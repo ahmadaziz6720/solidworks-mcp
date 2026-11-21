@@ -229,7 +229,9 @@ public sealed class SwSession : IDisposable
         if (app is null)
         {
             var running = SolidWorksProcessIds();
-            if (running.Count > 0) throw SessionNotes.Unreachable(running, SessionNotes.OtherServerProcesses());
+            if (running.Count > 0)
+                throw SessionNotes.Unreachable(running, SessionNotes.OtherServerProcesses(),
+                    running.Any(id => SessionNotes.StartedThroughCom(SessionNotes.CommandLine(id))));
             // Auto-launch only on the very first attach of this process; after a disconnect only sw_connect may launch.
             bool mayLaunch = launch || (Options.AutoLaunch && !_everAttached);
             if (!mayLaunch)
@@ -292,21 +294,34 @@ public sealed class SwSession : IDisposable
         return hr == 0 ? obj as ISldWorks : null;
     }
 
+    /// <summary>
+    /// Starts SLDWORKS.exe as the user would, window shown, and attaches once it is in the running object table. Never
+    /// through COM activation (S89): that runs it with -Embedding, out of the table, so no later process could reach it.
+    /// </summary>
     private ISldWorks Launch()
     {
         _log.LogInformation("Launching SOLIDWORKS");
-        var type = Type.GetTypeFromProgID("SldWorks.Application")
-                   ?? throw new SwException(ErrorCodes.NotConnected, "SOLIDWORKS is not installed (ProgID SldWorks.Application not registered).");
-        var app = (ISldWorks)(Activator.CreateInstance(type)
-                              ?? throw new SwException(ErrorCodes.NotConnected, "Could not start SOLIDWORKS."));
-        app.Visible = true;
-        app.UserControl = true; // the user owns this instance: it stays open when the server exits
+        string? exe = null;
+        if (NativeMethods.CLSIDFromProgID("SldWorks.Application", out var clsid) == 0)
+        {
+            using var key = Microsoft.Win32.Registry.ClassesRoot.OpenSubKey($@"CLSID\{clsid:B}\LocalServer32");
+            exe = SessionNotes.ExeFromLocalServer(key?.GetValue(null) as string);
+        }
+        if (exe is null || !File.Exists(exe))
+            throw new SwException(ErrorCodes.NotConnected, "SOLIDWORKS is not installed (SldWorks.Application has no executable registered).");
+        using var proc = Process.Start(new ProcessStartInfo(exe) { UseShellExecute = true })
+                         ?? throw new SwException(ErrorCodes.NotConnected, "Could not start SOLIDWORKS.");
         var deadline = DateTime.UtcNow + TimeSpan.FromSeconds(180);
+        ISldWorks? app = null;
         while (DateTime.UtcNow < deadline)
         {
+            if (proc.HasExited)
+                throw new SwException(ErrorCodes.NotConnected, $"SOLIDWORKS exited during its startup (exit code {proc.ExitCode}).",
+                    "Ask the user to start SOLIDWORKS and look at what it says (license, installation).");
             try
             {
-                if (app.StartupProcessCompleted) return app;
+                app ??= TryGetRunning();
+                if (app is not null && app.StartupProcessCompleted) return app;
             }
             catch (COMException) { /* still starting */ }
             Thread.Sleep(500);

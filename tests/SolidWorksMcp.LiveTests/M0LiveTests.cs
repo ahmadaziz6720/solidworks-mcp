@@ -44,6 +44,42 @@ public class M0LiveTests(LiveFixture fx) : LiveTest(fx)
     }
 
     [Fact]
+    public async Task Launch_starts_a_SOLIDWORKS_that_any_later_process_reaches()
+    {
+        // S89: SOLIDWORKS started through COM (-Embedding) was not in the running object table, so only the server process
+        // that launched it could reach it; a restarted server, or any other client, got "Operation unavailable".
+        Assert.SkipWhen(Fx.UserDocsAtStart.Count > 0 || (await new DocumentService(S).ListAsync()).Documents.Count > 0,
+            "This test closes SOLIDWORKS: run it with no document open.");
+        foreach (var p in System.Diagnostics.Process.GetProcessesByName("SLDWORKS"))
+            using (p) { p.Kill(); p.WaitForExit(60_000); }
+
+        using (var launcher = new SwSession(SwOptions.FromEnvironment()))
+        {
+            var c = await new SessionService(launcher).ConnectAsync(launch: true);
+            Assert.True(c.Launched);
+        }
+
+        string vbs = Path.Combine(Path.GetTempPath(), $"swmcp_rot_{Guid.NewGuid():N}.vbs");
+        File.WriteAllText(vbs, "Set sw = GetObject(, \"SldWorks.Application\")\r\nWScript.Echo \"revision \" & sw.RevisionNumber()\r\n");
+        try
+        {
+            var psi = new System.Diagnostics.ProcessStartInfo("cscript.exe", $"//nologo \"{vbs}\"")
+            { RedirectStandardOutput = true, RedirectStandardError = true, UseShellExecute = false };
+            using var cs = System.Diagnostics.Process.Start(psi)!;
+            string output = cs.StandardOutput.ReadToEnd() + cs.StandardError.ReadToEnd();
+            cs.WaitForExit(60_000);
+            Assert.True(output.Contains("revision 31."), "An outside COM client could not reach the launched SOLIDWORKS: " + output.Trim());
+        }
+        finally { File.Delete(vbs); }
+
+        // The fixture's session, attached to the instance killed above, finds the new one by itself.
+        var again = await new SessionService(S).ConnectAsync(false);
+        Assert.StartsWith("a new one", again.Process);
+        // SOLIDWORKS' own startup popup closes by itself a few seconds after the start; the base class checks for dialogs.
+        for (int i = 0; i < 40 && S.ListDialogs().Count > 0; i++) await Task.Delay(1000);
+    }
+
+    [Fact]
     public async Task Status_names_the_commit_the_server_was_built_from()
     {
         var st = await new SessionService(S).StatusAsync();

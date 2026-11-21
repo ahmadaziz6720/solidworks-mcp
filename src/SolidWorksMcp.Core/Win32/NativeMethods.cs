@@ -60,6 +60,21 @@ internal static class NativeMethods
     [DllImport("user32.dll")]
     public static extern IntPtr GetWindow(IntPtr hWnd, uint cmd);
 
+    // --- Another process's command line (S89: a SOLIDWORKS started through COM runs with -Embedding) ---
+
+    public const uint PROCESS_QUERY_LIMITED_INFORMATION = 0x1000;
+    public const int ProcessCommandLineInformation = 60;
+
+    [DllImport("kernel32.dll", SetLastError = true)]
+    public static extern IntPtr OpenProcess(uint access, [MarshalAs(UnmanagedType.Bool)] bool inherit, int processId);
+
+    [DllImport("kernel32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static extern bool CloseHandle(IntPtr handle);
+
+    [DllImport("ntdll.dll")]
+    public static extern int NtQueryInformationProcess(IntPtr process, int infoClass, IntPtr info, int length, out int returnLength);
+
     // --- COM activation (Marshal.GetActiveObject does not exist in modern .NET) ---
 
     [DllImport("ole32.dll", CharSet = CharSet.Unicode)]

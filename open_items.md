@@ -17,7 +17,7 @@ Closed all the same, its PR named, and an open PR no longer holds an item in Wai
 item sent upstream ends with `**Upstream: PR #9, open.**`, one per PR or issue
 (`merged`, `closed unmerged`; an issue `open` or `closed`), kept to its state.
 
-**Open: S4, S5, S7, S10 to S12, S33, S34, S52, S60, S64, S65, S79 to S82, S84 to S86, S89, S90, S92 to S94, S96 to S106, S108, S109, S111, S114, S115.**
+**Open: S4, S5, S7, S10 to S12, S33, S34, S52, S60, S64, S65, S79 to S82, S84 to S86, S90, S92 to S94, S96 to S106, S108, S109, S111, S114, S115.**
 Sorted 2026-11-22, the scenario test of build `20261122-002030` (findings 2026-11-22): S112,
 S113 and S95 held and closed; S114 new, taken into the run's group 3; S115 new, not in this
 run; S5 met again. The run goes on with group 3.
@@ -470,9 +470,9 @@ its point.
   kept) and this repo, each read back from `~/.claude.json` on the new exe; tag `build-20261122-002030` pushed and read back, release page with
   no files (`ahmadaziz6720/solidworks-mcp` releases, `build-20261122-002030`).
   Cost: Sonnet, see the report.
-- [x] Group 2: scenario test (session id: `f634dedd-ccc6-4d15-b29a-e09cb7db3fd5`), its entry committed and sorted (entry `561c437`)
+- [x] Group 2: scenario test (session id: `f634dedd-ccc6-4d15-b29a-e09cb7db3fd5`), its entry committed and sorted (entry `561c437`) (`17d73cb`)
   Started 00:23 2026-11-22, free memory 2165 MB with SOLIDWORKS restarted from its exe; launcher `%LOCALAPPDATA%\solidworks-mcp\livetest\run-1121\check2.ps1` (`-Resume` to resume), pid 17196 died at once (the launcher path, holding a space, not quoted in `-File`), started again 00:24 quoted, pid 16752, output check2.out.txt and check2.err.txt beside it. The Haiku watcher returned twice before the check ended, so the session watched it by a background until-loop of its own instead. Ended `EXIT 0` 00:29 with the entry. Sorted: S112, S113 and S95 held and closed; S114 new (S113's edges), taken into group 3; S115 new, not in this run; S5 met again. Release page notes updated.
-- [ ] S89: committed
+- [x] S89: committed
 - [ ] S92 (d): committed
 - [ ] S81: committed
 - [ ] S109: probed
@@ -1683,53 +1683,6 @@ binding went to the name `sketch_constrain` returned. Not said whether S54 (c)'s
 fired; the order the session used avoided the case.
 Decided 2026-11-21 by the owner: (a) taken into the run of 2026-11-21, group 7; (b) stays Open (`## Run 2026-11-21`).
 
-### S89 - SOLIDWORKS started by `sw_connect launch` cannot be reached from a later server process - OPEN 2026-11-16
-
-Sorted out of the entry of 2026-11-16 (the scenario test of build `20261116-205845`), point
-6; S60 (b) again, closed 2026-11-14 for another cause. SOLIDWORKS started by `sw_connect
-{launch:true}` runs as `SLDWORKS.exe -Embedding` (parent: the DCOM launcher). After the
-session's client was stopped and resumed, the new server process got `NOT_CONNECTED:
-SOLIDWORKS is running (pid …) but can't be reached over COM: it may still be starting, or it
-runs with different privileges …` on every call, `sw_connect` too, with SOLIDWORKS
-responding, the old server process gone and none listed, same user and level. Likely: a
-SOLIDWORKS started through COM is not in the running object table, so only the process that
-started it holds it. Workaround: SOLIDWORKS stopped (a throwaway part's unsaved changes lost)
-and started from its exe; `sw_connect` attached at once. Met when a headless scenario test is
-stopped and resumed, which the run's check now does unasked.
-
-Proposed: `launch` starts the exe, so any later process attaches; the `NOT_CONNECTED` hint
-names a SOLIDWORKS started with `-Embedding` by another server process. Local, in
-`SessionService` and `SessionNotes`, not group 4's files: for the next plan, not this run.
-Not decided.
-Met again 2026-11-17 (findings 2026-11-17, "a turned printed part with a flange and a swept
-internal thread", point 1), build `20261117-012659`: SOLIDWORKS started by an earlier
-session's `sw_connect {launch:true}` (after a restart for S92) still ran and responded, with
-no main window title, when the next session's server started; `sw_status` and `sw_connect`
-both gave `NOT_CONNECTED: ... it may still be starting, or it runs with different privileges
-…`, no other `solidworks-mcp` process running. Workaround as above. A tell the hint could
-use: a process with no main window and no other server alive is this case, never "still
-starting".
-Met again 2026-11-17 (findings 2026-11-17, "a part's hole positions driven by globals after a
-restart", point 5), the same build, another side of it: `sw_connect {launch:true}` started
-SOLIDWORKS with no visible window (`MainWindowTitle` empty). The user, seeing none, started a
-second instance and opened an assembly there; the next `doc_open` of a part in the hidden
-instance came back `"readOnly":true` with "the file is open elsewhere (sharing violation)",
-and `sw_status` listed only the hidden instance's documents. The warning was clear; nothing
-showed that a second `SLDWORKS.exe` was running. Workaround: the hidden instance's documents
-closed (none dirty), its process ended, `sw_connect` attached to the user's, then
-`doc_activate {allowEdit:true}` on the user's word. Proposed by the session: `sw_status`
-lists every `SLDWORKS.exe` with its start time and which one the server is attached to, and
-`launch` shows the window (or says it is hidden); the proposal above (`launch` starts the exe)
-covers the second.
-Met again 2026-11-18 (findings 2026-11-18, "a custom sheet format made from the ISO one with
-`vba_run`", point 1), build `20261118-060615`: after the server process was restarted (to
-turn on `SWMCP_VBA`), every call failed `NOT_CONNECTED` on a SOLIDWORKS that `sw_connect
-{launch:true}` had started. An outside COM client's `GetActiveObject("SldWorks.Application")`
-failed the same way (`Operation unavailable`), which bears out the running object table as
-the cause. Workaround as above, by the user; unsaved drawing properties lost and set again
-(9 calls, two user round trips).
-Decided 2026-11-21 by the owner: taken into the run of 2026-11-21, group 3: `launch` starts the exe, so any later process attaches; the hint names a SOLIDWORKS started through COM (`## Run 2026-11-21`).
-
 ### S90 - `drw_view_section` with no `atMm` places a section so its own label overlaps the title block - OPEN 2026-11-17
 
 Sorted out of the entry of 2026-11-17 (the scenario test of build `20261117-012659`), point
@@ -2159,3 +2112,91 @@ sheet's there), which S1 found false for sections and details; its live test onl
 the cut, so a circle landing elsewhere on the part would pass.
 
 **Upstream: PR #1, open.**
+
+### S89 - SOLIDWORKS started by `sw_connect launch` cannot be reached from a later server process - BUILT 2026-11-22, proof: the scenario test of the group 3 build
+
+Sorted out of the entry of 2026-11-16 (the scenario test of build `20261116-205845`), point
+6; S60 (b) again, closed 2026-11-14 for another cause. SOLIDWORKS started by `sw_connect
+{launch:true}` runs as `SLDWORKS.exe -Embedding` (parent: the DCOM launcher). After the
+session's client was stopped and resumed, the new server process got `NOT_CONNECTED:
+SOLIDWORKS is running (pid …) but can't be reached over COM: it may still be starting, or it
+runs with different privileges …` on every call, `sw_connect` too, with SOLIDWORKS
+responding, the old server process gone and none listed, same user and level. Likely: a
+SOLIDWORKS started through COM is not in the running object table, so only the process that
+started it holds it. Workaround: SOLIDWORKS stopped (a throwaway part's unsaved changes lost)
+and started from its exe; `sw_connect` attached at once. Met when a headless scenario test is
+stopped and resumed, which the run's check now does unasked.
+
+Proposed: `launch` starts the exe, so any later process attaches; the `NOT_CONNECTED` hint
+names a SOLIDWORKS started with `-Embedding` by another server process. Local, in
+`SessionService` and `SessionNotes`, not group 4's files: for the next plan, not this run.
+Not decided.
+Met again 2026-11-17 (findings 2026-11-17, "a turned printed part with a flange and a swept
+internal thread", point 1), build `20261117-012659`: SOLIDWORKS started by an earlier
+session's `sw_connect {launch:true}` (after a restart for S92) still ran and responded, with
+no main window title, when the next session's server started; `sw_status` and `sw_connect`
+both gave `NOT_CONNECTED: ... it may still be starting, or it runs with different privileges
+…`, no other `solidworks-mcp` process running. Workaround as above. A tell the hint could
+use: a process with no main window and no other server alive is this case, never "still
+starting".
+Met again 2026-11-17 (findings 2026-11-17, "a part's hole positions driven by globals after a
+restart", point 5), the same build, another side of it: `sw_connect {launch:true}` started
+SOLIDWORKS with no visible window (`MainWindowTitle` empty). The user, seeing none, started a
+second instance and opened an assembly there; the next `doc_open` of a part in the hidden
+instance came back `"readOnly":true` with "the file is open elsewhere (sharing violation)",
+and `sw_status` listed only the hidden instance's documents. The warning was clear; nothing
+showed that a second `SLDWORKS.exe` was running. Workaround: the hidden instance's documents
+closed (none dirty), its process ended, `sw_connect` attached to the user's, then
+`doc_activate {allowEdit:true}` on the user's word. Proposed by the session: `sw_status`
+lists every `SLDWORKS.exe` with its start time and which one the server is attached to, and
+`launch` shows the window (or says it is hidden); the proposal above (`launch` starts the exe)
+covers the second.
+Met again 2026-11-18 (findings 2026-11-18, "a custom sheet format made from the ISO one with
+`vba_run`", point 1), build `20261118-060615`: after the server process was restarted (to
+turn on `SWMCP_VBA`), every call failed `NOT_CONNECTED` on a SOLIDWORKS that `sw_connect
+{launch:true}` had started. An outside COM client's `GetActiveObject("SldWorks.Application")`
+failed the same way (`Operation unavailable`), which bears out the running object table as
+the cause. Workaround as above, by the user; unsaved drawing properties lost and set again
+(9 calls, two user round trips).
+Decided 2026-11-21 by the owner: taken into the run of 2026-11-21, group 3: `launch` starts the exe, so any later process attaches; the hint names a SOLIDWORKS started through COM (`## Run 2026-11-21`).
+Cause: `sw_connect {launch:true}` started SOLIDWORKS by COM activation
+(`Activator.CreateInstance`), which runs it as `SLDWORKS.exe -Embedding`; such an instance
+is not in the running object table, so only the process that created it holds it. Probed
+live: the instance so launched had its window titled (the server set `Visible`) after its
+launcher exited, and its command line read `... SLDWORKS.exe -Embedding`. Fix: `Launch`
+reads the exe from `SldWorks.Application`'s `LocalServer32`, starts it as a process
+(window shown, as the user would), and waits until it is in the running object table and
+`StartupProcessCompleted` (180 s, as before; an exe that exits during startup is
+`NOT_CONNECTED` with its exit code). `NOT_CONNECTED` for a running SOLIDWORKS out of the
+table reads each `SLDWORKS.exe`'s command line (`SessionNotes.CommandLine`, by
+`NtQueryInformationProcess`); with `-Embedding` it says "it was started through COM by an
+earlier server process: only it could reach it", the hint "close that SOLIDWORKS (saving
+their work; with no window shown, end SLDWORKS.exe) and start SOLIDWORKS from its exe, then
+call sw_connect", never "still starting"; with another server process running it names
+that process as the one that started it, keeping "never end it yourself". No description
+changed.
+Before: the new `M0LiveTests.Launch_starts_a_SOLIDWORKS_that_any_later_process_reaches`
+(SOLIDWORKS ended, `sw_connect {launch:true}` from a fresh session, then a VBScript
+`GetObject(, "SldWorks.Application")` in `cscript`) failed, "An outside COM client could
+not reach the launched SOLIDWORKS: ... Microsoft VBScript runtime error: ActiveX component
+can't create object: 'GetObject'", and the fixture's own session then got the old
+`NOT_CONNECTED ... it may still be starting ...`. After: it passes (the outside client reads
+revision 31, the fixture's session finds "a new one"), 1/1; with `Connect_reports_the_revision`,
+`Connect_says_whether_it_found_the_same_SOLIDWORKS_process_as_before` and
+`Status_gives_a_failed_call_s_error_code_not_its_text`, 3/3; unit tests 322/322 (new in
+`SessionNoteTests`: the hint with and without another server process, the `-Embedding`
+tell, the command line read, the exe from a `LocalServer32` value); `check_repo` ok.
+Made stricter: a SOLIDWORKS started through COM is no longer reported as possibly still
+starting; nothing that passed is refused.
+Decided 2026-11-22 by the run, not the owner: the tell is `-Embedding` on `SLDWORKS.exe`'s
+command line, not the empty main window title the plan named, because the probe showed a
+COM-started SOLIDWORKS with a titled window, and one still starting has no title either:
+the command line marks this case and only it.
+Decided 2026-11-22 by the run, not the owner: with another server process running, a
+SOLIDWORKS started through COM is named so too, the hint naming that process, because
+`-Embedding` holds whichever process started it, and "still starting" is false either way.
+Decided 2026-11-22 by the run, not the owner: the live test ends SOLIDWORKS itself and
+skips when a document is open, because launch can only be tested with none running and
+the assembly fixture needs one at its start.
+Local: on `sw2023`, in the commit that moves it here; not yet in a build. Upstream: not yet
+decided.
