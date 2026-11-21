@@ -418,7 +418,10 @@ server change since build `20261114-024455`).
   75 min. Unit 302. No description changed, `docs/tools.md` not regenerated. Registered in `claude_solidworks` and
   `clove sorter` (its `SWMCP_VBA=on` kept); tag `build-20261121-175345` pushed and read back, release page with no files.
   Cost: Sonnet, see the report.
-- [ ] Group 5 again: scenario test (session id: ), its entry committed and sorted
+- [ ] Group 5 again: scenario test (session id: `9ec9afb8-62d2-437f-a8ca-22e1206ae72a`), its entry committed and sorted
+  Started 2026-11-21 17:56, detached (launcher pid 12152, `check5b.ps1` in the session's
+  scratchpad, its output `check5b.out.txt`, an `EXIT` line at its end), after `dotnet
+  build-server shutdown`, 2.7 GB free with SOLIDWORKS started from its exe.
 - [ ] The report
 
 ## Open
