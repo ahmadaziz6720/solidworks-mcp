@@ -2453,3 +2453,5 @@ Build `bin\0.1.0-20261122-030022` (`serverVersion` `0.1.0-sw2023-20261122-030022
    assembly 133 685.844, back to 60, closed discarded, files unchanged; a 1:2 plan with two
    sections on the owner's A3 template, 1 and 3 hatched faces; `doc_undo` in a drawing refused.
    Not run: the ten-global intent round trip (point 5's state refused it).
+
+Sorted into S89 (2), checked; S117 (4), new; S118 (5), new; S92 (6), met again; S5 (7), met again, the rest of the regression held. Held: S116 (1), S114 (3); S112 (1), closed.
