@@ -2330,3 +2330,5 @@ process of the previous build was still running beside it (`otherServerPids`), n
    force rebuild 174 346.977 mm³, mass 221.42 g, area 116 546.84 mm²; STEP export and `doc_open` of
    it, 16 surface bodies (S5, as before); a 1:2 plan with two sections on the owner's A3 template, 1
    and 3 hatched faces, `doc_save as` .SLDDRW written; a hinge assembly read-only, interference 0.
+
+Sorted into S111 (5), new; S5 (7), met again, the rest of the regression held. Held: S61 (1), S83 (3), S110 (4), S107 (6). Not filed (2): seen with S61 (a), not faults (the STEP component named `<name>.step-2`, which the result names; the reopen order).
