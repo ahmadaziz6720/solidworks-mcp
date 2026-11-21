@@ -17,7 +17,10 @@ Closed all the same, its PR named, and an open PR no longer holds an item in Wai
 item sent upstream ends with `**Upstream: PR #9, open.**`, one per PR or issue
 (`merged`, `closed unmerged`; an issue `open` or `closed`), kept to its state.
 
-**Open: S4, S5, S7, S10 to S12, S33, S34, S52, S60, S64, S65, S79 to S82, S84 to S86, S89, S90, S92 to S94, S96 to S106, S108, S109, S111.**
+**Open: S4, S5, S7, S10 to S12, S33, S34, S52, S60, S64, S65, S79 to S82, S84 to S86, S89, S90, S92 to S94, S96 to S106, S108, S109, S111, S114, S115.**
+Sorted 2026-11-22, the scenario test of build `20261122-002030` (findings 2026-11-22): S112,
+S113 and S95 held and closed; S114 new, taken into the run's group 3; S115 new, not in this
+run; S5 met again. The run goes on with group 3.
 Sorted 2026-11-21, the scenario test of build `20261121-205309` (findings 2026-11-21): S61,
 S83, S107 and S110 held and closed, S61 (a) in every case, the three that failed before
 included; S111 new (`asm_mate_list` gives no limits of a limit mate), not in this run, for
@@ -284,6 +287,10 @@ its point.
     `dialog_list` when the connection goes. A dialog found: the `NOT_CONNECTED` hint names a
     modal dialog where one is up (read through Win32, not COM), a unit test of the hint. Not
     reproduced: Open with the probe recorded.
+  - **S114** (default model), added by group 2's check: a component's `dimension_set` from an
+    assembly makes `doc_undo` refuse naming it, as S113's changes do; an undo that runs names
+    the feature restored or removed; the refusal after an undo says the step "may be"
+    another's. Test: (b)'s case (fails now: `VERIFY_FAILED`), then (c) and (a).
 - **Group 4, feature results that read as faults** (`FeatureVerifier.cs`,
   `PartFeatureService.Mirror.cs`, `PartFeatureService.cs`, `FeatureService.Fillets.cs`,
   `SketchService.cs` regions, `Snapshot.cs`):
@@ -463,12 +470,13 @@ its point.
   kept) and this repo, each read back from `~/.claude.json` on the new exe; tag `build-20261122-002030` pushed and read back, release page with
   no files (`ahmadaziz6720/solidworks-mcp` releases, `build-20261122-002030`).
   Cost: Sonnet, see the report.
-- [ ] Group 2: scenario test (session id: `f634dedd-ccc6-4d15-b29a-e09cb7db3fd5`), its entry committed and sorted
-  Started 00:23 2026-11-22, free memory 2165 MB with SOLIDWORKS restarted from its exe; launcher `%LOCALAPPDATA%\solidworks-mcp\livetest\run-1121\check2.ps1` (`-Resume` to resume), pid 17196 died at once (the launcher path, holding a space, not quoted in `-File`), started again 00:24 quoted, pid 16752, output check2.out.txt and check2.err.txt beside it; watched by a Haiku subagent.
+- [x] Group 2: scenario test (session id: `f634dedd-ccc6-4d15-b29a-e09cb7db3fd5`), its entry committed and sorted (entry `561c437`)
+  Started 00:23 2026-11-22, free memory 2165 MB with SOLIDWORKS restarted from its exe; launcher `%LOCALAPPDATA%\solidworks-mcp\livetest\run-1121\check2.ps1` (`-Resume` to resume), pid 17196 died at once (the launcher path, holding a space, not quoted in `-File`), started again 00:24 quoted, pid 16752, output check2.out.txt and check2.err.txt beside it. The Haiku watcher returned twice before the check ended, so the session watched it by a background until-loop of its own instead. Ended `EXIT 0` 00:29 with the entry. Sorted: S112, S113 and S95 held and closed; S114 new (S113's edges), taken into group 3; S115 new, not in this run; S5 met again. Release page notes updated.
 - [ ] S89: committed
 - [ ] S92 (d): committed
 - [ ] S81: committed
 - [ ] S109: probed
+- [ ] S114: committed
 - [ ] Group 3: full live tests and release (build: )
 - [ ] Group 3: scenario test (session id: ), its entry committed and sorted
 - [ ] S84 (a) and (c): committed
@@ -543,6 +551,8 @@ point 4): the shelled tray's STEP, 16 surface bodies, as before.
 Met again 2026-11-21 (findings 2026-11-21, the scenario test of build `20261121-175345`,
 point 2): the shelled tray's STEP, 16 surface bodies, as before.
 Met again 2026-11-21 (findings 2026-11-21, the scenario test of build `20261121-205309`,
+point 7): a STEP export opened by `doc_open`, 16 surface bodies, as before.
+Met again 2026-11-22 (findings 2026-11-22, the scenario test of build `20261122-002030`,
 point 7): a STEP export opened by `doc_open`, 16 surface bodies, as before.
 
 **Upstream: issue #2, open.**
@@ -2088,6 +2098,49 @@ mate's `MinimumDistance` and `MaximumDistance`, an angle mate's `MinimumAngle` a
 `MaximumAngle`, which S110's refusal already reads). Local, small: not in this run, for
 the next plan. Not decided.
 
+### S114 - `doc_undo` after S113: the server's own step called not the server's, a component's dimension answered "Nothing changed", an undo that names nothing - OPEN 2026-11-22
+
+Sorted out of the entry of 2026-11-22 (the scenario test of build `20261122-002030`), points
+3 and 4, on S113's fix (Closed). (a) After a `doc_undo` had taken back the server's
+`dimension_set`, the refusal after `feature_rename` said "undo would take back a step before
+it that isn't the server's", though the step it would take back is the server's own
+`feature_extrude`: after an undo the server no longer knows which of its steps is next. The
+refusal itself was right. (b) In a two-part assembly opened read-only, `dimension_set`
+`D1@Boss-Extrude1@<component>-1.Part` 60 → 80 (+6283.185 mm³), then `doc_undo`:
+`VERIFY_FAILED` "Nothing changed: SOLIDWORKS had nothing to undo, or the last step can't be
+undone. Hint: Check the model with feature_list."; the length stayed 80. The same with a
+mate suppressed first (a suppress alone is undone there): the mate still suppressed, the
+length 80. So a component's dimension set from an assembly leaves no undo step the
+assembly's undo reaches, the server counts it as one, and the answer is the generic
+"Nothing changed" in place of S113's refusal naming `dimension_set`. Nothing was lost; not
+reported `ok`. (c) The undo that ran (a mate's suppress taken back) returned only
+`{"steps":1}`, without naming the feature restored or removed, where `doc_undo`'s
+description promises it.
+
+Local, small, in group 2's files (`doc_undo` and `SwContext`'s undo accounting).
+Decided 2026-11-22 by the run, not the owner: (a) after an undo the refusal says the step it
+would take back "may be" another's, or the server tracks which of its steps is next; (b) a
+component's `dimension_set` from an assembly counts as a change that left no undo step there,
+so `doc_undo` refuses naming `dimension_set`, as S113 does; (c) an undo that runs names the
+feature restored or removed. Test to start from: (b)'s case, a two-part assembly, a
+component's dimension set from it, `doc_undo` refused naming `dimension_set` (fails now:
+`VERIFY_FAILED`); (c) a suppress then `doc_undo` names the feature; (a) the refusal's words
+after an undo. Default model.
+Decided 2026-11-22 by the run, not the owner: taken into group 3, by the run's rule "a new
+point, small and in the group's files, a later step of this run ... taken into the next
+group", because it is a small change to group 2's undo accounting, found by group 2's check.
+
+### S115 - `dimension_list` on an assembly lists no dimensions, though a component's dimension is set from there - OPEN 2026-11-22
+
+Sorted out of the entry of 2026-11-22 (the scenario test of build `20261122-002030`), point 6.
+`dimension_list` on a two-part assembly returned `"dimensions":[], "total":0`, though
+`dimension_set` sets a component's dimension from there by `D1@<feature>@<component>-1.Part`;
+the name had to be known beforehand. A missing option, not reported `ok` while wrong.
+
+Proposed: `dimension_list` on an assembly lists the components' dimensions by the names
+`dimension_set` takes there (all, or one component's), beside the assembly's own. Local,
+small: not in this run, for the next plan. Not decided.
+
 ## Waiting
 
 ### S1 - `drw_view_section` / `drw_view_detail` drew in view-sketch coordinates - BUILT 2026-11-09, proof: a session that runs `drw_view_detail` and a view at an angle
@@ -2106,145 +2159,3 @@ sheet's there), which S1 found false for sections and details; its live test onl
 the cut, so a circle landing elsewhere on the part would pass.
 
 **Upstream: PR #1, open.**
-
-
-### S112 - S92 (a) and (b): the equation tools read S58 (b)'s state from the document's globals and name the restart - BUILT 2026-11-21, proof: the scenario test of build 20261122-002030
-
-S92 (a) and (b), split out of S92 (which stays Open for (c) and (d)) in the run of
-2026-11-21, group 2. (b) `equation_list` read every global set to a number cut at its
-decimal point (`60.4mm` as 60) and every derived row as 0, reported `ok`, in the state that
-refuses every equation until SOLIDWORKS is restarted; (a) in that state `equation_set`'s
-`VERIFY_FAILED` ("kept the previous equation ... (a value the dimension can't have, such as
-0?)", "evaluates to 0") blamed the expression. Cause: nothing compared a global's own
-number with the value SOLIDWORKS read back. Fix: a new interop-free
-`EquationReadback.Misreads` (`src/SolidWorksMcp.Core/Services/EquationReadback.cs`, linked
-into the unit tests) takes each global whose right-hand side is a plain number in a known
-unit and compares it with the value read, by the rule `equation_set`'s tier B already used
-(SI or document units; `Literal`, `UnitFactor`, `Agrees`, `LiteralAgrees` moved there,
-`EquationText` and `PropertiesService` forwarding). (b) `equation_list` warns on a
-difference, naming each global as read ("SOLIDWORKS reads "g" = 60.4mm as 60: ... the sign
-of the state in which SOLIDWORKS refuses or misreads every equation, in any document, until
-it is restarted. The values listed are not to be trusted ... restart SOLIDWORKS before any
-equation_set"); `equation_set` reads the sign before its first write and after its rebuild,
-and warns the same on a call whose checks passed. (a) While the sign shows, its
-`VERIFY_FAILED` names the state ("the expression is likely not at fault") with the hint
-"Save the open documents, restart SOLIDWORKS and repeat the call; the equation needs no
-change" in place of "Check the expression ...", and "kept the previous equation" drops its
-guess at the value; an `Add2` refusal says the same (not for a function's name). Before:
-`EquationReadbackTests` (8 tests) did not build, "error CS2001: Source file
-...\Services\EquationReadback.cs could not be found" (the function did not exist). After:
-unit tests 310/310 (the 8 new among them); live, the new
-`PropertiesLiveTests.Globals_with_decimals_read_back_as_written_and_carry_no_warning`
-(`g` = 60.4mm, `k` = 2.5mm, `s` = 0.5mm, `h` = "g" / 2 and a depth from `k`: no warning
-from `equation_set` or `equation_list`, the values 60.4, 2.5, 0.5, 30.2, 20) with every
-live test that calls `equation_list` or `equation_set` (the eleven equation tests of
-`PropertiesLiveTests` with `A_refused_plain_global_points_to_a_restart`, four of
-`FeatureManagementLiveTests`, the mate-angle one of `AssemblyLiveTests`), 17/17;
-`PropertiesOfflineTests` 22/22; `check_repo` ok; no description changed. No live case of
-the state: S92 (c)'s probe did not bring it on, so the warning and the refusal's words are
-proved by the unit tests only, and the scenario test reads the good state clean.
-Made stricter: `equation_list` and `equation_set` warn where they were silent; nothing
-that passed is refused.
-Decided 2026-11-21 by the run, not the owner: (a) and (b) moved to Waiting as a new item
-split out of S92, not as a second S92 heading, because one number heads one item
-(`board.py --check` fails a second one) and the format splits an item that way.
-Decided 2026-11-21 by the run, not the owner: only a global set to a plain number in a known
-unit is judged, not a row defined from others, because only its expected value is known
-without evaluating SOLIDWORKS' expression; a derived row read 0 is named in the warning's
-words instead.
-Decided 2026-11-21 by the run, not the owner: the sign is a warning, and `equation_set`
-writes on, because the plan asks for a warning and a refusal before the write could not be
-told from a document whose globals were edited outside the server's rule.
-Decided 2026-11-21 by the run, not the owner: an `Add2` refusal (`FEATURE_FAILED`) while the
-sign shows names the state too, beyond the plan's `VERIFY_FAILED`, because its hint blamed
-the syntax on the same evidence; a refused function name keeps its own reason.
-Local: on `sw2023`, `f2d3dc2`; in build `20261122-002030`. Upstream: not yet
-decided.
-
-### S113 - S79 (b): `doc_undo` refuses after a server change that left no SOLIDWORKS undo step, naming it and the step it would take back - BUILT 2026-11-21, proof: the scenario test of build 20261122-002030
-
-S79 (b), split out of S79 (which stays Open for (a)) in the run of 2026-11-21, group 2.
-`doc_undo` right after an `equation_set` that linked a variable to a 10 × 10 × 5 boss's
-depth took back the boss (`volumeDeltaMm3: -500`) and left the equation, reported `ok`.
-Cause: SOLIDWORKS keeps no undo step for some writes, so `EditUndo2` takes back the step
-before them, and the server counted them as steps of its own. Probed live on 2023 SP3
-(a boss, the call, `doc_undo`): no undo step after `equation_set`, `equation_delete`,
-`prop_set`, `prop_delete`, `feature_rename` and `appearance_set` (each took back the boss
-or the `dimension_set` before it); an undo step of its own after `material_set`,
-`dimension_set` and `feature_suppress_set`; `config_add` gave "Nothing changed". Fix: a
-write that leaves no undo step says so with `SwContext.NoUndoStep(change)` (replacing
-`FeatureManagementService`'s own helper, which only kept the count for `feature_rollback`,
-`doc_rebuild` and `doc_units_set`); `AfterWrite` then does not count it and, for a change
-(all of them but `doc_rebuild`), records the tool in the document's `NoUndoChanges` until
-the next counted write, which records itself as `LastUndoStep`. `doc_undo` refuses while
-any is on record (`NOT_SUPPORTED`): "The server's last change in 'X' (equation_set) left no
-SOLIDWORKS undo step: undo would take back the step before it instead, the server's
-feature_extrude, and leave the equation_set in place.", the hint naming the change's own
-tool, `feature_delete` and `dimension_set`. The description says it (trimmed, 400 to 398
-bytes). The undo that does run already names the features it removes
-(`Undo_after_a_fillet_removes_it`, and the probe's `removed: ["Boss-Extrude3"]`).
-Before: the new `FeatureManagementLiveTests.Undo_refuses_after_a_change_that_left_no_undo_step`
-failed, "Assert.Throws() Failure: No exception was thrown" (the undo ran). After: it
-passes (the equation, then `prop_set` and `feature_rename` refused with the boss kept, then
-a suppress undone again); with every `doc_undo`, `feature_rollback`, `doc_rebuild`,
-`doc_units_set`, `feature_rename` and equation-on-delete test of
-`FeatureManagementLiveTests`, the custom property, equation and appearance tests of
-`PropertiesLiveTests` and the two `doc_undo` tests of `DrawingLiveTests`, 36/36; the undo
-tests and `ContractTests.Tool_catalog_follows_the_conventions` again on the final code,
-6/6; unit tests 310/310; `--check-catalog` ok; `check_repo` ok.
-Made stricter: `doc_undo` refuses after those writes where it took back the wrong step;
-nothing else that passed is refused.
-Decided 2026-11-21 by the run, not the owner: the refusal holds until the next write that
-is an undo step, also after the change is set back with its own tool (which is itself no
-undo step), because the server cannot tell what `EditUndo2` would take back then either;
-the hint points to `feature_delete` and `dimension_set` for the step before.
-Decided 2026-11-21 by the run, not the owner: `feature_rollback` and `doc_units_set` refuse
-an undo after them too, `doc_rebuild` does not, because the first two change what the user
-would expect an undo to take back and the rebuild changes nothing.
-Decided 2026-11-21 by the run, not the owner: (b) moved to Waiting as a new item split out
-of S79, as S112 was out of S92, because one number heads one item.
-Local: on `sw2023`, `9c14d93`; in build `20261122-002030`. Upstream: not yet
-decided.
-
-### S95 - `dimension_list` marks a dimension an equation drives `driven: true`, which its description gives as a reference dimension - BUILT 2026-11-21, proof: the scenario test of build 20261122-002030
-
-Sorted out of the entry of 2026-11-17 ("a read-only check of a printed part driven by global
-variables", point 1), on build `20261117-012659`. `dimension_list` marked 38 of 42 dimensions
-`driven: true`, every one an equation drives, and only the four plain values without it. Its
-description says the flag is for reference dimensions, so the result reads as 38 reference
-dimensions in a part whose sketches are all fully defined. The values were right; reported
-`ok`. SOLIDWORKS gives `swDimensionDriven` for a dimension an equation drives (met in
-`dimension_set`, S74, Closed); earlier entries read `driven:true` as "an equation drives it"
-(S54, Closed).
-
-Proposed by the session: two fields, `reference` (a true reference dimension) and `equation`
-(the equation's text when one drives it), or the description saying what the flag means.
-Local. Not decided.
-Decided 2026-11-21 by the owner: taken into the run of 2026-11-21, group 2 (`## Run 2026-11-21`).
-Decided 2026-11-21 in the plan, not the owner: fields, `equation` given and `driven` only for a reference dimension, not the description's wording, because the tool list is at its byte budget and a field in a result costs none of it.
-Cause: SOLIDWORKS gives `swDimensionDriven` for a reference dimension and for one an equation
-drives alike, and `dimension_list` took `DrivenState` alone as the flag. Fix: a new
-`FeatureManagementLogic.WithEquation` (`FeatureManagementService.cs`) matches each listed
-dimension with the document's active equations by the rule `dimension_set` refuses by
-(`EquationOn`); a match gives the row `equation` (the equation's text, a new field of
-`DimensionInfo`) and no `driven`, any other row stays as it was, so `driven: true` is left to
-a dimension no equation drives, a reference one. The description is unchanged (it already
-says the flag is for reference dimensions). Before: the new
-`FeatureManagementLiveTests.Dimension_list_gives_the_equation_of_a_dimension_it_drives_and_marks_only_a_reference_dimension_driven`
-(an equation-driven width and a reference height) failed, "Assert.Null() Failure: Value of
-type 'Nullable<bool>' has a value, Expected: null, Actual: True". After: it passes, with the
-unit test `A_listed_dimension_an_equation_drives_gives_the_equation_and_no_driven_flag`, the
-two other `dimension_list` live tests, `Dimension_set_refuses_bad_values_unknown_names_and_an_open_sketch`
-and the unit test of `EquationOn` (6/6), then the mate-angle equation test and the limit-mate
-test of `AssemblyLiveTests` (2/2); `SolidWorksMcp.UnitTests` 310/310 (the new offline fact is
-in the live tests' project); `check_repo` ok; no description changed, so no catalog check.
-Made stricter: nothing is refused; `dimension_list` reports `driven` for fewer rows (not for
-one an equation drives) and `equation` for those.
-Decided 2026-11-21 by the run, not the owner: the reference dimension in the test is made with
-VBA (`DrivenState = 1`, the setter a user's "driven" checkbox calls), because the server
-refuses to add one (an over-defining dimension is removed) and the live tests hold no interop.
-Decided 2026-11-21 by the run, not the owner: only `dimension_list` changes, not the shared
-`DimensionInfo` of other tools' results (`driven` in `dimension_add`, feature results), because
-the item names that list and those results come from a dimension just made or set.
-Local: on `sw2023`, `929158d`; in build `20261122-002030`. Upstream: not yet
-decided.

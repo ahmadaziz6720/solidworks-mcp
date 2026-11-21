@@ -2378,3 +2378,5 @@ Build `bin\0.1.0-20261122-002030` (`serverVersion` `0.1.0-sw2023-20261122-002030
    components, plate fixed, shaft 2 mates without error, 127 402.659 mm³, shaft 60 → 80 from the
    assembly, 133 685.844 mm³, back to 60, closed discarded, files unchanged; a 1:2 plan with two
    sections on the owner's A3 template, 1 and 3 hatched faces.
+
+Sorted into S114 (3, 4), new; S115 (6), new; S5 (7), met again, the rest of the regression held. Held: S112 (1), S113 (2), S95 (5).

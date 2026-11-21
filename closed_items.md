@@ -3416,6 +3416,171 @@ the hint naming `dimension_tolerance_set` (type limit); following it, upper 42.5
 read back `limits: [15, 72.5]`, then 15 and 50 set, 80 refused naming "15 to 72.5". The
 limits are not in `asm_mate_list` (point 5): S111.
 
+### S112 - S92 (a) and (b): the equation tools read S58 (b)'s state from the document's globals and name the restart - CLOSED 2026-11-22
+
+S92 (a) and (b), split out of S92 (which stays Open for (c) and (d)) in the run of
+2026-11-21, group 2. (b) `equation_list` read every global set to a number cut at its
+decimal point (`60.4mm` as 60) and every derived row as 0, reported `ok`, in the state that
+refuses every equation until SOLIDWORKS is restarted; (a) in that state `equation_set`'s
+`VERIFY_FAILED` ("kept the previous equation ... (a value the dimension can't have, such as
+0?)", "evaluates to 0") blamed the expression. Cause: nothing compared a global's own
+number with the value SOLIDWORKS read back. Fix: a new interop-free
+`EquationReadback.Misreads` (`src/SolidWorksMcp.Core/Services/EquationReadback.cs`, linked
+into the unit tests) takes each global whose right-hand side is a plain number in a known
+unit and compares it with the value read, by the rule `equation_set`'s tier B already used
+(SI or document units; `Literal`, `UnitFactor`, `Agrees`, `LiteralAgrees` moved there,
+`EquationText` and `PropertiesService` forwarding). (b) `equation_list` warns on a
+difference, naming each global as read ("SOLIDWORKS reads "g" = 60.4mm as 60: ... the sign
+of the state in which SOLIDWORKS refuses or misreads every equation, in any document, until
+it is restarted. The values listed are not to be trusted ... restart SOLIDWORKS before any
+equation_set"); `equation_set` reads the sign before its first write and after its rebuild,
+and warns the same on a call whose checks passed. (a) While the sign shows, its
+`VERIFY_FAILED` names the state ("the expression is likely not at fault") with the hint
+"Save the open documents, restart SOLIDWORKS and repeat the call; the equation needs no
+change" in place of "Check the expression ...", and "kept the previous equation" drops its
+guess at the value; an `Add2` refusal says the same (not for a function's name). Before:
+`EquationReadbackTests` (8 tests) did not build, "error CS2001: Source file
+...\Services\EquationReadback.cs could not be found" (the function did not exist). After:
+unit tests 310/310 (the 8 new among them); live, the new
+`PropertiesLiveTests.Globals_with_decimals_read_back_as_written_and_carry_no_warning`
+(`g` = 60.4mm, `k` = 2.5mm, `s` = 0.5mm, `h` = "g" / 2 and a depth from `k`: no warning
+from `equation_set` or `equation_list`, the values 60.4, 2.5, 0.5, 30.2, 20) with every
+live test that calls `equation_list` or `equation_set` (the eleven equation tests of
+`PropertiesLiveTests` with `A_refused_plain_global_points_to_a_restart`, four of
+`FeatureManagementLiveTests`, the mate-angle one of `AssemblyLiveTests`), 17/17;
+`PropertiesOfflineTests` 22/22; `check_repo` ok; no description changed. No live case of
+the state: S92 (c)'s probe did not bring it on, so the warning and the refusal's words are
+proved by the unit tests only, and the scenario test reads the good state clean.
+Made stricter: `equation_list` and `equation_set` warn where they were silent; nothing
+that passed is refused.
+Decided 2026-11-21 by the run, not the owner: (a) and (b) moved to Waiting as a new item
+split out of S92, not as a second S92 heading, because one number heads one item
+(`board.py --check` fails a second one) and the format splits an item that way.
+Decided 2026-11-21 by the run, not the owner: only a global set to a plain number in a known
+unit is judged, not a row defined from others, because only its expected value is known
+without evaluating SOLIDWORKS' expression; a derived row read 0 is named in the warning's
+words instead.
+Decided 2026-11-21 by the run, not the owner: the sign is a warning, and `equation_set`
+writes on, because the plan asks for a warning and a refusal before the write could not be
+told from a document whose globals were edited outside the server's rule.
+Decided 2026-11-21 by the run, not the owner: an `Add2` refusal (`FEATURE_FAILED`) while the
+sign shows names the state too, beyond the plan's `VERIFY_FAILED`, because its hint blamed
+the syntax on the same evidence; a refused function name keeps its own reason.
+Local: on `sw2023`, `f2d3dc2`; in build `20261122-002030`. Upstream: not yet
+decided.
+Held 2026-11-22: the scenario test of build `20261122-002030` (findings 2026-11-22, point 1),
+in the good state: on a 60 × 40 × 10 block, one `equation_set` with `g` = 60.4mm, `k` =
+2.5mm, `s` = 0.5mm, `h` = "g" / 2 and the boss depth = "k" * 4 + "s" read back 60.4, 2.5,
+0.5, 30.2, 10.5, +1200 mm³, no warning, and `equation_list` the same values, no warning; on
+a part with ten globals and thirteen linked dimensions, `equation_list` clean and one batch
+of the ten globals to new values and back (173 487.816 then 108 553.103 mm³, one body), no
+warning. The restart state did not occur, so the warning and the refusal's words in that
+state stay proved by the unit tests only.
+
+### S113 - S79 (b): `doc_undo` refuses after a server change that left no SOLIDWORKS undo step, naming it and the step it would take back - CLOSED 2026-11-22
+
+S79 (b), split out of S79 (which stays Open for (a)) in the run of 2026-11-21, group 2.
+`doc_undo` right after an `equation_set` that linked a variable to a 10 × 10 × 5 boss's
+depth took back the boss (`volumeDeltaMm3: -500`) and left the equation, reported `ok`.
+Cause: SOLIDWORKS keeps no undo step for some writes, so `EditUndo2` takes back the step
+before them, and the server counted them as steps of its own. Probed live on 2023 SP3
+(a boss, the call, `doc_undo`): no undo step after `equation_set`, `equation_delete`,
+`prop_set`, `prop_delete`, `feature_rename` and `appearance_set` (each took back the boss
+or the `dimension_set` before it); an undo step of its own after `material_set`,
+`dimension_set` and `feature_suppress_set`; `config_add` gave "Nothing changed". Fix: a
+write that leaves no undo step says so with `SwContext.NoUndoStep(change)` (replacing
+`FeatureManagementService`'s own helper, which only kept the count for `feature_rollback`,
+`doc_rebuild` and `doc_units_set`); `AfterWrite` then does not count it and, for a change
+(all of them but `doc_rebuild`), records the tool in the document's `NoUndoChanges` until
+the next counted write, which records itself as `LastUndoStep`. `doc_undo` refuses while
+any is on record (`NOT_SUPPORTED`): "The server's last change in 'X' (equation_set) left no
+SOLIDWORKS undo step: undo would take back the step before it instead, the server's
+feature_extrude, and leave the equation_set in place.", the hint naming the change's own
+tool, `feature_delete` and `dimension_set`. The description says it (trimmed, 400 to 398
+bytes). The undo that does run already names the features it removes
+(`Undo_after_a_fillet_removes_it`, and the probe's `removed: ["Boss-Extrude3"]`).
+Before: the new `FeatureManagementLiveTests.Undo_refuses_after_a_change_that_left_no_undo_step`
+failed, "Assert.Throws() Failure: No exception was thrown" (the undo ran). After: it
+passes (the equation, then `prop_set` and `feature_rename` refused with the boss kept, then
+a suppress undone again); with every `doc_undo`, `feature_rollback`, `doc_rebuild`,
+`doc_units_set`, `feature_rename` and equation-on-delete test of
+`FeatureManagementLiveTests`, the custom property, equation and appearance tests of
+`PropertiesLiveTests` and the two `doc_undo` tests of `DrawingLiveTests`, 36/36; the undo
+tests and `ContractTests.Tool_catalog_follows_the_conventions` again on the final code,
+6/6; unit tests 310/310; `--check-catalog` ok; `check_repo` ok.
+Made stricter: `doc_undo` refuses after those writes where it took back the wrong step;
+nothing else that passed is refused.
+Decided 2026-11-21 by the run, not the owner: the refusal holds until the next write that
+is an undo step, also after the change is set back with its own tool (which is itself no
+undo step), because the server cannot tell what `EditUndo2` would take back then either;
+the hint points to `feature_delete` and `dimension_set` for the step before.
+Decided 2026-11-21 by the run, not the owner: `feature_rollback` and `doc_units_set` refuse
+an undo after them too, `doc_rebuild` does not, because the first two change what the user
+would expect an undo to take back and the rebuild changes nothing.
+Decided 2026-11-21 by the run, not the owner: (b) moved to Waiting as a new item split out
+of S79, as S112 was out of S92, because one number heads one item.
+Local: on `sw2023`, `9c14d93`; in build `20261122-002030`. Upstream: not yet
+decided.
+Held 2026-11-22: the scenario test of build `20261122-002030` (findings 2026-11-22, point 2),
+for its case: on a block, `doc_undo` after `equation_set` refused `NOT_SUPPORTED` naming
+`equation_set` and the step it would take back, the server's `feature_extrude`; after
+`prop_set` refused the same, naming `prop_set`; after `feature_rename` refused; after
+`dimension_set` 5 → 6 it ran (−78.54 mm³), after `feature_suppress_set` it ran (+392.699
+mm³); a force `doc_rebuild` on a part opened read-only, then `doc_undo`: `NOT_OWNED` (the
+rebuild not counted); a drawing refused as before. Points 3 and 4 went to S114: the
+refusal's words after an undo (the server's own step called not the server's), a
+component's dimension set from an assembly answered by the generic `VERIFY_FAILED` in place
+of the refusal, and an undo that ran returning only `{"steps":1}`.
+
+### S95 - `dimension_list` marks a dimension an equation drives `driven: true`, which its description gives as a reference dimension - CLOSED 2026-11-22
+
+Sorted out of the entry of 2026-11-17 ("a read-only check of a printed part driven by global
+variables", point 1), on build `20261117-012659`. `dimension_list` marked 38 of 42 dimensions
+`driven: true`, every one an equation drives, and only the four plain values without it. Its
+description says the flag is for reference dimensions, so the result reads as 38 reference
+dimensions in a part whose sketches are all fully defined. The values were right; reported
+`ok`. SOLIDWORKS gives `swDimensionDriven` for a dimension an equation drives (met in
+`dimension_set`, S74, Closed); earlier entries read `driven:true` as "an equation drives it"
+(S54, Closed).
+
+Proposed by the session: two fields, `reference` (a true reference dimension) and `equation`
+(the equation's text when one drives it), or the description saying what the flag means.
+Local. Not decided.
+Decided 2026-11-21 by the owner: taken into the run of 2026-11-21, group 2 (`## Run 2026-11-21`).
+Decided 2026-11-21 in the plan, not the owner: fields, `equation` given and `driven` only for a reference dimension, not the description's wording, because the tool list is at its byte budget and a field in a result costs none of it.
+Cause: SOLIDWORKS gives `swDimensionDriven` for a reference dimension and for one an equation
+drives alike, and `dimension_list` took `DrivenState` alone as the flag. Fix: a new
+`FeatureManagementLogic.WithEquation` (`FeatureManagementService.cs`) matches each listed
+dimension with the document's active equations by the rule `dimension_set` refuses by
+(`EquationOn`); a match gives the row `equation` (the equation's text, a new field of
+`DimensionInfo`) and no `driven`, any other row stays as it was, so `driven: true` is left to
+a dimension no equation drives, a reference one. The description is unchanged (it already
+says the flag is for reference dimensions). Before: the new
+`FeatureManagementLiveTests.Dimension_list_gives_the_equation_of_a_dimension_it_drives_and_marks_only_a_reference_dimension_driven`
+(an equation-driven width and a reference height) failed, "Assert.Null() Failure: Value of
+type 'Nullable<bool>' has a value, Expected: null, Actual: True". After: it passes, with the
+unit test `A_listed_dimension_an_equation_drives_gives_the_equation_and_no_driven_flag`, the
+two other `dimension_list` live tests, `Dimension_set_refuses_bad_values_unknown_names_and_an_open_sketch`
+and the unit test of `EquationOn` (6/6), then the mate-angle equation test and the limit-mate
+test of `AssemblyLiveTests` (2/2); `SolidWorksMcp.UnitTests` 310/310 (the new offline fact is
+in the live tests' project); `check_repo` ok; no description changed, so no catalog check.
+Made stricter: nothing is refused; `dimension_list` reports `driven` for fewer rows (not for
+one an equation drives) and `equation` for those.
+Decided 2026-11-21 by the run, not the owner: the reference dimension in the test is made with
+VBA (`DrivenState = 1`, the setter a user's "driven" checkbox calls), because the server
+refuses to add one (an over-defining dimension is removed) and the live tests hold no interop.
+Decided 2026-11-21 by the run, not the owner: only `dimension_list` changes, not the shared
+`DimensionInfo` of other tools' results (`driven` in `dimension_add`, feature results), because
+the item names that list and those results come from a dimension just made or set.
+Local: on `sw2023`, `929158d`; in build `20261122-002030`. Upstream: not yet
+decided.
+Held 2026-11-22: the scenario test of build `20261122-002030` (findings 2026-11-22, point 5):
+on a part with ten globals, `dimension_list` gave `equation` (the equation's text) and no
+`driven` for each of the 14 dimensions an equation drives, the five others (three Hole
+Wizard values, two pattern counts, a fillet) plain; on a block the equation-driven depth
+the same. A true reference dimension was not tested live (`vbaEnabled` false, and the
+server makes none); the fix's live test covers it.
+
 ## Not items
 
 - **SW 2023 interop patch** (`27e8c25`): `swCustomInfoEquation` case removed,
