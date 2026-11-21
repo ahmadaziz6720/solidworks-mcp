@@ -395,7 +395,7 @@ its point.
 - [x] S61 (a) a third time: committed (0d05bd7)
 - [x] S83: committed (49a57fb)
 - [x] S107: committed (70e23a3)
-- [x] S110: committed
+- [x] S110: committed (f3617b0)
 - [ ] Group 1: full live tests and release (build: )
 - [ ] Group 1: scenario test (session id: ), its entry committed and sorted
 - [ ] S92 (c): probed
