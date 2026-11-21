@@ -779,6 +779,30 @@ public class FeatureManagementLiveTests(LiveFixture fx) : LiveTest(fx)
     }
 
     [Fact]
+    public async Task Undo_names_what_it_took_back_and_after_an_undo_the_server_step_next()
+    {
+        // S114 (c): an undone suppress returned only {"steps":1}, naming no feature. (a): after an undo, the refusal after a
+        // rename said the step it would take back "isn't the server's", though it was the server's feature_extrude.
+        var b = await BlockAsync("fm_undo_names");
+        await M.SuppressAsync(b.Doc, [b.Extrude], true);
+        var r = await M.UndoAsync(b.Doc, 1);
+        Assert.Equal([b.Extrude], r.Unsuppressed ?? []);
+        Assert.Equal(120000, await VolumeAsync(b.Doc), 1e-3);
+
+        await M.DimensionSetAsync(b.Doc, [new DimensionValue { Name = b.Depth, Value = 25 }]);
+        r = await M.UndoAsync(b.Doc, 1);
+        Assert.Equal([b.Depth], r.Dimensions ?? []);
+        Assert.Equal(-30000, r.VolumeDeltaMm3!.Value, 1e-3);
+
+        await M.RenameAsync(b.Doc, b.Extrude, "Blok");
+        var ex = await Assert.ThrowsAsync<SwException>(() => M.UndoAsync(b.Doc, 1));
+        Assert.Equal(ErrorCodes.NotSupported, ex.Code);
+        Assert.Contains("feature_rename", ex.Message);
+        Assert.Contains("the server's feature_extrude", ex.Message);
+        Assert.Equal(120000, await VolumeAsync(b.Doc), 1e-3);
+    }
+
+    [Fact]
     public async Task Undo_units_rebuild_and_delete_refuse_the_users_documents()
     {
         string title = await TestHooks.NewForeignPartAsync(S);

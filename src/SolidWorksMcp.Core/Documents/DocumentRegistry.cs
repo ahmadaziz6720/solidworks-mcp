@@ -61,8 +61,12 @@ internal sealed class DocumentRegistry
         /// prop_set, ...): EditUndo2 would take back the step before them, so doc_undo refuses while any is on record.
         /// </summary>
         public List<string> NoUndoChanges { get; } = [];
-        /// <summary>The tool of the server's last write that SOLIDWORKS keeps as an undo step (what EditUndo2 takes back next).</summary>
-        public string? LastUndoStep { get; set; }
+        /// <summary>
+        /// The tools of the server's counted writes, oldest first, the last one what EditUndo2 takes back next; doc_undo
+        /// takes off the steps it undid (S114 a). Kept to the last <see cref="MaxUndoSteps"/>.
+        /// </summary>
+        public List<string> UndoSteps { get; } = [];
+        public const int MaxUndoSteps = 64;
         /// <summary>The sketch the server opened and is editing (null when none).</summary>
         public string? ServerSketch { get; set; }
         /// <summary>The last sketch the server finished in this document (feature tools default to it).</summary>

@@ -220,6 +220,12 @@ public sealed class UndoResult : ToolResult
     public IReadOnlyList<string>? Restored { get; init; }
     /// <summary>"old → new" for undone renames.</summary>
     public IReadOnlyList<string>? Renamed { get; init; }
+    /// <summary>Features the undo suppressed again (an undone unsuppress) (S114 c).</summary>
+    public IReadOnlyList<string>? Suppressed { get; init; }
+    /// <summary>Features the undo unsuppressed (an undone suppress, a mate's included) (S114 c).</summary>
+    public IReadOnlyList<string>? Unsuppressed { get; init; }
+    /// <summary>Dimensions whose value the undo changed (an undone dimension_set) (S114 c).</summary>
+    public IReadOnlyList<string>? Dimensions { get; init; }
     public double? VolumeDeltaMm3 { get; init; }
     public ModelState? Model { get; init; }
     /// <summary>The sketch that is open again when the undone step was leaving it.</summary>
@@ -1031,7 +1037,8 @@ public sealed partial class FeatureManagementService(SwSession session)
 
             var after = Snapshot.Take(d);
             double? asmAfter = part ? null : MassVolume(d);
-            if (stampsBefore is not null) WarnChangedOthers(ctx, stampsBefore);
+            // S114 (b): a component's dimension changes the component's own document, which the assembly's undo doesn't reach.
+            if (stampsBefore is not null && WarnChangedOthers(ctx, stampsBefore)) ctx.NoUndoStep();
             return new DimensionSetResult
             {
                 Doc = ctx.Title(d),
@@ -1099,15 +1106,19 @@ public sealed partial class FeatureManagementService(SwSession session)
     /// S49: a component's dimension set through an assembly changes the component's own document (a part, a subassembly),
     /// which the assembly's result does not otherwise name; each one the call changed and left unsaved is named, always with
     /// its handle and access: a document the server had not listed yet (a part only the assembly loaded) is registered here.
+    /// Returns whether the call changed any other document at all.
     /// </summary>
-    private static void WarnChangedOthers(SwContext ctx, List<(IModelDoc2 Doc, int Stamp)> before)
+    private static bool WarnChangedOthers(SwContext ctx, List<(IModelDoc2 Doc, int Stamp)> before)
     {
+        bool any = false;
         foreach (var (o, stamp) in before)
         {
             try
             {
                 int now = o.GetUpdateStamp();
-                if (now == stamp || !o.GetSaveFlag()) continue;
+                if (now == stamp) continue;
+                any = true;
+                if (!o.GetSaveFlag()) continue;
                 bool listed = ctx.Documents.Find(o) is not null;
                 var e = ctx.Documents.Track(o);
                 // Registered by this call: its change is the server's (S57), so a later change by the user still warns.
@@ -1116,6 +1127,7 @@ public sealed partial class FeatureManagementService(SwSession session)
             }
             catch (Exception ex) when (!ComArgs.IsDisconnect(ex)) { /* a check, not the call's work */ }
         }
+        return any;
     }
 
     /// <summary>Sets the previous values back, rebuilds and checks them; returns a sentence for the error message.</summary>
@@ -1223,12 +1235,16 @@ public sealed partial class FeatureManagementService(SwSession session)
             {
                 // S79 (b): EditUndo2 would take back the step before them and report it, leaving them in place.
                 string what = string.Join(", ", entry.NoUndoChanges);
-                string instead = mine > 0 && entry.LastUndoStep is { } step
-                    ? $"the step before it instead, the server's {step}"
-                    : "a step before it that isn't the server's";
+                // S114 (a): the server's steps are kept in order, an undo taking them off, so the one next is known.
+                string prior = mine == 0 ? "a step before it that isn't the server's"
+                    : entry.UndoSteps.Count > 0 ? $"the step before it, the server's {entry.UndoSteps[^1]}"
+                    : "the step before it, which may not be the server's";
+                // S114 (b): in an assembly (a component's dimension) EditUndo2 was seen to take back nothing at all.
+                string effect = d.GetType() == (int)swDocumentTypes_e.swDocASSEMBLY
+                    ? $"the assembly's undo would leave the {what} in place, and may take back {prior} or nothing"
+                    : $"undo would take back {prior} instead, and leave the {what} in place";
                 throw new SwException(ErrorCodes.NotSupported,
-                    $"The server's last change in '{entry.Title}' ({what}) left no SOLIDWORKS undo step: undo would take back {instead}, " +
-                    $"and leave the {what} in place.",
+                    $"The server's last change in '{entry.Title}' ({what}) left no SOLIDWORKS undo step: {effect}.",
                     $"Set it back with its own tool ({what}, or its _set/_delete pair); remove an earlier feature with feature_delete " +
                     "or change it with dimension_set.");
             }
@@ -1244,6 +1260,8 @@ public sealed partial class FeatureManagementService(SwSession session)
 
             var before = Snapshot.Take(d);
             var namesBefore = before.Features.ToDictionary(kv => kv.Key, kv => SafeName(kv.Value));
+            var suppressedBefore = SuppressionMap(d);
+            var dimsBefore = DimensionValues(d);
             using var prefs = ctx.SystemPrefs();
             prefs.Toggle(SystemPrefIds.ShowErrorsEveryRebuild, false); // the What's Wrong box is modal
             d.EditUndo2(steps);
@@ -1253,9 +1271,16 @@ public sealed partial class FeatureManagementService(SwSession session)
             var restored = namesAfter.Where(kv => !namesBefore.ContainsKey(kv.Key)).Select(kv => kv.Value).ToList();
             var renamed = namesAfter.Where(kv => namesBefore.TryGetValue(kv.Key, out var old) && old != kv.Value)
                 .Select(kv => $"{namesBefore[kv.Key]} → {kv.Value}").ToList();
+            // S114 (c): an undone suppress or dimension removes no feature; name what it changed.
+            var toggled = SuppressionMap(d).Where(kv => suppressedBefore.TryGetValue(kv.Key, out var b) && b.Suppressed != kv.Value.Suppressed)
+                .Select(kv => kv.Value).ToList();
+            var suppressed = toggled.Where(t => t.Suppressed).Select(t => t.Name).ToList();
+            var unsuppressed = toggled.Where(t => !t.Suppressed).Select(t => t.Name).ToList();
+            var dims = ChangedDimensions(dimsBefore, DimensionValues(d));
             double dv = after.Volume - before.Volume;
             bool geometry = Math.Abs(dv) > VolEps || after.Faces != before.Faces || after.Bodies != before.Bodies;
-            if (removed.Count == 0 && restored.Count == 0 && renamed.Count == 0 && !geometry && d.GetUpdateStamp() == stamp)
+            if (removed.Count == 0 && restored.Count == 0 && renamed.Count == 0 && toggled.Count == 0 && dims.Count == 0 && !geometry
+                && d.GetUpdateStamp() == stamp)
                 throw new SwException(ErrorCodes.VerifyFailed, "Nothing changed: SOLIDWORKS had nothing to undo, or the last step can't be undone.",
                     "Check the model with feature_list.");
 
@@ -1270,6 +1295,8 @@ public sealed partial class FeatureManagementService(SwSession session)
             // The undone steps are no longer the server's to undo; this call itself is no new step (see SwContext.AfterWrite).
             entry.ServerWrites = Math.Max(0, mine - steps);
             entry.ServerWritesStamp = d.GetUpdateStamp();
+            entry.UndoSteps.RemoveRange(Math.Max(0, entry.UndoSteps.Count - steps), Math.Min(steps, entry.UndoSteps.Count));
+            ctx.UndoRecorded();
             bool part = IsPart(d);
             return new UndoResult
             {
@@ -1278,6 +1305,9 @@ public sealed partial class FeatureManagementService(SwSession session)
                 Removed = removed.Count == 0 ? null : removed,
                 Restored = restored.Count == 0 ? null : restored,
                 Renamed = renamed.Count == 0 ? null : renamed,
+                Suppressed = suppressed.Count == 0 ? null : suppressed,
+                Unsuppressed = unsuppressed.Count == 0 ? null : unsuppressed,
+                Dimensions = dims.Count == 0 ? null : dims,
                 VolumeDeltaMm3 = part ? Units.Mm3(dv) : null,
                 Model = part ? after.ToState() : null,
                 OpenSketch = open,

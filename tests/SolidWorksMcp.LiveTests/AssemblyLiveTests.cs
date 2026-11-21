@@ -2369,6 +2369,32 @@ public class AssemblyLiveTests(LiveFixture fx) : LiveTest(fx)
     }
 
     [Fact]
+    public async Task Undo_in_an_assembly_names_a_mate_unsuppressed_and_refuses_after_a_components_dimension()
+    {
+        // S114 (b): a component's dimension set from the assembly leaves no undo step the assembly's undo reaches; doc_undo
+        // answered VERIFY_FAILED "Nothing changed" with the length kept. (c): the undone suppress of a mate named nothing.
+        var a = await CubeAsync("undoA");
+        var b = await CubeAsync("undoB");
+        string asm = await NewAssemblyAsync("undo_asm");
+        string ca = (await InsertAsync(asm, a.Path, [0, 0, 0])).Component.Name;
+        string cb = (await InsertAsync(asm, b.Path, [60, 0, 0])).Component.Name;
+        string mate = (await Mate(asm, "parallel", Plane(ca, "top"), Plane(cb, "top"))).Mate.Name;
+        var fm = new FeatureManagementService(S);
+
+        await fm.SuppressAsync(asm, [mate], true);
+        var r = await fm.UndoAsync(asm, 1);
+        Assert.Equal([mate], r.Unsuppressed ?? []);
+
+        string dim = $"D1@Boss-Extrude1@{ca}";
+        await fm.DimensionSetAsync(asm, [new DimensionValue { Name = dim, Value = 30 }]);
+        var ex = await Assert.ThrowsAsync<SwException>(() => fm.UndoAsync(asm, 1));
+        Assert.True(ex.Code == ErrorCodes.NotSupported, ex.ToAgentText());
+        Assert.Contains("dimension_set", ex.Message);
+        var dims = await fm.DimensionListAsync(a.Doc);
+        Assert.Equal(30, dims.Dimensions.Single(x => x.Name == "D1@Boss-Extrude1").Value, 1e-6);
+    }
+
+    [Fact]
     public async Task Dimension_set_through_an_assembly_names_a_part_not_listed_yet_by_its_handle_and_access()
     {
         // S49: in a new assembly of parts the server had not listed (closed, then loaded by the assembly), the line naming the

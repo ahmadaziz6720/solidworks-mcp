@@ -17,7 +17,7 @@ Closed all the same, its PR named, and an open PR no longer holds an item in Wai
 item sent upstream ends with `**Upstream: PR #9, open.**`, one per PR or issue
 (`merged`, `closed unmerged`; an issue `open` or `closed`), kept to its state.
 
-**Open: S4, S5, S7, S10 to S12, S33, S34, S52, S60, S64, S65, S79 to S82, S84 to S86, S90, S92 to S94, S96 to S106, S108, S109, S111, S114, S115.**
+**Open: S4, S5, S7, S10 to S12, S33, S34, S52, S60, S64, S65, S79 to S82, S84 to S86, S90, S92 to S94, S96 to S106, S108, S109, S111, S115.**
 Sorted 2026-11-22, the scenario test of build `20261122-002030` (findings 2026-11-22): S112,
 S113 and S95 held and closed; S114 new, taken into the run's group 3; S115 new, not in this
 run; S5 met again. The run goes on with group 3.
@@ -475,8 +475,8 @@ its point.
 - [x] S89: committed (`46920a1`)
 - [x] S92 (d): committed (split out as S116) (`a72b20f`)
 - [x] S81: committed (probed, not reproduced; stays Open, guard test kept. Seen in one variant: the fixture's "System preferences changed by this test: Double2", cause unknown, for the report) (`efde59f`)
-- [x] S109: probed, not reproduced (stays Open, guard test kept; lead: the finding's SOLIDWORKS started by launch, S89)
-- [ ] S114: committed
+- [x] S109: probed, not reproduced (stays Open, guard test kept; lead: the finding's SOLIDWORKS started by launch, S89) (`167edbd`)
+- [x] S114: committed (doc_undo's description changed: docs/tools.md at the release)
 - [ ] Group 3: full live tests and release (build: )
 - [ ] Group 3: scenario test (session id: ), its entry committed and sorted
 - [ ] S84 (a) and (c): committed
@@ -2094,38 +2094,6 @@ mate's `MinimumDistance` and `MaximumDistance`, an angle mate's `MinimumAngle` a
 `MaximumAngle`, which S110's refusal already reads). Local, small: not in this run, for
 the next plan. Not decided.
 
-### S114 - `doc_undo` after S113: the server's own step called not the server's, a component's dimension answered "Nothing changed", an undo that names nothing - OPEN 2026-11-22
-
-Sorted out of the entry of 2026-11-22 (the scenario test of build `20261122-002030`), points
-3 and 4, on S113's fix (Closed). (a) After a `doc_undo` had taken back the server's
-`dimension_set`, the refusal after `feature_rename` said "undo would take back a step before
-it that isn't the server's", though the step it would take back is the server's own
-`feature_extrude`: after an undo the server no longer knows which of its steps is next. The
-refusal itself was right. (b) In a two-part assembly opened read-only, `dimension_set`
-`D1@Boss-Extrude1@<component>-1.Part` 60 → 80 (+6283.185 mm³), then `doc_undo`:
-`VERIFY_FAILED` "Nothing changed: SOLIDWORKS had nothing to undo, or the last step can't be
-undone. Hint: Check the model with feature_list."; the length stayed 80. The same with a
-mate suppressed first (a suppress alone is undone there): the mate still suppressed, the
-length 80. So a component's dimension set from an assembly leaves no undo step the
-assembly's undo reaches, the server counts it as one, and the answer is the generic
-"Nothing changed" in place of S113's refusal naming `dimension_set`. Nothing was lost; not
-reported `ok`. (c) The undo that ran (a mate's suppress taken back) returned only
-`{"steps":1}`, without naming the feature restored or removed, where `doc_undo`'s
-description promises it.
-
-Local, small, in group 2's files (`doc_undo` and `SwContext`'s undo accounting).
-Decided 2026-11-22 by the run, not the owner: (a) after an undo the refusal says the step it
-would take back "may be" another's, or the server tracks which of its steps is next; (b) a
-component's `dimension_set` from an assembly counts as a change that left no undo step there,
-so `doc_undo` refuses naming `dimension_set`, as S113 does; (c) an undo that runs names the
-feature restored or removed. Test to start from: (b)'s case, a two-part assembly, a
-component's dimension set from it, `doc_undo` refused naming `dimension_set` (fails now:
-`VERIFY_FAILED`); (c) a suppress then `doc_undo` names the feature; (a) the refusal's words
-after an undo. Default model.
-Decided 2026-11-22 by the run, not the owner: taken into group 3, by the run's rule "a new
-point, small and in the group's files, a later step of this run ... taken into the next
-group", because it is a small change to group 2's undo accounting, found by group 2's check.
-
 ### S115 - `dimension_list` on an assembly lists no dimensions, though a component's dimension is set from there - OPEN 2026-11-22
 
 Sorted out of the entry of 2026-11-22 (the scenario test of build `20261122-002030`), point 6.
@@ -2284,5 +2252,82 @@ Decided 2026-11-22 by the run, not the owner: no tool that exits SOLIDWORKS and 
 end it yourself" in the hint, because S92 (d)'s plan decided ending it is the owner's
 call; the hint says to read `solidWorksStarted` again, and a process not restarted is for
 the owner to end.
+Local: on `sw2023`, in the commit that moves it here; not yet in a build. Upstream: not yet
+decided.
+
+### S114 - `doc_undo` after S113: the server's own step called not the server's, a component's dimension answered "Nothing changed", an undo that names nothing - BUILT 2026-11-22, proof: the scenario test of the group 3 build
+
+Sorted out of the entry of 2026-11-22 (the scenario test of build `20261122-002030`), points
+3 and 4, on S113's fix (Closed). (a) After a `doc_undo` had taken back the server's
+`dimension_set`, the refusal after `feature_rename` said "undo would take back a step before
+it that isn't the server's", though the step it would take back is the server's own
+`feature_extrude`: after an undo the server no longer knows which of its steps is next. The
+refusal itself was right. (b) In a two-part assembly opened read-only, `dimension_set`
+`D1@Boss-Extrude1@<component>-1.Part` 60 → 80 (+6283.185 mm³), then `doc_undo`:
+`VERIFY_FAILED` "Nothing changed: SOLIDWORKS had nothing to undo, or the last step can't be
+undone. Hint: Check the model with feature_list."; the length stayed 80. The same with a
+mate suppressed first (a suppress alone is undone there): the mate still suppressed, the
+length 80. So a component's dimension set from an assembly leaves no undo step the
+assembly's undo reaches, the server counts it as one, and the answer is the generic
+"Nothing changed" in place of S113's refusal naming `dimension_set`. Nothing was lost; not
+reported `ok`. (c) The undo that ran (a mate's suppress taken back) returned only
+`{"steps":1}`, without naming the feature restored or removed, where `doc_undo`'s
+description promises it.
+
+Local, small, in group 2's files (`doc_undo` and `SwContext`'s undo accounting).
+Decided 2026-11-22 by the run, not the owner: (a) after an undo the refusal says the step it
+would take back "may be" another's, or the server tracks which of its steps is next; (b) a
+component's `dimension_set` from an assembly counts as a change that left no undo step there,
+so `doc_undo` refuses naming `dimension_set`, as S113 does; (c) an undo that runs names the
+feature restored or removed. Test to start from: (b)'s case, a two-part assembly, a
+component's dimension set from it, `doc_undo` refused naming `dimension_set` (fails now:
+`VERIFY_FAILED`); (c) a suppress then `doc_undo` names the feature; (a) the refusal's words
+after an undo. Default model.
+Decided 2026-11-22 by the run, not the owner: taken into group 3, by the run's rule "a new
+point, small and in the group's files, a later step of this run ... taken into the next
+group", because it is a small change to group 2's undo accounting, found by group 2's check.
+Cause: (a) the document's entry kept only the tool of the last counted write
+(`LastUndoStep`), cleared by the undo's own `AfterWrite`, so after an undo nothing named the
+step next; (b) `dimension_set` counted a component's dimension set from an assembly as an
+undo step of the assembly, though the change lands in the component's own document; (c)
+`doc_undo` compared features by id only, and a suppress or a dimension removes none.
+Fix: (a) the entry keeps the tools of the server's counted writes in order (`UndoSteps`, the
+last 64), `doc_undo` takes off the steps it undid and marks its accounting done
+(`SwContext.UndoRecorded`, which `AfterWrite` then leaves); the refusal names the last one
+("the step before it, the server's feature_extrude"), "which may not be the server's" when
+none is kept. (b) `dimension_set` in an assembly calls `NoUndoStep()` when the call changed
+another document's update stamp (`WarnChangedOthers` returns it), so `doc_undo` refuses
+naming `dimension_set`; in an assembly the refusal reads "the assembly's undo would leave
+the dimension_set in place, and may take back the step before it, the server's … or
+nothing", as `EditUndo2` was seen to take back nothing there. (c) the result gives
+`suppressed`, `unsuppressed` (feature names, a mate's included) and `dimensions` (the
+dimensions whose value it changed), and these count against "Nothing changed". The
+description says it, trimmed to stay in budget (398 to 397 bytes).
+Before, with the result fields added and still empty: the new
+`AssemblyLiveTests.Undo_in_an_assembly_names_a_mate_unsuppressed_and_refuses_after_a_components_dimension`
+failed, "Assert.Equal() Failure: Collections differ; Expected: ["Parallel1"]; Actual: []",
+and the new `FeatureManagementLiveTests.Undo_names_what_it_took_back_and_after_an_undo_the_server_step_next`
+"Expected: ["Boss-Extrude1"]; Actual: []"; with (c) fixed, the first failed "VERIFY_FAILED:
+Nothing changed: SOLIDWORKS had nothing to undo, or the last step can't be undone." and the
+second "Assert.Contains() Failure: Sub-string not found ... Not found: "the server's
+feature_extrude"". After: both pass, 2/2; with every `doc_undo`, `dimension_set`,
+`feature_rollback`, `doc_rebuild`, `doc_units_set` and `feature_rename` test they share
+the code with, the assembly `dimension_set` tests (S49, S74, S110), the stamp tests
+(`The_servers_own_failed_kept_and_rolled_back_changes_do_not_read_as_the_users`,
+`An_assembly_adopted_after_the_server_saved_its_parts_does_not_read_as_changed_by_the_user`),
+the custom property, equation and appearance tests of `PropertiesLiveTests` and the drawing
+`doc_undo` test, 22/22; `ContractTests.Tool_catalog_follows_the_conventions` 1/1; unit tests
+323/323; `--check-catalog` ok; `check_repo` ok.
+Made stricter: `doc_undo` refuses after a component's dimension set from an assembly, where
+it answered "Nothing changed"; nothing else that passed is refused.
+Decided 2026-11-22 by the run, not the owner: (a) the server tracks its steps in order rather
+than saying "may be", because the step next is then named truly, and "may not be" is kept
+only where the list runs out.
+Decided 2026-11-22 by the run, not the owner: (b) a component's dimension is told by another
+open document's update stamp changing during `dimension_set`, not by the dimension's name,
+because that is the cause itself (the change lands outside the assembly) and S49's warning
+already reads it; a mate's dimension changes no other document and stays an undo step.
+Decided 2026-11-22 by the run, not the owner: (c) an undone dimension names the dimension,
+not its feature, because the dimension is what changed and its name carries the feature.
 Local: on `sw2023`, in the commit that moves it here; not yet in a build. Upstream: not yet
 decided.

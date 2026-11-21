@@ -39,6 +39,11 @@ internal sealed class SwContext
     /// </summary>
     internal void NoUndoStep(bool change = true) => _noUndoStep = change;
 
+    private bool _undoRecorded; // writes: set by UndoRecorded
+
+    /// <summary>doc_undo set the document's undo accounting itself (the steps it took off); AfterWrite leaves it (S114 a).</summary>
+    internal void UndoRecorded() => _undoRecorded = true;
+
     public SwContext(SwSession session, ISldWorks app, OperationContext op)
     {
         Session = session;
@@ -137,19 +142,28 @@ internal sealed class SwContext
                 // doc_undo's limit: count writes that changed the document, restarting after a change by anyone else.
                 // An operation that leaves no undo step says so with NoUndoStep.
                 bool chained = e.ServerWritesStamp is int s && s == _stampAtBind;
-                if (!chained) { e.NoUndoChanges.Clear(); e.LastUndoStep = null; }
-                if (_noUndoStep is bool change)
+                if (_undoRecorded) { /* doc_undo set the count and the steps itself */ }
+                else if (_noUndoStep is bool change)
                 {
                     // S79 (b): no SOLIDWORKS undo step, so not counted; a change is on record until the next counted write.
-                    if (!chained) e.ServerWrites = 0;
+                    if (!chained) { e.ServerWrites = 0; e.NoUndoChanges.Clear(); e.UndoSteps.Clear(); }
                     e.ServerWritesStamp = now;
                     if (change && !e.NoUndoChanges.Contains(Op.Name)) e.NoUndoChanges.Add(Op.Name);
                 }
-                else if (e.ServerWritesStamp != now)
+                else
                 {
-                    e.ServerWrites = (chained ? e.ServerWrites : 0) + (now != _stampAtBind ? 1 : 0);
-                    e.ServerWritesStamp = now;
-                    if (now != _stampAtBind) { e.NoUndoChanges.Clear(); e.LastUndoStep = Op.Name; }
+                    if (!chained) { e.NoUndoChanges.Clear(); e.UndoSteps.Clear(); }
+                    if (e.ServerWritesStamp != now)
+                    {
+                        e.ServerWrites = (chained ? e.ServerWrites : 0) + (now != _stampAtBind ? 1 : 0);
+                        e.ServerWritesStamp = now;
+                        if (now != _stampAtBind)
+                        {
+                            e.NoUndoChanges.Clear();
+                            e.UndoSteps.Add(Op.Name);
+                            if (e.UndoSteps.Count > DocumentRegistry.Entry.MaxUndoSteps) e.UndoSteps.RemoveAt(0);
+                        }
+                    }
                 }
                 e.StampAfterLastOp = now;
             }
