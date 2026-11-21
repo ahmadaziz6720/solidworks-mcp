@@ -2221,6 +2221,59 @@ public class AssemblyLiveTests(LiveFixture fx) : LiveTest(fx)
     }
 
     [Fact]
+    public async Task Moves_and_rebuilds_in_a_limit_mate_configuration_of_a_subassembly_open_beside_its_parent_keep_the_connection()
+    {
+        // S109: in a limit-mate configuration of a subassembly open beside its parent, two asm_component_move calls with a
+        // doc_rebuild after each, then asm_component_list failed NOT_CONNECTED "running but can't be reached over COM", with
+        // SOLIDWORKS responding. Not reproduced on 2023 SP3 with SOLIDWORKS started from its exe (2026-11-22); kept as the
+        // guard of that sequence, each step's time and the dialogs up after it in the message.
+        var a = await CubeAsync("s109A");
+        var b = await CubeAsync("s109B");
+        var c = await CubeAsync("s109C");
+        string sub = await NewAssemblyAsync("s109_sub");
+        string na = (await InsertAsync(sub, a.Path, [-30, 0, 0])).Component.Name;
+        string nb = (await InsertAsync(sub, b.Path, [60, 5, 0])).Component.Name;
+        await new PropertiesService(S).ConfigAddAsync(sub, "Limit", activate: true);
+        var lim = await MateQ(new() { Doc = sub, Type = "distance", A = Face(na, 10, 0, 0), B = Face(nb, -10, 0, 0), DistanceMm = 30, MinMm = 20, MaxMm = 72.5 });
+        string dim = lim.Mate.Dimension ?? throw new Xunit.Sdk.XunitException("the limit mate names no dimension");
+        var fm = new FeatureManagementService(S);
+        await fm.DimensionToleranceSetAsync(sub, [new ToleranceRequest { Name = dim, Type = "limit", Upper = 42.5, Lower = -15 }]); // 15..72.5
+        await fm.DimensionSetAsync(sub, [new DimensionValue { Name = dim, Value = 15 }]);
+        string subPath = (await Docs.SaveAsync(sub, "as", Path.Combine(_dir, $"s109_sub_{_tag}.sldasm"), overwrite: false)).SavedTo!;
+        string top = await NewAssemblyAsync("s109_top");
+        string ns = (await InsertAsync(top, subPath, [0, 0, 0])).Component.Name;
+        string nc = (await InsertAsync(top, c.Path, [0, 0, 80])).Component.Name;
+        await Mate(top, "coincident", Plane(ns, "right"), Plane(nc, "right")); // a mate in the parent too
+
+        var log = new List<string>();
+        async Task Step(string what, Func<Task> call)
+        {
+            var t = System.Diagnostics.Stopwatch.StartNew();
+            string outcome = "ok";
+            try { await call(); }
+            catch (SwException ex) { outcome = ex.ToAgentText(); }
+            var dialogs = S.ListDialogs();
+            log.Add($"{what}: {outcome}, {t.Elapsed.TotalSeconds:F1} s, attached {S.IsAttached}, pid {S.ProcessId}, " +
+                    $"dialogs [{string.Join("; ", dialogs.Select(d => d.Describe()))}]");
+            Assert.True(outcome == "ok" && dialogs.Count == 0, string.Join(" || ", log));
+        }
+
+        // In the subassembly (open beside its parent, its limit configuration active): move, rebuild, move, rebuild, list.
+        await Step("move sub +10", () => Move(new() { Doc = sub, Component = nb, TranslateMm = [10, 0, 0] }));
+        await Step("rebuild sub", () => fm.RebuildAsync(sub));
+        await Step("move sub -5", () => Move(new() { Doc = sub, Component = nb, TranslateMm = [-5, 0, 5] }));
+        await Step("rebuild sub (force)", () => fm.RebuildAsync(sub, force: true));
+        await Step("list sub", () => Asm.ComponentListAsync(sub, false, 100, 0));
+        // In the parent: its other component moved, rebuilt, listed through every level; the subassembly listed again.
+        await Step("move parent's part", () => Move(new() { Doc = top, Component = nc, TranslateMm = [0, 10, 0] }));
+        await Step("rebuild parent", () => fm.RebuildAsync(top));
+        await Step("move parent's part again", () => Move(new() { Doc = top, Component = nc, TranslateMm = [0, 0, 5] }));
+        await Step("rebuild parent (force)", () => fm.RebuildAsync(top, force: true));
+        await Step("list parent", () => Asm.ComponentListAsync(top, true, 100, 0));
+        await Step("list sub again", () => Asm.ComponentListAsync(sub, false, 100, 0));
+    }
+
+    [Fact]
     public async Task An_assembly_adopted_after_the_server_saved_its_parts_does_not_read_as_changed_by_the_user()
     {
         // S81 (1): the user's assembly open, its parts (loaded only by it) adopted, edited and saved by this server, the

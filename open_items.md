@@ -474,8 +474,8 @@ its point.
   Started 00:23 2026-11-22, free memory 2165 MB with SOLIDWORKS restarted from its exe; launcher `%LOCALAPPDATA%\solidworks-mcp\livetest\run-1121\check2.ps1` (`-Resume` to resume), pid 17196 died at once (the launcher path, holding a space, not quoted in `-File`), started again 00:24 quoted, pid 16752, output check2.out.txt and check2.err.txt beside it. The Haiku watcher returned twice before the check ended, so the session watched it by a background until-loop of its own instead. Ended `EXIT 0` 00:29 with the entry. Sorted: S112, S113 and S95 held and closed; S114 new (S113's edges), taken into group 3; S115 new, not in this run; S5 met again. Release page notes updated.
 - [x] S89: committed (`46920a1`)
 - [x] S92 (d): committed (split out as S116) (`a72b20f`)
-- [x] S81: committed (probed, not reproduced; stays Open, guard test kept. Seen in one variant: the fixture's "System preferences changed by this test: Double2", cause unknown, for the report)
-- [ ] S109: probed
+- [x] S81: committed (probed, not reproduced; stays Open, guard test kept. Seen in one variant: the fixture's "System preferences changed by this test: Double2", cause unknown, for the report) (`efde59f`)
+- [x] S109: probed, not reproduced (stays Open, guard test kept; lead: the finding's SOLIDWORKS started by launch, S89)
 - [ ] S114: committed
 - [ ] Group 3: full live tests and release (build: )
 - [ ] Group 3: scenario test (session id: ), its entry committed and sorted
@@ -2057,6 +2057,29 @@ Proposed: a probe, the same moves and rebuilds on a subassembly open beside its 
 `sw_status` and `dialog_list` when the connection goes; the hint names a modal dialog as a
 cause where one may be up. Local. Not decided.
 Decided 2026-11-21 by the owner: taken into the run of 2026-11-21, group 3, a probe; the hint names a modal dialog where one is up (`## Run 2026-11-21`).
+Probed 2026-11-22 by the run, not reproduced. SOLIDWORKS 2023 SP3 started from its exe;
+the live test `AssemblyLiveTests.Moves_and_rebuilds_in_a_limit_mate_configuration_of_a_subassembly_open_beside_its_parent_keep_the_connection`:
+a subassembly of two 20 mm cubes, a configuration added and active, a limit distance mate in
+it (20..72.5, then as in the finding its limits moved to 15..72.5 by
+`dimension_tolerance_set` and its nominal set to 15), saved and left open; a parent holding
+it and a third cube, with a coincident mate. After each call the session's attachment and
+pid and the dialogs up were read: in the subassembly `asm_component_move` (2.2 s),
+`doc_rebuild` (1.2 s), a second move (1.5 s), a forced rebuild (1.2 s),
+`asm_component_list` (1.1 s); in the parent a move of its part (1.8 s), a rebuild (1.2 s),
+a second move (1.5 s), a forced rebuild (1.1 s), `asm_component_list` through every level
+(1.6 s), the subassembly's list again (1.3 s). Every call `ok`, attached throughout to the
+same pid, no dialog after any. The finding's moves took 13 to 15 s each, so its assembly
+was heavier or SOLIDWORKS short of memory (a 77 MB working set). A lead: the same entry's
+SOLIDWORKS had been started by `sw_connect {launch:true}` on that build (its points 1 and
+3), which ran it with `-Embedding`, out of the running object table (S89); once the server
+let go of its reference, no attach could reach it again, which is the message seen. S89's
+fix (`46920a1`) launches the exe and names such an instance in the hint. What made the
+server let go (a disconnect error on the call after the rebuild) is not known. No server
+change: no dialog was found for the hint to name. Met again: `sw_status` and `dialog_list`
+read at once, and SOLIDWORKS' command line (`-Embedding` or not).
+Decided 2026-11-22 by the run, not the owner: the probe's live test kept as the guard of the
+sequence (as S81's), because it is the only live case of moves and rebuilds beside an open
+parent and costs one test's time in the area.
 
 ### S111 - `asm_mate_list` gives a limit mate's distance and dimension but not its limits - OPEN 2026-11-21
 
