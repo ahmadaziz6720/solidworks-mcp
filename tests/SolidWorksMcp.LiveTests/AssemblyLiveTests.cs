@@ -390,6 +390,55 @@ public class AssemblyLiveTests(LiveFixture fx) : LiveTest(fx)
         Assert.True(File.Exists(r.Component.Path), $"{r.Component.Path} was not written by the assembly's save");
     }
 
+    [Fact]
+    public async Task A_step_inserted_after_a_part_is_written_by_the_assemblys_save_and_resolves_on_reopen()
+    {
+        // S61 (a) again: a part first, the STEP after (not the first component, so not fixed): the assembly's save must
+        // write the STEP's part beside the STEP, and the reopened assembly must find it.
+        var block = await BoxAsync("stepafter_block");
+        var cube = await CubeAsync("stepafter");
+        string step = Path.Combine(_dir, $"stepafter_{_tag}.step");
+        await new ExportService(S).ExportAsync(new ExportRequest { Doc = cube.Doc, Path = step, StepAp = 214 });
+        await Docs.CloseAsync(cube.Doc, save: false, discard: true);
+        string asm = await NewAssemblyAsync("stepafter_asm");
+        await InsertAsync(asm, block.Path);
+
+        var before = (await Docs.ListAsync()).Documents.Select(d => d.Handle).ToHashSet();
+        AsmInsertResult r;
+        try
+        {
+            r = await InsertAsync(asm, step, [80, 0, 0]);
+        }
+        finally
+        {
+            foreach (var d in (await Docs.ListAsync()).Documents.Where(d => !before.Contains(d.Handle) && d.Handle != asm))
+                Track(d.Handle);
+        }
+        Assert.Equal(2, r.ComponentCount);
+        string part = r.Component.Path!;
+        Assert.Equal(Path.Combine(_dir, $"stepafter_{_tag}.step.SLDPRT"), part, ignoreCase: true);
+
+        string asmPath = Path.Combine(_dir, $"stepafter_asm_{_tag}.sldasm");
+        // The part the insert made is the server's (doc_save and doc_close can act on it), not "the user's document".
+        Assert.Contains((await Docs.ListAsync()).Documents,
+            d => string.Equals(d.Path, part, StringComparison.OrdinalIgnoreCase) && d.Access == "owned");
+        var saved = await Docs.SaveAsync(asm, "as", asmPath, overwrite: false);
+        var docs = (await Docs.ListAsync()).Documents;
+        string state = System.Text.Json.JsonSerializer.Serialize(saved) + " | open: " +
+                       string.Join(", ", docs.Select(d => $"{d.Handle} '{d.Title}' {d.Access} dirty={d.Dirty}"));
+        Assert.True(File.Exists(part), $"{part} was not written by the assembly's save: {state}");
+        Assert.DoesNotContain(docs, d => d.Dirty && string.Equals(d.Path, part, StringComparison.OrdinalIgnoreCase));
+
+        // Closed and reopened, the component still finds its part.
+        await Docs.CloseAsync(asm, save: false, discard: true);
+        var o = await new OpenService(S).OpenAsync(asmPath, false, null);
+        _asms.Add(o.Document.Handle);
+        Assert.True(o.MissingReferences is null, System.Text.Json.JsonSerializer.Serialize(o));
+        var comps = (await Asm.ComponentListAsync(o.Document.Handle, false, 100, 0)).Components;
+        var stepComp = Assert.Single(comps, c => string.Equals(c.Path, part, StringComparison.OrdinalIgnoreCase));
+        Assert.Equal("resolved", stepComp.Suppression);
+    }
+
     // ------------------------------------------------------------------ doc_open of a STEP that comes in as an assembly (S61 b, c)
 
     [Fact]

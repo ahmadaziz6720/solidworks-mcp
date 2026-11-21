@@ -443,6 +443,12 @@ type libraries and writes `sldworks_api.txt`, `swconst_enums.txt`, `swcommands.t
   directory** (`ISldWorks.GetCurrentWorkingDirectory`, here a folder of the user's, not the STEP's), not written until the
   assembly is saved, which writes it there: `SetCurrentWorkingDirectory` to the STEP's folder for the call puts it
   beside the STEP. x, y, z do not place its origin; set the transform after.
+  **The assembly's save writes that part only when it is the first component** (VERIFIED 2026-11-21): inserted after
+  another component (fixed or floating alike), `SaveAs3` or `Save3` of the assembly reports success and leaves the part
+  unwritten, open, dirty and hidden, and the reopened assembly misses it (suppressed, its file a missing reference).
+  The part's own `Save3` then fails with `swReadOnlySaveError` (2) though `IsOpenedReadOnly` is false, while
+  `IModelDocExtension.SaveAs3` to its own path writes it. `doc_save` and `doc_close {save}` of an assembly write each
+  owned component part not on disk this way and warn of any other.
 - **In-context parts** (VERIFIED 2026-10-31). `IAssemblyDoc.InsertNewPart2(path, face)` returns 1 on success and leaves the
   assembly editing the new part (`GetEditTargetComponent`) with its Front plane on the face; open a sketch on the face
   if none is active. `SketchUseEdge3(chain, innerLoops)` with the face selected converts its outer loop only

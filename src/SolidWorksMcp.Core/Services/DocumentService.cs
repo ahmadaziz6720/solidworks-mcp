@@ -224,6 +224,7 @@ public sealed class DocumentService(SwSession session)
             if (!fi.Exists || fi.Length == 0)
                 throw new SwException(ErrorCodes.VerifyFailed, $"SOLIDWORKS reported success but '{saved}' is missing or empty.");
             if (warnings != 0) ctx.Warn($"Save warnings: {SaveWarnings(warnings)}.");
+            var parts = WriteUnwrittenComponents(ctx, target);
             return new DocResult
             {
                 Doc = ctx.Title(target),
@@ -231,8 +232,57 @@ public sealed class DocumentService(SwSession session)
                 SavedTo = saved,
                 FileSizeBytes = fi.Length,
                 BackupPath = backup,
+                Message = parts.Count > 0 ? $"Also wrote {string.Join(", ", parts.Select(p => $"'{p}'"))}: the assembly's save left it unwritten." : null,
             };
         }, RunOptions.Write(doc), ct);
+
+    /// <summary>
+    /// S61 (a), VERIFIED 2026-11-21 on 2023 SP3: the save of an assembly can leave a component's part unwritten (a STEP
+    /// inserted through 3D Interconnect after another component: its part stays dirty and its own Save3 refuses with
+    /// swReadOnlySaveError, while SaveAs3 to its own path writes it), and the reopened assembly then misses the component.
+    /// After an assembly is saved, each component file not on disk is written that way when the server owns its document,
+    /// read back; any other is named in a warning. Returns the files written.
+    /// </summary>
+    internal static List<string> WriteUnwrittenComponents(SwContext ctx, IModelDoc2 doc)
+    {
+        var written = new List<string>();
+        if (doc.GetType() != (int)swDocumentTypes_e.swDocASSEMBLY) return written;
+        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var c in ((IAssemblyDoc)doc).Components(false))
+        {
+            string p = Try(() => c.GetPathName()) ?? "";
+            if (p.Length == 0 || Try(() => c.IsVirtual) || !seen.Add(p) || File.Exists(p)) continue;
+            var m = Try(() => c.GetModelDoc2() as IModelDoc2);
+            string why;
+            if (m is null) why = "its document is not loaded";
+            else if (!ctx.Documents.IsOwned(m)) why = "its document is not the server's to save";
+            else
+            {
+                int e = 0, w = 0;
+                try
+                {
+                    ctx.Paths.ForWrite(p, overwrite: false, out _);
+                    if (m.Extension.SaveAs3(p, (int)swSaveAsVersion_e.swSaveAsCurrentVersion, (int)swSaveAsOptions_e.swSaveAsOptions_Silent,
+                            null, null, ref e, ref w) && File.Exists(p))
+                    {
+                        ctx.Paths.RecordWritten(p);
+                        written.Add(p);
+                        continue;
+                    }
+                    why = $"writing it failed ({SaveErrors(e)})";
+                }
+                catch (SwException ex) { why = ex.Message; }
+            }
+            ctx.Warn($"The assembly references '{p}', which is not on disk ({why}): '{c.Name2}' will be missing when the assembly is reopened.");
+        }
+        return written;
+    }
+
+    private static T? Try<T>(Func<T> f)
+    {
+        try { return f(); }
+        catch (System.Runtime.InteropServices.COMException) { return default; }
+    }
 
     /// <summary>Refuses an in-place save that would silently upgrade a file written by an older SOLIDWORKS.</summary>
     private static void CheckVersionUpgrade(SwContext ctx, string path)
@@ -280,6 +330,7 @@ public sealed class DocumentService(SwSession session)
                 int e = 0, w = 0;
                 if (!target.Save3((int)swSaveAsOptions_e.swSaveAsOptions_Silent, ref e, ref w) || e != 0)
                     throw new SwException(ErrorCodes.IoError, $"Saving before close failed ({SaveErrors(e)}).");
+                foreach (var p in WriteUnwrittenComponents(ctx, target)) ctx.Warn($"Also wrote '{p}': the assembly's save left it unwritten.");
             }
 
             // Close by identity: CloseDoc takes a title, so make sure that title names exactly this document.

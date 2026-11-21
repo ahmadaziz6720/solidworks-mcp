@@ -468,9 +468,14 @@ public sealed partial class AssemblyService(SwSession session)
         {
             if (cwd.Length > 0) ctx.App.SetCurrentWorkingDirectory(cwd);
         }
-        return ret == 0 && comp is IComponent2 c ? c : throw new SwException(ErrorCodes.FeatureFailed,
-            $"asm_insert: SOLIDWORKS did not insert '{step}' through 3D Interconnect (InsertImportedComponent returned {ret}).",
-            "The way round: doc_open the STEP (translated, not linked), doc_save it as a .sldprt, and asm_insert that file.");
+        if (ret != 0 || comp is not IComponent2 c)
+            throw new SwException(ErrorCodes.FeatureFailed,
+                $"asm_insert: SOLIDWORKS did not insert '{step}' through 3D Interconnect (InsertImportedComponent returned {ret}).",
+                "The way round: doc_open the STEP (translated, not linked), doc_save it as a .sldprt, and asm_insert that file.");
+        // The part the insert made (no file yet) is the server's, so doc_save and doc_close can act on it (S61 a).
+        if (c.GetModelDoc2() is IModelDoc2 part && CompPath(c) is { Length: > 0 } file && !System.IO.File.Exists(file))
+            ctx.Documents.SetClass(part, DocClass.Owned, $"created by inserting {System.IO.Path.GetFileName(step)}");
+        return c;
     }
 
     /// <summary>A STEP component's bodies, volume and link, read back (the import may bring surfaces only, S5).</summary>
