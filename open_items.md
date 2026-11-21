@@ -176,6 +176,20 @@ answer below, across as many sessions as it needs, from the first step not ticke
   S-number (`board.py --next-code`), taken into the next group; **a new point needing the
   owner** (a choice, a large change), a new Open item, not in this run. The next group
   starts only after the check is sorted.
+- **A check is watched by a subagent, not by the owner's "cek"** (2026-11-21, the owner,
+  mid-run, after group 1's check stopped at a usage limit and waited an hour on them: "the
+  point of the run is to go on without me"). Once the check is started, the session
+  starts one background subagent on Haiku as its watcher: it reads the launcher's output
+  file for its `EXIT` line, the process by its id and the transcript's last write, through
+  `Monitor` (an until-loop of about 60 s), and returns one line when the check ended (`EXIT
+  <code>`, a `findings.md` entry of the check's or none, a usage-limit line in the output)
+  or when the transcript has been unwritten for 30 minutes. Its return wakes the session,
+  which resumes, commits and sorts as above, and starts a new watcher after a resume. A
+  usage limit in the output: the watcher waits past the reset time it names before it
+  returns. The watcher ended by Claude Code (low memory, the limit): the owner's "cek"
+  still serves. The launchers and the step rules of this run are kept outside the
+  session's scratchpad, in `%LOCALAPPDATA%\solidworks-mcp\livetest\run-1121\`
+  (`check<n>.ps1`, `brief-rules.md`, the brief every item's subagent reads).
 
 ### Items
 
@@ -419,7 +433,7 @@ its point.
   new exe; tag `build-20261121-205309` pushed and read back, release page with no files.
   Cost: Sonnet, see the report.
 - [ ] Group 1: scenario test (session id: `287fca18-c22d-4f64-a5fc-e3c50a4efba2`), its entry committed and sorted
-  Started 20:55 2026-11-21, free memory 2174 MB with SOLIDWORKS restarted from its exe; launcher check1.ps1 in the session's scratchpad, pid 13972, output check1.out.txt and check1.err.txt beside it.
+  Started 20:55 2026-11-21, free memory 2174 MB with SOLIDWORKS restarted from its exe; launcher `%LOCALAPPDATA%\solidworks-mcp\livetest\run-1121\check1.ps1` (`-Resume` to resume), first run from the first session's scratchpad, pid 13972, output check1.out.txt and check1.err.txt beside the launcher it ran from. Stopped 21:00 at the 5-hour usage limit (`EXIT 1`, no entry). Resume 1 at 21:56, free memory 2463 MB with SOLIDWORKS restarted from its exe, pid 5944, from the scratchpad copy (its output there: `%TEMP%\claude\8c3a0854f52f5604\96549089-56a6-40d7-a892-5e462fc37ecc\scratchpad\check1.out.txt`); a later resume runs the copy under `run-1121`, its output beside it.
 - [ ] S92 (c): probed
 - [ ] S92 (a) and (b): committed
 - [ ] S79 (b): committed
