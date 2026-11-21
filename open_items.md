@@ -17,7 +17,7 @@ Closed all the same, its PR named, and an open PR no longer holds an item in Wai
 item sent upstream ends with `**Upstream: PR #9, open.**`, one per PR or issue
 (`merged`, `closed unmerged`; an issue `open` or `closed`), kept to its state.
 
-**Open: S4, S5, S7, S10 to S12, S33, S34, S52, S60, S64, S65, S79 to S82, S84 to S86, S89, S90, S92 to S106, S108 to S110.**
+**Open: S4, S5, S7, S10 to S12, S33, S34, S52, S60, S64, S65, S79 to S82, S84 to S86, S89, S90, S92 to S106, S108, S109.**
 Sorted 2026-11-21, the scenario test of build `20261121-175345` (findings 2026-11-21): S61
 (a) not held again (a STEP inserted after another component, the assembly saved in another
 folder than the STEP, lost on reopen, reported `ok`), fixed a third time in the run, group
@@ -394,8 +394,8 @@ its point.
 - [x] Phase 1: the opening question asked and answered (2026-11-21)
 - [x] S61 (a) a third time: committed (0d05bd7)
 - [x] S83: committed (49a57fb)
-- [x] S107: committed
-- [ ] S110: committed
+- [x] S107: committed (70e23a3)
+- [x] S110: committed
 - [ ] Group 1: full live tests and release (build: )
 - [ ] Group 1: scenario test (session id: ), its entry committed and sorted
 - [ ] S92 (c): probed
@@ -1999,19 +1999,6 @@ Proposed: a probe, the same moves and rebuilds on a subassembly open beside its 
 cause where one may be up. Local. Not decided.
 Decided 2026-11-21 by the owner: taken into the run of 2026-11-21, group 3, a probe; the hint names a modal dialog where one is up (`## Run 2026-11-21`).
 
-### S110 - `dimension_set` of a limit mate's nominal outside its limits is refused without naming them - OPEN 2026-11-21
-
-Sorted out of the entry of 2026-11-18 ("a shared global variable changed in two parts",
-point 6), on build `20261118-060615`. `dimension_set` of a limit mate's nominal to a new
-minimum was refused (`INVALID_ARGUMENT`, "rejected 15 mm ... as invalid") until
-`dimension_tolerance_set` widened the range (type `limit`, lower -23.5, read back as
-`limits: [15, 72.5]`). Not reported `ok`.
-
-Proposed by the session: the hint says a limit mate's nominal must lie inside its limits,
-and that `dimension_tolerance_set` moves them. Local. Not decided.
-Decided 2026-11-21 by the owner: taken into the run of 2026-11-21, group 1: the refusal names the limits and `dimension_tolerance_set` (`## Run 2026-11-21`).
-
-
 ## Waiting
 
 ### S1 - `drw_view_section` / `drw_view_detail` drew in view-sketch coordinates - BUILT 2026-11-09, proof: a session that runs `drw_view_detail` and a view at an angle
@@ -2333,3 +2320,42 @@ whatever it is (an assembly or a part), as the plan says, and only when it diffe
 the document `doc` named, because when they are the same the target did not stay anywhere
 else. Local: on `sw2023`, in the commit that moves it here; not yet in a build. Upstream:
 not yet decided.
+
+### S110 - `dimension_set` of a limit mate's nominal outside its limits is refused without naming them - BUILT 2026-11-21, proof: the scenario test of the group 1 build
+
+Sorted out of the entry of 2026-11-18 ("a shared global variable changed in two parts",
+point 6), on build `20261118-060615`. `dimension_set` of a limit mate's nominal to a new
+minimum was refused (`INVALID_ARGUMENT`, "rejected 15 mm ... as invalid") until
+`dimension_tolerance_set` widened the range (type `limit`, lower -23.5, read back as
+`limits: [15, 72.5]`). Not reported `ok`.
+
+Proposed by the session: the hint says a limit mate's nominal must lie inside its limits,
+and that `dimension_tolerance_set` moves them. Local. Not decided.
+Decided 2026-11-21 by the owner: taken into the run of 2026-11-21, group 1: the refusal names the limits and `dimension_tolerance_set` (`## Run 2026-11-21`).
+Fixed 2026-11-21 in the run of 2026-11-21 (group 1). Cause: SOLIDWORKS answers a limit
+mate's nominal outside its limits with `swSetValue_InvalidValue`, which `dimension_set`
+turned into the generic "rejected 15 mm ... as invalid. Use a value that fits the
+geometry." Fix: on that status in an assembly, the mate the dimension belongs to (the name's
+second segment) is read for its limits (`IDistanceMateFeatureData.MinimumDistance` and
+`MaximumDistance`, or the angle mate's `MinimumAngle` and `MaximumAngle`); a value outside
+them is refused `INVALID_ARGUMENT` naming the limits ("lies outside its limits 20 to 72.5
+mm") and, in the hint, `dimension_tolerance_set` (type `limit`, deviations from the nominal)
+as the tool that moves them; the previous values are restored as before. A value inside
+the limits, or a mate that reads no limits, keeps the old message. `dimension_tolerance_set`
+is the right tool: the new test widens a limit mate to 5..72.5 with it (read back as
+`limits: [5, 72.5]`) and the 15 then sets. Before: the new
+`AssemblyLiveTests.Dimension_set_of_a_limit_mates_nominal_outside_its_limits_names_the_limits_and_the_tool_that_moves_them`
+(limit mate 20..72.5 starting at 30, nominal set to 15) failed ("the limits 20 and 72.5 are
+not named: SOLIDWORKS rejected 15 mm for 'D1@LimitDistance1' as invalid. Nothing was
+changed. Use a value that fits the geometry."). After: it passes, with the live tests of
+`dimension_set` (`AssemblyLiveTests.Dimension_set_*` 4/4 and
+`FeatureManagementLiveTests.Dimension_set_*` 3/3, after a SOLIDWORKS restart: before it, the
+two that use `equation_set` met S92's refused-equation state) and
+`Limit_distance_and_symmetric_mates_hold_their_geometry_and_read_back` 1/1; unit tests
+302/302; `check_repo` ok; no description changed. The angle limit mate's branch is written
+the same way but has no test of its own. Made stricter: none (a refusal that said less now
+says more; no case accepted before is refused). Decided 2026-11-21 by the run, not the
+owner: the limits are read only after SOLIDWORKS rejects the value, not before the call,
+because the refusal is then added to a check that already holds and a limit read that is
+wrong cannot refuse a value SOLIDWORKS accepts. Local: on `sw2023`, in the commit that moves
+it here; not yet in a build. Upstream: not yet decided.

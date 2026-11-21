@@ -2012,6 +2012,39 @@ public class AssemblyLiveTests(LiveFixture fx) : LiveTest(fx)
     }
 
     [Fact]
+    public async Task Dimension_set_of_a_limit_mates_nominal_outside_its_limits_names_the_limits_and_the_tool_that_moves_them()
+    {
+        // S110: SOLIDWORKS refuses a limit mate's nominal outside its limits; the refusal said "rejected 15 mm ... as invalid",
+        // without the limits or the way to change them (dimension_tolerance_set, type limit).
+        var a = await CubeAsync("limNomA");
+        var b = await CubeAsync("limNomB");
+        string asm = await NewAssemblyAsync("asm_limit_nominal");
+        string na = (await InsertAsync(asm, a.Path, [-30, 0, 0])).Component.Name;
+        string nb = (await InsertAsync(asm, b.Path, [60, 5, 0])).Component.Name;
+        var lim = await MateQ(new() { Doc = asm, Type = "distance", A = Face(na, 10, 0, 0), B = Face(nb, -10, 0, 0), DistanceMm = 30, MinMm = 20, MaxMm = 72.5 });
+        string dimName = lim.Mate.Dimension ?? throw new Xunit.Sdk.XunitException("the limit mate names no dimension");
+        var fm = new FeatureManagementService(S);
+
+        var ex = await Assert.ThrowsAsync<SwException>(() => fm.DimensionSetAsync(asm, [new DimensionValue { Name = dimName, Value = 15 }]));
+        Assert.Equal(ErrorCodes.InvalidArgument, ex.Code);
+        string all = ex.Message + " " + ex.Hint;
+        Assert.True(all.Contains("20") && all.Contains("72.5"), $"the limits 20 and 72.5 are not named: {all}");
+        Assert.Contains("limit", ex.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("dimension_tolerance_set", ex.Hint ?? "");
+        Assert.Equal(30, Assert.Single((await fm.DimensionListAsync(asm, lim.Mate.Name)).Dimensions).Value, 1e-6); // nothing changed
+
+        // Inside the limits it still sets.
+        var ok = await fm.DimensionSetAsync(asm, [new DimensionValue { Name = dimName, Value = 40 }]);
+        Assert.Equal(40, Assert.Single(ok.Changes).Value, 1e-6);
+
+        // The tool the hint names does move the limits: widened to 5..72.5, the 15 sets.
+        var tol = await fm.DimensionToleranceSetAsync(asm, [new ToleranceRequest { Name = dimName, Type = "limit", Upper = 32.5, Lower = -35 }]);
+        Assert.Equal([5, 72.5], Assert.Single(tol.Changes).Limits!);
+        var widened = await fm.DimensionSetAsync(asm, [new DimensionValue { Name = dimName, Value = 15 }]);
+        Assert.Equal(15, Assert.Single(widened.Changes).Value, 1e-6);
+    }
+
+    [Fact]
     public async Task Width_centres_a_cube_between_the_box_ends_and_hinge_seats_a_shaft_in_the_bore()
     {
         var box = await BoxAsync("wbox");   // x 0..40

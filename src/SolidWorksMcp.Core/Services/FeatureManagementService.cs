@@ -999,6 +999,12 @@ public sealed partial class FeatureManagementService(SwSession session)
                 {
                     string restored = RestoreValues(d, applied, cfg);
                     var e = FeatureManagementLogic.SetValueError(status, p.Name, FeatureManagementLogic.FromApi(p.Type, p.Api), FeatureManagementLogic.UnitOf(p.Type));
+                    // S110: a limit mate's nominal must lie inside its limits; say so, with the limits read.
+                    if (status == (int)swSetValueReturnStatus_e.swSetValue_InvalidValue && !part && LimitMateRange(d, p) is { } range
+                        && FeatureManagementLogic.LimitMateRefusal(p.Name, FeatureManagementLogic.FromApi(p.Type, p.Api),
+                            FeatureManagementLogic.FromApi(p.Type, range.Lo), FeatureManagementLogic.FromApi(p.Type, range.Hi),
+                            FeatureManagementLogic.UnitOf(p.Type)) is { } refusal)
+                        e = refusal;
                     throw new SwException(e.Code, e.Message + " " + restored, e.Hint);
                 }
                 applied.Add(p);
@@ -1041,6 +1047,26 @@ public sealed partial class FeatureManagementService(SwSession session)
                 Model = part ? after.ToState() : null,
             };
         }, RunOptions.Write(doc) with { Timeout = LongTimeout }, ct).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// S110: the limits (API units, m or rad) of the limit distance or angle mate a dimension belongs to, read from the mate;
+    /// null for any other dimension or when they can't be read. The mate is named by the dimension's second segment (D1@LimitDistance1@asm).
+    /// </summary>
+    private static (double Lo, double Hi)? LimitMateRange(IModelDoc2 d, PlannedValue p)
+    {
+        try
+        {
+            string[] parts = p.Dim.FullName.Split('@');
+            if (parts.Length < 2 || EntityResolver.FeatureByName(d, parts[1]) is not { } feat) return null;
+            object? def = feat.GetDefinition();
+            double lo, hi;
+            if (def is IDistanceMateFeatureData dd) (lo, hi) = (dd.MinimumDistance, dd.MaximumDistance);
+            else if (def is IAngleMateFeatureData ad) (lo, hi) = (ad.MinimumAngle, ad.MaximumAngle);
+            else return null;
+            return double.IsFinite(lo) && double.IsFinite(hi) && lo < hi ? (lo, hi) : null;
+        }
+        catch (Exception ex) when (!ComArgs.IsDisconnect(ex)) { return null; }
     }
 
     /// <summary>An assembly's volume from its mass properties (m³), null when SOLIDWORKS gives none.</summary>
@@ -1740,6 +1766,19 @@ internal static class FeatureManagementLogic
             list.Add((n, v.Value));
         }
         return list;
+    }
+
+    /// <summary>
+    /// S110: the refusal for a limit mate's nominal outside its limits (values in the dimension's unit), or null when the value
+    /// lies inside them (the rejection has another cause).
+    /// </summary>
+    public static SwException? LimitMateRefusal(string name, double value, double lo, double hi, string unit)
+    {
+        const double tol = 1e-9;
+        if (value >= lo - tol && value <= hi + tol) return null;
+        return SwException.InvalidArgument(
+            $"'{name}' is a limit mate's nominal: {Fmt(value)} {unit} lies outside its limits {Fmt(lo)} to {Fmt(hi)} {unit}.",
+            "Set a value inside the limits, or move the limits first with dimension_tolerance_set (type limit, upper and lower deviations from the nominal).");
     }
 
     /// <summary>The typed error for a failed IDimension.SetSystemValue3 (swSetValueReturnStatus_e).</summary>
