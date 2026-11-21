@@ -419,7 +419,7 @@ its point.
   new exe; tag `build-20261121-205309` pushed and read back, release page with no files.
   Cost: Sonnet, see the report.
 - [ ] Group 1: scenario test (session id: `287fca18-c22d-4f64-a5fc-e3c50a4efba2`), its entry committed and sorted
-  Started 20:55 2026-11-21, free memory 2174 MB with SOLIDWORKS restarted from its exe; launcher check1.ps1 in the session's scratchpad.
+  Started 20:55 2026-11-21, free memory 2174 MB with SOLIDWORKS restarted from its exe; launcher check1.ps1 in the session's scratchpad, pid 13972, output check1.out.txt and check1.err.txt beside it.
 - [ ] S92 (c): probed
 - [ ] S92 (a) and (b): committed
 - [ ] S79 (b): committed
