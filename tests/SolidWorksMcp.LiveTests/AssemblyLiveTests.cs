@@ -239,6 +239,20 @@ public class AssemblyLiveTests(LiveFixture fx) : LiveTest(fx)
     }
 
     [Fact]
+    public async Task Insert_with_doc_after_doc_new_of_a_part_says_the_target_is_still_that_part()
+    {
+        // S107: doc names the assembly but does not move the target; the re-activation warning says so.
+        var box = await BoxAsync("tgtbox");
+        string asm = await NewAssemblyAsync("asm_tgt");
+        await NewPartAsync("tgt_part"); // the target and the active document are now this part
+        var r = await InsertAsync(asm, box.Path, [0, 0, 0]);
+        var warnings = r.Warnings ?? [];
+        Assert.Contains(warnings, w => w.StartsWith("Re-activated", StringComparison.Ordinal));
+        Assert.Contains(warnings, w => w.Contains("the target is still 'tgt_part_", StringComparison.Ordinal)
+            && w.Contains("doc_activate", StringComparison.Ordinal));
+    }
+
+    [Fact]
     public async Task Insert_with_a_rotation_puts_a_known_vertex_where_the_rotation_maps_it()
     {
         // The corner (40, 10, 20) of the box, turned 90° about +z and moved to (100, 0, 0), belongs at (90, 40, 20).

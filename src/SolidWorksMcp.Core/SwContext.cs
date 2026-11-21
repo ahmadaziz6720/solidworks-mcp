@@ -97,7 +97,10 @@ internal sealed class SwContext
                 var now = ActiveDocOrNull;
                 if (now is null || !DocLocator.SameDoc(now, doc))
                     throw new SwException(ErrorCodes.VerifyFailed, $"Could not re-activate '{entry.Title}' (error {err}).");
-                Warn($"Re-activated '{entry.Title}' (the active document was '{(active is null ? "none" : DocumentRegistry.SafeTitle(active))}').");
+                // S107: doc re-activates its document but does not move the target; say where the target is.
+                string stays = !string.IsNullOrWhiteSpace(options.Doc) && Documents.Target is { } t && !DocLocator.SameDoc(t, doc)
+                    ? $"; the target is still '{DocumentRegistry.SafeTitle(t)}', doc_activate to change it" : "";
+                Warn($"Re-activated '{entry.Title}' (the active document was '{(active is null ? "none" : DocumentRegistry.SafeTitle(active))}'{stays}).");
             }
             _stampAtBind = doc.GetUpdateStamp();
             if (!_selfCleanAtBind)

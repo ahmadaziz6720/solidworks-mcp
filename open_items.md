@@ -17,7 +17,7 @@ Closed all the same, its PR named, and an open PR no longer holds an item in Wai
 item sent upstream ends with `**Upstream: PR #9, open.**`, one per PR or issue
 (`merged`, `closed unmerged`; an issue `open` or `closed`), kept to its state.
 
-**Open: S4, S5, S7, S10 to S12, S33, S34, S52, S60, S64, S65, S79 to S82, S84 to S86, S89, S90, S92 to S110.**
+**Open: S4, S5, S7, S10 to S12, S33, S34, S52, S60, S64, S65, S79 to S82, S84 to S86, S89, S90, S92 to S106, S108 to S110.**
 Sorted 2026-11-21, the scenario test of build `20261121-175345` (findings 2026-11-21): S61
 (a) not held again (a STEP inserted after another component, the assembly saved in another
 folder than the STEP, lost on reopen, reported `ok`), fixed a third time in the run, group
@@ -393,8 +393,8 @@ its point.
 
 - [x] Phase 1: the opening question asked and answered (2026-11-21)
 - [x] S61 (a) a third time: committed (0d05bd7)
-- [x] S83: committed
-- [ ] S107: committed
+- [x] S83: committed (49a57fb)
+- [x] S107: committed
 - [ ] S110: committed
 - [ ] Group 1: full live tests and release (build: )
 - [ ] Group 1: scenario test (session id: ), its entry committed and sorted
@@ -1969,19 +1969,6 @@ lands on; the note and dimension checks count tables and the views' `boundsMm`, 
 annotations. Local. Not decided.
 Decided 2026-11-21 by the owner: taken into the run of 2026-11-21, group 5 (`## Run 2026-11-21`).
 
-### S107 - `asm_insert {doc}` warns it re-activated the assembly, which reads as if the target changed - OPEN 2026-11-21
-
-Sorted out of the entry of 2026-11-18 ("an edit to a printed plate and a new flat part",
-point 3), on build `20261118-060615`. After `doc_new` of a part, `asm_insert
-{doc:<assembly>}` placed it and warned "Re-activated '<assembly>' (the active document was
-'<part>')"; the next `asm_mate_add` calls without `doc` were refused `WRONG_DOC_TYPE`, the
-target still the new part. Right by the rules (the target is set by `doc_new` and
-`doc_activate`, not by `doc`), but three calls lost; one `doc_activate` fixed it.
-
-Proposed by the session: the warning adds "the target is still '<part>'". Local. Not
-decided.
-Decided 2026-11-21 by the owner: taken into the run of 2026-11-21, group 1: the warning adds that the target is still the other document (`## Run 2026-11-21`).
-
 ### S108 - `doc_new {type:"drawing"}` with no `template` replaces a custom default template's format with ISO and its units with MMGS - OPEN 2026-11-21
 
 Sorted out of the entry of 2026-11-18 ("a custom sheet format made from the ISO one with
@@ -2314,3 +2301,35 @@ the mate, which in the finding's own case was not the insert's (the insert's sid
 the flipped mate brought it back to); it stays a warning, as the owner's decision words it.
 Local: on `sw2023`, in the commit that moves it here; not yet in a build. Upstream: not yet
 decided.
+
+### S107 - `asm_insert {doc}` warns it re-activated the assembly, which reads as if the target changed - BUILT 2026-11-21, proof: the scenario test of the group 1 build
+
+Sorted out of the entry of 2026-11-18 ("an edit to a printed plate and a new flat part",
+point 3), on build `20261118-060615`. After `doc_new` of a part, `asm_insert
+{doc:<assembly>}` placed it and warned "Re-activated '<assembly>' (the active document was
+'<part>')"; the next `asm_mate_add` calls without `doc` were refused `WRONG_DOC_TYPE`, the
+target still the new part. Right by the rules (the target is set by `doc_new` and
+`doc_activate`, not by `doc`), but three calls lost; one `doc_activate` fixed it.
+
+Proposed by the session: the warning adds "the target is still '<part>'". Local. Not
+decided.
+Decided 2026-11-21 by the owner: taken into the run of 2026-11-21, group 1: the warning adds that the target is still the other document (`## Run 2026-11-21`).
+Fixed 2026-11-21 in the run of 2026-11-21 (group 1). Cause: the re-activation warning of
+a write (`SwContext.Bind`) named the document it brought back and the one that was active,
+and nothing of the target, which `doc` does not move; so it read as if the target had
+changed. Fix: when the call has `doc` and the session's target is another document, the
+warning ends "; the target is still '<target>', doc_activate to change it" (no `doc`, or
+`doc` the target itself: as before). Before: the new
+`AssemblyLiveTests.Insert_with_doc_after_doc_new_of_a_part_says_the_target_is_still_that_part`
+(`doc_new` of a part, `asm_insert {doc:<assembly>}`) failed ("Assert.Contains() Failure:
+Filter not matched in collection. Collection: ["Re-activated 'asm_tgt_eff766' (the active
+document"···]"). After: it passes, with
+`Insert_puts_the_origin_at_originMm_not_the_box_center_and_reports_the_auto_fix` and
+`FeatureManagementLiveTests.The_servers_own_failed_kept_and_rolled_back_changes_do_not_read_as_the_users`
+(the other test asserting "Re-activated"), 3/3 live; unit tests 302/302; `check_repo` ok;
+no description changed. Made stricter: none (a new assertion on a warning that was not
+asserted before). Decided 2026-11-21 by the run, not the owner: the target is named
+whatever it is (an assembly or a part), as the plan says, and only when it differs from
+the document `doc` named, because when they are the same the target did not stay anywhere
+else. Local: on `sw2023`, in the commit that moves it here; not yet in a build. Upstream:
+not yet decided.
