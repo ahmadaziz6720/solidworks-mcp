@@ -17,13 +17,17 @@ Closed all the same, its PR named, and an open PR no longer holds an item in Wai
 item sent upstream ends with `**Upstream: PR #9, open.**`, one per PR or issue
 (`merged`, `closed unmerged`; an issue `open` or `closed`), kept to its state.
 
-**Open: S4, S5, S7, S10 to S12, S33, S34, S52, S60, S61, S64, S65, S79 to S86, S89, S90, S92 to S102.**
+**Open: S4, S5, S7, S10 to S12, S33, S34, S52, S60, S61, S64, S65, S79 to S86, S89, S90, S92 to S110.**
+Sorted 2026-11-21, six working sessions' entries of 2026-11-18 on build `20261118-060615`:
+S103 to S110 new, reported `ok` while wrong S106; S65 (k) and (l) and S80 (c) new parts;
+S10, S81, S84, S89 and S92 met again, S92 six times more, with a lead on what brings it on
+(an assembly holding the part loaded); S91 held again. Next: the owner's decisions on S92 to
+S110 and the new parts, for the next plan; S92 (now with a test to start from), S100 (d) and
+S106 first.
 Sorted 2026-11-18, 22 working sessions' entries of 2026-11-17 and 2026-11-18 on build
 `20261117-012659` and the scenario test of build `20261118-060615`: S91 held and closed;
 S92 to S102 new, reported `ok` while wrong S92 (b) and S100 (d); S64 (m) to (p) and S65 (g)
 to (j) new parts, S84 (c) a new part; S5, S52, S64, S80, S81, S84 to S86 and S89 met again.
-Next: the owner's decisions on S92 to S102 and the new parts, for the next plan; S92 (the
-equation state, five sessions in one day) and S100 (d) first.
 Sorted 2026-11-17, the scenario test of build `20261117-012659` (findings 2026-11-17): S71,
 S72, S87 and S88 held and closed, S52 (c) held and closed (S52 stays Open for `body_list`'s
 box); S61 (a) not held (a STEP inserted into an assembly that already holds a component is
@@ -465,6 +469,24 @@ ROADMAP T10.3, T10.10, T10.12 partly. Not yet decided which to build. Usage for 
 callouts until then: model holes as one feature plus a pattern, end condition through, so
 the callout gets `n×` and "through". Parked 2026-11-11 by the owner: taken up when a job
 needs it.
+Met again 2026-11-18 (findings 2026-11-18, "a two-sheet A3 drawing of a 16-member weldment
+part", point 5), build `20261118-060615`: dimensions at two decimals with a comma
+(`1200,00`), the title block not filled.
+Met again 2026-11-18 (findings 2026-11-18, "a custom sheet format made from the ISO one with
+`vba_run`", points 2 and 3), the same build: a custom format made with `vba_run` in 4 calls,
+and it held. `DrawingDoc.EditTemplate`; the format sketch's lines from
+`GetActiveSketch2().GetSketchSegments()`, selected by `Select4(True, Nothing)` when both ends
+lie in the block's box, deleted by `Extension.DeleteSelection2(0)`; the format's notes from
+the sheet view's `GetFirstNote` chain, selected by `Annotation.Select2(True, 0)`
+(`Select3(True, Nothing)` selected none, with no error); new lines by
+`SketchManager.CreateLine` with `AddToDB = True`; notes by
+`ModelDoc2.InsertNote("$PRP:""Name""")`, then `SetTextFormat` and `SetPosition2`;
+`DrawingDoc.EditSheet`; `Sheet.SaveFormat(path)`. `drw_sheet_setup {format}` then read the
+new format back, `titleBlockMm` found from its lines. And `drw_annotation_list
+{format:true}` gives a format note's resolved text, not its link: an empty field reads `""`,
+and which property fills it cannot be told without `vba_run` (`Note.PropertyLinkedText`).
+Proposed by the session: a tool for the format on these calls (delete in a box, add lines,
+add linked notes, save the format), and the link listed beside a note's text.
 
 ### S11 - No dimension to a section's cut face - OPEN 2026-11-09, parked: taken up when a job needs it
 
@@ -1417,6 +1439,19 @@ depth and a start offset. Local. Not decided.
 from the flange's took a `dimension_set` probe and a hand-figured volume. Proposed by the
 session: each dimension in `sketch_info` (and `dimension_list {sketch}`) names its kind and
 the entities it measures (`Line6`-`Line8`, horizontal). Local. Not decided.
+(k) Sorted out of the entry of 2026-11-18 ("a two-sheet A3 drawing of a 16-member weldment
+part", point 2), on build `20261118-060615`: no tool sets a cut-list item's properties. The
+cut-list table's DESCRIPTION column came empty for all 9 items, and nothing sets a cut-list
+item's `Description`, so the table could not name its members; a note mapping item numbers
+to member letters stood in. Proposed by the session: `model_cut_list` takes `set: [{item,
+properties}]`, or `prop_set` takes a cut-list item. Local. Not decided.
+(l) Sorted out of the entry of 2026-11-18 ("a custom sheet format made from the ISO one with
+`vba_run`", point 4), the same build: no tool sets a mass unit. `$PRPSHEET:"Weight"`, the
+part's `Weight` being `"SW-Mass@<part>"`, is evaluated in the drawing's mass unit, not the
+part's: the part in kg read `10.49` in `prop_list`, the drawing's note `10489.13` after
+`ForceRebuild3`, until the drawing's units were set custom with mass in kg by `vba_run`
+(`swUnitSystem` 4, `swUnitsMassPropMass`). `doc_units_set` takes only the four systems.
+Proposed by the session: a `massUnit` option on `doc_units_set`. Local. Not decided.
 
 ### S79 - `doc_undo` undoes the step before an `equation_set`, reported `ok`, and is refused after a chamfer split by `flipEdges` - OPEN 2026-11-16
 
@@ -1486,6 +1521,13 @@ follows the base's edges) and were kept: one length dimension then fully defined
 held at a second set of variables; the same on a second band. New: the relations are
 sometimes wanted. Proposed by the session for the fix: an option to keep or drop relations
 to model geometry, the result naming them as now.
+(c) Sorted out of the entry of 2026-11-18 ("a part's outline sketch redrawn and driven",
+point 3), on build `20261118-060615`: a `sketch_add` `rectangle` drawn 8 x 8 came back with
+`"equal: Line2, Line1"`, a square for good, so a width and a height from different variables
+would later conflict. Listed in the result, so a read and not a fault; a closed `polyline`
+with horizontal and vertical from `sketch_constrain` held. Proposed: weighed with (a), the
+description saying a rectangle drawn square gets an `equal`, or no `equal` added. Local. Not
+decided.
 
 ### S81 - "modified outside this server (by the user?)" again after the server's own changes - OPEN 2026-11-16
 
@@ -1512,6 +1554,13 @@ point 6; "fillets and a trim cut on three parts of an assembly", point 1), build
 since its last change (by the user?)" after this server had saved two (then three) of its
 parts and nothing else had touched it; the assembly was dirty only from their rebuild. As
 case (1) above, twice more.
+Met again 2026-11-18 (findings 2026-11-18, "a two-sheet A3 drawing of a 16-member weldment
+part", point 3), build `20261118-060615`: a part saved (`dirty:false`), then
+`drw_views_standard` of it warned that it "is open with unsaved changes", and a later
+`doc_save` of the part warned "was modified outside this server since its last change (by
+the user?)". New: a drawing made from the part, its views on a weldment configuration
+(`Default<As Welded>`); not known whether the user edited the part meanwhile or the views
+dirtied it. Not probed.
 
 ### S82 - `sketch_constrain` angular where two lines meet only virtually turns the shape inside out, reported `ok` - OPEN 2026-11-16
 
@@ -1595,6 +1644,11 @@ two swept internal threads", point 4), the same build: `feature_delete` of a swe
 whose sketch is on a standard plane with the origin only; after the sweep was made again
 before it, `model_review` read no error. Whether the error was real while it lasted is not
 known.
+Met again 2026-11-18 ((b); findings 2026-11-18, "a shared global variable changed in two
+parts", point 5), build `20261118-060615`: `feature_pattern_linear` returned `ok` with
+"warning 51 (swSketchErrorExtRefFail)" on the new pattern; after an `equation_set` on its
+spacing the warning was gone and `model_review` clean. The session spent a review to tell
+whether it was real.
 
 ### S85 - `feature_delete`'s dry run lists as kept an absorbed sketch the real call removes - OPEN 2026-11-16
 
@@ -1679,6 +1733,13 @@ closed (none dirty), its process ended, `sw_connect` attached to the user's, the
 lists every `SLDWORKS.exe` with its start time and which one the server is attached to, and
 `launch` shows the window (or says it is hidden); the proposal above (`launch` starts the exe)
 covers the second.
+Met again 2026-11-18 (findings 2026-11-18, "a custom sheet format made from the ISO one with
+`vba_run`", point 1), build `20261118-060615`: after the server process was restarted (to
+turn on `SWMCP_VBA`), every call failed `NOT_CONNECTED` on a SOLIDWORKS that `sw_connect
+{launch:true}` had started. An outside COM client's `GetActiveObject("SldWorks.Application")`
+failed the same way (`Operation unavailable`), which bears out the running object table as
+the cause. Workaround as above, by the user; unsaved drawing properties lost and set again
+(9 calls, two user round trips).
 
 ### S90 - `drw_view_section` with no `atMm` places a section so its own label overlaps the title block - OPEN 2026-11-17
 
@@ -1731,6 +1792,22 @@ state before the first write too; (d) `sw_status` gives SOLIDWORKS' process star
 its pid and the refusal names it, so "restarted?" is read, not asked; an exit tool that
 refuses with a dirty document open; the hint may say that closing the window can leave the
 process alive under another server's references. Local. Not decided.
+Met again 2026-11-18 ((b) and (c); findings 2026-11-18: "an edit to a printed plate", point
+1; "a part's outline sketch redrawn and driven", point 1; "a shared global variable changed
+in two parts", points 1, 3 and 4), build `20261118-060615`, six times in three sessions.
+(b): `equation_list` read every global truncated (`60.4mm` as 60, `0.5mm` as 0) and every
+derived row 0, reported `ok`, at a session's start before any write (`sw_status.otherServerPids`
+listing a second server process), and mid-session, where it was read only after an
+`equation_set` was refused (about 6 calls and a restart lost; taken as the sign, the restart
+would have come before any write). A restart cleared it each time (`sw_connect
+{launch:true}`: "a new one (before: pid ...)", S60 (c) held). Each session asked for (b)'s
+warning. (c), a lead: in the third session the state followed, four times, a step that
+loaded an assembly holding the part: opened read-only by the server and closed; opened by
+the user in SOLIDWORKS' own window; opened editable by the server, a mate dimension set,
+`asm_interference` run, closed with `discard`. The next `equation_list` read wrong at once,
+the geometry unchanged (`body_list` the same volume). Not proved. Proposed by the session: a
+live test, a part with a global of `60.4mm` read, an assembly holding it opened and closed,
+read again; and until fixed, a usage line: edit the parts first and open the assembly last.
 
 ### S93 - A write that rebuilds does not name a feature far from the change that gained a rebuild warning - OPEN 2026-11-18
 
@@ -1900,6 +1977,116 @@ type>". The copy is offered as a type although the next call with it is refused
 
 Proposed by the session: leave a one-configuration file in the standard folder out of the
 list, or mark it ("not usable: one configuration"). Local. Not decided.
+
+### S103 - `weldment_member`: lines in two directions that do not touch fail with the path hint, and the result does not say which way the section lies - OPEN 2026-11-21
+
+Sorted out of the entry of 2026-11-18 ("a weldment frame of 16 members in one custom
+profile", points 1 and 2), on build `20261118-060615`.
+(a) `weldment_member` on one 2D sketch of four lines, two vertical and two horizontal, none
+touching another, all segments by default, `corner:"none"`, failed `VERIFY_FAILED: ...
+'Weldment' was created but has no faces ... Rolled back`, hint "The segments must form a path
+a profile can follow (no zero-length or overlapping lines)". The same sketch with `segments`
+the two parallel lines, then the other two, made both members, volumes exact. Likely:
+SOLIDWORKS takes a group of segments only when they are contiguous or all parallel. S91's
+hint point (Closed), met with another cause. Not reported `ok`.
+(b) The result does not say which way the section lies. `rotateDeg` 0 on vertical lines in
+a sketch on a Right-offset plane put the section's long side along the sketch normal, 90 in
+the plane; the same for horizontal lines there and on Front-offset planes; on a Top-offset
+plane 0 gave the long side vertical. Found only from `model.box` and `body_list`'s boxes, and
+one undo.
+
+Proposed by the session: (a) the server splits the segments into groups by that rule (one
+group per parallel set, as groups of one feature), or the hint names the rule; (b) each
+member in the result gives its section's extents along the model axes, or the long side's
+direction, so a wrong rotation shows in the call that made it. Local. Not decided.
+
+### S104 - `material_list` lists one database twice, under its short and its long path - OPEN 2026-11-21
+
+Sorted out of the entry of 2026-11-18 ("a weldment frame of 16 members in one custom
+profile", point 3), on build `20261118-060615`. `material_list {filter:"606"}` returned 24
+rows for 12 materials and two entries in `databases` of 259 each: one database under its 8.3
+path and under its long path. Reported `ok`. Bears on S97 (the databases a miss reads).
+
+Proposed: the database paths taken to their long form before they are listed and searched.
+Local. Not decided.
+
+### S105 - No tool hides or shows reference geometry and sketches - OPEN 2026-11-21
+
+Sorted out of the entry of 2026-11-18 ("a weldment frame of 16 members in one custom
+profile", point 6), on build `20261118-060615`. At the end of a part the owner wanted every
+reference plane, path sketch and structural member's profile sketch hidden; no tool does it
+(`view_screenshot`'s `hidePlanes` and `hideSketches` hide them for the picture only, and
+restore them), and `vba_run` was off. Left to the owner by hand: 5 planes, 5 path sketches,
+9 profile sketches.
+
+Proposed by the session: a `feature_visibility {features | kinds:["plane", "sketch",
+"profile_sketch"], show}` that hides by name or by kind (a member's profile sketch a kind of
+its own), each feature's visibility read back; or a `hide` option on `doc_save`. Local. Not
+decided.
+
+### S106 - The drawing's overlap checks count neither tables nor views, and `drw_table_add` gives no extent - OPEN 2026-11-21
+
+Sorted out of the entry of 2026-11-18 ("a two-sheet A3 drawing of a 16-member weldment
+part", point 1), on build `20261118-060615`. **A result reported `ok` while wrong.**
+`drw_table_add {kind:"cut_list", atMm:[408,285]}` returned the rows but no extent; the table
+came out about 201 x 71 mm, over a side view. A 145 x 118 mm note added after it read "clear
+of the border, the title block and the other annotations" while it lay across both the table
+and the side view's members; only the PDF showed it.
+
+Proposed by the session: `drw_table_add` returns the table's `extentMm` and warns of what it
+lands on; the note and dimension checks count tables and the views' `boundsMm`, not only
+annotations. Local. Not decided.
+
+### S107 - `asm_insert {doc}` warns it re-activated the assembly, which reads as if the target changed - OPEN 2026-11-21
+
+Sorted out of the entry of 2026-11-18 ("an edit to a printed plate and a new flat part",
+point 3), on build `20261118-060615`. After `doc_new` of a part, `asm_insert
+{doc:<assembly>}` placed it and warned "Re-activated '<assembly>' (the active document was
+'<part>')"; the next `asm_mate_add` calls without `doc` were refused `WRONG_DOC_TYPE`, the
+target still the new part. Right by the rules (the target is set by `doc_new` and
+`doc_activate`, not by `doc`), but three calls lost; one `doc_activate` fixed it.
+
+Proposed by the session: the warning adds "the target is still '<part>'". Local. Not
+decided.
+
+### S108 - `doc_new {type:"drawing"}` with no `template` replaces a custom default template's format with ISO and its units with MMGS - OPEN 2026-11-21
+
+Sorted out of the entry of 2026-11-18 ("a custom sheet format made from the ISO one with
+`vba_run`", point 6), on build `20261118-060615`. With SOLIDWORKS' default drawing template
+set to one holding a custom format and custom units (mass in kg), `doc_new {type:"drawing"}`
+reported "Created drawing from <that template>; ... format a3 - iso.slddrt" and units MMGS;
+with `template:<the same file>, units:"template"` it kept both. Said in the result, so not
+reported wrong, but a user who set a default template does not get it.
+
+Proposed by the session: keep the template's sheet whenever the default drawing template is
+not the shipped one, and say so; or a server setting for the default drawing template.
+Local. Not decided.
+
+### S109 - `NOT_CONNECTED` after `asm_component_move` and `doc_rebuild` on a subassembly open beside its parent, SOLIDWORKS responding - OPEN 2026-11-21
+
+Sorted out of the entry of 2026-11-18 ("a shared global variable changed in two parts",
+point 6), on build `20261118-060615`. In an assembly's limit-mate configuration a component
+was moved twice (13.2 s and 14.5 s), each followed by `doc_rebuild` (the second 6.7 s); the
+next call, `asm_component_list`, failed `NOT_CONNECTED` "SOLIDWORKS is running (pid ...) but
+can't be reached over COM". The process answered `Responding: True`, its window title naming
+the subassembly as dirty. The user brought it back by hand; what it showed is not known. The
+hint ("still starting", "different privileges") fits neither. Bears on S60 (b) (Closed part)
+and S89 (the `NOT_CONNECTED` hint).
+
+Proposed: a probe, the same moves and rebuilds on a subassembly open beside its parent,
+`sw_status` and `dialog_list` when the connection goes; the hint names a modal dialog as a
+cause where one may be up. Local. Not decided.
+
+### S110 - `dimension_set` of a limit mate's nominal outside its limits is refused without naming them - OPEN 2026-11-21
+
+Sorted out of the entry of 2026-11-18 ("a shared global variable changed in two parts",
+point 6), on build `20261118-060615`. `dimension_set` of a limit mate's nominal to a new
+minimum was refused (`INVALID_ARGUMENT`, "rejected 15 mm ... as invalid") until
+`dimension_tolerance_set` widened the range (type `limit`, lower -23.5, read back as
+`limits: [15, 72.5]`). Not reported `ok`.
+
+Proposed by the session: the hint says a limit mate's nominal must lie inside its limits,
+and that `dimension_tolerance_set` moves them. Local. Not decided.
 
 
 ## Waiting
