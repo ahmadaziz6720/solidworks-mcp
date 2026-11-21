@@ -2277,3 +2277,56 @@ Build `bin\0.1.0-20261121-175345` (`serverVersion` `0.1.0-sw2023-20261121-175345
    mm³; a 1:2 plan with two sections, 1 and 3 hatched faces.
 
 Sorted into S61 (1), not held, back to Open; S5 (2), met again. Not filed (2): the other short checks held, no item waits on these tools.
+
+**2026-11-21: scenario test of build 20261121-205309 (S61 (a), S83, S107, S110)**
+
+Build `bin\0.1.0-20261121-205309` (`serverVersion` `0.1.0-sw2023-20261121-205309+1fb1fda`, tag
+`build-20261121-205309`), SOLIDWORKS 2023 SP3 already running, attached at once. An older server
+process of the previous build was still running beside it (`otherServerPids`), not touched.
+
+1. **S61 (a), held in every case, the three that failed included.** `asm_insert` of a STEP of a
+   20 mm cube, each case a fresh copy of the STEP in its own folder. Every insert: one component, "1
+   solid body (8000 mm³)", linked by 3D Interconnect, and the message now "its part '<step
+   folder>\<name>.step.SLDPRT' is written beside the STEP"; the file was on disk right after the
+   insert, the part listed `owned` and clean. Reopened after each save, every component `resolved`,
+   no `missingReferences`, the assembly not dirty on open: (g) a part first, the STEP from a
+   subfolder of the assembly's folder, `doc_save as` (2 components, 16 000 mm³); (h) the same with a
+   second `doc_save` in place; (e) the STEP from an unrelated folder into a saved assembly holding a
+   subassembly, a part and an earlier STEP component, `doc_save` in place (4 components, 40 000 mm³);
+   (d) the STEP after a subassembly and a part, `doc_save as` then in place (no dirty-again); (a) the
+   STEP first, assembly in the STEP's folder, its fixed state kept; (b) the STEP first, assembly one
+   folder up; (c) a part first, the STEP after, `doc_save as` in the STEP's folder; (f) a part first,
+   the assembly saved, the STEP inserted, a coincident mate added to the STEP component, `doc_close
+   {save:true}`: reopened with the mate (0 in error) and the component where the mate put it. No
+   "Also wrote" and no warning in any save, as the part was already written at the insert. The
+   "modified outside this server" warning the fork's session saw on a `doc_save as` after a STEP
+   inserted first did not appear in case (a) (no refused insert or listing in between).
+2. Seen with S61 (a), not faults: the STEP component is named `<name>.step-2` even as the only
+   instance in the assembly (the repoint deletes the linked `-1` and adds the written part); the
+   result names it, so a mate by that name works, but a caller guessing `-1` would miss it. On
+   reopen the repointed components were listed before the others (`<step>-2`, part, `<step>-2`,
+   subassembly), not in insert order.
+3. **S83, held.** Two 20 mm cubes, the second inserted at x +80; distance 80 `aligned` between their
+   right planes: landed at x −80 with the old wording ("…-80 mm along its normal before, 80 mm
+   after. If it should stay on the side it was on, delete the mate and add it again with flip the
+   other way."). Mate deleted, added again with `flip:true`: landed at +80, warning "…on the other
+   side of b … from where it was before the mate, as flip asks: 80 mm along its normal before, -80
+   mm after. If it should have stayed, add the mate again without flip."
+4. **S110, held.** Limit distance mate 20..72.5 at 30; `dimension_set` 15: `INVALID_ARGUMENT` "is a
+   limit mate's nominal: 15 mm lies outside its limits 20 to 72.5 mm. Nothing was changed. Hint: …
+   move the limits first with dimension_tolerance_set (type limit, upper and lower deviations from
+   the nominal)". Following it, `dimension_tolerance_set` limit upper 42.5 lower −15 read back
+   `limits: [15, 72.5]`; 15 then set, 50 set, 80 refused naming "15 to 72.5" (the limits stay put
+   when the nominal moves).
+5. Missing, small: `asm_mate_list` gives a limit mate's distance and dimension but not its limits;
+   they were readable only through `dimension_tolerance_set`'s `previous` or a refused
+   `dimension_set`.
+6. **S107, held.** `doc_new` of a part, then `asm_insert {doc:<assembly>}`: warning "Re-activated
+   '<assembly>' (the active document was '<part>'; the target is still '<part>', doc_activate to
+   change it)."
+7. Held, regression: a hand-built two-part assembly (2 components, plate fixed, shaft 2 mates,
+   127 402.659 mm³; shaft length 60 → 80 through `dimension_set` in the assembly, mates without
+   error, 133 685.844 mm³, back to 60, closed discarded, files unchanged); a part opened read-only,
+   force rebuild 174 346.977 mm³, mass 221.42 g, area 116 546.84 mm²; STEP export and `doc_open` of
+   it, 16 surface bodies (S5, as before); a 1:2 plan with two sections on the owner's A3 template, 1
+   and 3 hatched faces, `doc_save as` .SLDDRW written; a hinge assembly read-only, interference 0.
