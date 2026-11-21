@@ -121,16 +121,21 @@ internal static class TestHooks
     public static Task<List<string>> OpenTitlesAsync(SwSession s) =>
         s.RunAsync("test_titles", ctx => ctx.App.Documents().Select(ctx.Title).ToList());
 
-    /// <summary>Opens a file through the raw API, bypassing the registry, as the user would from File &gt; Open.</summary>
+    /// <summary>Opens a part or an assembly through the raw API, bypassing the registry, as the user would from File &gt; Open.</summary>
     public static Task<string> OpenRawAsync(SwSession s, string path) =>
         s.RunAsync("test_open_raw", ctx =>
         {
             int e = 0, w = 0;
-            var d = (object?)ctx.App.OpenDoc6(path, (int)swDocumentTypes_e.swDocPART, (int)swOpenDocOptions_e.swOpenDocOptions_Silent, "", ref e, ref w)
+            var type = path.EndsWith(".sldasm", StringComparison.OrdinalIgnoreCase) ? swDocumentTypes_e.swDocASSEMBLY : swDocumentTypes_e.swDocPART;
+            var d = (object?)ctx.App.OpenDoc6(path, (int)type, (int)swOpenDocOptions_e.swOpenDocOptions_Silent, "", ref e, ref w)
                         as SolidWorks.Interop.sldworks.IModelDoc2
                     ?? throw new SwException(ErrorCodes.IoError, $"OpenDoc6 failed ({e}).");
             return ctx.Title(d);
         });
+
+    /// <summary>A document's update stamp now, and the one the server's registry holds as seen (S81 probe).</summary>
+    public static Task<(int Now, int? Seen)> UpdateStampAsync(SwSession s, string doc) =>
+        s.RunAsync("test_update_stamp", ctx => (ctx.Doc.GetUpdateStamp(), ctx.Documents.Find(ctx.Doc)?.StampSeen), RunOptions.Read(doc));
 
     /// <summary>
     /// SOLIDWORKS' own <c>IComponent2.Solving</c> of each top-level component, by component name

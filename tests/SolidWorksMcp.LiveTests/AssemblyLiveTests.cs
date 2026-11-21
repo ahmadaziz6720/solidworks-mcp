@@ -2221,6 +2221,73 @@ public class AssemblyLiveTests(LiveFixture fx) : LiveTest(fx)
     }
 
     [Fact]
+    public async Task An_assembly_adopted_after_the_server_saved_its_parts_does_not_read_as_changed_by_the_user()
+    {
+        // S81 (1): the user's assembly open, its parts (loaded only by it) adopted, edited and saved by this server, the
+        // assembly then adopted with doc_activate allowEdit: equation_set and doc_save on it each warned "'…' was modified
+        // outside this server since its last change (by the user?)", though the only changes were the server's own. Not
+        // reproduced on 2023 SP3 (2026-11-22): the assembly's update stamp does not move when its parts change or are saved,
+        // here or in the variants of the probe in S81. Kept as the guard of that path; the stamps are in the message.
+        const string Outside = "modified outside this server";
+        var cube = await CubeAsync("adopt");
+        var cube2 = await CubeAsync("adopt2");
+        string mine = await NewAssemblyAsync("adopt_asm");
+        string n1 = (await InsertAsync(mine, cube.Path, [0, 0, 0])).Component.Name;
+        string n2 = (await InsertAsync(mine, cube2.Path, [0, 0, 50])).Component.Name;
+        await Mate(mine, "coincident", Face(n1, 0, 0, 10), Face(n2, 0, 0, -10));
+        string asmPath = (await Docs.SaveAsync(mine, "as", Path.Combine(_dir, $"adopt_asm_{_tag}.sldasm"), overwrite: false)).SavedTo!;
+        await Docs.CloseAsync(mine, save: false, discard: true);
+        await Docs.CloseAsync(cube.Doc, save: false, discard: true);
+        await Docs.CloseAsync(cube2.Doc, save: false, discard: true);
+
+        string title = await TestHooks.OpenRawAsync(S, asmPath); // the user's assembly, its parts loaded only by it
+        var partTitles = new List<string>();
+        try
+        {
+            var probe = new List<string>();
+            async Task<IReadOnlyList<string>> Stamp(string at, IReadOnlyList<string>? w)
+            {
+                var (now, seen) = await TestHooks.UpdateStampAsync(S, title);
+                probe.Add($"{at}: {now} (seen {seen?.ToString() ?? "none"})");
+                return w ?? [];
+            }
+            var listed = (await Docs.ListAsync()).Documents;
+            var fm = new FeatureManagementService(S);
+            var handles = new List<string>();
+            foreach (var path in new[] { cube.Path, cube2.Path })
+            {
+                var row = listed.Single(d => string.Equals(d.Path, path, StringComparison.OrdinalIgnoreCase));
+                handles.Add(row.Handle);
+                partTitles.Add(row.Title);
+                Assert.Equal("foreign", row.Access);
+                Assert.Equal("adopted", (await Docs.ActivateAsync(row.Handle, allowEdit: true)).Document.Access);
+                await Stamp($"{row.Handle} dimension_set", (await fm.DimensionSetAsync(row.Handle, [new DimensionValue { Name = "D1@Boss-Extrude1", Value = 30 }])).Warnings);
+                await Stamp($"{row.Handle} saved", (await Docs.SaveAsync(row.Handle, "inPlace", null, overwrite: false)).Warnings);
+            }
+            Assert.Equal("adopted", (await Docs.ActivateAsync(title, allowEdit: true)).Document.Access);
+            await Stamp("adopted", null);
+
+            var props = new PropertiesService(S);
+            var eq = await Stamp("equation_set", (await props.EquationSetAsync(title, "\"adoptW\"", "12")).Warnings);
+            var eq2 = await Stamp("equation_set", (await props.EquationSetAsync(title, "\"adoptW\"", "13")).Warnings);
+            var save = await Stamp("doc_save", (await Docs.SaveAsync(title, "inPlace", null, overwrite: false)).Warnings);
+            foreach (var (step, w) in new[] { ("equation_set", eq), ("a second equation_set", eq2), ("doc_save", save) })
+                Assert.False(w.Any(x => x.Contains(Outside)), $"{step}: {string.Join(" | ", w)} || {string.Join("; ", probe)}");
+
+            // A change made outside the server still warns.
+            await TestHooks.SetDimensionRawAsync(S, handles[0], "D1@Boss-Extrude1", 25, asUser: true);
+            var after = (await fm.RebuildAsync(handles[0])).Warnings ?? [];
+            Assert.Contains(after, x => x.Contains(Outside));
+        }
+        finally
+        {
+            // The assembly first; the parts adopted got windows of their own and stay open after it.
+            await TestHooks.CloseRawAsync(S, title);
+            foreach (var t in partTitles) await TestHooks.CloseRawAsync(S, t);
+        }
+    }
+
+    [Fact]
     public async Task Dimension_set_through_an_assembly_names_the_component_the_volume_and_the_part_it_changed()
     {
         // S49: a component's dimension set through its assembly came back as 'D1@Boss-Extrude1', without the component (two

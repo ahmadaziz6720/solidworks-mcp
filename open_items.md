@@ -473,8 +473,8 @@ its point.
 - [x] Group 2: scenario test (session id: `f634dedd-ccc6-4d15-b29a-e09cb7db3fd5`), its entry committed and sorted (entry `561c437`) (`17d73cb`)
   Started 00:23 2026-11-22, free memory 2165 MB with SOLIDWORKS restarted from its exe; launcher `%LOCALAPPDATA%\solidworks-mcp\livetest\run-1121\check2.ps1` (`-Resume` to resume), pid 17196 died at once (the launcher path, holding a space, not quoted in `-File`), started again 00:24 quoted, pid 16752, output check2.out.txt and check2.err.txt beside it. The Haiku watcher returned twice before the check ended, so the session watched it by a background until-loop of its own instead. Ended `EXIT 0` 00:29 with the entry. Sorted: S112, S113 and S95 held and closed; S114 new (S113's edges), taken into group 3; S115 new, not in this run; S5 met again. Release page notes updated.
 - [x] S89: committed (`46920a1`)
-- [x] S92 (d): committed (split out as S116)
-- [ ] S81: committed
+- [x] S92 (d): committed (split out as S116) (`a72b20f`)
+- [x] S81: committed (probed, not reproduced; stays Open, guard test kept. Seen in one variant: the fixture's "System preferences changed by this test: Double2", cause unknown, for the report)
 - [ ] S109: probed
 - [ ] S114: committed
 - [ ] Group 3: full live tests and release (build: )
@@ -1559,6 +1559,26 @@ the user?)". New: a drawing made from the part, its views on a weldment configur
 (`Default<As Welded>`); not known whether the user edited the part meanwhile or the views
 dirtied it. Not probed.
 Decided 2026-11-21 by the owner: taken into the run of 2026-11-21, group 3, a probe of the stamp in case (1) first (`## Run 2026-11-21`).
+Probed 2026-11-22 on 2023 SP3, case (1), not reproduced: the stamp is taken at adoption already
+(`doc_activate` sets it after `ActivateDoc3`, upstream's code), and the assembly's update stamp
+(`GetUpdateStamp`, read after every call) did not move when its parts changed or were saved, in
+six variants: two 20 mm cubes in the user's assembly (opened outside the server), with and
+without a coincident mate that moves one when the other grows; the parts in windows of their
+own (the server's) or loaded only by the assembly, adopted by `doc_open` + `doc_activate` or by
+`doc_activate {allowEdit:true}` on the listed part; the assembly adopted before or after the
+parts' `dimension_set` and `doc_save`; 0 or 3 s idle between calls. Each time the stamp stood
+still (106 or 107) until the assembly's own `equation_set` (+1 each), the assembly never read
+dirty from its parts, and no call warned. So the cause is not what the plan named: something in
+the sessions moved the assembly's stamp between calls (it read dirty "from their rebuild" there,
+never here), what is not known: in-context references, features or a configuration the probe's
+assembly lacks, a lightweight or large-assembly load, or the owner's SOLIDWORKS options. No fix;
+case (2) and the drawing of 2026-11-18 not probed, their cause not shown to be the same. Kept as
+a guard: `AssemblyLiveTests.An_assembly_adopted_after_the_server_saved_its_parts_does_not_read_as_changed_by_the_user`
+(passes, 1/1; its message lists the stamp after each call). Next: when it is met again, the
+session runs `sw_status` and `doc_list` (dirty) before and after the call that warns, and names
+what the assembly holds (mates to changed faces, in-context parts, configurations).
+Decided 2026-11-22 by the run, not the owner: the probe's test kept, though it does not fail,
+because it guards the path case (1) names and its message gives the stamps a repro will need.
 
 ### S82 - `sketch_constrain` angular where two lines meet only virtually turns the shape inside out, reported `ok` - OPEN 2026-11-16
 
