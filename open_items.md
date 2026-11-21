@@ -17,7 +17,7 @@ Closed all the same, its PR named, and an open PR no longer holds an item in Wai
 item sent upstream ends with `**Upstream: PR #9, open.**`, one per PR or issue
 (`merged`, `closed unmerged`; an issue `open` or `closed`), kept to its state.
 
-**Open: S4, S5, S7, S10 to S12, S33, S34, S52, S60, S64, S65, S79 to S82, S84 to S86, S89, S90, S92 to S106, S108, S109, S111.**
+**Open: S4, S5, S7, S10 to S12, S33, S34, S52, S60, S64, S65, S79 to S82, S84 to S86, S89, S90, S92 to S94, S96 to S106, S108, S109, S111.**
 Sorted 2026-11-21, the scenario test of build `20261121-205309` (findings 2026-11-21): S61,
 S83, S107 and S110 held and closed, S61 (a) in every case, the three that failed before
 included; S111 new (`asm_mate_list` gives no limits of a limit mate), not in this run, for
@@ -440,8 +440,8 @@ its point.
   Started 20:55 2026-11-21, free memory 2174 MB with SOLIDWORKS restarted from its exe; launcher `%LOCALAPPDATA%\solidworks-mcp\livetest\run-1121\check1.ps1` (`-Resume` to resume), first run from the first session's scratchpad, pid 13972, output check1.out.txt and check1.err.txt beside the launcher it ran from. Stopped 21:00 at the 5-hour usage limit (`EXIT 1`, no entry). Resume 1 at 21:56, free memory 2463 MB with SOLIDWORKS restarted from its exe, pid 5944, from the scratchpad copy (its output there: `%TEMP%\claude\8c3a0854f52f5604\96549089-56a6-40d7-a892-5e462fc37ecc\scratchpad\check1.out.txt`); a later resume runs the copy under `run-1121`, its output beside it. Resume 1 ended `EXIT 0` 21:58 with the entry. Sorted: S61 (a), S83, S107 and S110 held and closed; S111 new (not in this run); S5 met again. Release page notes updated with the result.
 - [x] S92 (c): probed, not reproduced (recorded in S92; (a) and (b) go on with unit tests) (`c3e8f9e`)
 - [x] S92 (a) and (b): committed (split out as S112 in Waiting, as the format splits an item) (`f2d3dc2`)
-- [x] S79 (b): committed (split out as S113; `doc_undo`'s description changed: docs/tools.md at the release)
-- [ ] S95: committed
+- [x] S79 (b): committed (split out as S113; `doc_undo`'s description changed: docs/tools.md at the release) (`9c14d93`)
+- [x] S95: committed
 - [ ] Group 2: full live tests and release (build: )
 - [ ] Group 2: scenario test (session id: ), its entry committed and sorted
 - [ ] S89: committed
@@ -1843,23 +1843,6 @@ a tapered helix: draw its points on the taper").
 
 Local, descriptions (the tool list is at its byte budget). Not decided.
 
-### S95 - `dimension_list` marks a dimension an equation drives `driven: true`, which its description gives as a reference dimension - OPEN 2026-11-18
-
-Sorted out of the entry of 2026-11-17 ("a read-only check of a printed part driven by global
-variables", point 1), on build `20261117-012659`. `dimension_list` marked 38 of 42 dimensions
-`driven: true`, every one an equation drives, and only the four plain values without it. Its
-description says the flag is for reference dimensions, so the result reads as 38 reference
-dimensions in a part whose sketches are all fully defined. The values were right; reported
-`ok`. SOLIDWORKS gives `swDimensionDriven` for a dimension an equation drives (met in
-`dimension_set`, S74, Closed); earlier entries read `driven:true` as "an equation drives it"
-(S54, Closed).
-
-Proposed by the session: two fields, `reference` (a true reference dimension) and `equation`
-(the equation's text when one drives it), or the description saying what the flag means.
-Local. Not decided.
-Decided 2026-11-21 by the owner: taken into the run of 2026-11-21, group 2 (`## Run 2026-11-21`).
-Decided 2026-11-21 in the plan, not the owner: fields, `equation` given and `driven` only for a reference dimension, not the description's wording, because the tool list is at its byte budget and a field in a result costs none of it.
-
 ### S96 - `sketch_constrain` does not check a relation to a model edge - OPEN 2026-11-18
 
 Sorted out of the entry of 2026-11-17 ("three printed parts of a box and its lid", point 3),
@@ -2199,5 +2182,48 @@ an undo after them too, `doc_rebuild` does not, because the first two change wha
 would expect an undo to take back and the rebuild changes nothing.
 Decided 2026-11-21 by the run, not the owner: (b) moved to Waiting as a new item split out
 of S79, as S112 was out of S92, because one number heads one item.
+Local: on `sw2023`, in the commit that moves it here; not yet in a build. Upstream: not yet
+decided.
+
+### S95 - `dimension_list` marks a dimension an equation drives `driven: true`, which its description gives as a reference dimension - BUILT 2026-11-21, proof: the scenario test of the group 2 build
+
+Sorted out of the entry of 2026-11-17 ("a read-only check of a printed part driven by global
+variables", point 1), on build `20261117-012659`. `dimension_list` marked 38 of 42 dimensions
+`driven: true`, every one an equation drives, and only the four plain values without it. Its
+description says the flag is for reference dimensions, so the result reads as 38 reference
+dimensions in a part whose sketches are all fully defined. The values were right; reported
+`ok`. SOLIDWORKS gives `swDimensionDriven` for a dimension an equation drives (met in
+`dimension_set`, S74, Closed); earlier entries read `driven:true` as "an equation drives it"
+(S54, Closed).
+
+Proposed by the session: two fields, `reference` (a true reference dimension) and `equation`
+(the equation's text when one drives it), or the description saying what the flag means.
+Local. Not decided.
+Decided 2026-11-21 by the owner: taken into the run of 2026-11-21, group 2 (`## Run 2026-11-21`).
+Decided 2026-11-21 in the plan, not the owner: fields, `equation` given and `driven` only for a reference dimension, not the description's wording, because the tool list is at its byte budget and a field in a result costs none of it.
+Cause: SOLIDWORKS gives `swDimensionDriven` for a reference dimension and for one an equation
+drives alike, and `dimension_list` took `DrivenState` alone as the flag. Fix: a new
+`FeatureManagementLogic.WithEquation` (`FeatureManagementService.cs`) matches each listed
+dimension with the document's active equations by the rule `dimension_set` refuses by
+(`EquationOn`); a match gives the row `equation` (the equation's text, a new field of
+`DimensionInfo`) and no `driven`, any other row stays as it was, so `driven: true` is left to
+a dimension no equation drives, a reference one. The description is unchanged (it already
+says the flag is for reference dimensions). Before: the new
+`FeatureManagementLiveTests.Dimension_list_gives_the_equation_of_a_dimension_it_drives_and_marks_only_a_reference_dimension_driven`
+(an equation-driven width and a reference height) failed, "Assert.Null() Failure: Value of
+type 'Nullable<bool>' has a value, Expected: null, Actual: True". After: it passes, with the
+unit test `A_listed_dimension_an_equation_drives_gives_the_equation_and_no_driven_flag`, the
+two other `dimension_list` live tests, `Dimension_set_refuses_bad_values_unknown_names_and_an_open_sketch`
+and the unit test of `EquationOn` (6/6), then the mate-angle equation test and the limit-mate
+test of `AssemblyLiveTests` (2/2); `SolidWorksMcp.UnitTests` 310/310 (the new offline fact is
+in the live tests' project); `check_repo` ok; no description changed, so no catalog check.
+Made stricter: nothing is refused; `dimension_list` reports `driven` for fewer rows (not for
+one an equation drives) and `equation` for those.
+Decided 2026-11-21 by the run, not the owner: the reference dimension in the test is made with
+VBA (`DrivenState = 1`, the setter a user's "driven" checkbox calls), because the server
+refuses to add one (an over-defining dimension is removed) and the live tests hold no interop.
+Decided 2026-11-21 by the run, not the owner: only `dimension_list` changes, not the shared
+`DimensionInfo` of other tools' results (`driven` in `dimension_add`, feature results), because
+the item names that list and those results come from a dimension just made or set.
 Local: on `sw2023`, in the commit that moves it here; not yet in a build. Upstream: not yet
 decided.

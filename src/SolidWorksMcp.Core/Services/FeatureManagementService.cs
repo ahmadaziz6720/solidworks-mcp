@@ -927,9 +927,10 @@ public sealed partial class FeatureManagementService(SwSession session)
             if (scope.Count == 0) scope.AddRange(Tree.WalkAll(d).Where(f => !Tree.SystemTypes.Contains(f.GetTypeName2())));
             var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             var all = new List<DimensionInfo>();
+            var equations = ActiveEquations(d);
             foreach (var f in scope)
                 foreach (var di in FeatureVerifier.Dimensions(f))
-                    if (seen.Add(di.Name)) all.Add(di);
+                    if (seen.Add(di.Name)) all.Add(FeatureManagementLogic.WithEquation(di, equations));
             var page = all.Skip(offset).Take(limit).ToList();
             return new DimensionListResult
             {
@@ -1704,6 +1705,15 @@ internal static class FeatureManagementLogic
     /// </summary>
     public static string? EquationOn(IEnumerable<string> equations, params string[] names) =>
         equations.FirstOrDefault(e => EquationTarget(e) is { } t && names.Any(n => string.Equals(t, n.Trim(), StringComparison.OrdinalIgnoreCase)));
+
+    /// <summary>
+    /// dimension_list's row for a dimension an equation drives (S95): SOLIDWORKS reads it as driven, which is the flag of a
+    /// reference dimension, so the row gives the equation's text instead and no driven flag. Any other row as it is.
+    /// </summary>
+    public static DimensionInfo WithEquation(DimensionInfo row, IEnumerable<string> equations) =>
+        EquationOn(equations, row.Name) is { } equation
+            ? new DimensionInfo { Name = row.Name, Value = row.Value, Unit = row.Unit, Equation = equation.Trim(), Tolerance = row.Tolerance }
+            : row;
 
     /// <summary>
     /// dimension_set's refusal of a dimension an equation drives (S74): the equation, the names its right-hand side uses, and

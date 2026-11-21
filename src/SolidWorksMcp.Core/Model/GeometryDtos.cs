@@ -102,7 +102,10 @@ public sealed class DimensionInfo
     public double Value { get; init; }
     /// <summary>mm | deg | count | scalar (a number without a unit, e.g. a helix's revolutions).</summary>
     public required string Unit { get; init; }
+    /// <summary>True for a reference dimension only: one that reports a value and drives nothing.</summary>
     public bool? Driven { get; init; }
+    /// <summary>dimension_list: the equation that drives the dimension (its text), when one does (S95).</summary>
+    public string? Equation { get; init; }
     /// <summary>The tolerance, when it has one (type other than none).</summary>
     public ToleranceInfo? Tolerance { get; init; }
 }

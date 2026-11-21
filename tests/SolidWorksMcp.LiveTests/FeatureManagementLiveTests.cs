@@ -103,6 +103,36 @@ public class FeatureManagementLiveTests(LiveFixture fx) : LiveTest(fx)
     }
 
     [Fact]
+    public async Task Dimension_list_gives_the_equation_of_a_dimension_it_drives_and_marks_only_a_reference_dimension_driven()
+    {
+        // S95: SOLIDWORKS reads a dimension an equation drives as driven, and the list said driven:true for it, the flag of a
+        // reference dimension.
+        var vs = Fx.VbaSession; // VBA makes the reference dimension: the API's DrivenState setter is the way a user does it
+        string doc = await NewPartAsync("fm_dimlist_equation", vs);
+        var sk = new SketchService(vs);
+        var ed = new SketchEditService(vs);
+        await sk.StartAsync(doc, new EntityRef { Name = "top" }, false);
+        var add = await sk.AddAsync(doc, [new SketchEntity { Kind = "rectangle", Center = [0, 0], WidthMm = 100, HeightMm = 60 }]);
+        var sides = add.Entities[0].Sides!;
+        string width = (await ed.DimensionAddAsync(doc, [new EntityRef { Name = sides["bottom"] }], "linear", valueMm: 100)).Dimension.Name;
+        string height = (await ed.DimensionAddAsync(doc, [new EntityRef { Name = sides["left"] }], "vertical", valueMm: 60)).Dimension.Name;
+        var vba = await new AutomationService(vs).VbaRunAsync(doc, $"Dim d As Object\nSet d = swDoc.Parameter(\"{height}\")\nEcho d.DrivenState\nd.DrivenState = 1\nEcho d.DrivenState", 20);
+        Assert.Equal(["2", "1"], vba.Output); // driving (2), then driven (1)
+        await sk.FinishAsync(doc);
+        var p = new PropertiesService(vs);
+        await p.EquationSetManyAsync(doc, [new EquationInput { Lhs = "W", Expression = "100mm" }, new EquationInput { Lhs = width, Expression = "\"W\"" }]);
+
+        var list = (await new FeatureManagementService(vs).DimensionListAsync(doc)).Dimensions;
+        var byEquation = Assert.Single(list, x => x.Name == width);
+        Assert.Null(byEquation.Driven);
+        Assert.Contains("\"W\"", byEquation.Equation);
+        var reference = Assert.Single(list, x => x.Name == height);
+        Assert.True(reference.Driven);
+        Assert.Null(reference.Equation);
+        Assert.Equal(60, reference.Value, 1e-9);
+    }
+
+    [Fact]
     public async Task Dimension_list_rejects_a_feature_passed_as_sketch_and_unknown_names()
     {
         var b = await BlockAsync("fm_dimlist_bad");
@@ -890,6 +920,21 @@ public class FeatureManagementLogicTests
         var constant = FeatureManagementLogic.EquationDrivenRefusal("D1@Boss-Extrude1", equations[2]);
         Assert.DoesNotContain("which uses", constant.Message);
         Assert.Contains("equation_set lhs 'D1@Boss-Extrude1' with", constant.Hint);
+    }
+
+    [Fact]
+    public void A_listed_dimension_an_equation_drives_gives_the_equation_and_no_driven_flag()
+    {
+        // S95: SOLIDWORKS reads both an equation-driven and a reference dimension as driven; only the second keeps the flag.
+        string[] equations = ["\"D1@Sketch1\" = \"W\" "];
+        var tol = new ToleranceInfo { Type = "symmetric", Upper = 0.1 };
+        var driven = new DimensionInfo { Name = "D1@Sketch1", Value = 30, Unit = "mm", Driven = true, Tolerance = tol };
+        var row = FeatureManagementLogic.WithEquation(driven, equations);
+        Assert.Null(row.Driven);
+        Assert.Equal("\"D1@Sketch1\" = \"W\"", row.Equation);
+        Assert.Equal((30d, "mm", tol), (row.Value, row.Unit, row.Tolerance));
+        var reference = new DimensionInfo { Name = "D2@Sketch1", Value = 5, Unit = "mm", Driven = true };
+        Assert.Same(reference, FeatureManagementLogic.WithEquation(reference, equations));
     }
 
     [Fact]
