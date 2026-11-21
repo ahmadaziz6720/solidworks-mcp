@@ -201,6 +201,16 @@ answer below, across as many sessions as it needs, from the first step not ticke
   still serves. The launchers and the step rules of this run are kept outside the
   session's scratchpad, in `%LOCALAPPDATA%\solidworks-mcp\livetest\run-1121\`
   (`check<n>.ps1`, `brief-rules.md`, the brief every item's subagent reads).
+- **The watcher, as it ran in session 2** (2026-11-22, the run): a Haiku watcher handed back at
+  once twice, its `Monitor` armed and no event, so groups 2 and 3's checks were watched by a
+  background `Bash` until-loop of the session itself (the launcher's `EXIT` line, `tasklist` on
+  the pid, the transcript's mtime past 30 minutes, `sleep 60`), one notification at the end. The
+  launcher is started with its path quoted (`-File "\"<path>\""`): unquoted, the space in the
+  user folder killed it at once; the pid and the transcript read ~25 s after the start.
+- **Left for the end of the run** (to file as items with the report): S81's probe saw once, in
+  one variant (`doc_open` then `doc_activate` of parts loaded only by the assembly), the live
+  fixture's "System preferences changed by this test: Double2: 0.000131 -> 1.085e-05", cause
+  not known.
 
 ### Items
 
@@ -507,7 +517,7 @@ its point.
   tag `build-20261122-030022` pushed and read back, release page with no files (`ahmadaziz6720/solidworks-mcp` releases,
   `build-20261122-030022`). S81 and S109 stay Open (probes not reproduced; their guard tests ran in the classes above).
   Cost: Sonnet, see the report.
-- [x] Group 3: scenario test (session id: `ba47a581-7e48-4a8e-98dc-dda2b296ae23`), its entry committed and sorted (entry `f489505`; ended `EXIT 0` 03:09; S116 and S114 held and closed, S89 not proved there and its proof moved, S117 and S118 new into group 4, S92 met live, S5 again; SOLIDWORKS restarted after, as the state was on; release notes updated)
+- [x] Group 3: scenario test (session id: `ba47a581-7e48-4a8e-98dc-dda2b296ae23`), its entry committed and sorted (entry `f489505`; ended `EXIT 0` 03:09; S116 and S114 held and closed, S89 not proved there and its proof moved, S117 and S118 new into group 4, S92 met live, S5 again; SOLIDWORKS restarted after, as the state was on; release notes updated) (`89d32a7`)
   Started 03:03 2026-11-22, free memory 2602 MB with SOLIDWORKS restarted from its exe; launcher `%LOCALAPPDATA%\solidworks-mcp\livetest\run-1121\check3.ps1` (`-Resume` to resume), pid 17092, output check3.out.txt and check3.err.txt beside it; watched by a background until-loop of the session.
 - [ ] S84 (a) and (c): committed
 - [ ] S84 (b): committed
