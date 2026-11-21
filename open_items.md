@@ -442,7 +442,7 @@ its point.
 - [x] S92 (a) and (b): committed (split out as S112 in Waiting, as the format splits an item) (`f2d3dc2`)
 - [x] S79 (b): committed (split out as S113; `doc_undo`'s description changed: docs/tools.md at the release) (`9c14d93`)
 - [x] S95: committed (`929158d`)
-- [x] Group 2: full live tests and release (build: `20261122-002030`, `c2026da`)
+- [x] Group 2: full live tests and release (build: `20261122-002030`, `c2026da`) (`0191c27`)
   Live: PropertiesLiveTests 25 of 26, FeatureManagementLiveTests 38, DrawingLiveTests 57, AssemblyLiveTests 62, TopDownLiveTests 4,
   RecognitionLiveTests 1, and by method AdvancedFeatureLiveTests 1 (`Helix_revolutions_read_…`, a `dimension_list` caller) and
   ReferenceLiveTests 1 (`Review_reports_a_broken_shell_…`, likewise), the classes that call what group 2 changed: the equation and
@@ -463,7 +463,8 @@ its point.
   kept) and this repo, each read back from `~/.claude.json` on the new exe; tag `build-20261122-002030` pushed and read back, release page with
   no files (`ahmadaziz6720/solidworks-mcp` releases, `build-20261122-002030`).
   Cost: Sonnet, see the report.
-- [ ] Group 2: scenario test (session id: ), its entry committed and sorted
+- [ ] Group 2: scenario test (session id: `f634dedd-ccc6-4d15-b29a-e09cb7db3fd5`), its entry committed and sorted
+  Started 00:23 2026-11-22, free memory 2165 MB with SOLIDWORKS restarted from its exe; launcher `%LOCALAPPDATA%\solidworks-mcp\livetest\run-1121\check2.ps1` (`-Resume` to resume), pid 17196, output check2.out.txt and check2.err.txt beside it; watched by a Haiku subagent.
 - [ ] S89: committed
 - [ ] S92 (d): committed
 - [ ] S81: committed
