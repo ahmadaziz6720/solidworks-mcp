@@ -396,7 +396,28 @@ its point.
 - [x] S83: committed (49a57fb)
 - [x] S107: committed (70e23a3)
 - [x] S110: committed (f3617b0)
-- [ ] Group 1: full live tests and release (build: )
+- [x] Group 1: full live tests and release (build: `20261121-205309`, `1fb1fda`)
+  Live: AssemblyLiveTests 62, AssemblyStructureLiveTests 2, TopDownLiveTests 4, M0LiveTests 23, ExportLiveTests 22,
+  ConfigurationLiveTests 6, HardwareLiveTests 3, SimulationLiveTests 17, FeatureManagementLiveTests 36 (the classes that
+  save, close or insert in an assembly, call `dimension_set`, or whose tests pass `doc` through `SwContext.Bind` for S107,
+  whose warning only changes its text, and carry the warning's assertions), and ModellingLiveTests 9, WeldmentLiveTests 11,
+  FaceEditLiveTests 5 of 6 as extras; all passed but two things, neither a fault of this group's code. (1) Guard stops, not
+  test failures: the machine was short of memory (7.5 GB total, other processes about 3 GB, free 1.5 to 2.5 GB when
+  SOLIDWORKS started, against 2.5 to 2.9 GB in the last release), so `runall.ps1`'s 800 MB free-memory guard stopped
+  FeatureManagementLiveTests once (10 tests done, the rest requeued one by one, 36/36 in the end) and AssemblyLiveTests five
+  times (58/62; the four tests it recorded as guard-stopped passed 4/4 rerun after a restart with the guard at 250 MB).
+  No "low on memory" dialog. (2) `FaceEditLiveTests.Delete_heals_a_hole_in_an_imported_STEP_body_without_history` reads
+  volume 0 after the STEP import, in the full class run and alone after a restart: the known S5 failure
+  (closed_items.md, run of 2026-11-16: failing the same before and after S61). `SimulationExtrasLiveTests` (3, an extra,
+  not run in the last release) not run to the end: its guard stopped it at 242 MB free even with the guard lowered, so
+  it was dropped. No flake. `PropertiesLiveTests` and the classes that never pass a second document not run (S107's change
+  is a warning text only, and its only live assertions are `AssemblyLiveTests` and `FeatureManagementLiveTests`).
+  Run class by class with SOLIDWORKS restarted before each and `dotnet build-server shutdown`. The live tests took about 87
+  min on the clock (19:26 to 20:53, the guard requeues included), the whole release about 95 min. Unit 302, `check_repo`
+  ok. No description changed (`--check-catalog` ok, 165 tools), `docs/tools.md` not regenerated. Registered in
+  `claude_solidworks`, `clove sorter` (its `SWMCP_VBA=on` kept) and this repo, each read back from `~/.claude.json` on the
+  new exe; tag `build-20261121-205309` pushed and read back, release page with no files.
+  Cost: Sonnet, see the report.
 - [ ] Group 1: scenario test (session id: ), its entry committed and sorted
 - [ ] S92 (c): probed
 - [ ] S92 (a) and (b): committed
@@ -2018,7 +2039,7 @@ the cut, so a circle landing elsewhere on the part would pass.
 
 **Upstream: PR #1, open.**
 
-### S61 - A STEP into an assembly - BUILT 2026-11-21, proof: the scenario test of the group 1 build
+### S61 - A STEP into an assembly - BUILT 2026-11-21, proof: the scenario test of build 20261121-205309
 
 On build `20261112-091908` (findings 2026-11-12, "STEP
 parts brought toward an existing assembly"). (a) `asm_insert` refuses a STEP; SOLIDWORKS
@@ -2248,10 +2269,10 @@ component; (2) the save's read-back takes the open assembly's references beside 
 file's, because the file's list leaves out a 3D Interconnect component that does resolve
 (the first one, probed), and a warning on it would be false; (3) S61 moves whole to
 Waiting, because (b) and (c) are closed and (a) was its last open point, and one number
-heads one item. Local: on `sw2023`, in the commit that moves it here; not yet in a build.
+heads one item. Local: on `sw2023`, in the commit that moves it here; built in `20261121-205309`.
 Upstream: not yet decided.
 
-### S83 - `asm_mate_add` distance with `flip` that lands right warns in the words of a wrong side - BUILT 2026-11-21, proof: the scenario test of the group 1 build
+### S83 - `asm_mate_add` distance with `flip` that lands right warns in the words of a wrong side - BUILT 2026-11-21, proof: the scenario test of build 20261121-205309
 
 Sorted out of the entry of 2026-11-16 ("a part edited by rollback", point 5), on build
 `20261116-124830`. `asm_mate_add` distance between two parallel planes, `alignment:
@@ -2286,10 +2307,10 @@ by the run, not the owner: the flipped warning says "from where it was before th
 not "from where it was inserted", because the check compares with the position just before
 the mate, which in the finding's own case was not the insert's (the insert's side is where
 the flipped mate brought it back to); it stays a warning, as the owner's decision words it.
-Local: on `sw2023`, in the commit that moves it here; not yet in a build. Upstream: not yet
+Local: on `sw2023`, in the commit that moves it here; built in `20261121-205309`. Upstream: not yet
 decided.
 
-### S107 - `asm_insert {doc}` warns it re-activated the assembly, which reads as if the target changed - BUILT 2026-11-21, proof: the scenario test of the group 1 build
+### S107 - `asm_insert {doc}` warns it re-activated the assembly, which reads as if the target changed - BUILT 2026-11-21, proof: the scenario test of build 20261121-205309
 
 Sorted out of the entry of 2026-11-18 ("an edit to a printed plate and a new flat part",
 point 3), on build `20261118-060615`. After `doc_new` of a part, `asm_insert
@@ -2318,10 +2339,10 @@ no description changed. Made stricter: none (a new assertion on a warning that w
 asserted before). Decided 2026-11-21 by the run, not the owner: the target is named
 whatever it is (an assembly or a part), as the plan says, and only when it differs from
 the document `doc` named, because when they are the same the target did not stay anywhere
-else. Local: on `sw2023`, in the commit that moves it here; not yet in a build. Upstream:
+else. Local: on `sw2023`, in the commit that moves it here; built in `20261121-205309`. Upstream:
 not yet decided.
 
-### S110 - `dimension_set` of a limit mate's nominal outside its limits is refused without naming them - BUILT 2026-11-21, proof: the scenario test of the group 1 build
+### S110 - `dimension_set` of a limit mate's nominal outside its limits is refused without naming them - BUILT 2026-11-21, proof: the scenario test of build 20261121-205309
 
 Sorted out of the entry of 2026-11-18 ("a shared global variable changed in two parts",
 point 6), on build `20261118-060615`. `dimension_set` of a limit mate's nominal to a new
@@ -2358,4 +2379,4 @@ says more; no case accepted before is refused). Decided 2026-11-21 by the run, n
 owner: the limits are read only after SOLIDWORKS rejects the value, not before the call,
 because the refusal is then added to a check that already holds and a limit read that is
 wrong cannot refuse a value SOLIDWORKS accepts. Local: on `sw2023`, in the commit that moves
-it here; not yet in a build. Upstream: not yet decided.
+it here; built in `20261121-205309`. Upstream: not yet decided.
