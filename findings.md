@@ -2380,3 +2380,76 @@ Build `bin\0.1.0-20261122-002030` (`serverVersion` `0.1.0-sw2023-20261122-002030
    sections on the owner's A3 template, 1 and 3 hatched faces.
 
 Sorted into S114 (3, 4), new; S115 (6), new; S5 (7), met again, the rest of the regression held. Held: S112 (1), S113 (2), S95 (5).
+
+**2026-11-22: scenario test of S89, S116 and S114, with a short regression run**
+
+Build `bin\0.1.0-20261122-030022` (`serverVersion` `0.1.0-sw2023-20261122-030022+b45312d`).
+
+1. **S116, held, in the state too.** `sw_status` gave `solidWorksStarted` "2026-11-22 03:03:15",
+   the process's own creation time read outside the server to the second, beside its pid. Later
+   in the session the state of point 5 came on, and a refused plain global (`equation_set` "g" =
+   60.4mm, then "m" = 6mm, on a new part) answered `FEATURE_FAILED` "... though the equation is
+   valid ... The SOLIDWORKS process started 2026-11-22 03:03:15; after a restart sw_status
+   solidWorksStarted reads a later time", the hint naming the other server process `otherServerPids`
+   listed. So S112's restart message and S116's start time are now seen live, on the `Add2` path.
+2. **S89, not proved.** SOLIDWORKS was running (started from its exe, no `-Embedding` on its
+   command line) and the session's permission check refused ending it, so `sw_connect
+   {launch:true}` could not start one, and the `-Embedding` hint could not be brought on. With it
+   running, `sw_connect {launch:true}` attached: `"launched":false`, `"process":"same as before"`,
+   no second instance. The launch path stays proved by the live test only.
+3. **S114, held.** A block with a Ø10 × 5 boss: `dimension_set` 5 → 6 then `doc_undo` returned
+   `dimensions: ["D1@Boss-Extrude2"]`, −78.54; `feature_rename` of the boss then `doc_undo`:
+   refused, "undo would take back the step before it, the server's feature_extrude instead" (the
+   wording after an undo, (a)); `feature_suppress_set` then `doc_undo`: `unsuppressed: ["Pin"]`,
+   +392.699. In a two-part assembly opened read-only: a mate suppressed then `doc_undo`,
+   `unsuppressed: ["Coincident1"]`; a component's `dimension_set` 60 → 80 (+6283.185) then
+   `doc_undo`: `NOT_SUPPORTED` naming `dimension_set` ("the assembly's undo would leave the
+   dimension_set in place, and may take back a step before it that isn't the server's or
+   nothing"), where the last build answered "Nothing changed" (b). An undone extrude names it in
+   `removed` (c).
+4. **S113 / S114: after an undo, a change that left no undo step is passed over.** A second boss
+   extruded, then `feature_rename` of the base extrude (`Boss-Extrude1` → `Plate`), then
+   `feature_suppress_set` of the second boss, then `doc_undo` (ran, `unsuppressed` the boss,
+   right), then `doc_undo` again: it ran, `removed: ["Boss-Extrude3"]`, −392.699, and the rename
+   stayed (`feature_list` shows `Plate`). Expected: the refusal S113 gives straight after a rename
+   ("feature_rename left no SOLIDWORKS undo step: undo would take back the step before it ... and
+   leave the feature_rename in place"), since the rename is now the server's last change not
+   undone. The same on the first try, where the rename was of the boss itself (the boss went, and
+   its new name with it). The result named truly what it removed, so nothing was hidden; the
+   refusal rule is just not armed again once an undo has run past the step after it. Reported
+   `ok`.
+5. **S92 met again, live, and S112's sign misses it.** A part with ten globals, all set to whole
+   numbers (`120mm`, `80mm`, ...), and thirteen dimension equations driven by them, opened
+   read-only as the first equation read of the session: `equation_list` read the ten globals
+   right and every one of the thirteen dimension rows `"value":0`, `ok`, no warning. One batch
+   `equation_set` of the ten globals to new values: `VERIFY_FAILED` "SOLIDWORKS kept the previous
+   equation "<global>"= 120mm and did not take 140mm (a value the dimension can't have, such
+   as 0?) ... and 6 more", hint "Check the expression (units, quoted names, existing variables)",
+   rolled back: the expression blamed, S112 (a)'s restart wording absent. The cause is S112's
+   sign: only a global set to a decimal number reads wrong in the state (cut at the point), and a
+   whole number reads right, so a document whose globals are whole numbers shows no sign though
+   every derived row reads 0. Proposed: take "every dimension row reads 0 while the globals it
+   uses read non-zero" (or a dimension row's value against the dimension's own value) as the sign
+   too; and in a batch where every row is refused, say the state before the expression. The
+   single `Add2` refusal on a new part did name the state (point 1). The run's live tests met
+   the same state once on this machine (an assembly test's equation refused).
+6. **S92 (c): the separator lead fails.** In the state, on a new part: `"q" = 60,4mm` refused
+   `FEATURE_FAILED` with the syntax hint, and `"m" = 6mm` refused with the restart message. So
+   neither the comma form nor a whole number is taken: not a decimal separator switch. What ran
+   before in that SOLIDWORKS process (started about 4 min before the session's first call, no
+   equation read or written before point 5, so when the state came on is not known): a new part
+   with two extrudes, `dimension_set`, `feature_rename`, `feature_suppress_set` and `doc_undo`; a
+   two-part assembly opened read-only, a mate suppressed and the suppress undone, a component's
+   dimension set and set back, closed discarded (its parts closed with it); a part opened
+   read-only, force rebuild, STEP export and the STEP imported, closed; a drawing with a plan and
+   two sections, discarded; a second assembly read-only, `asm_interference`, closed. A second
+   `solidworks-mcp` process of an older build was alive throughout. As in S92's lead, an
+   assembly holding a part had been loaded and a component dimension set before the bad read.
+   SOLIDWORKS was not restarted (ending it was refused here), so the state is still on.
+7. Held, regression: a part opened read-only, force rebuild 174 346.977 mm³, mass 221.42 g, area
+   116 546.84 mm², box 233 × 68.28 × 174; STEP export and `doc_open` of it, 16 surface bodies (S5,
+   as before); a hinge assembly read-only, interference 0; the hand-built two-part assembly, 2
+   components, plate fixed, shaft 2 mates without error, 127 402.659 mm³, shaft 60 → 80 from the
+   assembly 133 685.844, back to 60, closed discarded, files unchanged; a 1:2 plan with two
+   sections on the owner's A3 template, 1 and 3 hatched faces; `doc_undo` in a drawing refused.
+   Not run: the ten-global intent round trip (point 5's state refused it).
