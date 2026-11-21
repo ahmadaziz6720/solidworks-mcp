@@ -441,8 +441,28 @@ its point.
 - [x] S92 (c): probed, not reproduced (recorded in S92; (a) and (b) go on with unit tests) (`c3e8f9e`)
 - [x] S92 (a) and (b): committed (split out as S112 in Waiting, as the format splits an item) (`f2d3dc2`)
 - [x] S79 (b): committed (split out as S113; `doc_undo`'s description changed: docs/tools.md at the release) (`9c14d93`)
-- [x] S95: committed
-- [ ] Group 2: full live tests and release (build: )
+- [x] S95: committed (`929158d`)
+- [x] Group 2: full live tests and release (build: `20261122-002030`, `c2026da`)
+  Live: PropertiesLiveTests 25 of 26, FeatureManagementLiveTests 38, DrawingLiveTests 57, AssemblyLiveTests 62, TopDownLiveTests 4,
+  RecognitionLiveTests 1, and by method AdvancedFeatureLiveTests 1 (`Helix_revolutions_read_…`, a `dimension_list` caller) and
+  ReferenceLiveTests 1 (`Review_reports_a_broken_shell_…`, likewise), the classes that call what group 2 changed: the equation and
+  property tools, `dimension_list`, `doc_undo`, rename and rollback, `doc_rebuild`, and every write through `SwContext`'s undo
+  accounting (`MaterialSet`, units and appearance have no live caller beyond those). All passed but one, not a fault of this group:
+  `PropertiesLiveTests.A_custom_material_is_listed_…` (25/26) fails on the machine's custom material library (a second
+  classification, from an earlier run; closed_items.md, the run of 2026-11-16, S72), before and after. (1) Guard stops, not test
+  failures: the machine was short of memory again (free 0.7 to 0.8 GB with SOLIDWORKS running), so `runall.ps1`'s 800 MB guard
+  stopped FeatureManagementLiveTests once (10 tests done, the rest requeued one by one; the one test that tripped the guard alone,
+  `The_servers_own_failed_kept_and_rolled_back_changes_do_not_read_as_the_users`, a test of group 2's own code, passed rerun alone
+  after a restart with the guard at 250 MB, 1/1) and AssemblyLiveTests eight times (2 tests done, the rest one by one: 55 passed, 7 tripped the guard
+  alone and passed 7/7 rerun one by one after a restart each with the guard at 250 MB). No "low on memory" dialog. No flake.
+  `M0LiveTests`, `ConfigurationLiveTests` and `SimulationLiveTests` not run (their only call is `material_set`, which group 2 did not
+  change); the other classes call none of it. Run class by class with SOLIDWORKS restarted before each and `dotnet build-server
+  shutdown`. The live tests took about 94 min on the clock (22:48 to 00:20, the guard requeues and the rerun included), the whole
+  release about 95 min. Unit 310, `check_repo` ok. `doc_undo`'s description changed: `--check-catalog` ok (165 tools, 247.6 KB),
+  `docs/tools.md` regenerated and committed alone (`c2026da`). Registered in `claude_solidworks`, `clove sorter` (its `SWMCP_VBA=on`
+  kept) and this repo, each read back from `~/.claude.json` on the new exe; tag `build-20261122-002030` pushed and read back, release page with
+  no files (`ahmadaziz6720/solidworks-mcp` releases, `build-20261122-002030`).
+  Cost: Sonnet, see the report.
 - [ ] Group 2: scenario test (session id: ), its entry committed and sorted
 - [ ] S89: committed
 - [ ] S92 (d): committed
@@ -2087,7 +2107,7 @@ the cut, so a circle landing elsewhere on the part would pass.
 **Upstream: PR #1, open.**
 
 
-### S112 - S92 (a) and (b): the equation tools read S58 (b)'s state from the document's globals and name the restart - BUILT 2026-11-21, proof: the scenario test of the group 2 build
+### S112 - S92 (a) and (b): the equation tools read S58 (b)'s state from the document's globals and name the restart - BUILT 2026-11-21, proof: the scenario test of build 20261122-002030
 
 S92 (a) and (b), split out of S92 (which stays Open for (c) and (d)) in the run of
 2026-11-21, group 2. (b) `equation_list` read every global set to a number cut at its
@@ -2137,10 +2157,10 @@ told from a document whose globals were edited outside the server's rule.
 Decided 2026-11-21 by the run, not the owner: an `Add2` refusal (`FEATURE_FAILED`) while the
 sign shows names the state too, beyond the plan's `VERIFY_FAILED`, because its hint blamed
 the syntax on the same evidence; a refused function name keeps its own reason.
-Local: on `sw2023`, in the commit that moves it here; not yet in a build. Upstream: not yet
+Local: on `sw2023`, `f2d3dc2`; in build `20261122-002030`. Upstream: not yet
 decided.
 
-### S113 - S79 (b): `doc_undo` refuses after a server change that left no SOLIDWORKS undo step, naming it and the step it would take back - BUILT 2026-11-21, proof: the scenario test of the group 2 build
+### S113 - S79 (b): `doc_undo` refuses after a server change that left no SOLIDWORKS undo step, naming it and the step it would take back - BUILT 2026-11-21, proof: the scenario test of build 20261122-002030
 
 S79 (b), split out of S79 (which stays Open for (a)) in the run of 2026-11-21, group 2.
 `doc_undo` right after an `equation_set` that linked a variable to a 10 × 10 × 5 boss's
@@ -2182,10 +2202,10 @@ an undo after them too, `doc_rebuild` does not, because the first two change wha
 would expect an undo to take back and the rebuild changes nothing.
 Decided 2026-11-21 by the run, not the owner: (b) moved to Waiting as a new item split out
 of S79, as S112 was out of S92, because one number heads one item.
-Local: on `sw2023`, in the commit that moves it here; not yet in a build. Upstream: not yet
+Local: on `sw2023`, `9c14d93`; in build `20261122-002030`. Upstream: not yet
 decided.
 
-### S95 - `dimension_list` marks a dimension an equation drives `driven: true`, which its description gives as a reference dimension - BUILT 2026-11-21, proof: the scenario test of the group 2 build
+### S95 - `dimension_list` marks a dimension an equation drives `driven: true`, which its description gives as a reference dimension - BUILT 2026-11-21, proof: the scenario test of build 20261122-002030
 
 Sorted out of the entry of 2026-11-17 ("a read-only check of a printed part driven by global
 variables", point 1), on build `20261117-012659`. `dimension_list` marked 38 of 42 dimensions
@@ -2225,5 +2245,5 @@ refuses to add one (an over-defining dimension is removed) and the live tests ho
 Decided 2026-11-21 by the run, not the owner: only `dimension_list` changes, not the shared
 `DimensionInfo` of other tools' results (`driven` in `dimension_add`, feature results), because
 the item names that list and those results come from a dimension just made or set.
-Local: on `sw2023`, in the commit that moves it here; not yet in a build. Upstream: not yet
+Local: on `sw2023`, `929158d`; in build `20261122-002030`. Upstream: not yet
 decided.
