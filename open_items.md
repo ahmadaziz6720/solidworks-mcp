@@ -436,9 +436,9 @@ its point.
   `claude_solidworks`, `clove sorter` (its `SWMCP_VBA=on` kept) and this repo, each read back from `~/.claude.json` on the
   new exe; tag `build-20261121-205309` pushed and read back, release page with no files.
   Cost: Sonnet, see the report.
-- [x] Group 1: scenario test (session id: `287fca18-c22d-4f64-a5fc-e3c50a4efba2`), its entry committed and sorted (entry `351a58f`)
+- [x] Group 1: scenario test (session id: `287fca18-c22d-4f64-a5fc-e3c50a4efba2`), its entry committed and sorted (entry `351a58f`, sort `d5cf498`)
   Started 20:55 2026-11-21, free memory 2174 MB with SOLIDWORKS restarted from its exe; launcher `%LOCALAPPDATA%\solidworks-mcp\livetest\run-1121\check1.ps1` (`-Resume` to resume), first run from the first session's scratchpad, pid 13972, output check1.out.txt and check1.err.txt beside the launcher it ran from. Stopped 21:00 at the 5-hour usage limit (`EXIT 1`, no entry). Resume 1 at 21:56, free memory 2463 MB with SOLIDWORKS restarted from its exe, pid 5944, from the scratchpad copy (its output there: `%TEMP%\claude\8c3a0854f52f5604\96549089-56a6-40d7-a892-5e462fc37ecc\scratchpad\check1.out.txt`); a later resume runs the copy under `run-1121`, its output beside it. Resume 1 ended `EXIT 0` 21:58 with the entry. Sorted: S61 (a), S83, S107 and S110 held and closed; S111 new (not in this run); S5 met again. Release page notes updated with the result.
-- [ ] S92 (c): probed
+- [x] S92 (c): probed, not reproduced (recorded in S92; (a) and (b) go on with unit tests)
 - [ ] S92 (a) and (b): committed
 - [ ] S79 (b): committed
 - [ ] S95: committed
@@ -1768,6 +1768,33 @@ live test, a part with a global of `60.4mm` read, an assembly holding it opened 
 read again; and until fixed, a usage line: edit the parts first and open the assembly last.
 Decided 2026-11-21 by the owner: (c) a probe first, (a) and (b) taken into the run of 2026-11-21, group 2, (d) taken into the run of 2026-11-21, group 3 (`## Run 2026-11-21`).
 Decided 2026-11-21 in the plan, not the owner: (a) names the restart from (b)'s sign, read from the document's own globals, with no plain equation tried on a scratch part, because that would make and close a document in the user's session at every refusal; (d) has no tool that exits SOLIDWORKS, because ending it is the owner's call and the opening question had no room for it.
+Probed 2026-11-21 by the run ((c)): **not reproduced.** On build `20261121-205309`, in a
+SOLIDWORKS 2023 SP3 process about 10 min old, no other server process, through the
+server's own tools: a part (a 100 × 60 × 20 boss) with `"g" = 60.4mm`, `"k" = 2.5mm`,
+`"h" = "g" / 2` and `D1@Boss-Extrude1 = "k" * 8`, saved; `equation_list` read 60.4, 2.5,
+30.2, 20. Then, the part open throughout, each step followed by `equation_list` on it: an
+assembly made of it (two instances, one fixed, a distance mate of 10 between their top
+planes), saved and closed; that assembly opened read-only and closed; opened editable,
+the mate's `D1@Distance1` set to 12.5, `asm_interference` (one pair, 31500 mm³), closed
+with `discard`. Again with the part closed: the assembly opened read-only and closed (the
+part went with it), opened editable, the mate set to 7.5, `asm_interference` (52500 mm³),
+closed with `discard`, the part reopened. Every read gave 60.4, 2.5, 30.2, 20, and an
+`equation_set` of `"m" = 1.5mm` after held. So loading an assembly that holds the part
+does not bring the state on by itself, in the server's calls; the user's open in
+SOLIDWORKS' own window (the lead's case (i)) and a long session were not tried.
+A lead the probe adds, not proved: every wrong read in the entries is the number cut at
+its decimal point (`73.5mm` as 73, not 74; `59.614mm` as 59; `0.5mm` as 0), and the
+refusals in that state hit numbers with a decimal point (`73.5mm`, `30.47039mm`,
+`59.614mm`, `0.5mm`) while `"Above" = 4mm` was taken, as an expression parser would that
+had switched to the Windows decimal separator, here a comma. Against it: plain `6mm` and
+`60mm` globals were refused too (S58 (b), and two entries of 2026-11-17). In the good
+state `"q" = 60,4mm` is refused (`FEATURE_FAILED`, the syntax hint). A broadcast
+`WM_SETTINGCHANGE` "intl" (settings unchanged) sent to the running SOLIDWORKS did not
+bring the state on (the part read right after, and `"m" = 1.5mm` held). The test that
+would settle it, for the next session that meets the state: `equation_set "q" = 60,4mm`
+on a scratch part; taken there, the cause is the separator. No server-side way round
+found: (c) stays Open, and (a) and (b) go on with unit tests, with no live case of the
+state.
 
 ### S93 - A write that rebuilds does not name a feature far from the change that gained a rebuild warning - OPEN 2026-11-18
 
