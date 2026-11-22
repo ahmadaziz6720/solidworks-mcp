@@ -236,8 +236,8 @@ public sealed partial class DrawingService(SwSession session)
     /// <summary>
     /// doc_new type=drawing: the first sheet becomes A3 landscape with the ISO sheet format (when it is installed),
     /// first-angle projection, 1:1 (SetupSheet5, read back). With <paramref name="keepTemplateSheet"/> (the user named a
-    /// template) the template's sheet stays and is only reported. Returns the summary for doc_new's message; a problem
-    /// becomes a warning, since the drawing itself exists.
+    /// template, or the default template is not one SOLIDWORKS ships, S108) the template's sheet stays and is only
+    /// reported. Returns the summary for doc_new's message; a problem becomes a warning, since the drawing itself exists.
     /// </summary>
     internal static string SetupNewDrawing(SwContext ctx, IModelDoc2 doc, bool keepTemplateSheet = false)
     {

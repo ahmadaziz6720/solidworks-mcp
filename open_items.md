@@ -17,7 +17,7 @@ Closed all the same, its PR named, and an open PR no longer holds an item in Wai
 item sent upstream ends with `**Upstream: PR #9, open.**`, one per PR or issue
 (`merged`, `closed unmerged`; an issue `open` or `closed`), kept to its state.
 
-**Open: S4, S5, S7, S10 to S12, S33, S34, S52, S60, S64, S65, S79 to S82, S85, S86, S92, S94, S96, S99 to S103, S105, S108, S109, S111, S115, S123 to S125.**
+**Open: S4, S5, S7, S10 to S12, S33, S34, S52, S60, S64, S65, S79 to S82, S85, S86, S92, S94, S96, S99 to S103, S105, S109, S111, S115, S123 to S125.**
 Sorted 2026-11-22, the scenario test of build `20261122-142805` (findings 2026-11-22): S119,
 S84, S120, S121, S122, S93 and S117 held and closed; S118 not proved there (SOLIDWORKS in
 the good state, no false alarm), its proof moved to a session that meets S92's state; S123
@@ -584,8 +584,8 @@ its point.
 - [x] S90: committed (`82087b8`)
 - [x] S52: committed (split out as S126) (`ca11c05`)
 - [x] S97 and S104: committed (material_list's description changed: docs/tools.md at the release) (`fd64df4`)
-- [x] S98: committed (doc_open's description changed: docs/tools.md at the release)
-- [ ] S108: committed
+- [x] S98: committed (doc_open's description changed: docs/tools.md at the release) (`027e13c`)
+- [x] S108: committed (doc_new's description changed: docs/tools.md at the release)
 - [ ] Group 5: full live tests and release (build: )
 - [ ] Group 5: scenario test with S1's proof (session id: ), its entry committed and sorted
 - [ ] S100 (a) and (b): committed
@@ -2018,20 +2018,6 @@ Proposed by the session: a `feature_visibility {features | kinds:["plane", "sket
 its own), each feature's visibility read back; or a `hide` option on `doc_save`. Local. Not
 decided.
 
-### S108 - `doc_new {type:"drawing"}` with no `template` replaces a custom default template's format with ISO and its units with MMGS - OPEN 2026-11-21
-
-Sorted out of the entry of 2026-11-18 ("a custom sheet format made from the ISO one with
-`vba_run`", point 6), on build `20261118-060615`. With SOLIDWORKS' default drawing template
-set to one holding a custom format and custom units (mass in kg), `doc_new {type:"drawing"}`
-reported "Created drawing from <that template>; ... format a3 - iso.slddrt" and units MMGS;
-with `template:<the same file>, units:"template"` it kept both. Said in the result, so not
-reported wrong, but a user who set a default template does not get it.
-
-Proposed by the session: keep the template's sheet whenever the default drawing template is
-not the shipped one, and say so; or a server setting for the default drawing template.
-Local. Not decided.
-Decided 2026-11-21 by the owner: the default drawing template kept as it is when it is not one SOLIDWORKS ships, the result saying so; taken into the run of 2026-11-21, group 5 (`## Run 2026-11-21`).
-
 ### S109 - `NOT_CONNECTED` after `asm_component_move` and `doc_rebuild` on a subassembly open beside its parent, SOLIDWORKS responding - OPEN 2026-11-21
 
 Sorted out of the entry of 2026-11-18 ("a shared global variable changed in two parts",
@@ -2625,5 +2611,70 @@ already asks for.
 Decided 2026-11-22 by the run, not the owner: the mark follows the `readOnly` asked, not
 SOLIDWORKS' `IsOpenedReadOnly`, because it is the caller's intent the access reports; a file
 SOLIDWORKS opened read-only unasked stays `owned` (saved by `copy` or `as`).
+Local: on `sw2023`, in the commit that moves it here; not yet in a build. Upstream: not yet
+decided.
+
+### S108 - `doc_new {type:"drawing"}` with no `template` replaces a custom default template's format with ISO and its units with MMGS - BUILT 2026-11-22, proof: the scenario test of the group 5 build
+
+Sorted out of the entry of 2026-11-18 ("a custom sheet format made from the ISO one with
+`vba_run`", point 6), on build `20261118-060615`. With SOLIDWORKS' default drawing template
+set to one holding a custom format and custom units (mass in kg), `doc_new {type:"drawing"}`
+reported "Created drawing from <that template>; ... format a3 - iso.slddrt" and units MMGS;
+with `template:<the same file>, units:"template"` it kept both. Said in the result, so not
+reported wrong, but a user who set a default template does not get it.
+
+Proposed by the session: keep the template's sheet whenever the default drawing template is
+not the shipped one, and say so; or a server setting for the default drawing template.
+Local. Not decided.
+Decided 2026-11-21 by the owner: the default drawing template kept as it is when it is not one SOLIDWORKS ships, the result saying so; taken into the run of 2026-11-21, group 5 (`## Run 2026-11-21`).
+
+Cause: `doc_new` set every drawing made without `template` up as ISO A3 (`SetupNewDrawing`
+without `keepTemplateSheet`), and its `units` defaulted to `mmgs` in the tool's signature, so
+a default template of the user's own lost its sheet format and units, and an explicit
+`units:"mmgs"` could not be told from one left out.
+Fix: `DrawingLayout.ShippedTemplate` (interop-free, unit-tested) calls a template shipped
+when it lies under the install folder (`ISldWorks.GetExecutablePath`, its `data\templates`)
+or under `<ProgramData>\SOLIDWORKS` (where the installer puts `Drawing.DRWDOT` and the sheet
+formats). A drawing with no `template` whose default template is not shipped keeps that
+template's sheet (as with a named template) and, when `units` is left out, its units; the
+message says "..., the default template, kept as it is (its sheet and units) since it is not
+one SOLIDWORKS ships; sheet ... as the template has it". `units` now defaults to null (MMGS
+for everything else, as before); a `units` the caller names still wins. A shipped default
+is set up as ISO A3 as before. Description: `doc_new` says a default template SOLIDWORKS does
+not ship keeps its sheet and units, paid by "whatever the template says", "the target
+document" to "the target" and the `units` text shortened; the catalog stays at 247.6 KB,
+`--check-catalog` ok. The skill's drawing step says the same.
+Before: `DrawingLiveTests.A_custom_default_drawing_template_keeps_its_sheet_format_and_units`
+(the default drawing template set to a template the test makes in a temp folder, IPS on a
+copied A3 format named `custom a3.slddrt`, and set back in a `finally`, read back equal)
+failed "Assert.Equal() Failure: Strings differ, Expected: "IPS", Actual: "MMGS"".
+After: it passes (its units IPS, its format kept, the message naming it; `units:"mmgs"` gives
+MMGS on the same kept format); live, `New_drawing_is_A3_landscape_iso_first_angle_in_mm`
+(now with the default set to the shipped `Drawing.DRWDOT`, restored after),
+`Closing_a_drawing_names_what_solidworks_closed_with_it`,
+`Sheet_setup_changes_what_is_given_and_keeps_the_rest`,
+`Standard_views_have_the_block_proportions_without_overlaps_and_export_to_pdf`,
+`A_section_with_no_atMm_is_placed_so_its_own_label_clears_the_title_block`,
+`AssemblyLiveTests.Release_package_writes_a_step_per_model_the_drawing_pdf_the_flat_dxf_and_the_bom`
+and `Pack_and_go_copies_the_assembly_its_parts_and_drawing_and_the_copies_reference_each_other`
+pass, 8/8 (`TemplateLiveTests.Parts_and_assemblies_come_from_the_given_templates` skipped: it
+looks for the 2025 templates); unit tests 355/355 (`DrawingLayoutTests` +9,
+`ContractTests.Tool_catalog_follows_the_conventions` among them); `check_repo` ok. The
+drawing tests' helper sets the ISO A3 sheet itself when the machine's default template is
+not shipped, as their oracle is that sheet.
+Made stricter: the drawing tests no longer depend on the machine's default drawing template;
+the ISO A3 test sets the shipped one for itself.
+Decided 2026-11-22 by the run, not the owner: "shipped" is a template under the install
+folder or under `<ProgramData>\SOLIDWORKS`, because those are the folders the installer
+writes (the default `Drawing.DRWDOT` is in the latter, the standard ones such as `iso.drwdot`
+in the former), and any template the user made or copied lies elsewhere.
+Decided 2026-11-22 by the run, not the owner: only drawings change; a part or an assembly
+from a custom default template still gets MMGS when `units` is left out, because the item and
+the owner's decision are about the drawing's sheet and units, and parts' units are set by
+`units` the same way for every template.
+Decided 2026-11-22 by the run, not the owner: `units` left out keeps the custom template's
+units, and `units` named wins over them, while the sheet stays the template's either way,
+because the caller who names units asks for exactly that, and the sheet has no such option
+in `doc_new` (`drw_sheet_setup` changes it).
 Local: on `sw2023`, in the commit that moves it here; not yet in a build. Upstream: not yet
 decided.

@@ -85,6 +85,12 @@ public class DrawingLiveTests(LiveFixture fx) : LiveTest(fx)
         var r = await Docs.NewAsync("drawing", "mmgs", null, $"{name}_{Guid.NewGuid().ToString("N")[..6]}");
         _drawings.Add(r.Document.Handle);
         Assert.Equal("drawing", r.Document.Type);
+        // A default template of the user's own keeps its sheet (S108): the tests' oracle is the ISO A3 sheet, set here.
+        if (r.Message!.Contains("not one SOLIDWORKS ships", StringComparison.Ordinal))
+            await Drw.SheetSetupAsync(new DrwSheetRequest
+            {
+                Doc = r.Document.Handle, Size = "a3", Orientation = "landscape", Format = "iso", Scale = "1:1", Projection = "first_angle",
+            });
         return r.Document.Handle;
     }
 
@@ -126,8 +132,74 @@ public class DrawingLiveTests(LiveFixture fx) : LiveTest(fx)
 
     // ------------------------------------------------------------------ doc_new type=drawing, drw_sheet_setup
 
+    /// <summary>A file SOLIDWORKS installs under ProgramData (e.g. templates\Drawing.DRWDOT), the newest version first; null if none.</summary>
+    private static string? ShippedFile(string relative) =>
+        (Directory.Exists(@"C:\ProgramData\SOLIDWORKS") ? Directory.GetDirectories(@"C:\ProgramData\SOLIDWORKS", "SOLIDWORKS 20*") : [])
+            .OrderDescending().Select(d => Path.Combine(d, relative)).FirstOrDefault(File.Exists);
+
+    /// <summary>
+    /// Runs <paramref name="body"/> with SOLIDWORKS' default drawing template set to <paramref name="template"/>, and puts
+    /// the user's own default back afterwards, also when the body fails (read back: it must equal what it was).
+    /// </summary>
+    private async Task WithDefaultDrawingTemplate(string template, Func<Task> body)
+    {
+        string before = await TestHooks.DefaultDrawingTemplateAsync(S);
+        try
+        {
+            Assert.Equal(template, await TestHooks.DefaultDrawingTemplateAsync(S, template), ignoreCase: true);
+            await body();
+        }
+        finally
+        {
+            string after = await TestHooks.DefaultDrawingTemplateAsync(S, before);
+            Assert.Equal(before, after);
+        }
+    }
+
     [Fact]
     public async Task New_drawing_is_A3_landscape_iso_first_angle_in_mm()
+    {
+        // With SOLIDWORKS' own default template: the sheet is set up as ISO A3 (a custom default keeps its sheet, below).
+        string? shipped = ShippedFile(@"templates\Drawing.DRWDOT");
+        Assert.SkipWhen(shipped is null, "SOLIDWORKS' installed drawing template is not there.");
+        await WithDefaultDrawingTemplate(shipped!, NewIsoDrawingAsync);
+    }
+
+    [Fact]
+    public async Task A_custom_default_drawing_template_keeps_its_sheet_format_and_units()
+    {
+        // S108: a default drawing template SOLIDWORKS does not ship is kept as it is: its sheet format and its units.
+        string? shipped = ShippedFile(@"templates\Drawing.DRWDOT");
+        string? iso = ShippedFile(@"lang\english\sheetformat\a3 - iso.slddrt");
+        Assert.SkipWhen(shipped is null || iso is null, "SOLIDWORKS' installed drawing template or A3 ISO format is not there.");
+        // The custom template: a drawing from the shipped one, in IPS, on a copied format of its own name, saved as .drwdot.
+        string format = Path.Combine(_dir, "custom a3.slddrt");
+        File.Copy(iso!, format);
+        var made = await Docs.NewAsync("drawing", "ips", shipped, $"drw_tpl_{Guid.NewGuid().ToString("N")[..6]}");
+        _drawings.Add(made.Document.Handle);
+        await Drw.SheetSetupAsync(new DrwSheetRequest { Doc = made.Document.Handle, Size = "a3", Orientation = "landscape", Format = format });
+        string custom = Path.Combine(_dir, "custom.drwdot");
+        await TestHooks.SaveCopyRawAsync(S, made.Document.Handle, custom);
+        await Docs.CloseAsync(made.Document.Handle, save: false, discard: true);
+
+        await WithDefaultDrawingTemplate(custom, async () =>
+        {
+            var r = await Docs.NewAsync("drawing", null, null, $"drw_custom_{Guid.NewGuid().ToString("N")[..6]}");
+            _drawings.Add(r.Document.Handle);
+            Assert.Equal("IPS", r.Document.Units);
+            Assert.Contains("custom.drwdot", r.Message);
+            Assert.Contains("not one SOLIDWORKS ships", r.Message);
+            var s = Assert.Single((await Drw.InfoAsync(r.Document.Handle)).Sheets);
+            Assert.Equal("custom a3.slddrt", s.Format, ignoreCase: true);
+            // Units the caller names still win; the sheet stays the template's.
+            var mm = await Docs.NewAsync("drawing", "mmgs", null, $"drw_custom_mm_{Guid.NewGuid().ToString("N")[..6]}");
+            _drawings.Add(mm.Document.Handle);
+            Assert.Equal("MMGS", mm.Document.Units);
+            Assert.Equal("custom a3.slddrt", Assert.Single((await Drw.InfoAsync(mm.Document.Handle)).Sheets).Format, ignoreCase: true);
+        });
+    }
+
+    private async Task NewIsoDrawingAsync()
     {
         var r = await Docs.NewAsync("drawing", "mmgs", null, $"drw_new_{Guid.NewGuid().ToString("N")[..6]}");
         _drawings.Add(r.Document.Handle);

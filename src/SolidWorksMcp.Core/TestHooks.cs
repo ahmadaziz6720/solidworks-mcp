@@ -53,6 +53,29 @@ internal static class TestHooks
             return ctx.App.GetUserPreferenceStringValue(pref) ?? "";
         });
 
+    /// <summary>
+    /// SOLIDWORKS' default drawing template (Tools &gt; Options &gt; Default Templates): read, and set first when
+    /// <paramref name="set"/> is given. Returns the value read after.
+    /// </summary>
+    public static Task<string> DefaultDrawingTemplateAsync(SwSession s, string? set = null) =>
+        s.RunAsync("test_default_drawing_template", ctx =>
+        {
+            const int pref = (int)swUserPreferenceStringValue_e.swDefaultTemplateDrawing;
+            if (set is not null) ctx.App.SetUserPreferenceStringValue(pref, set);
+            return ctx.App.GetUserPreferenceStringValue(pref) ?? "";
+        });
+
+    /// <summary>Saves a copy of a document to <paramref name="path"/> through the raw API (any extension, e.g. a .drwdot template).</summary>
+    public static Task SaveCopyRawAsync(SwSession s, string doc, string path) =>
+        s.RunAsync("test_save_copy_raw", ctx =>
+        {
+            int e = 0, w = 0;
+            bool ok = ctx.Doc.Extension.SaveAs3(path, (int)swSaveAsVersion_e.swSaveAsCurrentVersion,
+                (int)(swSaveAsOptions_e.swSaveAsOptions_Silent | swSaveAsOptions_e.swSaveAsOptions_Copy), null, null, ref e, ref w);
+            if (!ok || !File.Exists(path)) throw new SwException(ErrorCodes.IoError, $"SaveAs3 to '{path}' failed (error {e}, warning {w}).");
+            return 0;
+        }, RunOptions.Read(doc));
+
     /// <summary>Closes a document by title through the raw API (test cleanup only).</summary>
     public static Task CloseRawAsync(SwSession s, string title) =>
         s.RunAsync("test_close_raw", ctx =>

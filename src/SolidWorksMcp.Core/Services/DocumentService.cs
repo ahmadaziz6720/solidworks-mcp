@@ -48,7 +48,11 @@ public sealed class DocumentService(SwSession session)
 {
     // ------------------------------------------------------------------ new
 
-    public Task<DocResult> NewAsync(string type, string? units = "mmgs", string? template = null, string? name = null,
+    /// <summary>
+    /// doc_new. <paramref name="units"/> null = MMGS, except for a drawing whose default template (no
+    /// <paramref name="template"/>) is not one SOLIDWORKS ships: that template is kept as it is, its sheet and its units (S108).
+    /// </summary>
+    public Task<DocResult> NewAsync(string type, string? units = null, string? template = null, string? name = null,
         CancellationToken ct = default) =>
         session.RunAsync("doc_new", ctx =>
         {
@@ -66,6 +70,10 @@ public sealed class DocumentService(SwSession session)
             if (string.IsNullOrWhiteSpace(tpl) || !File.Exists(tpl))
                 throw new SwException(ErrorCodes.IoError, $"Template not found: '{tpl}'.",
                     "Pass 'template' with the full path of a .prtdot/.asmdot/.drwdot file (Tools > Options > Default Templates).");
+            // S108: the user's own default drawing template is kept as it is (its sheet, and its units unless named).
+            bool userDefault = drawing && template is null &&
+                !DrawingLayout.ShippedTemplate(tpl, InstallDir(ctx), Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData));
+            if (userDefault && units is null) unitSystem = 0;
 
             // Drawings: A3 paper, and the sheet-format dialog kept off while the drawing is made (DrawingService).
             using var drawingPrefs = drawing ? DrawingService.NewDrawingPrefs(ctx) : null;
@@ -92,11 +100,26 @@ public sealed class DocumentService(SwSession session)
                 int got = doc.Extension.GetUserPreferenceInteger((int)swUserPreferenceIntegerValue_e.swUnitSystem, 0);
                 if (got != unitSystem) ctx.Warn($"Unit system could not be set (reads {UnitName(got)}).");
             }
-            string sheet = drawing ? DrawingService.SetupNewDrawing(ctx, doc, keepTemplateSheet: template is not null) : "";
+            string sheet = drawing ? DrawingService.SetupNewDrawing(ctx, doc, keepTemplateSheet: template is not null || userDefault) : "";
             if (!string.IsNullOrWhiteSpace(name) && !doc.SetTitle2(name)) ctx.Warn($"Could not set the title to '{name}'.");
             ctx.Documents.Track(doc).StampAfterLastOp = doc.GetUpdateStamp();
-            return new DocResult { Doc = ctx.Title(doc), Document = Info(ctx, doc), Message = $"Created {type} from {Path.GetFileName(tpl)}{sheet}; it is now the target document." };
+            string kept = userDefault
+                ? $", the default template, kept as it is ({(units is null ? "its sheet and units" : "its sheet")}) since it is not one SOLIDWORKS ships"
+                : "";
+            return new DocResult { Doc = ctx.Title(doc), Document = Info(ctx, doc), Message = $"Created {type} from {Path.GetFileName(tpl)}{kept}{sheet}; it is now the target document." };
         }, null, ct);
+
+    /// <summary>The SOLIDWORKS install folder (ISldWorks.GetExecutablePath, the folder of SLDWORKS.exe); null when not available.</summary>
+    private static string? InstallDir(SwContext ctx)
+    {
+        try
+        {
+            string? exe = ctx.App.GetExecutablePath();
+            if (string.IsNullOrWhiteSpace(exe)) return null;
+            return exe.EndsWith(".exe", StringComparison.OrdinalIgnoreCase) ? Path.GetDirectoryName(exe) : exe;
+        }
+        catch (System.Runtime.InteropServices.COMException ex) when (!ComArgs.IsDisconnect(ex)) { return null; }
+    }
 
     // ------------------------------------------------------------------ list
 

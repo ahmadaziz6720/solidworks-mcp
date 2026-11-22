@@ -146,6 +146,21 @@ internal static class DrawingLayout
         return portrait ? new PaperSpec(s, paper, p.H, p.W) : new PaperSpec(s, p.Paper, p.W, p.H);
     }
 
+    /// <summary>
+    /// Whether a template is one SOLIDWORKS ships: under its install folder (data\templates) or under
+    /// &lt;ProgramData&gt;\SOLIDWORKS, where the installer puts the default templates. Any other is the user's own, whose
+    /// sheet and units doc_new keeps when it is the default drawing template (S108).
+    /// </summary>
+    public static bool ShippedTemplate(string templatePath, string? installDir, string? programDataDir)
+    {
+        static string? Root(string? dir) => string.IsNullOrWhiteSpace(dir) ? null
+            : Path.TrimEndingDirectorySeparator(Path.GetFullPath(dir.Trim())) + Path.DirectorySeparatorChar;
+        if (string.IsNullOrWhiteSpace(templatePath)) return false;
+        string full = Path.GetFullPath(templatePath.Trim());
+        return new[] { Root(installDir), Root(programDataDir is null ? null : Path.Combine(programDataDir, "SOLIDWORKS")) }
+            .Any(r => r is not null && full.StartsWith(r, StringComparison.OrdinalIgnoreCase));
+    }
+
     /// <summary>iso | ansi | none | file: the family of a sheet-format file, by its SOLIDWORKS name ("a3 - iso", "a - landscape").</summary>
     public static string FormatFamily(string? formatPath)
     {

@@ -125,6 +125,26 @@ public class DrawingLayoutTests
     public void Format_families_come_from_the_file_names(string? path, string family) =>
         Assert.Equal(family, DrawingLayout.FormatFamily(path));
 
+    [Theory]
+    [InlineData(@"C:\ProgramData\SOLIDWORKS\SOLIDWORKS 2023\templates\Drawing.DRWDOT", true)]
+    [InlineData(@"c:\programdata\solidworks\SOLIDWORKS 2025\templates\drawing.drwdot", true)]
+    [InlineData(@"C:\Program Files\SOLIDWORKS Corp\SOLIDWORKS\data\templates\iso.drwdot", true)]
+    [InlineData(@"C:\Program Files\SOLIDWORKS Corp\SOLIDWORKS2\custom.drwdot", false)] // a sibling folder, not under it
+    [InlineData(@"C:\ProgramData\SOLIDWORKS CAM\custom.drwdot", false)]
+    [InlineData(@"D:\Templates\company a3.drwdot", false)]
+    [InlineData(@"E:\Documents\SOLIDWORKS\Templates\a3.drwdot", false)]
+    [InlineData("", false)]
+    public void Shipped_templates_are_those_under_the_install_or_programdata_solidworks_folder(string path, bool shipped) =>
+        Assert.Equal(shipped, DrawingLayout.ShippedTemplate(path, @"C:\Program Files\SOLIDWORKS Corp\SOLIDWORKS\", @"C:\ProgramData"));
+
+    [Fact]
+    public void Without_an_install_folder_only_programdata_counts_as_shipped()
+    {
+        Assert.True(DrawingLayout.ShippedTemplate(@"C:\ProgramData\SOLIDWORKS\SOLIDWORKS 2023\templates\Drawing.DRWDOT", null, @"C:\ProgramData"));
+        Assert.False(DrawingLayout.ShippedTemplate(@"C:\Program Files\SOLIDWORKS Corp\SOLIDWORKS\data\templates\iso.drwdot", null, @"C:\ProgramData"));
+        Assert.False(DrawingLayout.ShippedTemplate(@"C:\ProgramData\SOLIDWORKS\x.drwdot", "  ", null));
+    }
+
     // ------------------------------------------------------------------ drw_sheet_setup planning
 
     private static readonly SheetState A3Iso = new(8, 420, 297, 1, 1, true, @"C:\f\a3 - iso.slddrt");

@@ -173,7 +173,8 @@ legsMm:[50,50]}` and `{kind:"bead", faces:[…], faces2:[…], sizeMm:4}` (a wel
 
 **Drawings.**
 1. Save the part or assembly.
-2. `doc_new {type:"drawing"}` (A3 landscape, ISO, first angle; change it with `drw_sheet_setup`).
+2. `doc_new {type:"drawing"}` (A3 landscape, ISO, first angle, or the sheet and units of a default template SOLIDWORKS
+   does not ship; change it with `drw_sheet_setup`).
 3. `drw_views_standard {model:"bracket.sldprt"}` (front, top, right, iso), then `drw_dimensions_auto`. Tolerances: set them
    on the model's dimensions with `dimension_tolerance_set {tolerances:[{name:"D1@Sketch1", type:"bilateral", upper:0.1,
    lower:-0.05}]}` (also `symmetric`, `limit`, `basic`, or fits `{type:"fit", hole:"H7", shaft:"g6"}`), so the drawing shows
