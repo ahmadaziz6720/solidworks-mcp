@@ -12,6 +12,22 @@ internal static class NativeMethods
     public const int IDCANCEL = 2;
     public const uint GW_OWNER = 4;
 
+    [DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
+    private static extern uint GetLongPathName(string shortPath, StringBuilder longPath, uint size);
+
+    /// <summary>The path with its 8.3 components expanded (the input when it does not exist or has none).</summary>
+    public static string LongPath(string path)
+    {
+        try
+        {
+            var sb = new StringBuilder(520);
+            uint n = GetLongPathName(path, sb, (uint)sb.Capacity);
+            if (n > sb.Capacity) { sb = new StringBuilder((int)n + 1); n = GetLongPathName(path, sb, (uint)sb.Capacity); }
+            return n > 0 && n < sb.Capacity ? sb.ToString() : path;
+        }
+        catch (Exception ex) when (ex is DllNotFoundException or EntryPointNotFoundException) { return path; }
+    }
+
     public delegate bool EnumWindowsProc(IntPtr hWnd, IntPtr lParam);
 
     [DllImport("user32.dll")]

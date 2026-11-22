@@ -222,7 +222,20 @@ public class PropertiesLiveTests(LiveFixture fx) : LiveTest(fx)
         Assert.Empty(none.Materials);
         Assert.Equal(0, none.Total);
         Assert.Contains(none.Warnings!, w => w.Contains("No material matches"));
-        Assert.Empty(none.Databases);
+    }
+
+    [Fact]
+    public async Task A_material_list_miss_names_every_database_it_searched_with_its_count()
+    {
+        // S97: a miss listed `databases: []`, so a caller could not tell which databases were read.
+        var all = await P.MaterialListAsync(null, 1, 0);
+        var none = await P.MaterialListAsync("PLA-does-not-exist", 10, 0);
+        Assert.Empty(none.Materials);
+        Assert.NotEmpty(none.Databases);
+        Assert.Equal(all.Databases.Select(d => (d.Name, d.Materials)), none.Databases.Select(d => (d.Name, d.Materials)));
+        Assert.Equal("SOLIDWORKS Materials", none.Databases[0].Name);
+        // and no database twice (S104): one path each
+        Assert.Equal(all.Databases.Count, all.Databases.Select(d => d.Path).Distinct(StringComparer.OrdinalIgnoreCase).Count());
     }
 
     [Fact]
@@ -844,6 +857,59 @@ public class PropertiesOfflineTests
             Assert.Equal(["Test Steel", "My Alloy"], cat.Materials.Select(m => m.Name));
             Assert.Contains(cat.Warnings, w => w.Contains("broken.sldmat"));
             Assert.Equal(2800, cat.Materials[1].DensityKgM3);
+        }
+        finally
+        {
+            Directory.Delete(dir, recursive: true);
+        }
+    }
+
+    [System.Runtime.InteropServices.DllImport("kernel32.dll", CharSet = System.Runtime.InteropServices.CharSet.Unicode)]
+    private static extern uint GetShortPathName(string longPath, StringBuilder shortPath, uint size);
+
+    [Fact]
+    public void One_folder_given_by_its_short_and_its_long_path_is_read_once()
+    {
+        // S104: a custom database under its 8.3 path and under its long path was listed twice.
+        string dir = Path.Combine(Path.GetTempPath(), $"swmcp_material_folder_{Guid.NewGuid():N}");
+        Directory.CreateDirectory(dir);
+        try
+        {
+            File.WriteAllText(Path.Combine(dir, "a custom database.sldmat"),
+                "<?xml version=\"1.0\" encoding=\"utf-16\"?><mstns:materials xmlns:mstns=\"http://www.solidworks.com/sldmaterials\">" +
+                "<classification name=\"Custom\"><material name=\"My Alloy\"><physicalproperties><DENS value=\"2800\" />" +
+                "</physicalproperties></material></classification></mstns:materials>", Encoding.Unicode);
+            var sb = new StringBuilder(520);
+            uint n = GetShortPathName(dir, sb, (uint)sb.Capacity);
+            string shortDir = n > 0 ? sb.ToString() : dir;
+            Assert.SkipWhen(string.Equals(shortDir, dir, StringComparison.OrdinalIgnoreCase), "8.3 names are off on this volume.");
+            var cat = MaterialCatalog.Load($"{shortDir};{dir}", allowNetwork: false);
+            Assert.Single(cat.Databases);
+            Assert.Single(cat.Materials);
+            Assert.Equal(Path.Combine(dir, "a custom database.sldmat"), cat.Databases[0].Path, ignoreCase: true);
+        }
+        finally
+        {
+            Directory.Delete(dir, recursive: true);
+        }
+    }
+
+    [Fact]
+    public void Folders_the_resolver_takes_to_one_long_path_are_read_once()
+    {
+        string dir = Path.Combine(Path.GetTempPath(), $"swmcp_material_alias_{Guid.NewGuid():N}");
+        Directory.CreateDirectory(dir);
+        try
+        {
+            File.WriteAllText(Path.Combine(dir, "one.sldmat"),
+                "<?xml version=\"1.0\" encoding=\"utf-16\"?><mstns:materials xmlns:mstns=\"http://www.solidworks.com/sldmaterials\">" +
+                "<classification name=\"Custom\"><material name=\"A\"><physicalproperties><DENS value=\"1\" />" +
+                "</physicalproperties></material></classification></mstns:materials>", Encoding.Unicode);
+            string alias = dir + "-8dot3"; // does not exist: only the resolver knows it is `dir`
+            var cat = MaterialCatalog.Load($"{alias};{dir.ToUpperInvariant()}\\;{dir}", allowNetwork: false,
+                longPath: p => p.StartsWith(alias, StringComparison.OrdinalIgnoreCase) ? dir : p);
+            Assert.Single(cat.Databases);
+            Assert.Single(cat.Materials);
         }
         finally
         {

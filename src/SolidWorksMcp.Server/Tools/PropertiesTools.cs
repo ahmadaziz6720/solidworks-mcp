@@ -18,8 +18,8 @@ public sealed class PropertiesTools(SwSession session)
     // ------------------------------------------------------------------ materials
 
     [McpServerTool(Name = "material_list", Title = "List materials", ReadOnly = true, Destructive = false, Idempotent = true, OpenWorld = false)]
-    [Description("Installed materials from the SOLIDWORKS material databases: name, classification, database and density (kg/m³). " +
-                 "Use the exact name with material_set. databases lists every database without a filter, else those the filter reaches.")]
+    [Description("Installed materials of the SOLIDWORKS databases: name, classification, database and density (kg/m³). " +
+                 "Use the exact name with material_set. databases lists every database without a filter or on a miss, else those the filter reaches.")]
     public async Task<string> MaterialList(
         [Description("Case-insensitive substring of the name, classification or database, e.g. \"steel\" or \"6061\".")] string? filter = null,
         [Description("Maximum rows (1-1000).")] int limit = 100,

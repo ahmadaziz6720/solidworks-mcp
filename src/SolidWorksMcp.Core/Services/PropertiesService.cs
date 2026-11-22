@@ -270,8 +270,8 @@ public sealed partial class PropertiesService(SwSession session)
                 Materials = page,
                 Total = rows.Count,
                 Truncated = skip + page.Count < rows.Count ? true : null,
-                // With a filter, only the databases it reaches (S39): the whole list came back on every call.
-                Databases = f.Length == 0 ? cat.Databases
+                // With a filter, only the databases it reaches (S39); on a miss every database searched (S97).
+                Databases = f.Length == 0 || rows.Count == 0 ? cat.Databases
                     : cat.Databases.Where(db => Has(db.Name, f) || rows.Any(m => m.Database.Equals(db.Name, StringComparison.OrdinalIgnoreCase))).ToList(),
             };
         }, null, ct);
@@ -1536,9 +1536,14 @@ internal static class MaterialCatalog
         catch (ArgumentException) { return false; }
     }
 
-    /// <summary>All materials of the *.sldmat files in the ';'-separated folders (top level of each folder).</summary>
-    public static Catalog Load(string folderList, bool allowNetwork)
+    /// <summary>
+    /// All materials of the *.sldmat files in the ';'-separated folders (top level of each folder). A folder is taken to its
+    /// long form first (<paramref name="longPath"/>, default the Win32 one), so one folder named by its 8.3 path and by its
+    /// long path is read once (S104).
+    /// </summary>
+    public static Catalog Load(string folderList, bool allowNetwork, Func<string, string>? longPath = null)
     {
+        longPath ??= SolidWorksMcp.Core.Win32.NativeMethods.LongPath;
         var warnings = new List<string>();
         var files = new List<(int Folder, string File, string Db)>();
         var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -1546,8 +1551,11 @@ internal static class MaterialCatalog
         foreach (var raw in (folderList ?? "").Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
         {
             string folder = Environment.ExpandEnvironmentVariables(raw.Trim('"'));
-            if (folder.Length == 0 || !seen.Add(folder.TrimEnd('\\', '/'))) continue;
-            if (!allowNetwork && (folder.StartsWith(@"\\", StringComparison.Ordinal) || folder.StartsWith("//", StringComparison.Ordinal)))
+            if (folder.Length == 0) continue;
+            bool network = folder.StartsWith(@"\\", StringComparison.Ordinal) || folder.StartsWith("//", StringComparison.Ordinal);
+            if (!network) folder = longPath(folder);
+            if (!seen.Add(folder.TrimEnd('\\', '/'))) continue;
+            if (!allowNetwork && network)
             {
                 warnings.Add($"Skipped the network folder '{folder}' (SWMCP_ALLOW_NETWORK_PATHS=1 allows it).");
                 continue;

@@ -17,7 +17,7 @@ Closed all the same, its PR named, and an open PR no longer holds an item in Wai
 item sent upstream ends with `**Upstream: PR #9, open.**`, one per PR or issue
 (`merged`, `closed unmerged`; an issue `open` or `closed`), kept to its state.
 
-**Open: S4, S5, S7, S10 to S12, S33, S34, S52, S60, S64, S65, S79 to S82, S85, S86, S92, S94, S96 to S105, S108, S109, S111, S115, S123 to S125.**
+**Open: S4, S5, S7, S10 to S12, S33, S34, S52, S60, S64, S65, S79 to S82, S85, S86, S92, S94, S96, S98 to S103, S105, S108, S109, S111, S115, S123 to S125.**
 Sorted 2026-11-22, the scenario test of build `20261122-142805` (findings 2026-11-22): S119,
 S84, S120, S121, S122, S93 and S117 held and closed; S118 not proved there (SOLIDWORKS in
 the good state, no false alarm), its proof moved to a session that meets S92's state; S123
@@ -582,8 +582,8 @@ its point.
   Started 14:31 2026-11-22, free memory 2335 MB with SOLIDWORKS restarted from its exe; launcher `%LOCALAPPDATA%\solidworks-mcp\livetest\run-1121\check4.ps1`, launcher pid 2776, output check4.out.txt and check4.err.txt beside it; started and watched by a Sonnet subagent at the owner's word (2026-11-22, "uji skenario di sesi ini aja, kasi ke sub agent"); no resume; about 10 min.
 - [x] S106: committed (`cff9e5c`)
 - [x] S90: committed (`82087b8`)
-- [x] S52: committed (split out as S126)
-- [ ] S97 and S104: committed
+- [x] S52: committed (split out as S126) (`ca11c05`)
+- [x] S97 and S104: committed (material_list's description changed: docs/tools.md at the release)
 - [ ] S98: committed
 - [ ] S108: committed
 - [ ] Group 5: full live tests and release (build: )
@@ -1899,19 +1899,6 @@ but it is the check a session needs most for a relation to a model edge.
 Proposed by the session: for a circular edge parallel to the sketch, the check reads the
 edge's centre and radius against the sketch circle's centre. Local. Not decided.
 
-### S97 - `material_list` with no match does not say which databases it read - OPEN 2026-11-18
-
-Sorted out of the entry of 2026-11-17 ("a printed plate with two walls standing off it in an
-L", point 2), on build `20261117-012659`. `material_list {filter}` with no match returned
-`"materials":[]`, `"databases":[]` and a warning naming the closest names. `databases` lists
-only the databases the filter reaches, so a miss does not show which were read, and a caller
-cannot tell that a custom database was searched before calling a material missing (one is on
-the machine, not named). Reported `ok`.
-
-Proposed by the session: on a miss, `databases` lists every database searched with its
-count, as a call with no filter does. Local. Not decided.
-Decided 2026-11-21 by the owner: taken into the run of 2026-11-21, group 5, with S104 (`## Run 2026-11-21`).
-
 ### S98 - `doc_open {readOnly:true}` reports `access: owned` and says the server may edit it - OPEN 2026-11-18
 
 Sorted out of the entry of 2026-11-17 ("read-only checks of rebuilt parts and an assembly",
@@ -2028,17 +2015,6 @@ member in the result gives its section's extents along the model axes, or the lo
 direction, so a wrong rotation shows in the call that made it. Local. Not decided.
 Decided 2026-11-21 by the owner: (a) and (b) taken into the run of 2026-11-21, group 6 (`## Run 2026-11-21`).
 Decided 2026-11-21 in the plan, not the owner: (a) the server retries a refused group as one group per parallel set and says so, rather than the hint alone, because the hint would leave the split to every caller.
-
-### S104 - `material_list` lists one database twice, under its short and its long path - OPEN 2026-11-21
-
-Sorted out of the entry of 2026-11-18 ("a weldment frame of 16 members in one custom
-profile", point 3), on build `20261118-060615`. `material_list {filter:"606"}` returned 24
-rows for 12 materials and two entries in `databases` of 259 each: one database under its 8.3
-path and under its long path. Reported `ok`. Bears on S97 (the databases a miss reads).
-
-Proposed: the database paths taken to their long form before they are listed and searched.
-Local. Not decided.
-Decided 2026-11-21 by the owner: taken into the run of 2026-11-21, group 5, with S97 (`## Run 2026-11-21`).
 
 ### S105 - No tool hides or shows reference geometry and sketches - OPEN 2026-11-21
 
@@ -2538,5 +2514,63 @@ Decided 2026-11-22 by the run, not the owner: only `body_list`'s read changed, n
 `BodyKit.Row`, because the plan names `body_list`, and `BodyGeom.Box` is also the key of the
 before/after body comparisons, whose tolerance a change of box would touch; the rows of the
 other body tools are left for S52's remainder.
+Local: on `sw2023`, in the commit that moves it here; not yet in a build. Upstream: not yet
+decided.
+
+### S97 - `material_list` with no match does not say which databases it read - BUILT 2026-11-22, proof: the scenario test of the group 5 build
+
+Sorted out of the entry of 2026-11-17 ("a printed plate with two walls standing off it in an
+L", point 2), on build `20261117-012659`. `material_list {filter}` with no match returned
+`"materials":[]`, `"databases":[]` and a warning naming the closest names. `databases` lists
+only the databases the filter reaches, so a miss does not show which were read, and a caller
+cannot tell that a custom database was searched before calling a material missing. Reported
+`ok`.
+Decided 2026-11-21 by the owner: taken into the run of 2026-11-21, group 5, with S104 (`## Run 2026-11-21`).
+Cause: S39's filter on `databases` keeps the databases the matching rows (or the filter, by
+name) reach, which is none on a miss.
+Fix: on a miss `databases` is every database searched, with its count, as a call with no
+filter gives it. The description says so ("without a filter or on a miss"), paid for by
+trimming its first sentence; `--check-catalog` ok.
+Before: the new `PropertiesLiveTests.A_material_list_miss_names_every_database_it_searched_with_its_count`
+failed, "Assert.NotEmpty() Failure: Collection was empty". The old
+`Assert.Empty(none.Databases)` in `Material_list_has_AISI_1020_at_7900_kg_per_m3` pinned the
+fault and was removed.
+After: it passes (a miss lists the same databases and counts as the call with no filter, the
+standard one first); live, `Material_list_has_AISI_1020_at_7900_kg_per_m3`,
+`Material_set_AISI_1020_gives_the_analytic_mass`, `Material_set_rejects_unknown_names_with_suggestions`,
+`A_library_as_SOLIDWORKS_writes_it_keeps_its_bytes_but_for_the_added_material` and
+`A_material_library_that_does_not_parse_is_a_named_io_error_in_material_add_and_material_set`
+pass, 6/6 with the new one (`A_custom_material_is_listed_assigned_and_used_by_simulation_with_its_own_stiffness`
+fails on this machine before and after, a custom library, not this change); unit tests
+346/346; `PropertiesOfflineTests` 24/24; `ContractTests.Tool_catalog_follows_the_conventions`
+and `--check-catalog` ok; `check_repo` ok.
+Made stricter: nothing refused; a miss's `databases` is no longer empty.
+Local: on `sw2023`, in the commit that moves it here; not yet in a build. Upstream: not yet
+decided.
+
+### S104 - `material_list` lists one database twice, under its short and its long path - BUILT 2026-11-22, proof: the scenario test of the group 5 build
+
+Sorted out of the entry of 2026-11-18 ("a weldment frame of 16 members in one custom
+profile", point 3), on build `20261118-060615`. `material_list {filter:"606"}` returned 24
+rows for 12 materials and two entries in `databases` of 259 each: one database under its 8.3
+path and under its long path. Reported `ok`. Bears on S97 (the databases a miss reads).
+Decided 2026-11-21 by the owner: taken into the run of 2026-11-21, group 5, with S97 (`## Run 2026-11-21`).
+Cause: `MaterialCatalog.Load` dropped a repeated folder by its string, so the folder list of
+File Locations naming one folder by its 8.3 path and by its long path read it twice.
+Fix: each local folder is taken to its long form (`GetLongPathName`, through a resolver
+`Load` takes, default the Win32 one) before the repeat check, so a database is read, listed
+and searched once, under its long path; a network folder is left as written. Not in the
+description.
+Before: the new `PropertiesOfflineTests.One_folder_given_by_its_short_and_its_long_path_is_read_once`
+(a temp folder named by `GetShortPathName` and by its long path) failed, "Assert.Single()
+Failure: The collection contained 2 items", the two `MaterialDatabaseRow`s with the 8.3 and
+the long path.
+After: it passes, with `Folders_the_resolver_takes_to_one_long_path_are_read_once` (a fake
+resolver, no 8.3 names needed), `PropertiesOfflineTests` 24/24; the live
+`A_material_list_miss_names_every_database_it_searched_with_its_count` also asserts no path
+twice in the databases; unit tests 346/346; `check_repo` ok.
+Made stricter: nothing refused; a folder given twice under two spellings is read once.
+Decided 2026-11-22 by the run, not the owner: the real 8.3 test skips when the volume has 8.3
+names off, because the rule is also held by the fake-resolver test, which needs none.
 Local: on `sw2023`, in the commit that moves it here; not yet in a build. Upstream: not yet
 decided.
