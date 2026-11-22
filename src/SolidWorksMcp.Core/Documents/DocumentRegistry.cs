@@ -57,16 +57,10 @@ internal sealed class DocumentRegistry
         /// <summary>The update stamp right after the last counted server write (the count holds only while it matches).</summary>
         public int? ServerWritesStamp { get; set; }
         /// <summary>
-        /// S79 (b): the server's changes since its last counted write that left no SOLIDWORKS undo step (equation_set,
-        /// prop_set, ...): EditUndo2 would take back the step before them, so doc_undo refuses while any is on record.
+        /// The server's counted writes in order and its changes that left no SOLIDWORKS undo step (equation_set, prop_set,
+        /// ...) between them: doc_undo refuses an undo that would pass over one (S79 b, S114 a, S117).
         /// </summary>
-        public List<string> NoUndoChanges { get; } = [];
-        /// <summary>
-        /// The tools of the server's counted writes, oldest first, the last one what EditUndo2 takes back next; doc_undo
-        /// takes off the steps it undid (S114 a). Kept to the last <see cref="MaxUndoSteps"/>.
-        /// </summary>
-        public List<string> UndoSteps { get; } = [];
-        public const int MaxUndoSteps = 64;
+        public UndoLedger Undo { get; } = new();
         /// <summary>The sketch the server opened and is editing (null when none).</summary>
         public string? ServerSketch { get; set; }
         /// <summary>The last sketch the server finished in this document (feature tools default to it).</summary>

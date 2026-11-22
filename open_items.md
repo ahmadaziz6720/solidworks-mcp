@@ -17,7 +17,7 @@ Closed all the same, its PR named, and an open PR no longer holds an item in Wai
 item sent upstream ends with `**Upstream: PR #9, open.**`, one per PR or issue
 (`merged`, `closed unmerged`; an issue `open` or `closed`), kept to its state.
 
-**Open: S4, S5, S7, S10 to S12, S33, S34, S52, S60, S64, S65, S79 to S82, S85, S86, S90, S92, S94, S96 to S106, S108, S109, S111, S115, S117, S118.**
+**Open: S4, S5, S7, S10 to S12, S33, S34, S52, S60, S64, S65, S79 to S82, S85, S86, S90, S92, S94, S96 to S106, S108, S109, S111, S115, S118.**
 Sorted 2026-11-22, the scenario test of build `20261122-030022` (findings 2026-11-22): S116
 and S114 held and closed; S89 not proved there, its proof moved to a session that launches
 SOLIDWORKS; S117 and S118 new, reported `ok` while wrong, taken into the run's group 4; S92
@@ -524,8 +524,8 @@ its point.
 - [x] S64 (l): committed (split out as S120) (`c3c3b56`)
 - [x] S64 (i): committed (split out as S121) (`69ae11e`)
 - [x] S64 (c): committed (split out as S122) (`3fa3cf4`)
-- [x] S93: committed
-- [ ] S117: committed
+- [x] S93: committed (`b3abaf4`)
+- [x] S117: committed
 - [ ] S118: committed
 - [ ] Group 4: full live tests and release (build: )
 - [ ] Group 4: scenario test (session id: ), its entry committed and sorted
@@ -2101,33 +2101,6 @@ Proposed: `dimension_list` on an assembly lists the components' dimensions by th
 `dimension_set` takes there (all, or one component's), beside the assembly's own. Local,
 small: not in this run, for the next plan. Not decided.
 
-### S117 - After a `doc_undo` has run past a later step, a change before it that left no undo step is passed over: the next undo takes back the step before it, reported `ok` - OPEN 2026-11-22
-
-Sorted out of the entry of 2026-11-22 (the scenario test of build `20261122-030022`), point
-4, on S113's and S114's fixes (Closed). A second boss extruded, then `feature_rename` of the
-base extrude, then `feature_suppress_set` of the second boss, then `doc_undo` (ran,
-`unsuppressed` the boss, right), then `doc_undo` again: it ran, `removed:
-["Boss-Extrude3"]`, −392.699 mm³, and the rename stayed (`feature_list` shows the new name).
-Expected: S113's refusal, as given straight after a rename ("feature_rename left no
-SOLIDWORKS undo step: undo would take back the step before it ... and leave the
-feature_rename in place"), since the rename is now the server's last change not undone. The
-same where the rename was of the boss itself (the boss went, and its new name with it). The
-result named truly what it removed, so nothing was hidden; the refusal is not armed again
-once an undo has run past the step after the change. Reported `ok`.
-
-Local, small, in the files of group 2 and group 3 (`doc_undo` and `SwContext`'s undo
-accounting).
-Decided 2026-11-22 by the run, not the owner: once a `doc_undo` has taken back the step after
-a change that left no undo step, that change is again the server's last change not undone,
-and the next `doc_undo` refuses naming it, as S113 does. Test to start from: the entry's
-sequence, a boss, a rename of the base extrude, a suppress of the boss, `doc_undo`, then
-`doc_undo` again: refused naming `feature_rename` (fails now: it runs, removing
-`Boss-Extrude3`). Default model.
-Decided 2026-11-22 by the run, not the owner: taken into group 4, by the run's rule "a new
-point, small and in the group's files, a later step of this run ... taken into the next
-group", because it is a small change to the undo accounting group 3 changed, found by group
-3's check.
-
 ### S118 - S112's sign misses S92's state when the globals are whole numbers: every derived row read 0 with no warning, and a batch refused blaming the expression, reported `ok` - OPEN 2026-11-22
 
 Sorted out of the entry of 2026-11-22 (the scenario test of build `20261122-030022`), point
@@ -2617,5 +2590,66 @@ as it is, the smaller change.
 Decided 2026-11-22 by the run, not the owner: a new rebuild error after the close is a line,
 not a failure, as `equation_set` (S58 (a)) and `feature_delete` give it, because the sketch
 is what the caller drew and the close is kept; the line names the feature to fix next.
+Local: on `sw2023`, in the commit that moves it here; not yet in a build. Upstream: not yet
+decided.
+
+### S117 - After a `doc_undo` has run past a later step, a change before it that left no undo step is passed over: the next undo takes back the step before it, reported `ok` - BUILT 2026-11-22, proof: the scenario test of group 4's build
+
+Sorted out of the entry of 2026-11-22 (the scenario test of build `20261122-030022`), point
+4, on S113's and S114's fixes (Closed). A second boss extruded, then `feature_rename` of the
+base extrude, then `feature_suppress_set` of the second boss, then `doc_undo` (ran,
+`unsuppressed` the boss, right), then `doc_undo` again: it ran, `removed:
+["Boss-Extrude3"]`, −392.699 mm³, and the rename stayed (`feature_list` shows the new name).
+Expected: S113's refusal, as given straight after a rename ("feature_rename left no
+SOLIDWORKS undo step: undo would take back the step before it ... and leave the
+feature_rename in place"), since the rename is now the server's last change not undone. The
+same where the rename was of the boss itself (the boss went, and its new name with it). The
+result named truly what it removed, so nothing was hidden; the refusal is not armed again
+once an undo has run past the step after the change. Reported `ok`.
+
+Local, small, in the files of group 2 and group 3 (`doc_undo` and `SwContext`'s undo
+accounting).
+Decided 2026-11-22 by the run, not the owner: once a `doc_undo` has taken back the step after
+a change that left no undo step, that change is again the server's last change not undone,
+and the next `doc_undo` refuses naming it, as S113 does. Test to start from: the entry's
+sequence, a boss, a rename of the base extrude, a suppress of the boss, `doc_undo`, then
+`doc_undo` again: refused naming `feature_rename` (fails now: it runs, removing
+`Boss-Extrude3`). Default model.
+Decided 2026-11-22 by the run, not the owner: taken into group 4, by the run's rule "a new
+point, small and in the group's files, a later step of this run ... taken into the next
+group", because it is a small change to the undo accounting group 3 changed, found by group
+3's check.
+Cause: a counted write after a change that left no undo step cleared the change from the
+document's record (`NoUndoChanges`), and the undo that took that write back left the record
+empty, so nothing said the change was again the server's last not undone.
+Fix: the record is a new interop-free `UndoLedger` (`Documents/UndoLedger.cs`, in place of
+the entry's `NoUndoChanges` and `UndoSteps`): each counted step keeps the changes with no
+undo step that came before it; `doc_undo` puts them on record again when it takes that
+step back, so the next undo refuses as S113's does ("The server's last change in 'X'
+(feature_rename) left no SOLIDWORKS undo step: undo would take back the step before it, the
+server's feature_extrude instead ..."). An undo of several steps that would pass over one
+is refused too, naming it and how many steps it can take back first ("... before its last
+1 undo step(s) (feature_rename) left no SOLIDWORKS undo step: past them undo would take
+back ...", hint "Pass steps ≤ 1."). No description changed.
+Before: the new `FeatureManagementLiveTests.Undo_refuses_again_after_an_undo_past_the_step_that_followed_a_change_with_no_undo_step`
+(the 100 x 20 x 60 block, an r 5 x 5 boss on its top, the base extrude renamed, the boss
+suppressed, `doc_undo`, `doc_undo`) failed at the second undo, "Assert.Throws() Failure: No
+exception was thrown". After: it passes (the second undo refused naming `feature_rename`
+and the server's `feature_extrude`, the boss kept; a suppress again, then `steps: 2`
+refused with "steps ≤ 1"); with every `doc_undo` test (`FeatureManagementLiveTests`' five,
+the assembly's and the drawing's), the stamp tests
+(`The_servers_own_failed_kept_and_rolled_back_changes_do_not_read_as_the_users`,
+`An_assembly_adopted_after_the_server_saved_its_parts_does_not_read_as_changed_by_the_user`)
+and the drawing section test that undoes in a drawing, 11 of 11 live; the new unit tests
+`UndoLedgerTests` (6) in unit tests 339/339; `check_repo` ok.
+Made stricter: `doc_undo` refuses after an undo past the step that followed a change with no
+undo step, and an undo of several steps that would pass over one; nothing else that passed
+is refused.
+Decided 2026-11-22 by the run, not the owner: an undo of several steps that would pass over
+such a change is refused too, naming how many it can take back first, because it is the same
+fault in one call, and refusing only the one-step undo would leave it passing as `ok`.
+Decided 2026-11-22 by the run, not the owner: the changes are kept with the step after them
+in a new interop-free `UndoLedger`, unit-tested offline, rather than a second list beside
+`UndoSteps`, because the rule is then one function each for a write, an undo and a refusal.
 Local: on `sw2023`, in the commit that moves it here; not yet in a build. Upstream: not yet
 decided.

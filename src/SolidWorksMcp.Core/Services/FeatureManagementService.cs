@@ -1229,22 +1229,27 @@ public sealed partial class FeatureManagementService(SwSession session)
                     "was rolled back, or through another document), so undo could revert work that isn't the server's.",
                     "Ask the user to undo in SOLIDWORKS (Ctrl+Z), or repair the model with the feature tools (feature_delete, dimension_set).");
             int mine = entry.ServerWritesStamp == stamp ? entry.ServerWrites : 0;
-            if (entry.NoUndoChanges.Count > 0)
+            if (entry.Undo.PassedOver(steps) is var (changes, undoFirst))
             {
-                // S79 (b): EditUndo2 would take back the step before them and report it, leaving them in place.
-                string what = string.Join(", ", entry.NoUndoChanges);
+                // S79 (b): EditUndo2 would take back the step before them and report it, leaving them in place. S117: also
+                // once an undo has taken back the step after them, or would in this call.
+                string what = string.Join(", ", changes);
                 // S114 (a): the server's steps are kept in order, an undo taking them off, so the one next is known.
-                string prior = mine == 0 ? "a step before it that isn't the server's"
-                    : entry.UndoSteps.Count > 0 ? $"the step before it, the server's {entry.UndoSteps[^1]}"
+                string prior = mine <= undoFirst ? "a step before it that isn't the server's"
+                    : entry.Undo.StepAfter(undoFirst) is { } next ? $"the step before it, the server's {next}"
                     : "the step before it, which may not be the server's";
                 // S114 (b): in an assembly (a component's dimension) EditUndo2 was seen to take back nothing at all.
                 string effect = d.GetType() == (int)swDocumentTypes_e.swDocASSEMBLY
                     ? $"the assembly's undo would leave the {what} in place, and may take back {prior} or nothing"
                     : $"undo would take back {prior} instead, and leave the {what} in place";
-                throw new SwException(ErrorCodes.NotSupported,
-                    $"The server's last change in '{entry.Title}' ({what}) left no SOLIDWORKS undo step: {effect}.",
-                    $"Set it back with its own tool ({what}, or its _set/_delete pair); remove an earlier feature with feature_delete " +
-                    "or change it with dimension_set.");
+                string hint = $"Set it back with its own tool ({what}, or its _set/_delete pair); remove an earlier feature with " +
+                    "feature_delete or change it with dimension_set.";
+                throw undoFirst == 0
+                    ? new SwException(ErrorCodes.NotSupported,
+                        $"The server's last change in '{entry.Title}' ({what}) left no SOLIDWORKS undo step: {effect}.", hint)
+                    : new SwException(ErrorCodes.NotSupported,
+                        $"The server's change in '{entry.Title}' before its last {undoFirst} undo step(s) ({what}) left no SOLIDWORKS " +
+                        $"undo step: past them {effect}.", $"Pass steps ≤ {undoFirst}. {hint}");
             }
             if (mine == 0)
                 throw new SwException(ErrorCodes.NotOwned,
@@ -1293,7 +1298,7 @@ public sealed partial class FeatureManagementService(SwSession session)
             // The undone steps are no longer the server's to undo; this call itself is no new step (see SwContext.AfterWrite).
             entry.ServerWrites = Math.Max(0, mine - steps);
             entry.ServerWritesStamp = d.GetUpdateStamp();
-            entry.UndoSteps.RemoveRange(Math.Max(0, entry.UndoSteps.Count - steps), Math.Min(steps, entry.UndoSteps.Count));
+            entry.Undo.Undone(steps); // S117: a change before the last step undone is the server's last again
             ctx.UndoRecorded();
             bool part = IsPart(d);
             return new UndoResult

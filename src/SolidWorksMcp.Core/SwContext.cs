@@ -152,23 +152,18 @@ internal sealed class SwContext
                 else if (_noUndoStep is bool change)
                 {
                     // S79 (b): no SOLIDWORKS undo step, so not counted; a change is on record until the next counted write.
-                    if (!chained) { e.ServerWrites = 0; e.NoUndoChanges.Clear(); e.UndoSteps.Clear(); }
+                    if (!chained) { e.ServerWrites = 0; e.Undo.Clear(); }
                     e.ServerWritesStamp = now;
-                    if (change && !e.NoUndoChanges.Contains(Op.Name)) e.NoUndoChanges.Add(Op.Name);
+                    if (change) e.Undo.NoUndo(Op.Name);
                 }
                 else
                 {
-                    if (!chained) { e.NoUndoChanges.Clear(); e.UndoSteps.Clear(); }
+                    if (!chained) e.Undo.Clear();
                     if (e.ServerWritesStamp != now)
                     {
                         e.ServerWrites = (chained ? e.ServerWrites : 0) + (now != _stampAtBind ? 1 : 0);
                         e.ServerWritesStamp = now;
-                        if (now != _stampAtBind)
-                        {
-                            e.NoUndoChanges.Clear();
-                            e.UndoSteps.Add(Op.Name);
-                            if (e.UndoSteps.Count > DocumentRegistry.Entry.MaxUndoSteps) e.UndoSteps.RemoveAt(0);
-                        }
+                        if (now != _stampAtBind) e.Undo.Counted(Op.Name); // S117: the changes on record go with the step
                     }
                 }
                 e.StampAfterLastOp = now;

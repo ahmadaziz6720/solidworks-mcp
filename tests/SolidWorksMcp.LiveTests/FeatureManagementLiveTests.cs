@@ -826,6 +826,39 @@ public class FeatureManagementLiveTests(LiveFixture fx) : LiveTest(fx)
     }
 
     [Fact]
+    public async Task Undo_refuses_again_after_an_undo_past_the_step_that_followed_a_change_with_no_undo_step()
+    {
+        // S117: a boss, a rename, a suppress; the suppress undone, then the next undo took back the boss (removed, -392.699 mm³)
+        // and left the rename, reported ok: the rename was again the server's last change not undone.
+        var b = await BlockAsync("fm_undo_past");
+        var sk = new SketchService(S);
+        await sk.StartAsync(b.Doc, new EntityRef { At = [0, 20, 0] }, false);
+        await sk.AddAsync(b.Doc, [new SketchEntity { Kind = "circle", Center = [0, 0], RadiusMm = 5 }]);
+        var boss = await new FeatureService(S).ExtrudeAsync(new ExtrudeRequest { Doc = b.Doc, DepthMm = 5 });
+        double pin = 125 * Math.PI;
+        Assert.Equal(pin, boss.Verified.VolumeDeltaMm3, 1e-3);
+        await M.RenameAsync(b.Doc, b.Extrude, "Blok");
+        await M.SuppressAsync(b.Doc, [boss.Feature.Name], true);
+
+        var r = await M.UndoAsync(b.Doc, 1);
+        Assert.Equal([boss.Feature.Name], r.Unsuppressed ?? []);
+        var ex = await Assert.ThrowsAsync<SwException>(() => M.UndoAsync(b.Doc, 1));
+        Assert.Equal(ErrorCodes.NotSupported, ex.Code);
+        Assert.Contains("feature_rename", ex.Message);
+        Assert.Contains("the server's feature_extrude", ex.Message);
+        Assert.Equal(120000 + pin, await VolumeAsync(b.Doc), 1e-3);
+
+        // Two steps in one call would pass over it as well.
+        await M.SuppressAsync(b.Doc, [boss.Feature.Name], true);
+        ex = await Assert.ThrowsAsync<SwException>(() => M.UndoAsync(b.Doc, 2));
+        Assert.Equal(ErrorCodes.NotSupported, ex.Code);
+        Assert.Contains("feature_rename", ex.Message);
+        Assert.Contains("steps ≤ 1", ex.Hint!);
+        Assert.Equal(120000, await VolumeAsync(b.Doc), 1e-3);
+        Assert.Null((await M.InfoAsync(b.Doc, "Blok")).Suppressed); // the rename stays, the base extrude kept
+    }
+
+    [Fact]
     public async Task Undo_units_rebuild_and_delete_refuse_the_users_documents()
     {
         string title = await TestHooks.NewForeignPartAsync(S);
