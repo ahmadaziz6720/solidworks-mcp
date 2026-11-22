@@ -789,6 +789,27 @@ public class PartFeatureLiveTests(LiveFixture fx) : LiveTest(fx)
         Assert.DoesNotContain(pocket.Verified.Checks!, c => c.Contains("broke out"));
     }
 
+    [Fact]
+    public async Task A_blind_cut_whose_depth_equals_the_material_says_its_end_lies_on_the_far_face()
+    {
+        // S84 (c): a cut 20 deep through the 20 mm block, the depth equal to the material on purpose, used to say "no floor at
+        // 20 mm: the cut broke out of the body before its end", a right result worded as a fault. Its walls end on the far
+        // face: "through". A cut deeper than the material still says it broke out.
+        string doc = await BlockAsync("cut_equals_wall");
+        await Sk.StartAsync(doc, new EntityRef { At = [-20, 20, 0] }, false);
+        await Sk.AddAsync(doc, [new SketchEntity { Kind = "circle", Center = [-20, 20, 0], RadiusMm = 3 }]);
+        var exact = await Fs.ExtrudeAsync(new ExtrudeRequest { Doc = doc, Cut = true, DepthMm = 20, Name = "ExactHole" });
+        Assert.Equal(-Math.PI * 9 * 20, exact.Verified.VolumeDeltaMm3, Vq);
+        Assert.Contains(exact.Verified.Checks!, c => c.Contains("through: the end lies on the far face") && c.Contains("(D1@ExactHole reads 20 mm)"));
+        Assert.DoesNotContain(exact.Verified.Checks!, c => c.Contains("no floor") || c.Contains("broke out"));
+
+        await Sk.StartAsync(doc, new EntityRef { At = [20, 20, 0] }, false);
+        await Sk.AddAsync(doc, [new SketchEntity { Kind = "circle", Center = [20, 20, 0], RadiusMm = 3 }]);
+        var deeper = await Fs.ExtrudeAsync(new ExtrudeRequest { Doc = doc, Cut = true, DepthMm = 25 });
+        Assert.Contains(deeper.Verified.Checks!, c => c.Contains("no floor at 25 mm") && c.Contains("broke out of the body"));
+        Assert.DoesNotContain(deeper.Verified.Checks!, c => c.Contains("through:"));
+    }
+
     // ------------------------------------------------------------------ linear pattern
 
     [Fact]
@@ -1134,6 +1155,9 @@ public class PartFeatureLiveTests(LiveFixture fx) : LiveTest(fx)
         // Seed faces 1600 mm², the copy's 1200: every seed face found reflected, so a check, not a warning.
         Assert.DoesNotContain(r.Warnings ?? [], w => w.Contains("overlap, merge or are clipped"));
         Assert.Contains(r.Verified.Checks!, c => c.Contains("x the seed's area") && (c.Contains("0.75") || c.Contains("0,75"))); // the test host keeps the machine's culture
+        // S84 (a): the line says the faces merge differently, not that the copy "meets the body differently" like a clash.
+        Assert.Contains(r.Verified.Checks!, c => c.Contains("faces merge differently from the seed's; the instance faces match"));
+        Assert.DoesNotContain(r.Verified.Checks!, c => c.Contains("meets the body differently"));
     }
 
     [Fact]

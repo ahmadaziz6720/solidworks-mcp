@@ -519,7 +519,7 @@ its point.
   Cost: Sonnet, see the report.
 - [x] Group 3: scenario test (session id: `ba47a581-7e48-4a8e-98dc-dda2b296ae23`), its entry committed and sorted (entry `f489505`; ended `EXIT 0` 03:09; S116 and S114 held and closed, S89 not proved there and its proof moved, S117 and S118 new into group 4, S92 met live, S5 again; SOLIDWORKS restarted after, as the state was on; release notes updated) (`89d32a7`)
   Started 03:03 2026-11-22, free memory 2602 MB with SOLIDWORKS restarted from its exe; launcher `%LOCALAPPDATA%\solidworks-mcp\livetest\run-1121\check3.ps1` (`-Resume` to resume), pid 17092, output check3.out.txt and check3.err.txt beside it; watched by a background until-loop of the session.
-- [ ] S84 (a) and (c): committed
+- [x] S84 (a) and (c): committed (split out as S119)
 - [ ] S84 (b): committed
 - [ ] S64 (l): committed
 - [ ] S64 (i): committed
@@ -1700,6 +1700,7 @@ parts", point 5), build `20261118-060615`: `feature_pattern_linear` returned `ok
 spacing the warning was gone and `model_review` clean. The session spent a review to tell
 whether it was real.
 Decided 2026-11-21 by the owner: (a), (b) and (c) taken into the run of 2026-11-21, group 4 (`## Run 2026-11-21`).
+**Done in the run of 2026-11-22, group 4: (a) and (c), split out as S119 (Waiting).** **Left open: (b).**
 
 ### S85 - `feature_delete`'s dry run lists as kept an absorbed sketch the real call removes - OPEN 2026-11-16
 
@@ -2332,3 +2333,50 @@ running, launch attached to it, no second instance; the launch path not reached.
 Decided 2026-11-22 by the run, not the owner: the proof moved to a session that runs
 `sw_connect {launch:true}` with SOLIDWORKS closed, because a headless check may not end
 SOLIDWORKS; the live test holds the path meanwhile.
+
+### S119 - S84 (a) and (c): a mirror's area line and a cut's no-floor line read as faults on right results - BUILT 2026-11-22, proof: the scenario test of group 4's build
+
+S84 (a) and (c), split out of S84 (which stays Open for (b)) in the run of 2026-11-21,
+group 4. (a) `feature_mirror` said in `checks` "the copy's faces have 0.75 x the seed's
+area: it meets the body differently from the seed" with every instance face found, a line
+sessions took for a clash; (c) a blind cut whose depth equals the material it crosses said
+"no floor at 20 mm: the cut broke out of the body before its end", a right result worded as a
+fault. Cause: (a) `AreaNote`'s tail named the copy's meeting with the body, which reads as a
+clash; (c) the cut's intent check had one line for every end with no cap at the asked depth,
+and did not tell a depth that equals the material from one that is more. Fix: (a) `AreaNote`
+(`PartFeatureService.cs`) ends "faces merge differently from the seed's; the instance faces
+match", the ratio kept at its head; (c) `FeatureService.ExtrudeIntent`'s break-out line
+asks the new `WallsReach` first: the end points of the cut's face edges, measured along the
+direction as the caps are, reach the asked depth and not past it, and a blind cut then says
+"through: the end lies on the far face" (the depth dimension kept at its end, as S48 (a));
+walls that stop short of the depth still say "no floor at <d> mm: the cut broke out of the
+body before its end", a mid-plane cut keeps its old line. No description changed.
+Before: the new `PartFeatureLiveTests.A_blind_cut_whose_depth_equals_the_material_says_its_end_lies_on_the_far_face`
+(a 20 mm cut through the 20 mm block) failed, "Assert.Contains() Failure: Filter not
+matched in collection ... ["volume", "no floor at 20 mm: the cut broke out of the body
+b"...]"; the mirror test `Mirror_of_a_boss_with_a_face_merged_into_the_body_does_not_warn`,
+given the new wording, failed, "Assert.Contains() Failure: Filter not matched in collection
+... ["volume", "the copy's faces have 0,75 x the seed's area: it m"..., "instance faces
+at the expected positions: 4/4 ..."]". After: both pass, with the two live tests that call
+the changed cut code (`A_blind_cut_that_leaves_the_body_passes_on_its_volume_and_a_kept_failure_takes_its_name`,
+`A_blind_cut_from_a_plane_inside_the_body_that_leaves_it_passes_on_its_volume`), 4/4; unit
+tests 323/323; `check_repo` ok. The first run of the third test lost SOLIDWORKS ("Lost the
+connection ..."), which was restarted; it and the fourth passed after.
+Made stricter: nothing; a cut deeper than the material still says it broke out, and the
+new test holds that case.
+Decided 2026-11-22 by the run, not the owner: (a) and (c) moved to Waiting as a new item
+split out of S84, not as a second S84 heading, because one number heads one item and the
+format splits an item that way.
+Decided 2026-11-22 by the run, not the owner: the mirror's line says "the instance faces
+match" and does not claim "the volume ... match" as the plan wrote it, because the mirror
+holds no figure for the seed's own volume (its rule is only that the volume changed), so
+the words would assert a check that is not made; a volume comparison would need the
+rollback bar moved, a larger change than this wording.
+Decided 2026-11-22 by the run, not the owner: the ratio stays at the head of the mirror's
+line ("the copy's faces have 0.75 x the seed's area: ..."), because the plan changes the
+tail only and the figure tells how far the faces differ.
+Decided 2026-11-22 by the run, not the owner: "through" is said only for a blind cut, not
+a mid-plane one, because the plan names a blind cut and a mid-plane cut has two ends to
+read; and the depth dimension stays at the line's end, as S48 (a) names it.
+Local: on `sw2023`, in the commit that moves it here; not yet in a build. Upstream: not yet
+decided.

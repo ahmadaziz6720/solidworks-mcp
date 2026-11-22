@@ -159,13 +159,35 @@ public sealed partial class FeatureService(SwSession session)
                 string? depthDim = end == "blind"
                     ? FeatureVerifier.Dimensions(main).FirstOrDefault(x => x.Unit == "mm" && Math.Abs(x.Value - Units.Mm(depth)) < 1e-6)?.Name
                     : null;
-                checks.Add($"no floor at {Units.Mm(e)} mm: the cut broke out of the body before its end" +
-                           (depthDim is null ? "" : $" ({depthDim} reads {Units.Mm(depth)} mm)"));
+                // The cut's walls reaching the asked depth, no further: the depth is the material it crosses, an end on the
+                // far face and no break-out (S84 c). Walls that stop short of it mean the depth is more than the material.
+                string what = end == "blind" && WallsReach(main, origin, capNormal, cos, depth)
+                    ? "through: the end lies on the far face"
+                    : $"no floor at {Units.Mm(e)} mm: the cut broke out of the body before its end";
+                checks.Add(what + (depthDim is null ? "" : $" ({depthDim} reads {Units.Mm(depth)} mm)"));
             }
             else
                 yield return $"no {(cut ? "floor" : "cap")} face at {Units.Mm(e)} mm along [{TopoQuery.Fmt(Units.Unit(dir))}]" +
                              (offsets.Count == 0 ? "" : $" (planar faces at {string.Join(", ", offsets.Select(x => Units.Mm(x)))} mm)");
         }
+    }
+
+    /// <summary>
+    /// Whether the cut's faces reach exactly <paramref name="depth"/> along the direction: the end points of their edges,
+    /// measured as the caps are, reach it and not past it (S84 c).
+    /// </summary>
+    private static bool WallsReach(IFeature main, Vec3 origin, Vec3 capNormal, double cos, double depth)
+    {
+        double far = double.MinValue;
+        foreach (var f in ComArgs.Objects<IFace2>((object?)main.GetFaces()))
+            foreach (var edge in f.Edges())
+            {
+                var cp = edge.CurveParams();
+                if (cp.Length < 6) continue;
+                foreach (var p in new[] { Vec3.From(cp, 0), Vec3.From(cp, 3) })
+                    far = Math.Max(far, (p - origin).Dot(capNormal) / cos);
+            }
+        return Math.Abs(far - depth) < 1e-6;
     }
 
     /// <summary>

@@ -1728,8 +1728,8 @@ public sealed partial class PartFeatureService(SwSession session)
                 var res = Signatures(faces, out double resArea);
                 var (matched, total) = Score(seedSigs, res, [Rigid.Reflect(q0, m)]);
                 if (matched == 0) return [$"no mirrored face is the reflection of a seed face about the plane through [{Pt(q0)}] with normal [{Dir(m)}]"];
-                // Every seed face found reflected: an area difference only says the copy meets the body differently
-                // from the seed (a face that merges into the body on one side and not the other), not that it is wrong.
+                // Every seed face found reflected: an area difference only says the faces merge differently from the seed's
+                // (a face that merges into the body on one side and not the other), not that the copy is wrong (S84 a).
                 if (matched == total) AreaNote(checks, seedArea, resArea);
                 else AreaCheck(ctx, seedArea, resArea, 1);
                 PositionsCheck(ctx, new Hypothesis(1, 1, matched, total), checks, $"reflected about [{Dir(m)}] through [{Pt(q0)}]");
@@ -2048,7 +2048,7 @@ public sealed partial class PartFeatureService(SwSession session)
         if (seedArea <= 0) return;
         double ratio = resArea / seedArea;
         if (Math.Abs(ratio - 1) > 1e-3)
-            checks.Add($"the copy's faces have {Math.Round(ratio, 3)} x the seed's area: it meets the body differently from the seed");
+            checks.Add($"the copy's faces have {Math.Round(ratio, 3)} x the seed's area: faces merge differently from the seed's; the instance faces match");
     }
 
     /// <summary>A rigid motion (rotation or reflection matrix plus translation) acting on column vectors.</summary>
