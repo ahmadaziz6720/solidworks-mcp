@@ -526,8 +526,34 @@ its point.
 - [x] S64 (c): committed (split out as S122) (`3fa3cf4`)
 - [x] S93: committed (`b3abaf4`)
 - [x] S117: committed (`ee5c4c5`)
-- [x] S118: committed
-- [ ] Group 4: full live tests and release (build: )
+- [x] S118: committed (`ed486b0`)
+- [x] Group 4: full live tests and release (build: `20261122-142805`, `ed486b0`)
+  Live: SketchEditLiveTests 79, PartFeatureLiveTests 52, FeatureManagementLiveTests 41, AdvancedFeatureLiveTests 30,
+  BodySheetMetalLiveTests 52, ReferenceLiveTests 47, ModellingLiveTests 10, SurfaceShapeLiveTests 8, WeldmentLiveTests 11,
+  FaceEditLiveTests 5 of 6, MoldingLiveTests 4, PropertiesLiveTests 25 of 26, AssemblyLiveTests 65, DrawingLiveTests 57,
+  ExportLiveTests 22, M0LiveTests 25, TopDownLiveTests 4, RecognitionLiveTests 1, AssemblyStructureLiveTests 2,
+  ConfigurationLiveTests 7, HardwareLiveTests 3, VisualsLiveTests 3, SimulationLiveTests 17, SimulationExtrasLiveTests 3:
+  575 tests in 24 classes, as S84 (b)'s rebuild-warning report runs in every feature tool's call, so every class whose tests
+  make features or sketches, plus the undo, equation, delete and suppress callers. Left out: `TemplateLiveTests` (1 test, makes
+  no feature and calls none of the changed tools). All passed but two, neither a fault of this group's code: (1)
+  `FaceEditLiveTests.Delete_heals_a_hole_in_an_imported_STEP_body_without_history` reads volume 0 after the STEP import, in the
+  class run and alone after a restart: the known S5. (2) `PropertiesLiveTests.A_custom_material_is_listed_assigned_and_used_by_simulation_with_its_own_stiffness`
+  (25/26) fails on the machine's custom material library, before and after (S72). One flake: in the full AssemblyLiveTests run
+  `An_assembly_adopted_after_the_server_saved_its_parts_does_not_read_as_changed_by_the_user` failed once with SOLIDWORKS refusing
+  an equation (S112's state, as in group 3's run); rerun alone after a restart it passed 1/1. Guard stops, not test failures:
+  the machine was short of memory (free 0.3 to 0.8 GB with SOLIDWORKS running), and the guard ran at `-MinFreeMB 400` (not the
+  default 800, to keep the requeues down): PartFeatureLiveTests once (28 tests done, the rest requeued one by one, 52/52 in the
+  end), AssemblyLiveTests twice (7 tests done; then `A_flexible_subassembly_s_box_covers_its_children_as_they_are_placed` alone,
+  SOLIDWORKS 4.7 GB private over the 4.5 GB limit), SimulationExtrasLiveTests at its start and one test alone, the other two of
+  its tests failing on SOLIDWORKS' "continue to load SOLIDWORKS Simulation?" dialog at about 0.6 GB free; the stopped Assembly
+  test and all three SimulationExtras tests passed rerun one by one after a restart each with the guard at 250 MB (`group4b.ps1`:
+  2/2 and 3/3). No "low on memory" dialog. Run class by class with SOLIDWORKS restarted before each and `dotnet build-server
+  shutdown` (`group4.ps1`, `group4b.ps1` in `run-1121`). The live tests took about 175 min on the clock (11:32 to 14:27, the guard
+  requeues and the rerun included), the whole release about 195 min. Unit 343, `check_repo` ok. No description changed
+  (`--check-catalog` ok, 165 tools, 247.7 KB), `docs/tools.md` not regenerated. Registered in `claude_solidworks`, `clove sorter`
+  (its `SWMCP_VBA=on` kept) and this repo, each read back from `~/.claude.json` on the new exe; tag `build-20261122-142805` pushed and read
+  back, release page with no files (`ahmadaziz6720/solidworks-mcp` releases, `build-20261122-142805`). SOLIDWORKS restarted from its exe at the end.
+  Cost: Sonnet, see the report.
 - [ ] Group 4: scenario test (session id: ), its entry committed and sorted
 - [ ] S106: committed
 - [ ] S90: committed
@@ -2213,7 +2239,7 @@ Decided 2026-11-22 by the run, not the owner: the proof moved to a session that 
 `sw_connect {launch:true}` with SOLIDWORKS closed, because a headless check may not end
 SOLIDWORKS; the live test holds the path meanwhile.
 
-### S119 - S84 (a) and (c): a mirror's area line and a cut's no-floor line read as faults on right results - BUILT 2026-11-22, proof: the scenario test of group 4's build
+### S119 - S84 (a) and (c): a mirror's area line and a cut's no-floor line read as faults on right results - BUILT 2026-11-22, proof: the scenario test of build 20261122-142805
 
 S84 (a) and (c), split out of S84 (which stays Open for (b)) in the run of 2026-11-21,
 group 4. (a) `feature_mirror` said in `checks` "the copy's faces have 0.75 x the seed's
@@ -2257,10 +2283,10 @@ tail only and the figure tells how far the faces differ.
 Decided 2026-11-22 by the run, not the owner: "through" is said only for a blind cut, not
 a mid-plane one, because the plan names a blind cut and a mid-plane cut has two ends to
 read; and the depth dimension stays at the line's end, as S48 (a) names it.
-Local: on `sw2023`, in the commit that moves it here; not yet in a build. Upstream: not yet
+Local: on `sw2023`, `6e4c9f5`; in build `20261122-142805`. Upstream: not yet
 decided.
 
-### S84 - Feature results that read as faults on a right result: a mirror's area line, a pattern's rebuild warning under its old name - BUILT 2026-11-22, proof: the scenario test of group 4's build
+### S84 - Feature results that read as faults on a right result: a mirror's area line, a pattern's rebuild warning under its old name - BUILT 2026-11-22, proof: the scenario test of build 20261122-142805
 
 (a) Sorted out of three entries of 2026-11-16 ("a part edited by rollback", point 6; "an
 edit to four printed parts", point 5; "an edit to three printed parts", point 7), on build
@@ -2352,10 +2378,10 @@ groups) give `Result` only the last outcome, and a warning of an earlier one wou
 Decided 2026-11-22 by the run, not the owner: a deferred warning that is an error after the
 rebuild is reported as a line, not a failure, because the feature passed its checks and the
 call made no other change; failing it then would be a new rule the item does not ask for.
-Local: on `sw2023`, in the commit that moves it here; not yet in a build. Upstream: not yet
+Local: on `sw2023`, `d82a7b2`; in build `20261122-142805`. Upstream: not yet
 decided.
 
-### S120 - S64 (l): a closed contour read `regions: 0` around a hole of the face, and the regions lagged a later `sketch_add` - BUILT 2026-11-22, proof: the scenario test of group 4's build
+### S120 - S64 (l): a closed contour read `regions: 0` around a hole of the face, and the regions lagged a later `sketch_add` - BUILT 2026-11-22, proof: the scenario test of build 20261122-142805
 
 S64 (l), split out of S64 (which stays Open for its other points) in the run of 2026-11-21,
 group 4. `sketch_add` read a closed contour `"regions":0` while the feature from it was
@@ -2403,10 +2429,10 @@ three were the lag was not reproduced on their own parts.
 Decided 2026-11-22 by the run, not the owner: the refresh is made in `sketch_add` only, not
 in `sketch_info` (a read) or the sketch edit tools, because the lag was shown after an add
 and not probed after an edit tool; the smaller change.
-Local: on `sw2023`, in the commit that moves it here; not yet in a build. Upstream: not yet
+Local: on `sw2023`, `c3c3b56`; in build `20261122-142805`. Upstream: not yet
 decided.
 
-### S121 - S64 (i): an equal chamfer's two legs are separate dimensions, and an equation on one said nothing of the other - BUILT 2026-11-22, proof: the scenario test of group 4's build
+### S121 - S64 (i): an equal chamfer's two legs are separate dimensions, and an equation on one said nothing of the other - BUILT 2026-11-22, proof: the scenario test of build 20261122-142805
 
 S64 (i), split out of S64 (which stays Open for its other points) in the run of 2026-11-21,
 group 4. `feature_chamfer {type:"equal"}` makes a chamfer with two dimensions (SOLIDWORKS
@@ -2451,10 +2477,10 @@ Decided 2026-11-22 by the run, not the owner: `equation_set` warns only when the
 were equal before the call, not for every two-leg chamfer, because a chamfer of two distances
 meant to differ has no "other leg that stays" to warn of, and the finding's case is the
 equal one; a leg already driven by an equation, or set in the same call, is not warned of.
-Local: on `sw2023`, in the commit that moves it here; not yet in a build. Upstream: not yet
+Local: on `sw2023`, `69ae11e`; in build `20261122-142805`. Upstream: not yet
 decided.
 
-### S122 - S64 (c): a fillet that stopped at a tangent joint failed with the hint "a radius too large" - BUILT 2026-11-22, proof: the scenario test of group 4's build
+### S122 - S64 (c): a fillet that stopped at a tangent joint failed with the hint "a radius too large" - BUILT 2026-11-22, proof: the scenario test of build 20261122-142805
 
 S64 (c), split out of S64 (which stays Open for its other points) in the run of 2026-11-21,
 group 4. `feature_fillet` and `feature_chamfer` of 1 mm over a tangent chain failed five
@@ -2500,10 +2526,10 @@ Decided 2026-11-22 by the run, not the owner: the joint hint replaces the radius
 failure of a call that has one, not only on "created no feature", because a fillet that
 stops at an open tangent joint fails whatever the radius, so the joint is the first thing to
 change; a call with no such joint keeps the radius hint.
-Local: on `sw2023`, in the commit that moves it here; not yet in a build. Upstream: not yet
+Local: on `sw2023`, `3fa3cf4`; in build `20261122-142805`. Upstream: not yet
 decided.
 
-### S93 - A write that rebuilds does not name a feature far from the change that gained a rebuild warning - BUILT 2026-11-22, proof: the scenario test of group 4's build
+### S93 - A write that rebuilds does not name a feature far from the change that gained a rebuild warning - BUILT 2026-11-22, proof: the scenario test of build 20261122-142805
 
 Sorted out of the entry of 2026-11-17 ("a part's two plates cut back by redrawing one
 sketch", points 1 and 4), on build `20261117-012659`. `dimension_set` of one sketch
@@ -2562,10 +2588,10 @@ as it is, the smaller change.
 Decided 2026-11-22 by the run, not the owner: a new rebuild error after the close is a line,
 not a failure, as `equation_set` (S58 (a)) and `feature_delete` give it, because the sketch
 is what the caller drew and the close is kept; the line names the feature to fix next.
-Local: on `sw2023`, in the commit that moves it here; not yet in a build. Upstream: not yet
+Local: on `sw2023`, `b3abaf4`; in build `20261122-142805`. Upstream: not yet
 decided.
 
-### S117 - After a `doc_undo` has run past a later step, a change before it that left no undo step is passed over: the next undo takes back the step before it, reported `ok` - BUILT 2026-11-22, proof: the scenario test of group 4's build
+### S117 - After a `doc_undo` has run past a later step, a change before it that left no undo step is passed over: the next undo takes back the step before it, reported `ok` - BUILT 2026-11-22, proof: the scenario test of build 20261122-142805
 
 Sorted out of the entry of 2026-11-22 (the scenario test of build `20261122-030022`), point
 4, on S113's and S114's fixes (Closed). A second boss extruded, then `feature_rename` of the
@@ -2623,10 +2649,10 @@ fault in one call, and refusing only the one-step undo would leave it passing as
 Decided 2026-11-22 by the run, not the owner: the changes are kept with the step after them
 in a new interop-free `UndoLedger`, unit-tested offline, rather than a second list beside
 `UndoSteps`, because the rule is then one function each for a write, an undo and a refusal.
-Local: on `sw2023`, in the commit that moves it here; not yet in a build. Upstream: not yet
+Local: on `sw2023`, `ee5c4c5`; in build `20261122-142805`. Upstream: not yet
 decided.
 
-### S118 - S112's sign misses S92's state when the globals are whole numbers: every derived row read 0 with no warning, and a batch refused blaming the expression, reported `ok` - BUILT 2026-11-22, proof: the scenario test of group 4's build
+### S118 - S112's sign misses S92's state when the globals are whole numbers: every derived row read 0 with no warning, and a batch refused blaming the expression, reported `ok` - BUILT 2026-11-22, proof: the scenario test of build 20261122-142805
 
 Sorted out of the entry of 2026-11-22 (the scenario test of build `20261122-030022`), point
 5, on S112's fix (Closed); S92's state met live. A part with ten globals, all set to whole
@@ -2693,5 +2719,5 @@ Decided 2026-11-22 by the run, not the owner: an all-refused batch names the sta
 the widened sign (S112's rule: any refusal while the sign shows), not by the count of
 refused rows alone, because a batch of values the dimensions can't take is refused the same
 way in the good state, where the restart would be a false lead.
-Local: on `sw2023`, in the commit that moves it here; not yet in a build. Upstream: not yet
+Local: on `sw2023`, `ed486b0`; in build `20261122-142805`. Upstream: not yet
 decided.
