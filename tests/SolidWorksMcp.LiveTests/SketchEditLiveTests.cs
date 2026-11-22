@@ -1029,11 +1029,12 @@ public class SketchEditLiveTests(LiveFixture fx) : LiveTest(fx)
         var (planeDoc, _, onPlane) = await SketchAsync("s64_regions_plane", "front",
             new SketchEntity { Kind = "polygon", Center = [0, 0], Sides = 6, CircumradiusMm = 10 });
         Assert.Equal(1, onPlane.Contours.Regions);
-        // A line across it: SOLIDWORKS still counts 1 and reads no closed contour (the sketch's contours cross), so the
-        // edges are checked, and the region, all of whose edges are the hexagon's, is kept.
+        // A line across it: SOLIDWORKS reads no closed contour (the sketch's contours cross), so the edges are checked,
+        // and the two halves the line splits the hexagon into, all of whose edges are the sketch's, are kept. (Before
+        // S64 (l)'s refresh this read 1, SOLIDWORKS' regions from before the line.)
         var across = await Sk.AddAsync(planeDoc, [Line([0, -20], [0, 20])]);
         Assert.Equal(0, across.Contours.ClosedContours);
-        Assert.Equal(1, across.Contours.Regions);
+        Assert.Equal(2, across.Contours.Regions);
 
         string doc = await NewPartAsync("s64_regions_face");
         await Sk.StartAsync(doc, new EntityRef { Name = "top" }, false);
@@ -1046,6 +1047,48 @@ public class SketchEditLiveTests(LiveFixture fx) : LiveTest(fx)
         var two = await Sk.AddAsync(doc, [Circle([30, 0], 5)]);
         Assert.Equal(2, two.Contours.Regions);
         Assert.Equal(2, (await Ed.InfoAsync(doc, null)).Contours.Regions);
+    }
+
+    [Fact]
+    public async Task Regions_count_a_contour_around_a_hole_of_the_face()
+    {
+        // S64 (l): after a Ø3.2 hole is cut through, a concentric Ø6.5 circle on the same face read regions 0: the region
+        // it closes holds the hole's edge, a model edge, which (f)'s rule took for a region not the sketch's own.
+        string doc = await NewPartAsync("s64_regions_hole");
+        await Sk.StartAsync(doc, new EntityRef { Name = "top" }, false);
+        await Sk.AddAsync(doc, [Rect(100, 60)]);
+        var fs = new FeatureService(S);
+        await fs.ExtrudeAsync(new ExtrudeRequest { Doc = doc, DepthMm = 20 });
+        await Sk.StartAsync(doc, new EntityRef { Type = "face", At = [20, 20, 0] }, false);
+        var small = await Sk.AddAsync(doc, [Circle([0, 0], 1.6)]);
+        Assert.Equal(1, small.Contours.Regions);
+        await fs.ExtrudeAsync(new ExtrudeRequest { Doc = doc, Cut = true, End = "through_all" });
+
+        await Sk.StartAsync(doc, new EntityRef { Type = "face", At = [20, 20, 0] }, false);
+        var ring = await Sk.AddAsync(doc, [Circle([0, 0], 3.25)]);
+        Assert.Equal(1, ring.Contours.ClosedContours);
+        Assert.Equal(1, ring.Contours.Regions);
+        // A second circle clear of the hole: two regions, the face around both still not counted.
+        var two = await Sk.AddAsync(doc, [Circle([20, 0], 4)]);
+        Assert.Equal(2, two.Contours.Regions);
+        var cut = await fs.ExtrudeAsync(new ExtrudeRequest { Doc = doc, Cut = true, DepthMm = 2 });
+        Assert.Equal(-Math.PI * (3.25 * 3.25 - 1.6 * 1.6 + 16) * 2, cut.Verified.VolumeDeltaMm3, 0.01);
+    }
+
+    [Fact]
+    public async Task Regions_count_what_a_later_sketch_add_drew()
+    {
+        // S64 (l): SOLIDWORKS' regions lag a second sketch_add in the open sketch: two circles drawn in two calls on a
+        // plane read 1 region with 2 closed contours.
+        var (doc, _, one) = await SketchAsync("s64_regions_later", "front", Circle([0, 0], 3));
+        Assert.Equal(1, one.Contours.Regions);
+        var two = await Sk.AddAsync(doc, [Circle([20, 0], 4)]);
+        Assert.Equal(2, two.Contours.ClosedContours);
+        Assert.Equal(2, two.Contours.Regions);
+        var three = await Sk.AddAsync(doc, [Circle([0, 0], 6)]); // around the first: a ring and its core
+        Assert.Equal(3, three.Contours.Regions);
+        var seg = Assert.Single((await Ed.InfoAsync(doc, null)).Segments, s => s.RadiusMm is double r && Math.Abs(r - 4) < L);
+        Near([20, 0], seg.CenterMm); // solving the sketch moved nothing
     }
 
     // ------------------------------------------------------------------ sketch_trim

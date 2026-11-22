@@ -219,8 +219,13 @@ type libraries and writes `sldworks_api.txt`, `swconst_enums.txt`, `swcommands.t
 - **Regions.** `ISketch.GetSketchRegionCount()` on a face counts the regions the face's edges close too: one hexagon on
   a 100×60 face gives 2, the second bounded by the 4 face edges and the hexagon (on a plane, 1). `ISketchRegion.GetEdges()`
   and `ISketchContour.GetEdges()` are model-space `IEdge`s, never the same COM object for one edge, so compare them by
-  geometry. Crossing contours (a line or circle across the hexagon) still give 1, and `CheckFeatureUse` then returns 0
-  closed and 0 open. VERIFIED on 2023.
+  geometry. Crossing contours (a line across the hexagon) give 2, the halves, and `CheckFeatureUse` then returns 0
+  closed and 0 open. A hole of the face inside a contour is an inner loop of that region: `ISketchRegion.GetFirstLoop()`
+  / `ILoop2.GetNext()`, `IsOuter()` true for the region's outline; the hole's disc is a region of its own. In an open
+  sketch the regions lag what was added since the last solve (entities added with `AddToDB`): two circles drawn in
+  two calls read 1 region. `ISketch.SetAutomaticSolve(false)` then `(true)` solves and refreshes them, with no undo
+  step and the update stamp unchanged; a redraw, `EditRebuild3` (it closes the sketch) or `Extension.Rebuild` do not.
+  VERIFIED on 2023.
 
 ## 4. Features (all VERIFIED by volume unless noted)
 | Feature | Call | Notes |

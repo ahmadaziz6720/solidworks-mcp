@@ -520,8 +520,8 @@ its point.
 - [x] Group 3: scenario test (session id: `ba47a581-7e48-4a8e-98dc-dda2b296ae23`), its entry committed and sorted (entry `f489505`; ended `EXIT 0` 03:09; S116 and S114 held and closed, S89 not proved there and its proof moved, S117 and S118 new into group 4, S92 met live, S5 again; SOLIDWORKS restarted after, as the state was on; release notes updated) (`89d32a7`)
   Started 03:03 2026-11-22, free memory 2602 MB with SOLIDWORKS restarted from its exe; launcher `%LOCALAPPDATA%\solidworks-mcp\livetest\run-1121\check3.ps1` (`-Resume` to resume), pid 17092, output check3.out.txt and check3.err.txt beside it; watched by a background until-loop of the session.
 - [x] S84 (a) and (c): committed (split out as S119) (`6e4c9f5`)
-- [x] S84 (b): committed (S84 to Waiting)
-- [ ] S64 (l): committed
+- [x] S84 (b): committed (S84 to Waiting) (`d82a7b2`)
+- [x] S64 (l): committed (split out as S120)
 - [ ] S64 (i): committed
 - [ ] S64 (c): committed
 - [ ] S93: committed
@@ -1178,6 +1178,7 @@ a region only when every edge lies on the sketch's own contour, and the hole's e
 model edge. Proposed by the session for (l): a model edge that is an inner loop of the face,
 wholly inside the contour, does not disqualify the region.
 Decided 2026-11-21 by the owner: (c), (i) and (l) taken into the run of 2026-11-21, group 4: (c) the tangent-joint hint, (i) the equal chamfer's legs named and warned of, (l) the session's rule for an inner loop; (j), (k), (m) to (p) not in it, for the next plan, (k) first (`## Run 2026-11-21`).
+(l) done in the run of 2026-11-22, group 4, split out as S120 (Waiting).
 
 ### S65 - Missing options met while modelling - OPEN 2026-11-12
 
@@ -2426,5 +2427,56 @@ groups) give `Result` only the last outcome, and a warning of an earlier one wou
 Decided 2026-11-22 by the run, not the owner: a deferred warning that is an error after the
 rebuild is reported as a line, not a failure, because the feature passed its checks and the
 call made no other change; failing it then would be a new rule the item does not ask for.
+Local: on `sw2023`, in the commit that moves it here; not yet in a build. Upstream: not yet
+decided.
+
+### S120 - S64 (l): a closed contour read `regions: 0` around a hole of the face, and the regions lagged a later `sketch_add` - BUILT 2026-11-22, proof: the scenario test of group 4's build
+
+S64 (l), split out of S64 (which stays Open for its other points) in the run of 2026-11-21,
+group 4. `sketch_add` read a closed contour `"regions":0` while the feature from it was
+right: a Ø6.5 circle around the edge of a Ø3.2 hole cut through the face; a polygon; a
+4-point polyline on a tilted face after a converted edge; two profiles of an arc and a
+polyline each. Cause, two of them. (a) (f)'s rule (`SketchService.OwnRegions`) counted a
+region only when every edge of it lay on the sketch's contours; the ring between the circle
+and the hole has the hole's edge, a model edge, as its inner loop, so it was dropped
+(probed: 4 regions, the Ø8 circle beside it, the ring, the face around both, and the hole's
+disc). (b) In an open sketch SOLIDWORKS' regions lag what a later call drew (the server adds
+with AddToDB, unsolved): two circles drawn in two calls on a plane read 1 region with 2
+closed contours, so a contour drawn after an earlier call can read 0. Fix: (a) the region's
+loops are read (`ISketchRegion.GetFirstLoop`, `ILoop2.IsOuter`), and the new interop-free
+`SketchRegions.IsOwn` (unit-tested) counts a region when its outer loop lies on the
+sketch's contours and each inner loop does too or lies on an inner loop of the face the
+sketch is on, a hole wholly inside the contour; the face around and a hole's disc are still
+not counted. (b) `sketch_add` refreshes the regions before reading them
+(`SketchService.RefreshRegions`: automatic solve off and on, which solves the sketch; no
+undo step, the update stamp unchanged, probed), left alone when the user turned automatic
+solve off. No description changed.
+Before: the new `SketchEditLiveTests.Regions_count_a_contour_around_a_hole_of_the_face` (a
+100 x 60 x 20 block, a Ø3.2 hole cut through, a concentric Ø6.5 circle on the same face)
+failed, "Assert.Equal() Failure: Values differ Expected: 1 Actual: 0"; the new
+`Regions_count_what_a_later_sketch_add_drew` (a second circle in a second call on the
+front plane), run with the refresh left out, failed, "Assert.Equal() Failure: Values
+differ Expected: 2 Actual: 1". After: both pass (the ring 1, a Ø8 circle beside it 2, the
+2 mm cut from both the hand figure; a third circle around the first 3, and the circle not
+moved by the solve), with (f)'s `Regions_count_the_sketchs_own_closed_regions_on_a_face_as_on_a_plane`
+and the live tests that read contours or sketch on a face (convert of a face, info,
+arc merged onto a polyline, engraved text, split line, curve pattern, circular pattern of
+a hole, mirror about a face), 11/11; unit tests 329/329 (3 new, `SketchRegionsTests`);
+`check_repo` ok. `docs/solidworks-api-notes.md` (*Regions*) gains the loops, the lag and
+the refresh.
+Made stricter: none. One result changed with (b): a line across a closed hexagon on a plane
+reads its two halves, `regions: 2`, where it read 1, SOLIDWORKS' count from before the
+line; (f)'s test now expects 2.
+Decided 2026-11-22 by the run, not the owner: a loop of model edges inside the contour
+counts only when every edge lies on an inner loop of the face the sketch is on, not any
+loop inside the outline, because that is the rule as decided, and a model loop of another
+kind (none met) keeps (f)'s refusal rather than a count no case has shown true.
+Decided 2026-11-22 by the run, not the owner: the lag (b) is fixed in the same step,
+because the planned test with a second circle beside the ring could not read true without
+it and three of (l)'s meetings drew their contour after an earlier call; whether those
+three were the lag was not reproduced on their own parts.
+Decided 2026-11-22 by the run, not the owner: the refresh is made in `sketch_add` only, not
+in `sketch_info` (a read) or the sketch edit tools, because the lag was shown after an add
+and not probed after an edit tool; the smaller change.
 Local: on `sw2023`, in the commit that moves it here; not yet in a build. Upstream: not yet
 decided.

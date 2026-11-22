@@ -213,7 +213,7 @@ public sealed class SketchService(SwSession session)
                 Sketch = ((IFeature)sketch).Name,
                 Entities = results,
                 EndsMerged = results.Sum(r => r.Merged?.Count ?? 0) is > 0 and var n ? n : null,
-                Contours = Contours(sketch),
+                Contours = Contours(sketch, editing: true),
             };
         }, RunOptions.Write(doc), ct);
 
@@ -761,7 +761,8 @@ public sealed class SketchService(SwSession session)
         catch (System.Runtime.InteropServices.COMException e) when (!ComArgs.IsDisconnect(e)) { return 0; } // 3D sketches
     }
 
-    internal static ContourStatus Contours(ISketch s)
+    /// <param name="editing">The sketch is open for editing: its regions are refreshed first (<see cref="RefreshRegions"/>).</param>
+    internal static ContourStatus Contours(ISketch s, bool editing = false)
     {
         int segs = s.Segments().Count(x => !x.ConstructionGeometry);
         int texts = Texts(s);
@@ -769,6 +770,7 @@ public sealed class SketchService(SwSession session)
             return texts == 0
                 ? new ContourStatus { Status = "empty", Segments = 0 }
                 : new ContourStatus { Status = "closed", ClosedContours = texts, Segments = 0, Problem = $"{texts} text(s): their outlines are the profiles" };
+        if (editing) RefreshRegions(s);
         int open = 0, closed = 0;
         int status = s.CheckFeatureUse((int)swSketchCheckFeatureProfileUsage_e.swSketchCheckFeature_BASEEXTRUDE, ref open, ref closed);
         int regions = 0;
@@ -781,23 +783,67 @@ public sealed class SketchService(SwSession session)
     }
 
     /// <summary>
-    /// The sketch's own regions (S64 f). SOLIDWORKS also counts a region closed by model edges in the sketch plane: one
-    /// hexagon on a face gives 2, the face around it being the second. A region counts only when every edge of it lies
-    /// on the sketch's own contours. Read only when the count exceeds the closed contours, where such a region can be.
+    /// The sketch's own regions (S64 f, l). SOLIDWORKS also counts a region closed by model edges in the sketch plane: one
+    /// hexagon on a face gives 2, the face around it being the second; a circle around a hole of the face gives the
+    /// hole's disc too. A region counts when its outer loop lies on the sketch's own contours and each inner loop does
+    /// too or lies on an inner loop of the face (<see cref="SketchRegions.IsOwn"/>). Read only when the count exceeds the
+    /// closed contours, where such a region can be.
     /// </summary>
     private static int OwnRegions(ISketch s, int regions)
     {
         try
         {
-            var own = ComArgs.Objects<ISketchContour>((object?)s.GetSketchContours())
-                .SelectMany(c => ComArgs.Objects<IEdge>((object?)c.GetEdges())).Select(e => (Edge: e, G: Topology.Describe(e))).ToList();
+            var own = Described(ComArgs.Objects<ISketchContour>((object?)s.GetSketchContours())
+                .SelectMany(c => ComArgs.Objects<IEdge>((object?)c.GetEdges())));
+            List<(IEdge Edge, EdgeGeom G)>? faceInner = null; // read at the first loop of model edges
+            bool On(List<(IEdge Edge, EdgeGeom G)> on, IEdge e) { var m = Topology.Describe(e).Mid; return on.Any(o => OnEdge(o.Edge, o.G, m)); }
             int n = 0;
             foreach (var reg in ComArgs.Objects<ISketchRegion>((object?)s.GetSketchRegions()))
-                if (ComArgs.Objects<IEdge>((object?)reg.GetEdges()).All(e => own.Any(o => OnEdge(o.Edge, o.G, Topology.Describe(e).Mid))))
-                    n++;
+            {
+                var loops = new List<RegionLoop>();
+                for (ILoop2? loop = reg.GetFirstLoop(); loop is not null; loop = (ILoop2?)(object?)loop.GetNext())
+                {
+                    var edges = ComArgs.Objects<IEdge>((object?)loop.GetEdges());
+                    bool outer = loop.IsOuter(), mine = edges.All(e => On(own, e));
+                    bool inner = !mine && !outer && edges.Count > 0 && edges.All(e => On(faceInner ??= FaceInnerEdges(s), e));
+                    loops.Add(new RegionLoop(outer, mine, inner));
+                }
+                if (loops.Count == 0) // no loops read: (f)'s rule, every edge on the sketch's contours
+                    loops.Add(new RegionLoop(true, ComArgs.Objects<IEdge>((object?)reg.GetEdges()).All(e => On(own, e))));
+                if (SketchRegions.IsOwn(loops)) n++;
+            }
             return n;
         }
         catch (System.Runtime.InteropServices.COMException e) when (!ComArgs.IsDisconnect(e)) { return regions; }
+    }
+
+    /// <summary>
+    /// S64 (l): in a sketch open for editing, SOLIDWORKS' regions lag the entities a later <c>sketch_add</c> drew (added
+    /// with AddToDB, unsolved): a second circle on a plane read 1 region with 2 closed contours. Turning automatic solve
+    /// off and on again solves the sketch and brings them up to date (VERIFIED on 2023; a redraw or a rebuild does not).
+    /// Left alone when the user turned automatic solve off.
+    /// </summary>
+    private static void RefreshRegions(ISketch s)
+    {
+        try
+        {
+            if (!s.GetAutomaticSolve()) return;
+            s.SetAutomaticSolve(false);
+            s.SetAutomaticSolve(true);
+        }
+        catch (System.Runtime.InteropServices.COMException e) when (!ComArgs.IsDisconnect(e)) { }
+    }
+
+    private static List<(IEdge Edge, EdgeGeom G)> Described(IEnumerable<IEdge> edges) =>
+        edges.Select(e => (Edge: e, G: Topology.Describe(e))).ToList();
+
+    /// <summary>The edges of the inner loops of the face the sketch is on (none on a plane).</summary>
+    private static List<(IEdge Edge, EdgeGeom G)> FaceInnerEdges(ISketch s)
+    {
+        int type = 0;
+        if ((object?)s.GetReferenceEntity(ref type) is not IFace2 face) return [];
+        return Described(ComArgs.Objects<ILoop2>((object?)face.GetLoops()).Where(l => !l.IsOuter())
+            .SelectMany(l => ComArgs.Objects<IEdge>((object?)l.GetEdges())));
     }
 
     /// <summary>Whether a model point lies on the edge: lines and circles from their geometry, other curves through SOLIDWORKS.</summary>
