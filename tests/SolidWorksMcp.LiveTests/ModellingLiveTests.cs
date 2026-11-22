@@ -207,4 +207,39 @@ public class ModellingLiveTests(LiveFixture fx) : LiveTest(fx)
         Assert.Equal(-Corner * 100 * 52 / 3, r.Verified.VolumeDeltaMm3, 0.002 * Corner * 100 * 52 / 3); // 372.27 vs 371.98: 0.08 %
         await Fails(ErrorCodes.InvalidArgument, () => Fs.FilletAsync(new FilletRequest { Doc = doc, Kind = "variable", Edges = [new EntityRef { Type = "edge", At = [0, 20, -30] }], RadiiMm = [2] }));
     }
+
+    [Fact]
+    public async Task A_fillet_that_stops_where_its_edge_ends_tangent_to_one_not_in_the_call_names_that_joint()
+    {
+        // S64 (c): a fillet of a round alone, `propagate` off, failed at any radius with the hint "A radius too large …":
+        // the round ends tangent to the top line, not in the call. A plate whose ends run in a quarter round R7 into a face
+        // 30° off its tangent, 10 thick mid plane (z ±5); the rounds on the front face z = 5 end tangent to its top line.
+        string doc = await NewPartAsync("tangent_joint");
+        await Sk.StartAsync(doc, new EntityRef { Name = "front" }, false);
+        double t = 56.5 - 3 * Math.Tan(Math.PI / 6);
+        await Sk.AddAsync(doc, [
+            new SketchEntity { Kind = "line", From = [-t, -5], To = [t, -5] },
+            new SketchEntity { Kind = "line", From = [t, -5], To = [56.5, -2] },
+            new SketchEntity { Kind = "arc", Center = [49.5, -2], RadiusMm = 7, StartDeg = 0, EndDeg = 90 },
+            new SketchEntity { Kind = "line", From = [49.5, 5], To = [-49.5, 5] },
+            new SketchEntity { Kind = "arc", Center = [-49.5, -2], RadiusMm = 7, StartDeg = 90, EndDeg = 180 },
+            new SketchEntity { Kind = "line", From = [-56.5, -2], To = [-t, -5] },
+        ]);
+        await Fs.ExtrudeAsync(new ExtrudeRequest { Doc = doc, End = "mid_plane", DepthMm = 10 });
+        double a = 7 * Math.Sqrt(0.5);
+        double[] right = [49.5 + a, -2 + a, 5], left = [-49.5 - a, -2 + a, 5];
+        var inspect = new InspectService(S);
+        async Task<string> Id(double[] at) => Assert.Single((await inspect.EdgeListAsync(doc, new EntityFilter { Near = at, WithinMm = 0.001 }, 10, 0, false)).Edges).Id;
+        string r = await Id(right), l = await Id(left), top = await Id([0, 5, 5]);
+
+        var ex = await Fails(ErrorCodes.FeatureFailed, () => Fs.FilletAsync(doc, [new EntityRef { Id = r }], null, 1, false, null, false));
+        Assert.Equal($"edge {r} ends tangent to {top}, not in the call: turn `propagate` on or add it.", ex.Hint);
+        ex = await Fails(ErrorCodes.FeatureFailed, () => Fs.FilletAsync(doc, [new EntityRef { Id = r }, new EntityRef { Id = l }], null, 0.5, false, null, false));
+        Assert.Equal($"edge {r} ends tangent to {top}; edge {l} ends tangent to {top}, not in the call: turn `propagate` on or add it.", ex.Hint);
+
+        // The way out the hint names builds: the round with `propagate` on.
+        var ok = await Fs.FilletAsync(doc, [new EntityRef { At = right }], null, 1, true, null, false);
+        Assert.Contains("round face r 1 mm", ok.Verified.Checks!);
+        Assert.Equal("removed", ok.Verified.Material);
+    }
 }

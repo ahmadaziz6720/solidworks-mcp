@@ -258,6 +258,11 @@ type libraries and writes `sldworks_api.txt`, `swconst_enums.txt`, `swcommands.t
   face: r50 and even r1000 on the top edge of a 100 × 20 × 60 block rebuild without an error (r1000 leaves 7 099 mm³
   of the block). Check the volume change, not the error code, to catch a runaway radius. A shell thicker than the
   part does fail.
+- **A fillet that stops at a tangent joint fails** (VERIFIED, S64 c). `FeatureFillet3` without propagate, on an edge
+  that ends tangent to an edge not selected (a quarter round R7 running on into a straight edge), returns nothing at
+  0.2, 0.5 and 1 mm alike; with propagate, or with that edge selected too, it builds. An edge ending on a sharp corner
+  (30°) is no such joint. The server reads the joints before the call (each end's direction by a step of 1e-4 of the
+  curve's parameter range) and names them in the hint.
 - **Boss or cut** from the feature type name (`Cut`, `RevCut`): `IExtrudeFeatureData2.IsBossFeature()` reads false for an
   API-made boss extrude (`ICE`). VERIFIED.
 

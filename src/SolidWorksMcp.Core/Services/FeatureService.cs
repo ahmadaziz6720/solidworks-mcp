@@ -344,6 +344,8 @@ public sealed partial class FeatureService(SwSession session)
                 targets.AddRange(fs);
                 resolved.AddRange(fs.Select(x => x.Info("faces")));
             }
+            // S64 (c): read before the call, as a rollback disconnects the edges.
+            string? jointHint = propagate ? null : TangentJointHint(ctx, d, targets);
             var before = Snapshot.Take(d);
             d.ClearSelection2(true);
             foreach (var t in targets)
@@ -355,10 +357,64 @@ public sealed partial class FeatureService(SwSession session)
             object? api = d.FeatureManager.FeatureFillet3(options, r, 0, 0, (int)swFeatureFilletType_e.swFeatureFilletType_Simple, 0, 0,
                 ComArgs.Empty, ComArgs.Empty, ComArgs.Empty, ComArgs.Empty, ComArgs.Empty, ComArgs.Empty, ComArgs.Empty);
             d.ClearSelection2(true);
-            var o = FeatureVerifier.Check(ctx, d, before, FilletSpec, (main, after, checks) => FilletIntent(main, r, checks), keepOnFailure, api);
+            FeatureOutcome o;
+            try
+            {
+                o = FeatureVerifier.Check(ctx, d, before, FilletSpec, (main, after, checks) => FilletIntent(main, r, checks), keepOnFailure, api);
+            }
+            catch (SwException ex) when (jointHint is not null)
+            {
+                throw new SwException(ex.Code, ex.Message, jointHint, ex);
+            }
             Rename(ctx, o.Main, name);
             return FeatureVerifier.Result(ctx, d, o, resolved: resolved);
         }, RunOptions.Write(doc), ct);
+
+    /// <summary>
+    /// S64 (c): the hint of a fillet with <c>propagate</c> off that fails where an edge of the call ends tangent to an
+    /// edge not in it (it fails at any radius there), or null. The edges of faces in the call count as in it. Ids are
+    /// given only where a tangent joint is found, so the ids listed later do not move on every fillet.
+    /// </summary>
+    private static string? TangentJointHint(SwContext ctx, IModelDoc2 d, IReadOnlyList<Resolved> targets)
+    {
+        try
+        {
+            string EdgeId(IEdge e) => ctx.Entities.IdFor(d, e, 'E', "edge", Topology.CurveKind(e.Curve()), Topology.Describe(e).Mid);
+            var callEdges = targets.Where(t => t.Obj is IEdge).Select(t => (Edge: (IEdge)t.Obj, Id: t.Id ?? EdgeId((IEdge)t.Obj))).ToList();
+            var joints = new List<EdgeJoint>();
+            foreach (var (e, id) in callEdges)
+                foreach (var v in new[] { e.StartVertex(), e.EndVertex() })
+                {
+                    if (v is null) continue;
+                    var p = Vec3.From(v.Point());
+                    if (DirectionAway(e, p) is not Vec3 dir) continue;
+                    foreach (var other in ComArgs.Objects<IEdge>((object?)v.GetEdges()))
+                        if (DirectionAway(other, p) is Vec3 od && FilletJoints.Tangent(dir, od) && EdgeId(other) is var oid && oid != id)
+                            joints.Add(new EdgeJoint(id, oid, dir, od));
+                }
+            if (joints.Count == 0) return null;
+            var inCall = new HashSet<string>(callEdges.Select(c => c.Id), StringComparer.Ordinal);
+            foreach (var f in targets.Select(t => t.Obj).OfType<IFace2>())
+                foreach (var e in f.Edges()) inCall.Add(EdgeId(e));
+            return FilletJoints.Hint(FilletJoints.Open(joints, inCall));
+        }
+        catch (Exception ex) when (ex is System.Runtime.InteropServices.COMException or InvalidCastException or SwException)
+        {
+            return null; // the hint is a help only: the call goes on with the usual one
+        }
+    }
+
+    /// <summary>The direction an edge leaves <paramref name="p"/>, one of its ends, by a step of 1e-4 of its parameter range.</summary>
+    private static Vec3? DirectionAway(IEdge e, Vec3 p)
+    {
+        var cp = e.CurveParams();
+        if (cp.Length < 8) return null;
+        double t0 = cp[6], t1 = cp[7];
+        bool atStart = Vec3.From(e.EvalAt(t0)).DistanceTo(p) <= Vec3.From(e.EvalAt(t1)).DistanceTo(p);
+        double t = atStart ? t0 + 1e-4 * (t1 - t0) : t1 - 1e-4 * (t1 - t0);
+        var dir = Vec3.From(e.EvalAt(t)) - p;
+        return dir.Length > 0 ? dir.Normalized() : null;
+    }
 
     /// <summary>Tier B: the fillet has a round face (cylinder, or torus tube) of the requested radius.</summary>
     private static IEnumerable<string> FilletIntent(IFeature main, double r, List<string> checks)

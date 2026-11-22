@@ -71,6 +71,7 @@
     <Compile Include="..\..\src\SolidWorksMcp.Core\Services\HardwareCatalog.cs" Link="Core\Services\HardwareCatalog.cs" />
     <Compile Include="..\..\src\SolidWorksMcp.Core\Verify\RebuildWarnings.cs" Link="Core\Verify\RebuildWarnings.cs" />
     <Compile Include="..\..\src\SolidWorksMcp.Core\Services\SketchRegions.cs" Link="Core\Services\SketchRegions.cs" />
+    <Compile Include="..\..\src\SolidWorksMcp.Core\Verify\FilletJoints.cs" Link="Core\Verify\FilletJoints.cs" />
   </ItemGroup>
 
 </Project>

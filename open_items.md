@@ -522,8 +522,8 @@ its point.
 - [x] S84 (a) and (c): committed (split out as S119) (`6e4c9f5`)
 - [x] S84 (b): committed (S84 to Waiting) (`d82a7b2`)
 - [x] S64 (l): committed (split out as S120) (`c3c3b56`)
-- [x] S64 (i): committed (split out as S121)
-- [ ] S64 (c): committed
+- [x] S64 (i): committed (split out as S121) (`69ae11e`)
+- [x] S64 (c): committed (split out as S122)
 - [ ] S93: committed
 - [ ] S117: committed
 - [ ] S118: committed
@@ -1180,6 +1180,7 @@ wholly inside the contour, does not disqualify the region.
 Decided 2026-11-21 by the owner: (c), (i) and (l) taken into the run of 2026-11-21, group 4: (c) the tangent-joint hint, (i) the equal chamfer's legs named and warned of, (l) the session's rule for an inner loop; (j), (k), (m) to (p) not in it, for the next plan, (k) first (`## Run 2026-11-21`).
 (l) done in the run of 2026-11-22, group 4, split out as S120 (Waiting).
 (i) done in the run of 2026-11-22, group 4, split out as S121 (Waiting).
+(c) done in the run of 2026-11-22, group 4, split out as S122 (Waiting).
 
 ### S65 - Missing options met while modelling - OPEN 2026-11-12
 
@@ -2527,5 +2528,54 @@ Decided 2026-11-22 by the run, not the owner: `equation_set` warns only when the
 were equal before the call, not for every two-leg chamfer, because a chamfer of two distances
 meant to differ has no "other leg that stays" to warn of, and the finding's case is the
 equal one; a leg already driven by an equation, or set in the same call, is not warned of.
+Local: on `sw2023`, in the commit that moves it here; not yet in a build. Upstream: not yet
+decided.
+
+### S122 - S64 (c): a fillet that stopped at a tangent joint failed with the hint "a radius too large" - BUILT 2026-11-22, proof: the scenario test of group 4's build
+
+S64 (c), split out of S64 (which stays Open for its other points) in the run of 2026-11-21,
+group 4. `feature_fillet` and `feature_chamfer` of 1 mm over a tangent chain failed five
+times, `FEATURE_FAILED`, the hint "A radius too large for the adjacent faces fails" on faces
+7 and 10 wide; 0.5 went through. The probe of 2026-11-16 (in S64) on a plate whose ends run
+in a quarter round R7 into a face 30° off their tangent did not bring the five back, but
+found the case where the hint misses: a round alone with `propagate` off, and both rounds
+without the line between them, failed "SOLIDWORKS created no feature (the API returned
+nothing)" at 1, 0.5 and 0.2 mm alike, each round ending tangent to the top line, not in the
+call. Decided 2026-11-21 by the owner: such a failure gets the hint "edge <id> ends tangent
+to <id>, not in the call: turn `propagate` on or add it", not the radius. Cause: a fillet
+that stops at a tangent joint fails at any radius, and the constant fillet's failure hint
+named the radius whatever the edges. Fix: `FeatureService.FilletAsync` (a constant fillet),
+with `propagate` off, reads before the call (a rollback disconnects the edges) each end of
+each edge in the call: the other edges at that vertex and their directions away from it (a
+step of 1e-4 of the curve's parameter range, `DirectionAway`); the new interop-free
+`FilletJoints` (unit-tested) keeps the joints where the two run on into each other
+(opposite directions within about 1.4 mrad) and the other edge is not in the call (nor an
+edge of a face in it), and gives the hint. On a failure of the call (any code the
+verifier throws) that hint replaces the radius one; with no such joint, or with
+`propagate` on, nothing is read and the hint is as before. Ids are given only to the edges
+of a joint found, so a fillet with none moves no later id. `docs/solidworks-api-notes.md`
+gains the joint (*A fillet that stops at a tangent joint fails*). No description changed.
+Before: the new `ModellingLiveTests.A_fillet_that_stops_where_its_edge_ends_tangent_to_one_not_in_the_call_names_that_joint`
+(that plate; the right round alone at 1 mm, then both rounds at 0.5 mm, `propagate` off;
+then the round with `propagate` on) failed on the first call's hint, "Assert.Equal()
+Failure: Strings differ … Expected: "edge E1 ends tangent to E3, not in the call: turn "···
+Actual: "A radius too large for the adjacent faces fails; t"···". After: it passes (the
+round alone names its joint with the line, both rounds name both joints and "add it", the
+round with `propagate` on builds with its r 1 face), with the live tests that make a
+constant fillet (convex and concave, the corner point and the query guard, the id made
+stale by a cut and the ids kept with `propagate` off on a block's edges, the model box after
+round faces, the compare with a saved copy, the fillet's info and its delete), 10 of 10
+live; unit tests 333/333 (4 new, `FilletJointsTests`); `check_repo` ok.
+Made stricter: none (a hint only; the call fails or builds as before).
+Decided 2026-11-22 by the run, not the owner: `feature_chamfer` is not changed, because it
+always passes SOLIDWORKS' tangent propagation (it has no `propagate`), so no chamfer call
+stops at a tangent joint; the finding's chamfer failure is not this case.
+Decided 2026-11-22 by the run, not the owner: only the constant fillet (`edges`, with or
+without `faces`) reads the joints, not the variable one, because the probe met the joint on
+the constant fillet and the variable one was not probed; the smaller change.
+Decided 2026-11-22 by the run, not the owner: the joint hint replaces the radius hint on any
+failure of a call that has one, not only on "created no feature", because a fillet that
+stops at an open tangent joint fails whatever the radius, so the joint is the first thing to
+change; a call with no such joint keeps the radius hint.
 Local: on `sw2023`, in the commit that moves it here; not yet in a build. Upstream: not yet
 decided.
