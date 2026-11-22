@@ -581,8 +581,8 @@ its point.
 - [x] Group 4: scenario test (session id: `4f75820d-6e87-4a46-a4f6-093d30178ee6`), its entry committed and sorted (entry `693fd0a`; ended `EXIT 0` 14:41; S119, S84, S120, S121, S122, S93 and S117 held and closed, S118 not proved there (the good state, no false alarm) and its proof moved, S123 to S125 new into group 7, S5 again; release notes updated) (`6f49cc1`)
   Started 14:31 2026-11-22, free memory 2335 MB with SOLIDWORKS restarted from its exe; launcher `%LOCALAPPDATA%\solidworks-mcp\livetest\run-1121\check4.ps1`, launcher pid 2776, output check4.out.txt and check4.err.txt beside it; started and watched by a Sonnet subagent at the owner's word (2026-11-22, "uji skenario di sesi ini aja, kasi ke sub agent"); no resume; about 10 min.
 - [x] S106: committed (`cff9e5c`)
-- [x] S90: committed
-- [ ] S52: committed
+- [x] S90: committed (`82087b8`)
+- [x] S52: committed (split out as S126)
 - [ ] S97 and S104: committed
 - [ ] S98: committed
 - [ ] S108: committed
@@ -800,8 +800,9 @@ Decided 2026-11-16 by the run, not the owner: (c) taken into the run of 2026-11-
 Met again 2026-11-16 (findings 2026-11-16, "a part edited by rollback", point 9), build
 `20261116-124830`: `body_list` gave a box max of 149.016816 on a part whose
 `equation_set` and `model_mass` boxes said 149.016716, the same body, nothing changed
-between. New: `body_list`'s box is not the tight box (`IBody2.GetBodyBox` through
+between. (d) New: `body_list`'s box is not the tight box (`IBody2.GetBodyBox` through
 `SwExt.Box`, it seems), so two tools give two boxes for one body.
+(d) is done: moved to Waiting as S126, 2026-11-22 (the run of 2026-11-21, group 5).
 **Done in the run of 2026-11-16: the STEP case, not reproduced as a fault of the box.**
 Test `A_step_s_surface_bodies_have_the_box_of_their_faces_as_imported`, the scenario's case
 (a 20 mm cube and a shaft r 5 × 30 turned 45° about [1, 1, 0], STEP AP214 by `model_export`,
@@ -2500,5 +2501,42 @@ Decided 2026-11-22 by the run, not the owner: the outline margin and the label's
 constants read at a 1:2 sheet on 2023 SP3 (6, 12.1 and 46 mm, rounded up), not read from the
 new view, because its size is known only after it is made, and the call's own overlap check
 still warns when they are off; whether the margin scales with the sheet is not known.
+Local: on `sw2023`, in the commit that moves it here; not yet in a build. Upstream: not yet
+decided.
+
+### S126 - S52 (d): `body_list`'s box is `GetBodyBox`'s loose bound, not the tight box of the other results - BUILT 2026-11-22, proof: the scenario test of the group 5 build
+
+Point (d) of S52 (S52 stays Open for the rest) (findings 2026-11-16, "a part edited by rollback", point 9, build
+`20261116-124830`): `body_list` gave a box max of 149.016816 where `equation_set` and
+`model_mass` said 149.016716 for the same body.
+Decided 2026-11-21 by the owner: taken into the run of 2026-11-21, group 5 (`## Run 2026-11-21`).
+Cause: `MeasureService.BodyListAsync` built each row's box from `IBody2.GetBodyBox`
+(`b.Box()`), the loose bound over torus and B-spline faces that S52 (a) replaced by `TightBox`
+in every other result; `body_list` was left on the old read.
+Fix: each row's box is `TightBox.Of([body])` (the body's extremes along +-x, +-y, +-z), so
+it equals `model.box` for a one-body part; a body whose extremes cannot be read keeps its
+loose box with `approximate: true`, as `model.box` does. Surface bodies go through the same
+call. No description changed (it says "bounding box (mm)").
+Before: the new `PartFeatureLiveTests.Body_list_gives_the_same_box_as_the_model` (the plate
+of S52's box test, quarter-round ends into a 30 degree face, its top chain rounded R0.5)
+failed, "box [-56,582209, -5, -5] .. [56,589919, 5, 5,089919], expected [-56,5, -5, -5] ..
+[56,5, 5, 5]". A first version on a disc with its top edge rounded passed on the old code
+(the disc's loose box is exact), so the plate is the case that fails.
+After: it passes (`body_list`'s box equal to the fillet result's `model.box` and to the
+extremes, no `approximate`); live, the other tests that call `body_list` or read its
+boxes, `Body_list_reports_the_block`, `Body_list_of_a_two_body_part`,
+`Body_list_of_a_closed_document_is_DOC_CLOSED`, `Mass_of_one_body_in_a_two_body_part` and
+`Mirror_of_two_unmerged_extrudes_as_bodies_adds_their_reflections`, 6/6 with the new one;
+unit tests 346/346; `check_repo` ok. No description changed, so no catalog check.
+Made stricter: nothing refused; `body_list`'s boxes are now the bodies' extremes, up to
+0.09 mm tighter than before.
+Not done, still S52's: `BodyKit.Row` (the `bodies` rows of `body_split`, `body_combine`,
+`mold_split` and the other body tools, "as `body_list` reports them") still reads the body's
+`GetBodyBox`; its `BodyGeom.Box` also feeds the before/after comparisons (`SameBox`,
+`Crosses`), which a tight box would change, so it needs its own look.
+Decided 2026-11-22 by the run, not the owner: only `body_list`'s read changed, not
+`BodyKit.Row`, because the plan names `body_list`, and `BodyGeom.Box` is also the key of the
+before/after body comparisons, whose tolerance a change of box would touch; the rows of the
+other body tools are left for S52's remainder.
 Local: on `sw2023`, in the commit that moves it here; not yet in a build. Upstream: not yet
 decided.

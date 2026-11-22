@@ -247,6 +247,30 @@ public class PartFeatureLiveTests(LiveFixture fx) : LiveTest(fx)
         AssertBox((await Ins.ModelInfoAsync(ell)).Box!, [-30, 0, -10], [30, 10, 10]);
     }
 
+    [Fact]
+    public async Task Body_list_gives_the_same_box_as_the_model()
+    {
+        // S52: body_list's box was the body's loose bound, two tools giving two boxes for one body (the plate of the test
+        // above: ends in a quarter round into a 30 degree face, its top chain rounded R0.5).
+        string plate = await NewPartAsync("box_body_list");
+        await Sk.StartAsync(plate, new EntityRef { Name = "front" }, false);
+        double t = 56.5 - 3 * Math.Tan(Math.PI / 6);
+        await Sk.AddAsync(plate, [
+            new SketchEntity { Kind = "line", From = [-t, -5], To = [t, -5] },
+            new SketchEntity { Kind = "line", From = [t, -5], To = [56.5, -2] },
+            new SketchEntity { Kind = "arc", Center = [49.5, -2], RadiusMm = 7, StartDeg = 0, EndDeg = 90 },
+            new SketchEntity { Kind = "line", From = [49.5, 5], To = [-49.5, 5] },
+            new SketchEntity { Kind = "arc", Center = [-49.5, -2], RadiusMm = 7, StartDeg = 90, EndDeg = 180 },
+            new SketchEntity { Kind = "line", From = [-56.5, -2], To = [-t, -5] },
+        ]);
+        await Fs.ExtrudeAsync(new ExtrudeRequest { Doc = plate, End = "mid_plane", DepthMm = 10 });
+        var round = await Fs.FilletAsync(plate, [new EntityRef { At = [0, 5, 5] }], null, 0.5, true, null, false);
+        var row = Assert.Single((await new MeasureService(S).BodyListAsync(plate)).Bodies);
+        AssertBox(row.Box!, round.Model.Box!.Min, round.Model.Box!.Max);
+        AssertBox(row.Box!, [-56.5, -5, -5], [56.5, 5, 5]);
+        Assert.Null(row.Box!.Approximate);
+    }
+
     private static void AssertBox(BoxMm box, double[] min, double[] max)
     {
         for (int i = 0; i < 3; i++)

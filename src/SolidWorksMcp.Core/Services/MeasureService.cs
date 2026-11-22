@@ -164,6 +164,7 @@ public sealed class MeasureService(SwSession session)
             {
                 bool solid = b.GetType() == (int)swBodyType_e.swSolidBody;
                 var mp = b.MassOfBody(); // [cx, cy, cz, volume, area, mass, ...]
+                var tight = TightBox.Of([b]); // the extremes, as model.box, not GetBodyBox's loose bound (S52)
                 rows.Add(new BodyRow
                 {
                     Id = ctx.Entities.IdFor(d, b, 'B', "body"),
@@ -171,7 +172,7 @@ public sealed class MeasureService(SwSession session)
                     Type = solid ? "solid" : "surface",
                     VolumeMm3 = solid && mp.Length >= 4 ? Units.Mm3(mp[3]) : null,
                     AreaMm2 = mp.Length >= 5 ? Units.Mm2(mp[4]) : 0,
-                    Box = BoxMm.FromMeters(b.Box()),
+                    Box = BoxMm.FromMeters(tight.Box, tight.Approximate),
                     Faces = b.GetFaceCount(),
                     Edges = b.GetEdgeCount(),
                     Hidden = b.Visible ? null : true,
