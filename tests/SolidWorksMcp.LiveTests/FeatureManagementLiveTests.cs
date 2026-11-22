@@ -261,6 +261,29 @@ public class FeatureManagementLiveTests(LiveFixture fx) : LiveTest(fx)
         Assert.Empty((await M.RebuildAsync(b.Doc)).Errors);
     }
 
+    [Fact]
+    public async Task Sketch_finish_names_a_feature_the_redrawn_sketch_left_with_a_rebuild_warning()
+    {
+        // S93: the block's sketch redrawn so one of a fillet's two edges goes (its corner chamfered). The close rebuilds the
+        // model and the fillet loses that edge; sketch_finish named nothing, only model_review showed it.
+        var b = await BlockAsync("fm_redraw_warn");
+        var fs = new FeatureService(S);
+        var f = await fs.FilletAsync(b.Doc, [new EntityRef { At = [50, 10, 30] }, new EntityRef { At = [-50, 10, 30] }], null, 5, false, null, false);
+        string fillet = f.Feature.Name;
+        var sk = new SketchService(S);
+        var ed = new SketchEditService(S);
+        await ed.EditAsync(b.Doc, b.Sketch);
+        await ed.ChamferAsync(b.Doc, null, [50, 0, 30], "equal", 10);
+        var r = await sk.FinishAsync(b.Doc);
+        var line = Assert.Single(r.Warnings ?? [], w => w.Contains("rebuild"));
+        Assert.Equal($"'{fillet}' now has rebuild warning 13 (swFeatureErrorFilletNoEdge).", line);
+
+        // A redraw that leaves every feature whole names nothing.
+        await ed.EditAsync(b.Doc, b.Sketch);
+        var clean = await sk.FinishAsync(b.Doc);
+        Assert.DoesNotContain(clean.Warnings ?? [], w => w.Contains("rebuild"));
+    }
+
     // ------------------------------------------------------------------ feature_delete
 
     [Fact]

@@ -227,10 +227,18 @@ public sealed class SketchService(SwSession session)
             var sketch = ServerSketch(ctx, d);
             string name = ((IFeature)sketch).Name;
             bool is3D = sketch.Is3D();
-            if (is3D) d.SketchManager.Insert3DSketch(true);
-            else d.SketchManager.InsertSketch(true);
-            if (d.SketchManager.ActiveSketch is not null)
-                throw new SwException(ErrorCodes.SketchState, $"Sketch '{name}' did not close.", "Check dialog_list; a dialog may be open.");
+            // S93: closing a redrawn sketch rebuilds the features after it; one far from the change may lose an edge.
+            var errorsBefore = FeatureManagementService.ErrorMap(d);
+            using (var prefs = ctx.SystemPrefs())
+            {
+                prefs.Toggle(Prefs.SystemPrefIds.ShowErrorsEveryRebuild, false); // the What's Wrong box is modal
+                if (is3D) d.SketchManager.Insert3DSketch(true);
+                else d.SketchManager.InsertSketch(true);
+                if (d.SketchManager.ActiveSketch is not null)
+                    throw new SwException(ErrorCodes.SketchState, $"Sketch '{name}' did not close.", "Check dialog_list; a dialog may be open.");
+                FeatureManagementService.RebuildIfNeeded(d);
+            }
+            FeatureManagementService.WarnNewErrors(ctx, d, errorsBefore);
             entry.ServerSketch = null;
             entry.LastSketch = name;
             var feat = EntityResolver.FeatureByName(d, name);

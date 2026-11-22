@@ -17,7 +17,7 @@ Closed all the same, its PR named, and an open PR no longer holds an item in Wai
 item sent upstream ends with `**Upstream: PR #9, open.**`, one per PR or issue
 (`merged`, `closed unmerged`; an issue `open` or `closed`), kept to its state.
 
-**Open: S4, S5, S7, S10 to S12, S33, S34, S52, S60, S64, S65, S79 to S82, S85, S86, S90, S92 to S94, S96 to S106, S108, S109, S111, S115, S117, S118.**
+**Open: S4, S5, S7, S10 to S12, S33, S34, S52, S60, S64, S65, S79 to S82, S85, S86, S90, S92, S94, S96 to S106, S108, S109, S111, S115, S117, S118.**
 Sorted 2026-11-22, the scenario test of build `20261122-030022` (findings 2026-11-22): S116
 and S114 held and closed; S89 not proved there, its proof moved to a session that launches
 SOLIDWORKS; S117 and S118 new, reported `ok` while wrong, taken into the run's group 4; S92
@@ -523,8 +523,8 @@ its point.
 - [x] S84 (b): committed (S84 to Waiting) (`d82a7b2`)
 - [x] S64 (l): committed (split out as S120) (`c3c3b56`)
 - [x] S64 (i): committed (split out as S121) (`69ae11e`)
-- [x] S64 (c): committed (split out as S122)
-- [ ] S93: committed
+- [x] S64 (c): committed (split out as S122) (`3fa3cf4`)
+- [x] S93: committed
 - [ ] S117: committed
 - [ ] S118: committed
 - [ ] Group 4: full live tests and release (build: )
@@ -1821,28 +1821,6 @@ with no warning) is S118. The run's own group 3 release met the state once too: 
 `AssemblyLiveTests` run an equation `adoptW` = 12 was refused with S112's message, after
 earlier tests in the same SOLIDWORKS, and passed rerun alone after a restart.
 
-### S93 - A write that rebuilds does not name a feature far from the change that gained a rebuild warning - OPEN 2026-11-18
-
-Sorted out of the entry of 2026-11-17 ("a part's two plates cut back by redrawing one
-sketch", points 1 and 4), on build `20261117-012659`. `dimension_set` of one sketch
-dimension, then a sketch redrawn (`equation_delete` of its one equation, `sketch_edit`,
-`sketch_delete` of all five segments, `sketch_add` of a closed polyline, `sketch_constrain`,
-`sketch_finish`) and `equation_set` binding the new dimension to the old global: none of the
-results named that a fillet at the end of the tree now had rebuild warning 13
-(`swFeatureErrorFilletNoEdge`), one of its four edges lost; `equation_set` read
-`"volumeDeltaMm3":0` and the model's volume. Only `model_review` showed it; the hand figure
-caught it first (+37.6 mm³). Met again in the same session on a second redraw: the same edge
-dropped, named by no write's result. The fillet references a mirrored body's edge far from
-the sketch; by `at` on the same four points three edges resolved to the same ids as before
-and the dropped one to a new id each time. `equation_set` reads new rebuild errors and
-warnings since S58 (a) (Closed); here the warning came with the redraw, whose sketch tools
-do not. Reported `ok`, the result incomplete, not wrong. Workaround: `model_review` after
-every sketch redrawn; the fillet deleted and remade by `at` (3 calls).
-
-Proposed by the session: a write that rebuilds compares the tree's rebuild errors and
-warnings before and after, and names each feature that gained one. Local. Not decided.
-Decided 2026-11-21 by the owner: taken into the run of 2026-11-21, group 4 (`## Run 2026-11-21`).
-
 ### S94 - `feature_helix` and `feature_sweep`: where a helix starts, and a profile off the start of a tapered helix, not in the descriptions - OPEN 2026-11-18
 
 (a) Sorted out of the entry of 2026-11-17 ("a turned printed part with a flange and a swept
@@ -2577,5 +2555,67 @@ Decided 2026-11-22 by the run, not the owner: the joint hint replaces the radius
 failure of a call that has one, not only on "created no feature", because a fillet that
 stops at an open tangent joint fails whatever the radius, so the joint is the first thing to
 change; a call with no such joint keeps the radius hint.
+Local: on `sw2023`, in the commit that moves it here; not yet in a build. Upstream: not yet
+decided.
+
+### S93 - A write that rebuilds does not name a feature far from the change that gained a rebuild warning - BUILT 2026-11-22, proof: the scenario test of group 4's build
+
+Sorted out of the entry of 2026-11-17 ("a part's two plates cut back by redrawing one
+sketch", points 1 and 4), on build `20261117-012659`. `dimension_set` of one sketch
+dimension, then a sketch redrawn (`equation_delete` of its one equation, `sketch_edit`,
+`sketch_delete` of all five segments, `sketch_add` of a closed polyline, `sketch_constrain`,
+`sketch_finish`) and `equation_set` binding the new dimension to the old global: none of the
+results named that a fillet at the end of the tree now had rebuild warning 13
+(`swFeatureErrorFilletNoEdge`), one of its four edges lost; `equation_set` read
+`"volumeDeltaMm3":0` and the model's volume. Only `model_review` showed it; the hand figure
+caught it first (+37.6 mm³). Met again in the same session on a second redraw: the same edge
+dropped, named by no write's result. The fillet references a mirrored body's edge far from
+the sketch; by `at` on the same four points three edges resolved to the same ids as before
+and the dropped one to a new id each time. `equation_set` reads new rebuild errors and
+warnings since S58 (a) (Closed); here the warning came with the redraw, whose sketch tools
+do not. Reported `ok`, the result incomplete, not wrong. Workaround: `model_review` after
+every sketch redrawn; the fillet deleted and remade by `at` (3 calls).
+
+Proposed by the session: a write that rebuilds compares the tree's rebuild errors and
+warnings before and after, and names each feature that gained one. Local. Not decided.
+Decided 2026-11-21 by the owner: taken into the run of 2026-11-21, group 4 (`## Run 2026-11-21`).
+Done in the run of 2026-11-22, group 4. The writes that rebuild, listed: `dimension_set`,
+`feature_delete`, `feature_suppress_set`, `equation_set` and `ref_plane`'s flip already compared
+the tree's rebuild errors and warnings before and after (`ErrorMap`, `NewErrors`), so the
+plan's `dimension_set` and `feature_delete` needed nothing. Of the sketch tools, only
+`sketch_finish` closes a sketch that may have features after it: `sketch_import` closes the
+new sketch it made (nothing after it), `sketch_edit` closes only a sketch it opened by
+mistake, unchanged, and the feature tools close the server's open sketch to consume it.
+Cause: `sketch_finish` closed the sketch (`InsertSketch`), and SOLIDWORKS rebuilt the
+features after it, without reading their rebuild states. Fix: `sketch_finish` reads
+`ErrorMap` before the close, closes it with the What's Wrong box held off, rebuilds when
+SOLIDWORKS says the model is out of date, and warns of each feature whose state is new or
+worse, wherever it is in the tree, "'Fillet1' now has rebuild warning 13
+(swFeatureErrorFilletNoEdge)." The line comes from the new
+`FeatureManagementService.WarnNewErrors`, which `feature_delete` and `feature_suppress_set`
+now use for the same line they wrote by hand; it leaves out a feature a feature check of the
+call deferred and has not yet reported (S84 (b), `ReportWarnings`), so no feature is named
+by both. No description changed.
+Before: the new `FeatureManagementLiveTests.Sketch_finish_names_a_feature_the_redrawn_sketch_left_with_a_rebuild_warning`
+(the 100 x 20 x 60 block, an r 5 fillet on two vertical edges with `propagate` off, the
+block's sketch reopened and the corner under one of the edges chamfered 10, `sketch_finish`)
+failed, "Assert.Single() Failure: The collection did not contain any matching items ...
+Collection: []". After: it passes, the line exactly "'Fillet1' now has rebuild warning 13
+(swFeatureErrorFilletNoEdge).", and a second redraw that changes nothing names nothing;
+with the live tests that call the changed code (`feature_delete`: a fillet, a parent with
+children and its dry run, a child's sketch, a plane with its boss and mirror, the equations
+listed and deleted; suppression round trip and refusals; `sketch_finish` of a 3D sketch, of a
+reopened sketch, on the top plane, of an open line), 13 of 13 live; unit tests 333/333;
+`check_repo` ok.
+Made stricter: `sketch_finish` now warns of a rebuild error or warning its close gave a
+feature after the sketch (it said nothing).
+Decided 2026-11-22 by the run, not the owner: only `sketch_finish` gains the compare, because
+the other writes the plan names (`dimension_set`, `feature_delete`) and `feature_suppress_set`,
+`equation_set`, `ref_plane`'s flip already compare, and no other sketch tool closes a sketch with
+features after it; a feature tool that consumes a sketch reopened by `sketch_edit` is left
+as it is, the smaller change.
+Decided 2026-11-22 by the run, not the owner: a new rebuild error after the close is a line,
+not a failure, as `equation_set` (S58 (a)) and `feature_delete` give it, because the sketch
+is what the caller drew and the close is kept; the line names the feature to fix next.
 Local: on `sw2023`, in the commit that moves it here; not yet in a build. Upstream: not yet
 decided.

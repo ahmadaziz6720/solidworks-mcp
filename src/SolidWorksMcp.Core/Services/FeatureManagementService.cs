@@ -556,8 +556,7 @@ public sealed partial class FeatureManagementService(SwSession session)
                     "Check feature_list; SOLIDWORKS may refuse to delete a feature that others reference.");
             // Before the rebuild errors are read: deleting the equations clears the error they leave on 'Equations'.
             var onRemoved = EquationsOn(ctx, d, removed.Select(x => x.Name).ToList(), deleteEquations, false);
-            foreach (var e in NewErrors(errorsBefore, ErrorMap(d)))
-                ctx.Warn($"'{e.Feature}' now has rebuild {(e.Warning == true ? "warning" : "error")} {e.Code} ({e.Error}).");
+            WarnNewErrors(ctx, d, errorsBefore);
             var entry = ctx.DocEntry;
             if (entry.LastSketch is { } last && removed.Any(x => x.Name == last)) entry.LastSketch = null;
             var kept = keepAbsorbed.Where(a => !gone.Contains(a.Id)).Select(a => known.GetValueOrDefault(a.Id).Name ?? "?").ToList();
@@ -755,8 +754,7 @@ public sealed partial class FeatureManagementService(SwSession session)
             var also = SuppressionMap(d)
                 .Where(kv => !targetIds.Contains(kv.Key) && stateBefore.TryGetValue(kv.Key, out var b) && b.Suppressed != kv.Value.Suppressed)
                 .Select(kv => kv.Value.Name).ToList();
-            foreach (var e in NewErrors(errorsBefore, ErrorMap(d)))
-                ctx.Warn($"'{e.Feature}' now has rebuild {(e.Warning == true ? "warning" : "error")} {e.Code} ({e.Error}).");
+            WarnNewErrors(ctx, d, errorsBefore);
             bool part = IsPart(d);
             return new FeatureSuppressResult
             {
@@ -1430,7 +1428,7 @@ public sealed partial class FeatureManagementService(SwSession session)
     }
 
     /// <summary>Rebuilds when SOLIDWORKS reports the model out of date, so a read-back sees the new geometry.</summary>
-    private static void RebuildIfNeeded(IModelDoc2 d)
+    internal static void RebuildIfNeeded(IModelDoc2 d)
     {
         int status;
         try { status = d.Extension.NeedsRebuild2; }
@@ -1493,6 +1491,23 @@ public sealed partial class FeatureManagementService(SwSession session)
             if (id >= 0) map.TryAdd(id, new ErrorState(f.Name, SafeType(f), code, warn));
         }
         return map;
+    }
+
+    /// <summary>
+    /// S93: warns "'X' now has rebuild warning|error ..." of each feature whose rebuild state is new or worse since
+    /// <paramref name="before"/> (<see cref="NewErrors"/>), wherever in the tree it is. A feature a feature check of this
+    /// call deferred (S84 b) and not yet reported is left to <see cref="Verify.FeatureVerifier.ReportWarnings"/>, so none
+    /// is named twice. Used by the writes that make no feature of their own (sketch_finish, feature_delete, suppression).
+    /// </summary>
+    internal static List<FeatureError> WarnNewErrors(SwContext ctx, IModelDoc2 d, Dictionary<int, ErrorState> before)
+    {
+        var after = ErrorMap(d);
+        foreach (var (doc, id) in ctx.DeferredWarnings)
+            if (ReferenceEquals(doc, d)) after.Remove(id);
+        var errors = NewErrors(before, after);
+        foreach (var e in errors)
+            ctx.Warn($"'{e.Feature}' now has rebuild {(e.Warning == true ? "warning" : "error")} {e.Code} ({e.Error}).");
+        return errors;
     }
 
     /// <summary>Errors that are new, or got worse (warning → error, another code), since <paramref name="before"/>.</summary>
