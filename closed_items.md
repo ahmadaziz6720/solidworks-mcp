@@ -4186,6 +4186,421 @@ server's feature_pattern_linear" before it. The pattern suppressed again, then `
 {steps:2}`: refused, "before its last 1 undo step(s) (feature_rename)", hint "Pass steps ≤
 1."; one step then ran.
 
+### S98 - `doc_open {readOnly:true}` reports `access: owned` and says the server may edit it - CLOSED 2026-11-22
+
+Sorted out of the entry of 2026-11-17 ("read-only checks of rebuilt parts and an assembly",
+point 1). A read-only check opened six parts and an assembly with `readOnly: true`; each came
+back `access: "owned"`, with the line that this server may edit it. Nothing was written only
+because the session's brief said so: the result invites an edit the open was meant to rule
+out.
+
+Proposed by the session: a read-only open reports its own access (`readOnly`), and the edit
+tools refuse on it with NOT_OWNED's hint. Local. Not decided.
+Decided 2026-11-21 by the owner: taken into the run of 2026-11-21, group 5: a read-only open reports `readOnly` and the edit tools refuse on it (`## Run 2026-11-21`).
+
+Cause: a read-only open was registered as `Owned` with nothing to mark it, so `doc_list`,
+`sw_status` and the open's result read `owned`, the message said "this server may edit it",
+and the write guard in `SwContext.Bind` refused only `Foreign` documents.
+Fix: the registry entry carries `ReadOnly` (set by `doc_open {readOnly:true}`, kept in the
+registry file across a server restart), and `access` reads `readOnly`. The one write guard,
+`SwContext.Bind`, refuses every `DocAccess.Write` call on it with `NOT_OWNED`: "'<title>'
+(D<n>) was opened with readOnly, so this server won't modify it. Hint: To change it,
+doc_close it and doc_open it again without readOnly. doc_save mode 'copy' writes a copy as
+it is." A write that changes nothing of the design says so with `RunOptions.ReadOnlyOk`:
+`doc_rebuild` and `doc_save` mode `copy`. The open's message says it is the target for
+reading and the edit tools refuse it. A file SOLIDWORKS opens read-only on its own (a
+read-only file, one in use) without `readOnly` asked stays `owned` and editable as before.
+Descriptions: `doc_open` and its `readOnly`, `doc_list`'s access values, `sw_status` (its
+access list shortened to "access"), paid by dropping `doc_open`'s "(the user's documents stay
+read-only)"; the catalog went from 247.7 to 247.6 KB, `--check-catalog` ok. The guide's access
+line names `readOnly`.
+Before: `ExportLiveTests.A_read_only_open_is_reported`, now asserting `readOnly`, no "may
+edit", a sketch and `feature_extrude` refused with `NOT_OWNED`, the volume unchanged, failed
+"Assert.Equal() Failure: Strings differ, Expected: "readOnly", Actual: "owned"".
+After: it passes (also `doc_list` reads `readOnly`, `doc_save` mode `copy` writes, mode `as`
+refused `NOT_OWNED`); live, `A_read_only_document_that_got_dirty_closes_without_discard`
+(made dirty by `doc_rebuild {force:true}` now, as sessions did, not by an extrude the guard
+refuses), `A_saved_part_reopens_as_owned_target_with_its_geometry`,
+`Opening_a_part_does_not_report_the_stl_options_solidworks_derives_on_open`,
+`A_file_that_is_already_open_is_not_reopened_and_keeps_its_access`,
+`An_exported_step_imports_back_as_one_solid_of_the_same_volume`,
+`M0LiveTests.Foreign_documents_are_read_only`, `Dirty_owned_documents_need_save_or_discard`,
+`Save_copy_writes_a_fresh_file_and_refuses_overwrites`,
+`FeatureManagementLiveTests.Rebuild_of_a_clean_part_reports_no_errors`,
+`Undo_units_rebuild_and_delete_refuse_the_users_documents`,
+`AssemblyLiveTests.Pack_and_go_copies_the_assembly_its_parts_and_drawing_and_the_copies_reference_each_other`
+and `TopDownLiveTests.Saved_bodies_become_parts_with_their_volumes_and_an_assembly_of_them`
+pass, 13/13; unit tests 346/346 (`ContractTests.Tool_catalog_follows_the_conventions` among
+them); `check_repo` ok.
+Made stricter: every edit tool, `doc_save` mode `inPlace` and `as`, and `doc_undo` refuse a
+document opened with `readOnly:true`.
+Decided 2026-11-22 by the run, not the owner: `doc_save` on a read-only document writes mode
+`copy` and refuses `inPlace` and `as` with the hint above, because a copy changes nothing of
+the open document (a read of it), while `as` would turn it into an editable file the open
+was meant to rule out, and `inPlace` SOLIDWORKS refuses anyway.
+Decided 2026-11-22 by the run, not the owner: `doc_rebuild` still runs on a read-only
+document, because a rebuild changes nothing of the design and reading its errors is what a
+read-only check does; the dirt it leaves is discarded by `doc_close` as before.
+Decided 2026-11-22 by the run, not the owner: the way back to editing is `doc_close` and
+`doc_open` without `readOnly`, not `doc_activate {allowEdit:true}`, because SOLIDWORKS keeps
+the document read-only either way and a reopen is what `doc_pack`'s read-only refusal
+already asks for.
+Decided 2026-11-22 by the run, not the owner: the mark follows the `readOnly` asked, not
+SOLIDWORKS' `IsOpenedReadOnly`, because it is the caller's intent the access reports; a file
+SOLIDWORKS opened read-only unasked stays `owned` (saved by `copy` or `as`).
+Local: on `sw2023`, `027e13c`; in build `20261122-194424`. Upstream: not yet
+decided.
+Held 2026-11-22: the scenario test of build `20261122-194424` (findings 2026-11-22, point 1):
+a part opened with `readOnly:true` read `access: "readOnly"`, the message "the target
+document for reading: the edit tools refuse it"; `dimension_set`, `sketch_start`, `doc_save`
+mode `as` and `inPlace` all refused `NOT_OWNED` with the reopen hint; `doc_rebuild
+{force:true}`, `doc_save` mode `copy` and a STEP `model_export` ran. A read-only assembly the
+same: `access: readOnly`, a component dimension's `dimension_set` refused, its parts listed
+`foreign` with `loadedBy`; closing discarded the rebuild's dirt as before.
+
+### S108 - `doc_new {type:"drawing"}` with no `template` replaces a custom default template's format with ISO and its units with MMGS - CLOSED 2026-11-22
+
+Sorted out of the entry of 2026-11-18 ("a custom sheet format made from the ISO one with
+`vba_run`", point 6), on build `20261118-060615`. With SOLIDWORKS' default drawing template
+set to one holding a custom format and custom units (mass in kg), `doc_new {type:"drawing"}`
+reported "Created drawing from <that template>; ... format a3 - iso.slddrt" and units MMGS;
+with `template:<the same file>, units:"template"` it kept both. Said in the result, so not
+reported wrong, but a user who set a default template does not get it.
+
+Proposed by the session: keep the template's sheet whenever the default drawing template is
+not the shipped one, and say so; or a server setting for the default drawing template.
+Local. Not decided.
+Decided 2026-11-21 by the owner: the default drawing template kept as it is when it is not one SOLIDWORKS ships, the result saying so; taken into the run of 2026-11-21, group 5 (`## Run 2026-11-21`).
+
+Cause: `doc_new` set every drawing made without `template` up as ISO A3 (`SetupNewDrawing`
+without `keepTemplateSheet`), and its `units` defaulted to `mmgs` in the tool's signature, so
+a default template of the user's own lost its sheet format and units, and an explicit
+`units:"mmgs"` could not be told from one left out.
+Fix: `DrawingLayout.ShippedTemplate` (interop-free, unit-tested) calls a template shipped
+when it lies under the install folder (`ISldWorks.GetExecutablePath`, its `data\templates`)
+or under `<ProgramData>\SOLIDWORKS` (where the installer puts `Drawing.DRWDOT` and the sheet
+formats). A drawing with no `template` whose default template is not shipped keeps that
+template's sheet (as with a named template) and, when `units` is left out, its units; the
+message says "..., the default template, kept as it is (its sheet and units) since it is not
+one SOLIDWORKS ships; sheet ... as the template has it". `units` now defaults to null (MMGS
+for everything else, as before); a `units` the caller names still wins. A shipped default
+is set up as ISO A3 as before. Description: `doc_new` says a default template SOLIDWORKS does
+not ship keeps its sheet and units, paid by "whatever the template says", "the target
+document" to "the target" and the `units` text shortened; the catalog stays at 247.6 KB,
+`--check-catalog` ok. The skill's drawing step says the same.
+Before: `DrawingLiveTests.A_custom_default_drawing_template_keeps_its_sheet_format_and_units`
+(the default drawing template set to a template the test makes in a temp folder, IPS on a
+copied A3 format named `custom a3.slddrt`, and set back in a `finally`, read back equal)
+failed "Assert.Equal() Failure: Strings differ, Expected: "IPS", Actual: "MMGS"".
+After: it passes (its units IPS, its format kept, the message naming it; `units:"mmgs"` gives
+MMGS on the same kept format); live, `New_drawing_is_A3_landscape_iso_first_angle_in_mm`
+(now with the default set to the shipped `Drawing.DRWDOT`, restored after),
+`Closing_a_drawing_names_what_solidworks_closed_with_it`,
+`Sheet_setup_changes_what_is_given_and_keeps_the_rest`,
+`Standard_views_have_the_block_proportions_without_overlaps_and_export_to_pdf`,
+`A_section_with_no_atMm_is_placed_so_its_own_label_clears_the_title_block`,
+`AssemblyLiveTests.Release_package_writes_a_step_per_model_the_drawing_pdf_the_flat_dxf_and_the_bom`
+and `Pack_and_go_copies_the_assembly_its_parts_and_drawing_and_the_copies_reference_each_other`
+pass, 8/8 (`TemplateLiveTests.Parts_and_assemblies_come_from_the_given_templates` skipped: it
+looks for the 2025 templates); unit tests 355/355 (`DrawingLayoutTests` +9,
+`ContractTests.Tool_catalog_follows_the_conventions` among them); `check_repo` ok. The
+drawing tests' helper sets the ISO A3 sheet itself when the machine's default template is
+not shipped, as their oracle is that sheet.
+Made stricter: the drawing tests no longer depend on the machine's default drawing template;
+the ISO A3 test sets the shipped one for itself.
+Decided 2026-11-22 by the run, not the owner: "shipped" is a template under the install
+folder or under `<ProgramData>\SOLIDWORKS`, because those are the folders the installer
+writes (the default `Drawing.DRWDOT` is in the latter, the standard ones such as `iso.drwdot`
+in the former), and any template the user made or copied lies elsewhere.
+Decided 2026-11-22 by the run, not the owner: only drawings change; a part or an assembly
+from a custom default template still gets MMGS when `units` is left out, because the item and
+the owner's decision are about the drawing's sheet and units, and parts' units are set by
+`units` the same way for every template.
+Decided 2026-11-22 by the run, not the owner: `units` left out keeps the custom template's
+units, and `units` named wins over them, while the sheet stays the template's either way,
+because the caller who names units asks for exactly that, and the sheet has no such option
+in `doc_new` (`drw_sheet_setup` changes it).
+Local: on `sw2023`, `6535044`; in build `20261122-194424`. Upstream: not yet
+decided.
+Held 2026-11-22: the scenario test of build `20261122-194424` (findings 2026-11-22, point 2):
+with SOLIDWORKS' default drawing template set to a custom A3 template (not shipped), `doc_new
+{type:"drawing"}` with no `template` kept its sheet format (`drw_info`: that template's
+format and title block) and its units (`custom`), the message "the default template, kept as
+it is (its sheet and units) since it is not one SOLIDWORKS ships"; `units:"mmgs"` gave MMGS
+on the same kept sheet, the message saying "(its sheet)"; the same template named with
+`units:"template"` gave the same sheet and units.
+
+### S90 - `drw_view_section` with no `atMm` places a section so its own label overlaps the title block - CLOSED 2026-11-22
+
+Sorted out of the entry of 2026-11-17 (the scenario test of build `20261117-012659`), point
+7; met in three scenario tests. `drw_view_section` with no `atMm` placed a section of a 1:2
+plan where its own view label overlaps the title block by about 0.2 mm, and warned of it
+("view label … overlaps the title block"). The warning is right, so not reported `ok`
+while wrong; the free-space placement does not count the label the call is about to make.
+
+Proposed: the free-space placement counts the view's label with the view before it places
+it. Local, in the drawing code, not group 5's files: for the next plan, not this run. Not
+decided.
+Decided 2026-11-21 by the owner: taken into the run of 2026-11-21, group 5 (`## Run 2026-11-21`).
+Cause: `Place` (`DrawingService.cs`), which `drw_view_section` and `drw_view_detail` use with no
+`atMm`, searched free space for the view's geometry box only, against the other views'
+outlines and the sheet's 5 mm edge: not the outline margin SOLIDWORKS draws round the view
+(5.94 mm read at a 1:2 sheet), not the label it draws under a section (its box 4.03 to 12.05
+mm below the geometry, 45.3 mm wide for "SECTION A-A", partly outside the outline), and not
+the format's border or title block at all, so a section "down" from a view near the title
+block was placed across it.
+Fix: the interop-free `DrawingLayout.SectionFootprint` (the geometry box with the outline
+margin and the label, constants read live) is what `SideSpot` and `FindSpot` test for a
+section (a new optional `footprint` argument, the view stays aligned with its parent);
+`Place` adds the format's blocks (the title block) to the occupied boxes and the border to
+the area, for sections and details alike. A section with no room "down" takes "up" (its
+label between it and the parent) or the nearest free place; a section with no free place
+still warns as before.
+Before: the new `DrawingLiveTests.A_section_with_no_atMm_is_placed_so_its_own_label_clears_the_title_block`
+(1:2 sheet, the block's front view above the title block, a horizontal cut) failed: the
+section at [289.06, 60.31, 350.94, 82.19] "overlaps the title block [230, 10, 410, 65.25]; view
+label 'DetailItem230' of 'Section View A-A' [297.152, 54.202, 342.471, 62.22] overlaps the
+title block".
+After: it passes (the section above its parent, aligned, no overlap warning, "clear of the
+title block"); live, every test that calls `Place` or makes a section or detail, 9/9
+(`Section_through_the_middle_is_a_hatched_section_view`,
+`A_section_s_model_box_is_what_lies_behind_the_cut`,
+`A_drawing_shows_no_open_sketch_before_or_after_a_section`,
+`Detail_of_a_corner_has_the_requested_scale`, `Detail_leaves_no_sketch_open`,
+`Moving_an_annotation_or_a_view_s_label_onto_another_text_is_warned`,
+`Views_move_with_their_aligned_children_and_are_deleted`,
+`A_parent_with_a_section_is_deleted_only_with_its_children`, and the new one); unit tests
+346/346 (new `DrawingLayoutTests.A_section_s_footprint_holds_its_outline_margin_and_its_label`
+and `A_section_is_placed_where_its_label_clears_the_title_block`); `check_repo` ok. No
+description changed.
+Made stricter: a section or detail with no `atMm` keeps 5 mm clear of the title block and
+inside the border, and a section also clear of its label's box; nothing that passed is
+refused.
+Decided 2026-11-22 by the run, not the owner: the title block and the border count for
+details as well as sections, because the one `Place` serves both and a detail placed across
+the title block is the same fault; only the label's footprint is the section's.
+Decided 2026-11-22 by the run, not the owner: the outline margin and the label's box are
+constants read at a 1:2 sheet on 2023 SP3 (6, 12.1 and 46 mm, rounded up), not read from the
+new view, because its size is known only after it is made, and the call's own overlap check
+still warns when they are off; whether the margin scales with the sheet is not known.
+Local: on `sw2023`, `82087b8`; in build `20261122-194424`. Upstream: not yet
+decided.
+Held 2026-11-22: the scenario test of build `20261122-194424` (findings 2026-11-22, point 3):
+a 1:2 plan of a tray, a horizontal section with no `atMm` below it: on the ISO A3 format
+(title block top 65.25) the section's geometry box bottom at y 80, its label anchor at y
+73.4, "clear of the title block", no warning; in the PDF the label clears the block by about
+1.5 mm. On a custom A3 format (block top 60) the same, the label at y 73.0. Point 7 of the
+same entry went to S128: an auxiliary view with no `atMm` was placed over its parent and the
+title block, and the free-space search does not count tables.
+
+### S106 - The drawing's overlap checks count neither tables nor views, and `drw_table_add` gives no extent - CLOSED 2026-11-22
+
+Sorted out of the entry of 2026-11-18 ("a two-sheet A3 drawing of a 16-member weldment
+part", point 1), on build `20261118-060615`. **A result reported `ok` while wrong.**
+`drw_table_add {kind:"cut_list", atMm:[408,285]}` returned the rows but no extent; the table
+came out about 201 x 71 mm, over a side view. A 145 x 118 mm note added after it read "clear
+of the border, the title block and the other annotations" while it lay across both the table
+and the side view's members; only the PDF showed it.
+
+Proposed by the session: `drw_table_add` returns the table's `extentMm` and warns of what it
+lands on; the note and dimension checks count tables and the views' `boundsMm`, not only
+annotations. Local. Not decided.
+Decided 2026-11-21 by the owner: taken into the run of 2026-11-21, group 5 (`## Run 2026-11-21`).
+Cause: `drw_table_add` read no box for the table it made, and `ITableAnnotation` has no
+extent member; the placement check of notes, dimensions and moved annotations (`BoxOf`,
+`PlacedOnSheet`) knew only notes, labels, dimensions, hole callouts and balloons, and no
+check but the views' own looked at the views' outlines, so a table and the view under it
+were both invisible to it.
+Fix: `BoxOf` (`DrawingService.Placement.cs`) reads a table's box from its anchor corner
+(`IAnnotation.GetPosition`, `ITableAnnotation.AnchorType`) and the sum of its visible column
+widths and row heights, through the interop-free `DrawingLayout.TableBox`; probed live on
+2023 SP3, the box equals the box of the table's drawn lines (`IDisplayData`) to 0.001 mm for
+a hole table (top-left anchor), a cut list and a revision table (top-right). `PlacedOnSheet`
+counts tables. `drw_table_add` (all three kinds) returns `extentMm` and, through the new
+`TableCheck`, warns "The table [..] overlaps view '<view>' [..], ..." of the views' outlines,
+the border, the title block and the other annotations it lands on, else the check "clear of
+the views, the border, the title block and the other annotations". `PlacementCheck` (notes,
+dimensions, `drw_annotation_edit move`) counts the tables and the outlines of every view but
+the annotation's own; its check reads "clear of the border, the title block, the other views
+and the other annotations". A view added or moved over a table is warned ("'<view>' overlaps
+table '<name>' [..]"). No description changed.
+Before: the new `DrawingLiveTests.A_table_over_a_view_gives_its_extent_and_is_warned_and_so_is_a_note_across_it`
+(a hole table placed at the front view's top-left corner, inside it; a note across the
+table) failed, "no extent; warnings: " (no extent, no warning); the same run with the note
+read the note "clear of the border, the title block and the other annotations" with no
+warning, though it lay across the table and the view.
+After: it passes (the table warned of the view, the note of the table and the view, the
+view moved 5 mm under the table warned of it), with the cut-list and revision tests now
+checking `extentMm` against the anchor (the revision table growing downward with a row);
+live, every `DrawingLiveTests` test that adds a note, a dimension or a table, or moves an
+annotation or a view, 28/28 (the new one included); unit tests 344/344 (new
+`DrawingLayoutTests.A_table_s_box_grows_away_from_its_anchor_corner`); `check_repo` ok.
+Made stricter: a table, and a note, dimension or moved annotation, lying on a view or a
+table now warn where they read "clear"; a view added or moved over a table warns; nothing
+that passed is refused.
+Decided 2026-11-22 by the run, not the owner: a table's box is its anchor corner plus the
+sum of its visible columns and rows, not the box of its drawn lines, because the probe showed
+the two equal and the sums are documented members, with the anchor rule unit-tested; an
+anchor it does not know gives no extent and a warning rather than a guessed box.
+Decided 2026-11-22 by the run, not the owner: a note's or a dimension's own view does not
+count against it (a dimension's text and a note added in a view lie in or beside their view
+by design); the other views' outlines do, because a text on another view is what the PDF
+showed.
+Decided 2026-11-22 by the run, not the owner: the view check (a view added or moved) also
+counts the tables, though the plan named only the table, note and dimension checks, because
+its check claims "no overlaps with other views or their annotations" and a table is one; one
+clause, no new option.
+Local: on `sw2023`, `cff9e5c`; in build `20261122-194424`. Upstream: not yet
+decided.
+Held 2026-11-22: the scenario test of build `20261122-194424` (findings 2026-11-22, point 4):
+a hole table placed with its corner inside the plan view gave `extentMm` [165, 202.52,
+309.763, 215] (the PDF matches) and "The table [..] overlaps view 'Drawing View1' [..]"; a
+note across the table warned of the table and the view, a note on the view only of the view,
+a note in empty space read "clear of the border, the title block, the other views and the
+other annotations"; a detail placed by default over the table's corner was warned "overlaps
+table". Point 7 of the same entry went to S128: the free-space search placed that detail
+there, not counting tables.
+
+### S1 - `drw_view_section` / `drw_view_detail` drew in view-sketch coordinates - CLOSED 2026-11-22
+
+Local:
+`1de5067` + `3f43c50` on `sw2023`, run and held 2026-11-09 in build `…-163234`. Upstream:
+PR #1 (branch `fix/section-sheet-coords`, one commit `81475a5`), tested on 2023 SP3 only;
+on 2025 the mapping may be wrong if sheet coordinates work there. Under the rule of 2026-11-14
+(the owner) PR #1 no longer holds it: it closes when `drw_view_detail` and a view at an
+angle have run and held, and moves to Merged upstream if PR #1 is merged (the local
+commits then drop out at the next rebase). Held again
+in builds `…-195750` and `…-204719` (two sections, cut where drawn). Not yet run:
+`drw_view_detail`, views at an angle. Not yet checked: `drw_view_edit broken_out` passes its circle in sheet
+coordinates straight into the active view (its comment says sketch coordinates are the
+sheet's there), which S1 found false for sections and details; its live test only counts
+the cut, so a circle landing elsewhere on the part would pass.
+Held 2026-11-22: the scenario test of build `20261122-194424` (findings 2026-11-22, point 5),
+for `drw_view_detail` and a view at an angle: (a) `drw_view_detail` on a 1:2 plan, circle
+centre [236.75, 140.7] r 8, 2:1: the circle landed on the hole asked for (the PDF, measured
+to 0.1 mm), the detail showing that tab with its hole centred, 4 visible edges; (b)
+`drw_view_add auxiliary` square to a straight floor edge running at 24.23° in the plan looked
+along [−0.41, 0, 0.912], turned on the sheet with that edge (its fold edge at −24° in the
+PDF); (c) on that turned view, a detail at one corner ([108.5, 104.1], r 10, 1:1): the circle
+on the corner (measured [108.8, 104.0]), the detail showing the same two edges at the same
+angles; (d) a section across the turned view (line [153.4, 42] → [198.6, 142.1], model +Y on
+that view): the cut line where asked (ends within 1.7 mm on the raster), looking along
+[−0.912, 0.001, −0.41], the expected normal, 2 hatched faces, a floor-and-wall cross-section
+in the PDF. `drw_view_edit broken_out` not run: its circle in sheet coordinates is still not
+checked. Points 6, 8 and 9 of the same entry went to S127, S129 and S130.
+
+**Upstream: PR #1, open.**
+
+### S126 - S52 (d): `body_list`'s box is `GetBodyBox`'s loose bound, not the tight box of the other results - CLOSED 2026-11-22
+
+Point (d) of S52 (S52 stays Open for the rest) (findings 2026-11-16, "a part edited by rollback", point 9, build
+`20261116-124830`): `body_list` gave a box max of 149.016816 where `equation_set` and
+`model_mass` said 149.016716 for the same body.
+Decided 2026-11-21 by the owner: taken into the run of 2026-11-21, group 5 (`## Run 2026-11-21`).
+Cause: `MeasureService.BodyListAsync` built each row's box from `IBody2.GetBodyBox`
+(`b.Box()`), the loose bound over torus and B-spline faces that S52 (a) replaced by `TightBox`
+in every other result; `body_list` was left on the old read.
+Fix: each row's box is `TightBox.Of([body])` (the body's extremes along +-x, +-y, +-z), so
+it equals `model.box` for a one-body part; a body whose extremes cannot be read keeps its
+loose box with `approximate: true`, as `model.box` does. Surface bodies go through the same
+call. No description changed (it says "bounding box (mm)").
+Before: the new `PartFeatureLiveTests.Body_list_gives_the_same_box_as_the_model` (the plate
+of S52's box test, quarter-round ends into a 30 degree face, its top chain rounded R0.5)
+failed, "box [-56,582209, -5, -5] .. [56,589919, 5, 5,089919], expected [-56,5, -5, -5] ..
+[56,5, 5, 5]". A first version on a disc with its top edge rounded passed on the old code
+(the disc's loose box is exact), so the plate is the case that fails.
+After: it passes (`body_list`'s box equal to the fillet result's `model.box` and to the
+extremes, no `approximate`); live, the other tests that call `body_list` or read its
+boxes, `Body_list_reports_the_block`, `Body_list_of_a_two_body_part`,
+`Body_list_of_a_closed_document_is_DOC_CLOSED`, `Mass_of_one_body_in_a_two_body_part` and
+`Mirror_of_two_unmerged_extrudes_as_bodies_adds_their_reflections`, 6/6 with the new one;
+unit tests 346/346; `check_repo` ok. No description changed, so no catalog check.
+Made stricter: nothing refused; `body_list`'s boxes are now the bodies' extremes, up to
+0.09 mm tighter than before.
+Not done, still S52's: `BodyKit.Row` (the `bodies` rows of `body_split`, `body_combine`,
+`mold_split` and the other body tools, "as `body_list` reports them") still reads the body's
+`GetBodyBox`; its `BodyGeom.Box` also feeds the before/after comparisons (`SameBox`,
+`Crosses`), which a tight box would change, so it needs its own look.
+Decided 2026-11-22 by the run, not the owner: only `body_list`'s read changed, not
+`BodyKit.Row`, because the plan names `body_list`, and `BodyGeom.Box` is also the key of the
+before/after body comparisons, whose tolerance a change of box would touch; the rows of the
+other body tools are left for S52's remainder.
+Local: on `sw2023`, `ca11c05`; in build `20261122-194424`. Upstream: not yet
+decided.
+Held 2026-11-22: the scenario test of build `20261122-194424` (findings 2026-11-22, point
+10): a slot 100 long, 10 wide and 10 high with its top edge rounded R2 (torus ends), and a
+second body, a slot turned 30° in the front plane with its face edge rounded R1.5:
+`body_list` boxes [−55, 0, −5] .. [55, 10, 5] and [−35, 35, 0] .. [35, 79.641, 8], the exact
+extremes, equal to `model.box`, no `approximate`. Whether the old read was loose on these was
+not checked; the live test's plate holds the case that failed.
+
+### S97 - `material_list` with no match does not say which databases it read - CLOSED 2026-11-22
+
+Sorted out of the entry of 2026-11-17 ("a printed plate with two walls standing off it in an
+L", point 2), on build `20261117-012659`. `material_list {filter}` with no match returned
+`"materials":[]`, `"databases":[]` and a warning naming the closest names. `databases` lists
+only the databases the filter reaches, so a miss does not show which were read, and a caller
+cannot tell that a custom database was searched before calling a material missing. Reported
+`ok`.
+Decided 2026-11-21 by the owner: taken into the run of 2026-11-21, group 5, with S104 (`## Run 2026-11-21`).
+Cause: S39's filter on `databases` keeps the databases the matching rows (or the filter, by
+name) reach, which is none on a miss.
+Fix: on a miss `databases` is every database searched, with its count, as a call with no
+filter gives it. The description says so ("without a filter or on a miss"), paid for by
+trimming its first sentence; `--check-catalog` ok.
+Before: the new `PropertiesLiveTests.A_material_list_miss_names_every_database_it_searched_with_its_count`
+failed, "Assert.NotEmpty() Failure: Collection was empty". The old
+`Assert.Empty(none.Databases)` in `Material_list_has_AISI_1020_at_7900_kg_per_m3` pinned the
+fault and was removed.
+After: it passes (a miss lists the same databases and counts as the call with no filter, the
+standard one first); live, `Material_list_has_AISI_1020_at_7900_kg_per_m3`,
+`Material_set_AISI_1020_gives_the_analytic_mass`, `Material_set_rejects_unknown_names_with_suggestions`,
+`A_library_as_SOLIDWORKS_writes_it_keeps_its_bytes_but_for_the_added_material` and
+`A_material_library_that_does_not_parse_is_a_named_io_error_in_material_add_and_material_set`
+pass, 6/6 with the new one (`A_custom_material_is_listed_assigned_and_used_by_simulation_with_its_own_stiffness`
+fails on this machine before and after, a custom library, not this change); unit tests
+346/346; `PropertiesOfflineTests` 24/24; `ContractTests.Tool_catalog_follows_the_conventions`
+and `--check-catalog` ok; `check_repo` ok.
+Made stricter: nothing refused; a miss's `databases` is no longer empty.
+Local: on `sw2023`, `fd64df4`; in build `20261122-194424`. Upstream: not yet
+decided.
+Held 2026-11-22: the scenario test of build `20261122-194424` (findings 2026-11-22, point
+11): `material_list` with a filter that matches nothing listed in `databases` all five
+databases with their counts (259, 207, 8, 2, 0), the warning "No material matches"; a filter
+"606": 12 rows, one database, no row twice.
+
+### S104 - `material_list` lists one database twice, under its short and its long path - CLOSED 2026-11-22
+
+Sorted out of the entry of 2026-11-18 ("a weldment frame of 16 members in one custom
+profile", point 3), on build `20261118-060615`. `material_list {filter:"606"}` returned 24
+rows for 12 materials and two entries in `databases` of 259 each: one database under its 8.3
+path and under its long path. Reported `ok`. Bears on S97 (the databases a miss reads).
+Decided 2026-11-21 by the owner: taken into the run of 2026-11-21, group 5, with S97 (`## Run 2026-11-21`).
+Cause: `MaterialCatalog.Load` dropped a repeated folder by its string, so the folder list of
+File Locations naming one folder by its 8.3 path and by its long path read it twice.
+Fix: each local folder is taken to its long form (`GetLongPathName`, through a resolver
+`Load` takes, default the Win32 one) before the repeat check, so a database is read, listed
+and searched once, under its long path; a network folder is left as written. Not in the
+description.
+Before: the new `PropertiesOfflineTests.One_folder_given_by_its_short_and_its_long_path_is_read_once`
+(a temp folder named by `GetShortPathName` and by its long path) failed, "Assert.Single()
+Failure: The collection contained 2 items", the two `MaterialDatabaseRow`s with the 8.3 and
+the long path.
+After: it passes, with `Folders_the_resolver_takes_to_one_long_path_are_read_once` (a fake
+resolver, no 8.3 names needed), `PropertiesOfflineTests` 24/24; the live
+`A_material_list_miss_names_every_database_it_searched_with_its_count` also asserts no path
+twice in the databases; unit tests 346/346; `check_repo` ok.
+Made stricter: nothing refused; a folder given twice under two spellings is read once.
+Decided 2026-11-22 by the run, not the owner: the real 8.3 test skips when the volume has 8.3
+names off, because the rule is also held by the fake-resolver test, which needs none.
+Local: on `sw2023`, `fd64df4`; in build `20261122-194424`. Upstream: not yet
+decided.
+Held 2026-11-22: the scenario test of build `20261122-194424` (findings 2026-11-22, point
+11): a filter "606" gave 12 rows from one database, none twice, and a miss listed each of the
+five databases once. The doubled database cannot occur on this machine: its File Locations
+name no folder by an 8.3 path, so the check saw one database once; the case itself is held by
+the test that feeds a real 8.3 path (`GetShortPathName`) and the offline resolver test.
+
 ## Not items
 
 - **SW 2023 interop patch** (`27e8c25`): `swCustomInfoEquation` case removed,

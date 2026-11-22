@@ -2621,3 +2621,5 @@ Build `bin\0.1.0-20261122-194424` (`serverVersion` `0.1.0-sw2023-20261122-194424
     (its 60 → 80 step is now refused under `readOnly`, by S98's design: a session that runs it
     opens the assembly without `readOnly`); a 1:2 plan with two sections, 1 and 3 hatched faces.
     Files unchanged.
+
+Sorted into S127 (6), new; S128 (7), new; S129 (8), new; S130 (9), new; S131 (12), new; S5 (13), met again, the rest of the regression held. Held: S98 (1), S108 (2), S90 (3), S106 (4), S1 (5), S126 (10), S97 (11), S104 (11).
