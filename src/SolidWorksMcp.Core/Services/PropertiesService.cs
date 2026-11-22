@@ -830,6 +830,7 @@ public sealed partial class PropertiesService(SwSession session)
                 ctx.Warn($"Bare number(s) {string.Join(", ", bare)} in '{p.Expr}' are in the document's units; write units (60mm, 30deg) " +
                          "unless they are counts or factors.");
         }
+        foreach (var w in OtherChamferLeg(d, plan, before)) ctx.Warn(w);
         // A dimension that gets its first equation keeps the value that equation gave it once the equation is deleted
         // again, so a rollback sets its value from before back too.
         var dimBefore = plan.Select(p => p.IsDim && Dim(d, p.Key) is { } dim ? dim.SystemValue : (double?)null).ToList();
@@ -923,6 +924,29 @@ public sealed partial class PropertiesService(SwSession session)
         // The last written first: a new variable goes after the equations that use it.
         string Restore() =>
             RestoreEquations(d, em, Enumerable.Reverse(written).Select(i => (plan[i].Key, prevs[i], dimBefore[i])).ToList(), snapBefore);
+    }
+
+    /// <summary>
+    /// S64 (i): a chamfer made with equal legs has two separate dimensions. An equation on one of them alone leaves the
+    /// other at its value, so the legs part when the variable changes; each such row is named with the leg it leaves.
+    /// Only legs equal before the call count, and a leg the call sets or an equation already drives is not left.
+    /// </summary>
+    private static IEnumerable<string> OtherChamferLeg(IModelDoc2 d, IReadOnlyList<EquationPlan> plan, IReadOnlyList<EquationRow> before)
+    {
+        foreach (var p in plan.Where(p => p.IsDim))
+        {
+            if (EquationText.FeatureOf(p.Key) is not { } name || EntityResolver.FeatureByName(d, name) is not { } f ||
+                f.GetTypeName2() != "Chamfer")
+                continue;
+            var legs = FeatureVerifier.Dimensions(f).Where(x => x.Unit == "mm").ToList();
+            if (legs.Count != 2 || Math.Abs(legs[0].Value - legs[1].Value) > 1e-6 || !legs.Any(l => EquationText.SameLhs(l.Name, p.Key)))
+                continue;
+            var other = legs.First(l => !EquationText.SameLhs(l.Name, p.Key));
+            if (plan.Any(x => EquationText.SameLhs(x.Key, other.Name)) || before.Any(e => EquationText.SameLhs(e.Lhs, other.Name)))
+                continue;
+            yield return $"{p.Key} is one leg of the chamfer '{name}', whose legs are equal ({F(other.Value)} mm); its other leg {other.Name} " +
+                         $"keeps {F(other.Value)} mm, a separate dimension, so the legs part when {p.Key} changes. Set {other.Name} in the same call to keep them equal.";
+        }
     }
 
     /// <summary>

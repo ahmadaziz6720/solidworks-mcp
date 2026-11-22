@@ -521,8 +521,8 @@ its point.
   Started 03:03 2026-11-22, free memory 2602 MB with SOLIDWORKS restarted from its exe; launcher `%LOCALAPPDATA%\solidworks-mcp\livetest\run-1121\check3.ps1` (`-Resume` to resume), pid 17092, output check3.out.txt and check3.err.txt beside it; watched by a background until-loop of the session.
 - [x] S84 (a) and (c): committed (split out as S119) (`6e4c9f5`)
 - [x] S84 (b): committed (S84 to Waiting) (`d82a7b2`)
-- [x] S64 (l): committed (split out as S120)
-- [ ] S64 (i): committed
+- [x] S64 (l): committed (split out as S120) (`c3c3b56`)
+- [x] S64 (i): committed (split out as S121)
 - [ ] S64 (c): committed
 - [ ] S93: committed
 - [ ] S117: committed
@@ -1179,6 +1179,7 @@ model edge. Proposed by the session for (l): a model edge that is an inner loop 
 wholly inside the contour, does not disqualify the region.
 Decided 2026-11-21 by the owner: (c), (i) and (l) taken into the run of 2026-11-21, group 4: (c) the tangent-joint hint, (i) the equal chamfer's legs named and warned of, (l) the session's rule for an inner loop; (j), (k), (m) to (p) not in it, for the next plan, (k) first (`## Run 2026-11-21`).
 (l) done in the run of 2026-11-22, group 4, split out as S120 (Waiting).
+(i) done in the run of 2026-11-22, group 4, split out as S121 (Waiting).
 
 ### S65 - Missing options met while modelling - OPEN 2026-11-12
 
@@ -2478,5 +2479,53 @@ three were the lag was not reproduced on their own parts.
 Decided 2026-11-22 by the run, not the owner: the refresh is made in `sketch_add` only, not
 in `sketch_info` (a read) or the sketch edit tools, because the lag was shown after an add
 and not probed after an edit tool; the smaller change.
+Local: on `sw2023`, in the commit that moves it here; not yet in a build. Upstream: not yet
+decided.
+
+### S121 - S64 (i): an equal chamfer's two legs are separate dimensions, and an equation on one said nothing of the other - BUILT 2026-11-22, proof: the scenario test of group 4's build
+
+S64 (i), split out of S64 (which stays Open for its other points) in the run of 2026-11-21,
+group 4. `feature_chamfer {type:"equal"}` makes a chamfer with two dimensions (SOLIDWORKS
+2023 builds it as distance-distance with equal legs), independent once one is driven. An
+equation on one alone left the other at its old value when the variable changed, a 6 x 5
+chamfer where 6 x 6 was meant, `equation_set` `ok` with no warning; the workaround (drive
+both) was on no `Usage` line. Cause: nothing in either result said the two were separate
+dimensions, and `equation_set` knew nothing of a chamfer's legs. Fix: (a)
+`PartFeatureService.ChamferAsync`, after the rename (the dimension names carry the feature's
+name), adds a line to the result's `verified.checks` for an equal chamfer: "legs D1@X and
+D3@X are separate dimensions: drive both to keep them equal (an equation on one leaves the
+other as it is)"; no field and no description changed, so no byte of the catalog budget. (b)
+`PropertiesService.OtherChamferLeg`, called by `equation_set` (one equation or a batch)
+before it writes: for a row on a dimension of a Chamfer feature that has two mm dimensions
+equal in value, when the other leg is neither a row of the same call nor already driven by
+an equation, the call warns "D1@X is one leg of the chamfer 'X', whose legs are equal (3
+mm); its other leg D3@X keeps 3 mm, a separate dimension, so the legs part when D1@X
+changes. Set D3@X in the same call to keep them equal." The equation is still written (a
+warning, not a refusal: driving one leg alone can be meant).
+Before: the new `PartFeatureLiveTests.An_equal_chamfer_names_its_two_legs_and_an_equation_on_one_warns_of_the_other`
+(a 100 x 20 x 60 block, two equal 3 mm chamfers on two edges; `W` = 5 mm and an equation on
+one leg of the first alone; `V` = 4 mm on both legs of the second) failed on the result,
+"Assert.Contains() Failure: Filter not matched in collection Collection: ["volume", "legs
+measured on 1 edge(s)", "edge E1: 3 mm along F7 (plane [0, 0, 1]), 3 mm alo"...]", and, with
+the check line in and the warning left out, on the equation, "Assert.Contains() Failure:
+Filter not matched in collection Collection: []" (no warning). After: it passes (the one-leg
+call warns naming the other leg and its value, the two-leg call has no warning, the volume
+120000 - 750 - 800 mm³ as figured), with the other `Chamfer_*` tests of `PartFeatureLiveTests`
+(equal, two distances, sides, edit, flipEdges, circular edges, sliver, bad input), four
+equation tests of `PropertiesLiveTests` (global variable, errors, breaking a feature, a
+plane's offset, several in one call) and the auxiliary view of a chamfer in
+`DrawingLiveTests`, 15 of 15 live; unit tests 329/329; `check_repo` ok; no description
+changed.
+Made stricter: none (a warning and a line in the checks only; the equations are written as
+before). Not done: the result of `feature_chamfer` with `edit` does not carry the legs line
+(the call asked for was the creating one), and `dimension_set` on one leg does not warn.
+Decided 2026-11-22 by the run, not the owner: the legs are named in `verified.checks`, not in
+a warning, because every call of an equal chamfer would then warn (the chamfer tests assert
+no warnings) and a field of its own would be a change of the result's shape; the check line
+is read by a session that reads the result at all.
+Decided 2026-11-22 by the run, not the owner: `equation_set` warns only when the two legs
+were equal before the call, not for every two-leg chamfer, because a chamfer of two distances
+meant to differ has no "other leg that stays" to warn of, and the finding's case is the
+equal one; a leg already driven by an equation, or set in the same call, is not warned of.
 Local: on `sw2023`, in the commit that moves it here; not yet in a build. Upstream: not yet
 decided.

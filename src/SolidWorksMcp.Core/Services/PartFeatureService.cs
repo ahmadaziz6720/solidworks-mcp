@@ -422,10 +422,13 @@ public sealed partial class PartFeatureService(SwSession session)
                     break;
             }
             Rename(ctx, o.Main, q.Name);
+            // S64 (i): the legs of an equal chamfer are two dimensions, named after the rename, which the result's checks say are separate.
+            if (type == "equal" && FeatureVerifier.Dimensions(o.Main).Where(x => x.Unit == "mm").Select(x => x.Name).ToList() is [var l1, var l2])
+                o = o with { Checks = [.. o.Checks, $"legs {l1} and {l2} are separate dimensions: drive both to keep them equal (an equation on one leaves the other as it is)"] };
             return FeatureVerifier.Result(ctx, d, o, resolved: resolved, alsoFaces: true);
         }, RunOptions.Write(q.Doc), ct);
 
-    private const string ChamferHint = "A distance larger than the adjacent faces fails; use smaller distances or fewer edges.";
+    private const string ChamferHint ="A distance larger than the adjacent faces fails; use smaller distances or fewer edges.";
 
     /// <summary>
     /// feature_chamfer with <c>edit</c>: changes an existing chamfer's edges, distances or angle, and which edges are flipped, through its

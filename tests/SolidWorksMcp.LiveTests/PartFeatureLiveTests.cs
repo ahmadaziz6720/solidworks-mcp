@@ -282,6 +282,37 @@ public class PartFeatureLiveTests(LiveFixture fx) : LiveTest(fx)
     }
 
     [Fact]
+    public async Task An_equal_chamfer_names_its_two_legs_and_an_equation_on_one_warns_of_the_other()
+    {
+        // S64 (i): an equal chamfer's two dimensions are separate once one is driven; an equation on D1 alone left the other
+        // leg at its old value, a 6 x 5 chamfer where 6 x 6 was meant, with no word of it.
+        string doc = await BlockAsync("chamfer_equal_legs");
+        var c = await Pf.ChamferAsync(new ChamferRequest
+        {
+            Doc = doc, Edges = [new EntityRef { At = [0, 20, 30] }], DistanceMm = 3, Name = "EdgeBreak",
+        });
+        var legs = c.Dimensions!.Where(x => x.Unit == "mm").Select(x => x.Name).ToList();
+        Assert.Equal(2, legs.Count);
+        Assert.Contains(c.Verified.Checks!, x => legs.All(x.Contains) && x.Contains("separate"));
+        var c2 = await Pf.ChamferAsync(new ChamferRequest
+        {
+            Doc = doc, Edges = [new EntityRef { At = [0, 20, -30] }], DistanceMm = 3, Name = "EdgeBreak2",
+        });
+        var legs2 = c2.Dimensions!.Where(x => x.Unit == "mm").Select(x => x.Name).ToList();
+
+        var p = new PropertiesService(S);
+        // One leg alone: the other is named, with the value it keeps.
+        var one = await p.EquationSetManyAsync(doc, [new EquationInput { Lhs = "W", Expression = "5mm" }, new EquationInput { Lhs = legs[0], Expression = "\"W\"" }]);
+        Assert.Contains(one.Warnings ?? [], w => w.Contains(legs[1]) && w.Contains(legs[0]) && w.Contains("keeps"));
+        // Both legs of the other chamfer in one call: nothing to warn of.
+        var both = await p.EquationSetManyAsync(doc, [new EquationInput { Lhs = "V", Expression = "4mm" },
+            new EquationInput { Lhs = legs2[0], Expression = "\"V\"" }, new EquationInput { Lhs = legs2[1], Expression = "\"V\"" }]);
+        Assert.Null(both.Warnings);
+        // The first chamfer 5 x 3 (750 mm³ off), the second 4 x 4 (800).
+        Assert.Equal(120000 - 750 - 800, (await new InspectService(S).ModelInfoAsync(doc)).VolumeMm3!.Value, V);
+    }
+
+    [Fact]
     public async Task Chamfer_two_distances_and_distance_angle_match_their_triangles()
     {
         string doc = await BlockAsync("chamfer_dd");
