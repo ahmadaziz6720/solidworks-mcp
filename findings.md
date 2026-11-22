@@ -2532,3 +2532,92 @@ Build `bin\0.1.0-20261122-142805` (`serverVersion` `0.1.0-sw2023-20261122-142805
     faces; `doc_undo` in a drawing refused.
 
 Sorted into S118 (8), checked; S123 (6), new; S124 (9), new; S125 (10), new; S5 (11), met again, the rest of the regression held. Held: S119 (1), S84 (2), S120 (3), S121 (4), S122 (5), S93 (6), S117 (7).
+
+**2026-11-22: scenario test of S106, S90, S126, S97, S104, S98, S108 and S1's proof (a detail and a view at an angle), with a short regression run**
+
+Build `bin\0.1.0-20261122-194424` (`serverVersion` `0.1.0-sw2023-20261122-194424+a6a39d4`).
+
+1. **S98, held.** A part opened with `readOnly:true`: `access: "readOnly"`, the message "the
+   target document for reading: the edit tools refuse it"; `dimension_set`, `sketch_start`,
+   `doc_save` mode `as` and `inPlace` all `NOT_OWNED` with the reopen hint; `doc_rebuild
+   {force:true}`, `doc_save` mode `copy` and a STEP `model_export` ran. A read-only assembly the
+   same: `access: readOnly`, a component dimension's `dimension_set` refused; its parts listed
+   `foreign` with `loadedBy`. Closing discarded the rebuild's dirt as before.
+2. **S108, held.** With SOLIDWORKS' default drawing template set to the owner's own A3 template
+   (not shipped), `doc_new {type:"drawing"}` with no `template`: format kept (`drw_info`: that
+   template's `.slddrt`, its title block), units `custom` (the template's), the message "the
+   default template, kept as it is (its sheet and units) since it is not one SOLIDWORKS ships".
+   `units:"mmgs"` gives MMGS on the same kept sheet, the message saying "(its sheet)"; the
+   same template named with `units:"template"` gives the same sheet and units as the default.
+3. **S90, held.** A 1:2 plan of a tray, a horizontal section with no `atMm` below it: on the ISO
+   A3 format (title block top 65.25) the section's geometry box bottom came at y 80, its label
+   anchor at y 73.4, "clear of the title block", no warning; in the PDF the label clears the
+   block by about 1.5 mm. On the owner's A3 format (block top 60) the same: label at y 73.0.
+4. **S106, held.** A hole table placed with its corner inside the plan view: `extentMm` [165,
+   202.52, 309.763, 215] (the PDF matches) and "The table [..] overlaps view 'Drawing View1'
+   [..]". A note across the table: warned of the table and the view; a note on the view only:
+   warned of the view; a note in empty space: "clear of the border, the title block, the other
+   views and the other annotations". A detail view placed by default over the table's corner:
+   "overlaps table" (see 7).
+5. **S1, held for the detail and for a view at an angle.** (a) `drw_view_detail` on the 1:2
+   plan, circle centre [236.75, 140.7] r 8, 2:1: the circle lands on the hole asked for (PDF,
+   measured to 0.1 mm), the detail shows that tab with its hole centred, "4 visible edges".
+   (b) `drw_view_add auxiliary` square to a straight floor edge running at 24.23° in the plan:
+   looks along [−0.41, 0, 0.912], turned on the sheet with that edge, its fold edge at −24° in
+   the PDF. (c) On that turned auxiliary view, a detail at one corner ([108.5, 104.1], r 10,
+   1:1): the circle sits on the corner (measured [108.8, 104.0]) and the detail shows the same
+   two edges at the same angles. (d) A section across the turned view (line [153.4, 42] →
+   [198.6, 142.1], which is model +Y on that view): cut line drawn where asked (ends measured
+   within 1.7 mm on the raster), looks along [−0.912, 0.001, −0.41] = the expected normal, 2
+   hatched faces, a floor-and-wall cross-section in the PDF. `drw_view_edit broken_out` not run.
+6. **A detail view's `centerMm` is wrong, and changes between calls** (new). The 2:1 detail of 5
+   (a), placed by default: the PDF shows it centred at about [331, 178]. The `drw_view_detail`
+   result gave `centerMm` [287.467, 251.306] with `boundsMm` [310.627, 155.566, 351.307,
+   201.046] (the centre outside its own bounds); the next `drw_info` gave `centerMm` [243.967,
+   328.306] (above the 297 mm sheet) and `boundsMm` [286.627, 133.966, 375.307, 222.646]. The
+   bounds' centres are right ([331, 178.3]), the sizes differ (40.7 × 45.5 against 88.7 × 88.7;
+   the detail circle drawn is about 64 mm across). The 1:1 detail of 5 (c), given `atMm` [70,
+   220]: `centerMm` [194.941, 191.813], bounds centred at [69.9, 220.1]. Sections, auxiliary and
+   named views read right. Reported `ok`; a caller placing an annotation from `centerMm` would
+   put it elsewhere.
+7. **The default placement of an auxiliary view is not a free spot, and `Place` ignores
+   tables** (bears on S90, S106). `drw_view_add auxiliary` with no `atMm` (the description:
+   "default: a free spot (beside the parent for auxiliary)") on the 1:2 plan put the
+   155 × 101 mm view over the plan, the section below it and the title block, with the three
+   warnings. Along its alignment there was no free spot on that sheet, so a refusal or a hint
+   (a smaller scale, `atMm`) would have served; `drw_view_edit move` off the alignment is
+   refused `VERIFY_FAILED` with the alignment hint (right). Separately, the 2:1 detail with no
+   `atMm` was placed with its outline over the hole table's corner: the free-space search counts
+   views, the border and the title block, not tables; the overlap check after it does.
+8. **An auxiliary view's arrow lands far from its edge** (new, may be SOLIDWORKS'). The arrow
+   and letter of the auxiliary of 5 (b) were drawn at about [178, 101], inside the section
+   view's area, about 90 mm from the edge it was made from in the plan; the view's label sat at
+   y ≈ 35, 7 mm under the view. Nothing reported it. In the SOLIDWORKS UI the arrow comes up
+   next to the selected edge.
+9. **A section's `atMm` is moved onto the alignment line without a word** (small). The section
+   of 5 (d), `atMm` [340, 100]: placed at [309.4, 32.3], the projection of that point on the
+   line square to the cut through the parent, partly off the sheet. The warnings said it ran
+   off the sheet and over the title block; none said `atMm` was not where the view went.
+10. **S126, held in what could be checked.** A slot 100 long, 10 wide, 10 high with its top edge
+    rounded R2 (torus ends), and a second body, a slot turned 30° in the front plane with its
+    face edge rounded R1.5: `body_list` boxes [−55, 0, −5] .. [55, 10, 5] and [−35, 35, 0] ..
+    [35, 79.641, 8], the exact extremes, equal to `model.box`, no `approximate`. Whether the old
+    read was loose on these is not known; the live test's failing plate was not rebuilt.
+11. **S97, held; S104, held as far as this machine allows.** `material_list` on a filter that
+    matches nothing: `databases` lists all five databases with their counts (259, 207, 8, 2, 0),
+    the warning "No material matches". A filter "606": 12 rows, one database, no row twice.
+    This machine's File Locations name no folder by its 8.3 path, so the doubled database could
+    not occur live; only the offline tests hold that case.
+12. **A hole table's default face has one hole where the facing floor has six** (new, small).
+    `drw_table_add {kind:"hole"}` on a top plan view with no `face`: one row, a Ø4.5 hole through
+    a 5 mm tab, origin a tab vertex, while the floor facing the same way holds six countersunk
+    holes. The description says "default: the face toward the viewer with the most holes".
+    Whether countersinks count as holes there, or "toward the viewer" means the nearest face, is
+    not said. Reported `ok`.
+13. Held, regression: a part opened read-only, force rebuild 174 346.977 mm³, mass 221.42 g,
+    area 116 546.84 mm², box 233 × 68.28 × 174; STEP export and `doc_open` of it, 16 surface
+    bodies (S5, as before); a hinge assembly read-only, interference 0; the hand-built two-part
+    assembly read-only, 2 components, plate fixed, shaft 2 mates without error, 127 402.659 mm³
+    (its 60 → 80 step is now refused under `readOnly`, by S98's design: a session that runs it
+    opens the assembly without `readOnly`); a 1:2 plan with two sections, 1 and 3 hatched faces.
+    Files unchanged.
