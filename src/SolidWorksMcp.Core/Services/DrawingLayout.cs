@@ -567,6 +567,23 @@ internal static class DrawingLayout
         return (mx + vx / len * offset, my + vy / len * offset);
     }
 
+    /// <summary>
+    /// A table's box (sheet mm) from its anchor corner (x, y), its anchor (swBOMConfigurationAnchorType_e: 1 top-left,
+    /// 2 top-right, 3 bottom-left, 4 bottom-right) and its width and height (S106). Null for another anchor or no size.
+    /// </summary>
+    public static SheetRect? TableBox(int anchor, double x, double y, double w, double h)
+    {
+        if (!(w > 0) || !(h > 0) || !double.IsFinite(x) || !double.IsFinite(y)) return null;
+        return anchor switch
+        {
+            1 => new SheetRect(x, y - h, x + w, y),
+            2 => new SheetRect(x - w, y - h, x, y),
+            3 => new SheetRect(x, y, x + w, y + h),
+            4 => new SheetRect(x - w, y, x, y + h),
+            _ => null,
+        };
+    }
+
     internal static string? Norm(string? s) =>
         string.IsNullOrWhiteSpace(s) ? null : s.Trim().ToLowerInvariant().Replace('-', '_').Replace(' ', '_');
 

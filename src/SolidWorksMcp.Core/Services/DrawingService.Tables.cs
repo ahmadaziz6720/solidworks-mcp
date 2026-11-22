@@ -35,6 +35,8 @@ public sealed class DrwTableResult : ToolResult
     public required IReadOnlyList<string> Columns { get; init; }
     public required IReadOnlyList<IReadOnlyList<string>> Items { get; init; }
     public double[]? AtMm { get; init; }
+    /// <summary>The box the table covers on the sheet, [x0, y0, x1, y1] mm (S106).</summary>
+    public double[]? ExtentMm { get; init; }
     public string? Template { get; init; }
     /// <summary>revision: the latest revision letter.</summary>
     public string? CurrentRevision { get; init; }
@@ -202,6 +204,7 @@ public sealed partial class DrawingService
                 "Pass the origin vertex and the face explicitly.");
         }
         checks.Add($"{items.Count} row(s), each hole's X/Y from the origin and size read back");
+        var box = TableCheck(ctx, drw, table, checks);
         return new DrwTableResult
         {
             Doc = ctx.Title(d),
@@ -212,6 +215,7 @@ public sealed partial class DrawingService
             Columns = columns,
             Items = items.Take(MaxBomRows).ToList(),
             AtMm = [Math.Round(x, 3), Math.Round(y, 3)],
+            ExtentMm = box?.ToArray(),
             Template = path,
             Checks = checks,
             Resolved = resolved,
@@ -306,6 +310,7 @@ public sealed partial class DrawingService
         if (current != added[^1].Letter) ctx.Warn($"The current revision reads '{current}', not '{added[^1].Letter}'.");
         checks.Add($"revision(s) {string.Join(", ", added.Select(a => a.Letter))} read back with their descriptions; current revision {current}");
         var (columns, items) = ReadTable(table);
+        var box = TableCheck(ctx, drw, table, checks);
         return new DrwTableResult
         {
             Doc = ctx.Title(d),
@@ -316,6 +321,7 @@ public sealed partial class DrawingService
             Columns = columns,
             Items = items.Take(MaxBomRows).ToList(),
             AtMm = placed is { } p ? [Math.Round(p.X, 3), Math.Round(p.Y, 3)] : null,
+            ExtentMm = box?.ToArray(),
             Template = path,
             CurrentRevision = current,
             Checks = checks,
@@ -373,6 +379,7 @@ public sealed partial class DrawingService
         checks.Add($"{rows.Count} row(s), one per cut-list item of '{Path.GetFileName(DocumentRegistry_SafePath(model))}'" +
                    (string.IsNullOrEmpty(used) ? "" : $" (configuration {used})"));
         d.GraphicsRedraw2();
+        var box = TableCheck(ctx, drw, table, checks);
         return new DrwTableResult
         {
             Doc = ctx.Title(d),
@@ -383,6 +390,7 @@ public sealed partial class DrawingService
             Columns = columns,
             Items = rows.Take(MaxBomRows).ToList(),
             AtMm = [Math.Round(x, 3), Math.Round(y, 3)],
+            ExtentMm = box?.ToArray(),
             Template = path,
             Checks = checks,
         };

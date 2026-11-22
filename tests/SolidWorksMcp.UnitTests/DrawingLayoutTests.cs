@@ -394,4 +394,25 @@ public class DrawingLayoutTests
         Assert.Equal(150, x, 9);
         Assert.Equal(170, y, 9);
     }
+
+    [Fact]
+    public void A_table_s_box_grows_away_from_its_anchor_corner()
+    {
+        // S106, as read live on 2023 SP3: a hole table at its top-left (161.06, 212.14), 144.763 x 12.48, drew its lines
+        // over [161.06, 199.66, 305.823, 212.14]; a cut list at its top-right (410, 287), likewise.
+        Assert.Equal(new SheetRect(161.06, 199.66, 305.823, 212.14), DrawingLayout.TableBox(1, 161.06, 212.14, 144.763, 12.48)!.Value, new BoxEq());
+        Assert.Equal(new SheetRect(210, 267, 410, 287), DrawingLayout.TableBox(2, 410, 287, 200, 20));
+        Assert.Equal(new SheetRect(10, 10, 210, 30), DrawingLayout.TableBox(3, 10, 10, 200, 20));
+        Assert.Equal(new SheetRect(210, 10, 410, 30), DrawingLayout.TableBox(4, 410, 10, 200, 20));
+        // An anchor it does not know, or no size: no box rather than a wrong one.
+        Assert.Null(DrawingLayout.TableBox(0, 10, 10, 200, 20));
+        Assert.Null(DrawingLayout.TableBox(1, 10, 10, 0, 20));
+        Assert.Null(DrawingLayout.TableBox(1, double.NaN, 10, 200, 20));
+    }
+
+    private sealed class BoxEq : IEqualityComparer<SheetRect>
+    {
+        public bool Equals(SheetRect a, SheetRect b) => a.ToArray().SequenceEqual(b.ToArray());
+        public int GetHashCode(SheetRect r) => 0;
+    }
 }

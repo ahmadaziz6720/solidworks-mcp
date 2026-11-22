@@ -2069,18 +2069,21 @@ public sealed partial class DrawingService(SwSession session)
             var drw = ctx.Drawing();
             var frame = FrameOfSheet(drw, sheet);
             var clashes = new List<string>();
+            bool onCurrent = string.Equals(drw.DrwCurrentSheet()?.GetName(), sheet.GetName(), StringComparison.OrdinalIgnoreCase);
+            var placed = placedNow ?? (onCurrent ? PlacedOnSheet(ctx, drw) : []);
             foreach (var n in all.Where(x => names.Contains(x.Name)))
             {
                 foreach (var o in all.Where(x => x.Name != n.Name && (!names.Contains(x.Name) || string.CompareOrdinal(x.Name, n.Name) > 0)))
                     if (n.R!.Value.Overlaps(o.R!.Value)) clashes.Add($"'{n.Name}' overlaps '{o.Name}'");
+                // The tables on the sheet (S106): a view drawn under one is hidden by it.
+                clashes.AddRange(placed.Where(o => o.Kind == "table" && o.Box.Overlaps(n.R!.Value))
+                    .Select(o => $"'{n.Name}' overlaps table '{o.Name}' {SheetFrame.Fmt(o.Box)}"));
                 // The format's border and title block (S14); without a frame, the sheet's edge.
                 if (frame is not null) clashes.AddRange(frame.Clashes(n.R!.Value).Select(c => $"'{n.Name}' {SheetFrame.Fmt(n.R!.Value)} {c}"));
                 else if (paper is SheetRect p && !n.R!.Value.Inside(p, 0.5)) clashes.Add($"'{n.Name}' extends past the sheet");
             }
             // The views' own annotations (a section's label, its dimensions) against the frame and the other views' (S14):
             // they move with the view, and a label is the easiest thing to land on another view's annotation.
-            bool onCurrent = string.Equals(drw.DrwCurrentSheet()?.GetName(), sheet.GetName(), StringComparison.OrdinalIgnoreCase);
-            var placed = placedNow ?? (onCurrent ? PlacedOnSheet(ctx, drw) : []);
             foreach (var mine in placed.Where(x => names.Contains(x.View)))
             {
                 var found = LandsOn(frame, placed.Where(o => !names.Contains(o.View)), mine.Box);

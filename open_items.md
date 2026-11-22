@@ -17,7 +17,7 @@ Closed all the same, its PR named, and an open PR no longer holds an item in Wai
 item sent upstream ends with `**Upstream: PR #9, open.**`, one per PR or issue
 (`merged`, `closed unmerged`; an issue `open` or `closed`), kept to its state.
 
-**Open: S4, S5, S7, S10 to S12, S33, S34, S52, S60, S64, S65, S79 to S82, S85, S86, S90, S92, S94, S96 to S106, S108, S109, S111, S115, S123 to S125.**
+**Open: S4, S5, S7, S10 to S12, S33, S34, S52, S60, S64, S65, S79 to S82, S85, S86, S90, S92, S94, S96 to S105, S108, S109, S111, S115, S123 to S125.**
 Sorted 2026-11-22, the scenario test of build `20261122-142805` (findings 2026-11-22): S119,
 S84, S120, S121, S122, S93 and S117 held and closed; S118 not proved there (SOLIDWORKS in
 the good state, no false alarm), its proof moved to a session that meets S92's state; S123
@@ -580,7 +580,7 @@ its point.
   Cost: Sonnet, see the report.
 - [x] Group 4: scenario test (session id: `4f75820d-6e87-4a46-a4f6-093d30178ee6`), its entry committed and sorted (entry `693fd0a`; ended `EXIT 0` 14:41; S119, S84, S120, S121, S122, S93 and S117 held and closed, S118 not proved there (the good state, no false alarm) and its proof moved, S123 to S125 new into group 7, S5 again; release notes updated) (`6f49cc1`)
   Started 14:31 2026-11-22, free memory 2335 MB with SOLIDWORKS restarted from its exe; launcher `%LOCALAPPDATA%\solidworks-mcp\livetest\run-1121\check4.ps1`, launcher pid 2776, output check4.out.txt and check4.err.txt beside it; started and watched by a Sonnet subagent at the owner's word (2026-11-22, "uji skenario di sesi ini aja, kasi ke sub agent"); no resume; about 10 min.
-- [ ] S106: committed
+- [x] S106: committed
 - [ ] S90: committed
 - [ ] S52: committed
 - [ ] S97 and S104: committed
@@ -2066,20 +2066,6 @@ Proposed by the session: a `feature_visibility {features | kinds:["plane", "sket
 its own), each feature's visibility read back; or a `hide` option on `doc_save`. Local. Not
 decided.
 
-### S106 - The drawing's overlap checks count neither tables nor views, and `drw_table_add` gives no extent - OPEN 2026-11-21
-
-Sorted out of the entry of 2026-11-18 ("a two-sheet A3 drawing of a 16-member weldment
-part", point 1), on build `20261118-060615`. **A result reported `ok` while wrong.**
-`drw_table_add {kind:"cut_list", atMm:[408,285]}` returned the rows but no extent; the table
-came out about 201 x 71 mm, over a side view. A 145 x 118 mm note added after it read "clear
-of the border, the title block and the other annotations" while it lay across both the table
-and the side view's members; only the PDF showed it.
-
-Proposed by the session: `drw_table_add` returns the table's `extentMm` and warns of what it
-lands on; the note and dimension checks count tables and the views' `boundsMm`, not only
-annotations. Local. Not decided.
-Decided 2026-11-21 by the owner: taken into the run of 2026-11-21, group 5 (`## Run 2026-11-21`).
-
 ### S108 - `doc_new {type:"drawing"}` with no `template` replaces a custom default template's format with ISO and its units with MMGS - OPEN 2026-11-21
 
 Sorted out of the entry of 2026-11-18 ("a custom sheet format made from the ISO one with
@@ -2414,3 +2400,62 @@ state, because the state cannot be brought on at will (S92 (c)'s probe did not r
 and a check in the good state shows only that the sign raises no false alarm; the unit tests
 hold the rule meanwhile.
 
+### S106 - The drawing's overlap checks count neither tables nor views, and `drw_table_add` gives no extent - BUILT 2026-11-22, proof: the scenario test of the group 5 build
+
+Sorted out of the entry of 2026-11-18 ("a two-sheet A3 drawing of a 16-member weldment
+part", point 1), on build `20261118-060615`. **A result reported `ok` while wrong.**
+`drw_table_add {kind:"cut_list", atMm:[408,285]}` returned the rows but no extent; the table
+came out about 201 x 71 mm, over a side view. A 145 x 118 mm note added after it read "clear
+of the border, the title block and the other annotations" while it lay across both the table
+and the side view's members; only the PDF showed it.
+
+Proposed by the session: `drw_table_add` returns the table's `extentMm` and warns of what it
+lands on; the note and dimension checks count tables and the views' `boundsMm`, not only
+annotations. Local. Not decided.
+Decided 2026-11-21 by the owner: taken into the run of 2026-11-21, group 5 (`## Run 2026-11-21`).
+Cause: `drw_table_add` read no box for the table it made, and `ITableAnnotation` has no
+extent member; the placement check of notes, dimensions and moved annotations (`BoxOf`,
+`PlacedOnSheet`) knew only notes, labels, dimensions, hole callouts and balloons, and no
+check but the views' own looked at the views' outlines, so a table and the view under it
+were both invisible to it.
+Fix: `BoxOf` (`DrawingService.Placement.cs`) reads a table's box from its anchor corner
+(`IAnnotation.GetPosition`, `ITableAnnotation.AnchorType`) and the sum of its visible column
+widths and row heights, through the interop-free `DrawingLayout.TableBox`; probed live on
+2023 SP3, the box equals the box of the table's drawn lines (`IDisplayData`) to 0.001 mm for
+a hole table (top-left anchor), a cut list and a revision table (top-right). `PlacedOnSheet`
+counts tables. `drw_table_add` (all three kinds) returns `extentMm` and, through the new
+`TableCheck`, warns "The table [..] overlaps view '<view>' [..], ..." of the views' outlines,
+the border, the title block and the other annotations it lands on, else the check "clear of
+the views, the border, the title block and the other annotations". `PlacementCheck` (notes,
+dimensions, `drw_annotation_edit move`) counts the tables and the outlines of every view but
+the annotation's own; its check reads "clear of the border, the title block, the other views
+and the other annotations". A view added or moved over a table is warned ("'<view>' overlaps
+table '<name>' [..]"). No description changed.
+Before: the new `DrawingLiveTests.A_table_over_a_view_gives_its_extent_and_is_warned_and_so_is_a_note_across_it`
+(a hole table placed at the front view's top-left corner, inside it; a note across the
+table) failed, "no extent; warnings: " (no extent, no warning); the same run with the note
+read the note "clear of the border, the title block and the other annotations" with no
+warning, though it lay across the table and the view.
+After: it passes (the table warned of the view, the note of the table and the view, the
+view moved 5 mm under the table warned of it), with the cut-list and revision tests now
+checking `extentMm` against the anchor (the revision table growing downward with a row);
+live, every `DrawingLiveTests` test that adds a note, a dimension or a table, or moves an
+annotation or a view, 28/28 (the new one included); unit tests 344/344 (new
+`DrawingLayoutTests.A_table_s_box_grows_away_from_its_anchor_corner`); `check_repo` ok.
+Made stricter: a table, and a note, dimension or moved annotation, lying on a view or a
+table now warn where they read "clear"; a view added or moved over a table warns; nothing
+that passed is refused.
+Decided 2026-11-22 by the run, not the owner: a table's box is its anchor corner plus the
+sum of its visible columns and rows, not the box of its drawn lines, because the probe showed
+the two equal and the sums are documented members, with the anchor rule unit-tested; an
+anchor it does not know gives no extent and a warning rather than a guessed box.
+Decided 2026-11-22 by the run, not the owner: a note's or a dimension's own view does not
+count against it (a dimension's text and a note added in a view lie in or beside their view
+by design); the other views' outlines do, because a text on another view is what the PDF
+showed.
+Decided 2026-11-22 by the run, not the owner: the view check (a view added or moved) also
+counts the tables, though the plan named only the table, note and dimension checks, because
+its check claims "no overlaps with other views or their annotations" and a table is one; one
+clause, no new option.
+Local: on `sw2023`, in the commit that moves it here; not yet in a build. Upstream: not yet
+decided.

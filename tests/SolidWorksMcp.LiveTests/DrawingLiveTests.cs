@@ -816,6 +816,10 @@ public class DrawingLiveTests(LiveFixture fx) : LiveTest(fx)
         Assert.Equal("cut_list", t.Kind);
         Assert.Equal(2, t.Rows);
         Assert.Contains(t.Checks!, c => c.StartsWith("2 row(s), one per cut-list item", StringComparison.Ordinal));
+        // S106: its extent, anchored by its top-right corner (the default 10 mm in from the sheet's top-right).
+        Assert.Equal(t.AtMm![0], t.ExtentMm![2], 0.5);
+        Assert.Equal(t.AtMm[1], t.ExtentMm[3], 0.5);
+        Assert.True(t.ExtentMm[2] - t.ExtentMm[0] > 20 && t.ExtentMm[3] - t.ExtentMm[1] > 5, $"extent [{string.Join(", ", t.ExtentMm)}]");
         // An ISO fillet weld a5 x 50 on both sides, all around, on the block's top front edge.
         var (_, bpath) = await BlockAsync("drw_weld");
         string drw2 = await DrawingAsync("drw_weld");
@@ -1406,6 +1410,34 @@ public class DrawingLiveTests(LiveFixture fx) : LiveTest(fx)
     }
 
     [Fact]
+    public async Task A_table_over_a_view_gives_its_extent_and_is_warned_and_so_is_a_note_across_it()
+    {
+        // S106: a table landed over a view with no extent and no warning, and a note added across it read "clear".
+        var (drw, r) = await ViewsAsync("drw_table_clash", ["front"], hole: true);
+        var front = r.Views[0];
+        var b = front.BoundsMm!;
+        double[] at = [b[0] + 2, b[3] - 2];
+        var t = await Drw.TableAddAsync(new DrwTableRequest { Doc = drw, Kind = "hole", View = front.Name, AtMm = at });
+        Assert.True(t.ExtentMm is not null, $"no extent; warnings: {string.Join(" | ", t.Warnings ?? [])}");
+        var e = t.ExtentMm!;
+        // A hole table is anchored by its top-left corner.
+        Assert.Equal(at[0], e[0], 0.5);
+        Assert.Equal(at[1], e[3], 0.5);
+        Assert.True(e[2] - e[0] > 20 && e[3] - e[1] > 5, $"extent [{string.Join(", ", e)}]");
+        Assert.Contains(t.Warnings ?? [], w => w.StartsWith("The table") && w.Contains($"view '{front.Name}'"));
+        Assert.DoesNotContain(t.Checks!, c => c.Contains("clear of the views"));
+
+        // A note across the table: warned of the table, not "clear".
+        var note = await Drw.NoteAddAsync("SWMCP ACROSS THE TABLE", [e[0] + 2, e[3] - 1], 3.5, null, drw);
+        Assert.Contains(note.Warnings ?? [], w => w.Contains("overlaps") && w.Contains("table '"));
+        Assert.DoesNotContain(note.Checks ?? [], c => c.Contains("clear of the border"));
+
+        // The view moved 5 mm, still under the table: warned of it too.
+        var moved = await Drw.ViewEditAsync(new DrwViewEditRequest { Doc = drw, Kind = "move", View = front.Name, AtMm = [front.CenterMm![0] + 5, front.CenterMm[1]] });
+        Assert.Contains(moved.Warnings ?? [], w => w.Contains($"'{front.Name}' overlaps table '"));
+    }
+
+    [Fact]
     public async Task Revision_table_gets_rows_A_B_and_then_C()
     {
         var (drw, _) = await ViewsAsync("drw_revs", ["front"]);
@@ -1419,6 +1451,13 @@ public class DrawingLiveTests(LiveFixture fx) : LiveTest(fx)
         Assert.Equal(3, t2.Rows);
         Assert.Equal("C", t2.CurrentRevision);
         Assert.Contains(t2.Checks!, c => c.Contains("added to the sheet's revision table", StringComparison.Ordinal));
+        // S106: anchored by its top-right corner; the row added makes it taller downward.
+        var e = t.ExtentMm!;
+        Assert.Equal(t.AtMm![0], e[2], 0.5);
+        Assert.Equal(t.AtMm[1], e[3], 0.5);
+        var e2 = t2.ExtentMm!;
+        Assert.Equal(e[3], e2[3], 0.5);
+        Assert.True(e2[1] < e[1] - 1, $"extent before [{string.Join(", ", e)}], after [{string.Join(", ", e2)}]");
     }
 
     [Fact]
