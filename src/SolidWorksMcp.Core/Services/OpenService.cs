@@ -198,7 +198,7 @@ public sealed class OpenService(SwSession session)
                        (errors & (int)swFileLoadError_e.swFileAlreadyOpenWarn) != 0;
         if (wasOpen) return AlreadyOpen(ctx, doc, readOnly, config, notes); // never claim a document someone else opened
 
-        ctx.Documents.SetClass(doc, DocClass.Owned, readOnly ? "opened (read-only)" : "opened");
+        ctx.Documents.SetClass(doc, DocClass.Owned, readOnly ? "opened (read-only)" : "opened", readOnly);
         ctx.Documents.Target = doc;
         var opened = ctx.Documents.Track(doc);
         opened.StampAfterLastOp = doc.GetUpdateStamp();
@@ -235,8 +235,11 @@ public sealed class OpenService(SwSession session)
             LoadWarnings = notes.Count > 0 ? notes : null,
             MissingReferences = missing.Count > 0 ? missing : null,
             Configurations = configsNow.Length > 1 ? configsNow : null,
-            Message = $"Opened {what} '{info.Title}'{(ro ? " read-only" : "")} ({info.Handle}); it is now the target document and this server may edit it. " +
-                      (ro ? "Keep changes with doc_save mode 'copy' or 'as'." : "doc_save mode 'inPlace' overwrites the original file; mode 'copy' or 'as' keeps it.") +
+            Message = (readOnly
+                          ? $"Opened {what} '{info.Title}' read-only ({info.Handle}); it is now the target document for reading: the edit tools " +
+                            "refuse it (access readOnly). doc_save mode 'copy' writes a copy."
+                          : $"Opened {what} '{info.Title}'{(ro ? " read-only" : "")} ({info.Handle}); it is now the target document and this server may edit it. " +
+                            (ro ? "Keep changes with doc_save mode 'copy' or 'as'." : "doc_save mode 'inPlace' overwrites the original file; mode 'copy' or 'as' keeps it.")) +
                       (missing.Count > 0 ? $" {missing.Count} referenced file(s) are missing (see missingReferences)." : ""),
         };
     }

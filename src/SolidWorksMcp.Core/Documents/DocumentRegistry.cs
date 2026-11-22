@@ -68,6 +68,10 @@ internal sealed class DocumentRegistry
         public string? BackupPath { get; set; }
         /// <summary>The handle of the document whose doc_open loaded this one as a reference (S27).</summary>
         public string? LoadedBy { get; set; }
+        /// <summary>Opened by doc_open {readOnly:true}: the server reads it but refuses to change it (S98).</summary>
+        public bool ReadOnly { get; set; }
+        /// <summary>What doc_list and sw_status report: owned | adopted | foreign, or readOnly.</summary>
+        public string Access => ReadOnly ? "readOnly" : Class.ToString().ToLowerInvariant();
     }
 
     /// <summary>The document server operations act on by default (set by doc_new / doc_open / doc_activate).</summary>
@@ -128,12 +132,13 @@ internal sealed class DocumentRegistry
         return null;
     }
 
-    public void SetClass(IModelDoc2 doc, DocClass cls, string how)
+    public void SetClass(IModelDoc2 doc, DocClass cls, string how, bool readOnly = false)
     {
         var e = Track(doc);
         // Never downgrade Owned to Adopted.
         if (!(e.Class == DocClass.Owned && cls == DocClass.Adopted)) e.Class = cls;
         e.How = how;
+        e.ReadOnly = readOnly && cls == DocClass.Owned;
         Remember(e);
         Persist();
     }
@@ -207,7 +212,7 @@ internal sealed class DocumentRegistry
 
     // ------------------------------------------------------------------ persistence
 
-    private sealed record Saved(string Handle, string Title, string Path, DocClass Class, string How, string? BackupPath);
+    private sealed record Saved(string Handle, string Title, string Path, DocClass Class, string How, string? BackupPath, bool ReadOnly = false);
 
     private static readonly JsonSerializerOptions Json = new() { WriteIndented = true, Converters = { new JsonStringEnumConverter() } };
 
@@ -229,6 +234,7 @@ internal sealed class DocumentRegistry
                 e.Class = s.Class;
                 e.How = s.How + " (re-claimed)";
                 e.BackupPath = s.BackupPath;
+                e.ReadOnly = s.ReadOnly;
             }
         }
         catch (Exception ex) when (ex is IOException or JsonException) { /* start fresh */ }
@@ -240,7 +246,7 @@ internal sealed class DocumentRegistry
         try
         {
             var data = _entries.Where(e => e.Class != DocClass.Foreign)
-                .Select(e => new Saved(e.Handle, e.Title, e.Path, e.Class, e.How, e.BackupPath)).ToList();
+                .Select(e => new Saved(e.Handle, e.Title, e.Path, e.Class, e.How, e.BackupPath, e.ReadOnly)).ToList();
             Directory.CreateDirectory(System.IO.Path.GetDirectoryName(_file)!);
             File.WriteAllText(_file + ".tmp", JsonSerializer.Serialize(data, Json));
             File.Move(_file + ".tmp", _file, overwrite: true);

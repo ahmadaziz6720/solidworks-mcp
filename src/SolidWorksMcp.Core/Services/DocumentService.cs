@@ -15,7 +15,7 @@ public sealed class DocInfo
     public string? Path { get; init; }
     public required string Type { get; init; }
     public bool Dirty { get; init; }
-    /// <summary>owned | adopted | foreign (foreign = the user's, read-only for the server).</summary>
+    /// <summary>owned | adopted | foreign (the user's) | readOnly (doc_open readOnly); foreign and readOnly are not changed by the server.</summary>
     public required string Access { get; init; }
     public bool Active { get; init; }
     public bool Target { get; init; }
@@ -237,7 +237,7 @@ public sealed class DocumentService(SwSession session)
                 BackupPath = backup,
                 Message = AlsoWrote(parts),
             };
-        }, RunOptions.Write(doc), ct);
+        }, RunOptions.Write(doc) with { ReadOnlyOk = mode.Trim().Equals("copy", StringComparison.OrdinalIgnoreCase) }, ct);
 
     private static string? AlsoWrote(List<string> parts) =>
         parts.Count > 0 ? $"Also wrote {string.Join(", ", parts.Select(p => $"'{p}'"))}: the assembly's save does not write it." : null;
@@ -428,7 +428,7 @@ public sealed class DocumentService(SwSession session)
             Path = path.Length == 0 ? null : path,
             Type = SwContext.TypeName(d.GetType()),
             Dirty = d.GetSaveFlag(),
-            Access = entry.Class.ToString().ToLowerInvariant(),
+            Access = entry.Access,
             Active = active is not null && DocLocator.SameDoc(active, d),
             Target = ctx.Documents.Target is not null && DocLocator.SameDoc(ctx.Documents.Target, d),
             Units = UnitName(d.Extension.GetUserPreferenceInteger((int)swUserPreferenceIntegerValue_e.swUnitSystem, 0)),

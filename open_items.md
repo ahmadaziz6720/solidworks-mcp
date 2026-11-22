@@ -17,7 +17,7 @@ Closed all the same, its PR named, and an open PR no longer holds an item in Wai
 item sent upstream ends with `**Upstream: PR #9, open.**`, one per PR or issue
 (`merged`, `closed unmerged`; an issue `open` or `closed`), kept to its state.
 
-**Open: S4, S5, S7, S10 to S12, S33, S34, S52, S60, S64, S65, S79 to S82, S85, S86, S92, S94, S96, S98 to S103, S105, S108, S109, S111, S115, S123 to S125.**
+**Open: S4, S5, S7, S10 to S12, S33, S34, S52, S60, S64, S65, S79 to S82, S85, S86, S92, S94, S96, S99 to S103, S105, S108, S109, S111, S115, S123 to S125.**
 Sorted 2026-11-22, the scenario test of build `20261122-142805` (findings 2026-11-22): S119,
 S84, S120, S121, S122, S93 and S117 held and closed; S118 not proved there (SOLIDWORKS in
 the good state, no false alarm), its proof moved to a session that meets S92's state; S123
@@ -583,8 +583,8 @@ its point.
 - [x] S106: committed (`cff9e5c`)
 - [x] S90: committed (`82087b8`)
 - [x] S52: committed (split out as S126) (`ca11c05`)
-- [x] S97 and S104: committed (material_list's description changed: docs/tools.md at the release)
-- [ ] S98: committed
+- [x] S97 and S104: committed (material_list's description changed: docs/tools.md at the release) (`fd64df4`)
+- [x] S98: committed (doc_open's description changed: docs/tools.md at the release)
 - [ ] S108: committed
 - [ ] Group 5: full live tests and release (build: )
 - [ ] Group 5: scenario test with S1's proof (session id: ), its entry committed and sorted
@@ -1899,18 +1899,6 @@ but it is the check a session needs most for a relation to a model edge.
 Proposed by the session: for a circular edge parallel to the sketch, the check reads the
 edge's centre and radius against the sketch circle's centre. Local. Not decided.
 
-### S98 - `doc_open {readOnly:true}` reports `access: owned` and says the server may edit it - OPEN 2026-11-18
-
-Sorted out of the entry of 2026-11-17 ("read-only checks of rebuilt parts and an assembly",
-point 1). A read-only check opened six parts and an assembly with `readOnly: true`; each came
-back `access: "owned"`, with the line that this server may edit it. Nothing was written only
-because the session's brief said so: the result invites an edit the open was meant to rule
-out.
-
-Proposed by the session: a read-only open reports its own access (`readOnly`), and the edit
-tools refuse on it with NOT_OWNED's hint. Local. Not decided.
-Decided 2026-11-21 by the owner: taken into the run of 2026-11-21, group 5: a read-only open reports `readOnly` and the edit tools refuse on it (`## Run 2026-11-21`).
-
 ### S99 - `sketch_import` of a DXF whose geometry is in a block, and an imported sketch `sketch_edit` refuses - OPEN 2026-11-18
 
 (a) Sorted out of the entry of 2026-11-17 ("a weldment profile made from a vendor's DXF",
@@ -2572,5 +2560,70 @@ twice in the databases; unit tests 346/346; `check_repo` ok.
 Made stricter: nothing refused; a folder given twice under two spellings is read once.
 Decided 2026-11-22 by the run, not the owner: the real 8.3 test skips when the volume has 8.3
 names off, because the rule is also held by the fake-resolver test, which needs none.
+Local: on `sw2023`, in the commit that moves it here; not yet in a build. Upstream: not yet
+decided.
+
+### S98 - `doc_open {readOnly:true}` reports `access: owned` and says the server may edit it - BUILT 2026-11-22, proof: the scenario test of the group 5 build
+
+Sorted out of the entry of 2026-11-17 ("read-only checks of rebuilt parts and an assembly",
+point 1). A read-only check opened six parts and an assembly with `readOnly: true`; each came
+back `access: "owned"`, with the line that this server may edit it. Nothing was written only
+because the session's brief said so: the result invites an edit the open was meant to rule
+out.
+
+Proposed by the session: a read-only open reports its own access (`readOnly`), and the edit
+tools refuse on it with NOT_OWNED's hint. Local. Not decided.
+Decided 2026-11-21 by the owner: taken into the run of 2026-11-21, group 5: a read-only open reports `readOnly` and the edit tools refuse on it (`## Run 2026-11-21`).
+
+Cause: a read-only open was registered as `Owned` with nothing to mark it, so `doc_list`,
+`sw_status` and the open's result read `owned`, the message said "this server may edit it",
+and the write guard in `SwContext.Bind` refused only `Foreign` documents.
+Fix: the registry entry carries `ReadOnly` (set by `doc_open {readOnly:true}`, kept in the
+registry file across a server restart), and `access` reads `readOnly`. The one write guard,
+`SwContext.Bind`, refuses every `DocAccess.Write` call on it with `NOT_OWNED`: "'<title>'
+(D<n>) was opened with readOnly, so this server won't modify it. Hint: To change it,
+doc_close it and doc_open it again without readOnly. doc_save mode 'copy' writes a copy as
+it is." A write that changes nothing of the design says so with `RunOptions.ReadOnlyOk`:
+`doc_rebuild` and `doc_save` mode `copy`. The open's message says it is the target for
+reading and the edit tools refuse it. A file SOLIDWORKS opens read-only on its own (a
+read-only file, one in use) without `readOnly` asked stays `owned` and editable as before.
+Descriptions: `doc_open` and its `readOnly`, `doc_list`'s access values, `sw_status` (its
+access list shortened to "access"), paid by dropping `doc_open`'s "(the user's documents stay
+read-only)"; the catalog went from 247.7 to 247.6 KB, `--check-catalog` ok. The guide's access
+line names `readOnly`.
+Before: `ExportLiveTests.A_read_only_open_is_reported`, now asserting `readOnly`, no "may
+edit", a sketch and `feature_extrude` refused with `NOT_OWNED`, the volume unchanged, failed
+"Assert.Equal() Failure: Strings differ, Expected: "readOnly", Actual: "owned"".
+After: it passes (also `doc_list` reads `readOnly`, `doc_save` mode `copy` writes, mode `as`
+refused `NOT_OWNED`); live, `A_read_only_document_that_got_dirty_closes_without_discard`
+(made dirty by `doc_rebuild {force:true}` now, as sessions did, not by an extrude the guard
+refuses), `A_saved_part_reopens_as_owned_target_with_its_geometry`,
+`Opening_a_part_does_not_report_the_stl_options_solidworks_derives_on_open`,
+`A_file_that_is_already_open_is_not_reopened_and_keeps_its_access`,
+`An_exported_step_imports_back_as_one_solid_of_the_same_volume`,
+`M0LiveTests.Foreign_documents_are_read_only`, `Dirty_owned_documents_need_save_or_discard`,
+`Save_copy_writes_a_fresh_file_and_refuses_overwrites`,
+`FeatureManagementLiveTests.Rebuild_of_a_clean_part_reports_no_errors`,
+`Undo_units_rebuild_and_delete_refuse_the_users_documents`,
+`AssemblyLiveTests.Pack_and_go_copies_the_assembly_its_parts_and_drawing_and_the_copies_reference_each_other`
+and `TopDownLiveTests.Saved_bodies_become_parts_with_their_volumes_and_an_assembly_of_them`
+pass, 13/13; unit tests 346/346 (`ContractTests.Tool_catalog_follows_the_conventions` among
+them); `check_repo` ok.
+Made stricter: every edit tool, `doc_save` mode `inPlace` and `as`, and `doc_undo` refuse a
+document opened with `readOnly:true`.
+Decided 2026-11-22 by the run, not the owner: `doc_save` on a read-only document writes mode
+`copy` and refuses `inPlace` and `as` with the hint above, because a copy changes nothing of
+the open document (a read of it), while `as` would turn it into an editable file the open
+was meant to rule out, and `inPlace` SOLIDWORKS refuses anyway.
+Decided 2026-11-22 by the run, not the owner: `doc_rebuild` still runs on a read-only
+document, because a rebuild changes nothing of the design and reading its errors is what a
+read-only check does; the dirt it leaves is discarded by `doc_close` as before.
+Decided 2026-11-22 by the run, not the owner: the way back to editing is `doc_close` and
+`doc_open` without `readOnly`, not `doc_activate {allowEdit:true}`, because SOLIDWORKS keeps
+the document read-only either way and a reopen is what `doc_pack`'s read-only refusal
+already asks for.
+Decided 2026-11-22 by the run, not the owner: the mark follows the `readOnly` asked, not
+SOLIDWORKS' `IsOpenedReadOnly`, because it is the caller's intent the access reports; a file
+SOLIDWORKS opened read-only unasked stays `owned` (saved by `copy` or `as`).
 Local: on `sw2023`, in the commit that moves it here; not yet in a build. Upstream: not yet
 decided.

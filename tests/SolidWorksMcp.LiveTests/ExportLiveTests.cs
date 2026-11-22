@@ -339,7 +339,28 @@ public class ExportLiveTests(LiveFixture fx) : LiveTest(fx)
         await new DocumentService(S).SaveAsync(doc, "copy", file, false);
         var r = await Open(file, readOnly: true);
         Assert.True(r.ReadOnly);
-        Assert.Equal("owned", r.Document.Access);
+        // S98: its own access, no line that the server may edit it, and the edit tools refuse on it.
+        Assert.Equal("readOnly", r.Document.Access);
+        Assert.DoesNotContain("may edit", r.Message);
+        var sk = new SketchService(S);
+        var ex = await Assert.ThrowsAsync<SwException>(async () =>
+        {
+            await sk.StartAsync(r.Document.Handle, new EntityRef { At = [0, 20, 0] }, false);
+            await sk.AddAsync(r.Document.Handle, [new SketchEntity { Kind = "circle", Center = [0, 20, 0], RadiusMm = 5 }]);
+            await new FeatureService(S).ExtrudeAsync(new ExtrudeRequest { Doc = r.Document.Handle, DepthMm = 5 });
+        });
+        Assert.Equal(ErrorCodes.NotOwned, ex.Code);
+        Assert.Contains("readOnly", ex.Message);
+        var info = await new InspectService(S).ModelInfoAsync(r.Document.Handle);
+        Assert.Equal(120000, info.VolumeMm3!.Value, V);
+        var list = await new DocumentService(S).ListAsync();
+        Assert.Equal("readOnly", list.Documents.Single(d => d.Handle == r.Document.Handle).Access);
+        // A copy is a read of it, and still written; Save As and a save in place are refused.
+        var copy = await new DocumentService(S).SaveAsync(r.Document.Handle, "copy", Path.Combine(_dir, "readonly_copy2.sldprt"), false);
+        Assert.True(File.Exists(copy.SavedTo));
+        var asEx = await Assert.ThrowsAsync<SwException>(() =>
+            new DocumentService(S).SaveAsync(r.Document.Handle, "as", Path.Combine(_dir, "readonly_as.sldprt"), false));
+        Assert.Equal(ErrorCodes.NotOwned, asEx.Code);
     }
 
     [Fact]
@@ -351,11 +372,9 @@ public class ExportLiveTests(LiveFixture fx) : LiveTest(fx)
         long size = new FileInfo(file).Length;
         var r = await Open(file, readOnly: true);
         Assert.True(r.ReadOnly);
-        // Any change makes it dirty; in sessions it was asm_interference or doc_rebuild with nothing edited.
-        var sk = new SketchService(S);
-        await sk.StartAsync(r.Document.Handle, new EntityRef { At = [0, 20, 0] }, false);
-        await sk.AddAsync(r.Document.Handle, [new SketchEntity { Kind = "circle", Center = [0, 20, 0], RadiusMm = 5 }]);
-        await new FeatureService(S).ExtrudeAsync(new ExtrudeRequest { Doc = r.Document.Handle, DepthMm = 5 });
+        // In sessions it got dirty by asm_interference or doc_rebuild with nothing edited; the edit tools refuse it (S98).
+        await new FeatureManagementService(S).RebuildAsync(r.Document.Handle, force: true);
+        Assert.True((await new DocumentService(S).ListAsync()).Documents.Single(d => d.Handle == r.Document.Handle).Dirty);
 
         var closed = await new DocumentService(S).CloseAsync(r.Document.Handle, save: false, discard: false);
         Assert.True(closed.DiscardedChanges);

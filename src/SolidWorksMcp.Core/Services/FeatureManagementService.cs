@@ -1121,7 +1121,7 @@ public sealed partial class FeatureManagementService(SwSession session)
                 var e = ctx.Documents.Track(o);
                 // Registered by this call: its change is the server's (S57), so a later change by the user still warns.
                 if (!listed) e.StampSeen = now;
-                ctx.Warn($"Also changed, not saved: '{ctx.Title(o)}' ({e.Handle}, {e.Class.ToString().ToLowerInvariant()}), a component's own document.");
+                ctx.Warn($"Also changed, not saved: '{ctx.Title(o)}' ({e.Handle}, {e.Access}), a component's own document.");
             }
             catch (Exception ex) when (!ComArgs.IsDisconnect(ex)) { /* a check, not the call's work */ }
         }
@@ -1182,7 +1182,7 @@ public sealed partial class FeatureManagementService(SwSession session)
                 DurationS = Math.Round(sw.Elapsed.TotalSeconds, 2),
                 Model = IsPart(d) ? Snapshot.Take(d).ToState() : null,
             };
-        }, RunOptions.Write(doc) with { Timeout = LongTimeout }, ct).ConfigureAwait(false);
+        }, RunOptions.Write(doc) with { Timeout = LongTimeout, ReadOnlyOk = true }, ct).ConfigureAwait(false);
 
     /// <summary>The What's Wrong list, completed with any feature whose own error code is set.</summary>
     private static List<FeatureError> CollectErrors(IModelDoc2 d)

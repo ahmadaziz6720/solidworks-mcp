@@ -105,6 +105,10 @@ internal sealed class SwContext
                 throw new SwException(ErrorCodes.NotOwned,
                     $"'{entry.Title}' ({entry.Handle}) is a document this server did not create or open, so it won't modify it.",
                     "If the user asked you to edit it, call doc_activate with allowEdit=true first (a backup copy is made). Otherwise create your own with doc_new.");
+            if (entry.ReadOnly && !options.ReadOnlyOk)
+                throw new SwException(ErrorCodes.NotOwned,
+                    $"'{entry.Title}' ({entry.Handle}) was opened with readOnly, so this server won't modify it.",
+                    "To change it, doc_close it and doc_open it again without readOnly. doc_save mode 'copy' writes a copy as it is.");
             CheckUserCommand();
             // S57: read before the re-activation below, which can bring in changes the server made through another document.
             int seen = doc.GetUpdateStamp();

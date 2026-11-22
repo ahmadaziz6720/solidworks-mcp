@@ -30,6 +30,12 @@ public sealed record RunOptions
     /// <summary>With <see cref="DocAccess.Read"/>: proceed with no document instead of failing NO_ACTIVE_DOC.</summary>
     public bool OptionalDoc { get; init; }
 
+    /// <summary>
+    /// With <see cref="DocAccess.Write"/>: also runs on a document opened read-only (S98), for a call that changes nothing
+    /// of its design (doc_rebuild, doc_save mode copy). Every other write is refused there.
+    /// </summary>
+    public bool ReadOnlyOk { get; init; }
+
     public static RunOptions Read(string? doc = null) => new() { Access = DocAccess.Read, Doc = doc };
     public static RunOptions Write(string? doc = null) => new() { Access = DocAccess.Write, Doc = doc };
 }

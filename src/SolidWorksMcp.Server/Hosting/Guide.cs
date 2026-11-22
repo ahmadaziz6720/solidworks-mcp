@@ -106,7 +106,8 @@ public static class Guide
           as D2, a title or a path). With no target, read-only tools use the active document; changes need a document you
           may edit (see access).
         - access: owned = created, opened or imported by this server (full access); adopted = a user document the user let
-          you edit (doc_activate allowEdit=true, after a backup); foreign = the user's (read-only for this server).
+          you edit (doc_activate allowEdit=true, after a backup); foreign = the user's (read-only for this server);
+          readOnly = opened by doc_open readOnly (the edit tools refuse it).
         - Never close, discard or overwrite the user's documents or files unless they asked.
 
         **Files.** Relative paths go under Documents\solidworks-mcp. Writes are allowed under the user profile, %TEMP% and
