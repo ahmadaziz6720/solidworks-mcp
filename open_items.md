@@ -17,7 +17,7 @@ Closed all the same, its PR named, and an open PR no longer holds an item in Wai
 item sent upstream ends with `**Upstream: PR #9, open.**`, one per PR or issue
 (`merged`, `closed unmerged`; an issue `open` or `closed`), kept to its state.
 
-**Open: S4, S5, S7, S10 to S12, S33, S34, S52, S60, S64, S65, S79 to S82, S85, S86, S90, S92, S94, S96 to S106, S108, S109, S111, S115, S118.**
+**Open: S4, S5, S7, S10 to S12, S33, S34, S52, S60, S64, S65, S79 to S82, S85, S86, S90, S92, S94, S96 to S106, S108, S109, S111, S115.**
 Sorted 2026-11-22, the scenario test of build `20261122-030022` (findings 2026-11-22): S116
 and S114 held and closed; S89 not proved there, its proof moved to a session that launches
 SOLIDWORKS; S117 and S118 new, reported `ok` while wrong, taken into the run's group 4; S92
@@ -525,8 +525,8 @@ its point.
 - [x] S64 (i): committed (split out as S121) (`69ae11e`)
 - [x] S64 (c): committed (split out as S122) (`3fa3cf4`)
 - [x] S93: committed (`b3abaf4`)
-- [x] S117: committed
-- [ ] S118: committed
+- [x] S117: committed (`ee5c4c5`)
+- [x] S118: committed
 - [ ] Group 4: full live tests and release (build: )
 - [ ] Group 4: scenario test (session id: ), its entry committed and sorted
 - [ ] S106: committed
@@ -2101,34 +2101,6 @@ Proposed: `dimension_list` on an assembly lists the components' dimensions by th
 `dimension_set` takes there (all, or one component's), beside the assembly's own. Local,
 small: not in this run, for the next plan. Not decided.
 
-### S118 - S112's sign misses S92's state when the globals are whole numbers: every derived row read 0 with no warning, and a batch refused blaming the expression, reported `ok` - OPEN 2026-11-22
-
-Sorted out of the entry of 2026-11-22 (the scenario test of build `20261122-030022`), point
-5, on S112's fix (Closed); S92's state met live. A part with ten globals, all set to whole
-numbers (`120mm`, `80mm`, ...), and thirteen dimension equations driven by them, opened
-read-only as the session's first equation read: `equation_list` read the ten globals right
-and every one of the thirteen dimension rows `"value":0`, reported `ok`, no warning. One
-batch `equation_set` of the ten globals to new values: `VERIFY_FAILED` "SOLIDWORKS kept the
-previous equation "<global>"= 120mm and did not take 140mm (a value the dimension can't
-have, such as 0?) ... and 6 more", hint "Check the expression (units, quoted names, existing
-variables)", rolled back: the expression blamed, S112 (a)'s restart wording absent. Cause:
-S112's sign is a global set to a plain number that reads back another value; in the state
-only a decimal number reads wrong (cut at the point) and a whole number reads right, so a
-document whose globals are whole numbers shows no sign though every derived row reads 0. The
-single `Add2` refusal on a new part did name the state (S116's proof, point 1).
-
-Local, in group 2's files (`EquationReadback.cs`, the equation tools).
-Decided 2026-11-22 by the run, not the owner: the sign is also a dimension row that reads 0
-while the globals it uses read non-zero (or a dimension row's value against the dimension's
-own value read from the model); and in a batch where every row is refused while that sign
-shows, the refusal names the state and the restart before the expression. Test to start
-from: the interop-free rule by unit tests (fails now: no such rule); the live equation tests
-passing in the good state. Default model.
-Decided 2026-11-22 by the run, not the owner: taken into group 4, by the run's rule "a new
-point, small and in the group's files, a later step of this run ... taken into the next
-group", because it extends S112's own sign and message in the equation files, found by group
-3's check.
-
 ## Waiting
 
 ### S1 - `drw_view_section` / `drw_view_detail` drew in view-sketch coordinates - BUILT 2026-11-09, proof: a session that runs `drw_view_detail` and a view at an angle
@@ -2651,5 +2623,75 @@ fault in one call, and refusing only the one-step undo would leave it passing as
 Decided 2026-11-22 by the run, not the owner: the changes are kept with the step after them
 in a new interop-free `UndoLedger`, unit-tested offline, rather than a second list beside
 `UndoSteps`, because the rule is then one function each for a write, an undo and a refusal.
+Local: on `sw2023`, in the commit that moves it here; not yet in a build. Upstream: not yet
+decided.
+
+### S118 - S112's sign misses S92's state when the globals are whole numbers: every derived row read 0 with no warning, and a batch refused blaming the expression, reported `ok` - BUILT 2026-11-22, proof: the scenario test of group 4's build
+
+Sorted out of the entry of 2026-11-22 (the scenario test of build `20261122-030022`), point
+5, on S112's fix (Closed); S92's state met live. A part with ten globals, all set to whole
+numbers (`120mm`, `80mm`, ...), and thirteen dimension equations driven by them, opened
+read-only as the session's first equation read: `equation_list` read the ten globals right
+and every one of the thirteen dimension rows `"value":0`, reported `ok`, no warning. One
+batch `equation_set` of the ten globals to new values: `VERIFY_FAILED` "SOLIDWORKS kept the
+previous equation "<global>"= 120mm and did not take 140mm (a value the dimension can't
+have, such as 0?) ... and 6 more", hint "Check the expression (units, quoted names, existing
+variables)", rolled back: the expression blamed, S112 (a)'s restart wording absent. Cause:
+S112's sign is a global set to a plain number that reads back another value; in the state
+only a decimal number reads wrong (cut at the point) and a whole number reads right, so a
+document whose globals are whole numbers shows no sign though every derived row reads 0. The
+single `Add2` refusal on a new part did name the state (S116's proof, point 1).
+
+Local, in group 2's files (`EquationReadback.cs`, the equation tools).
+Decided 2026-11-22 by the run, not the owner: the sign is also a dimension row that reads 0
+while the globals it uses read non-zero (or a dimension row's value against the dimension's
+own value read from the model); and in a batch where every row is refused while that sign
+shows, the refusal names the state and the restart before the expression. Test to start
+from: the interop-free rule by unit tests (fails now: no such rule); the live equation tests
+passing in the good state. Default model.
+Decided 2026-11-22 by the run, not the owner: taken into group 4, by the run's rule "a new
+point, small and in the group's files, a later step of this run ... taken into the next
+group", because it extends S112's own sign and message in the equation files, found by group
+3's check.
+Cause: S112's sign judged only a global set to a plain number; in the state a whole number
+reads right, and the rows defined from others, which all read 0, were not judged, so
+`Misreads` came back empty and both tools went on as in the good state.
+Fix: `EquationReadback.Misreads` (`src/SolidWorksMcp.Core/Services/EquationReadback.cs`) also
+judges the rows that are not a plain number and use only globals of the document that read
+non-zero: when two or more such rows have a value and every one of them reads 0, each is
+named (`GlobalMisread.FromOthers`), and `Sign` reads "SOLIDWORKS reads all 13 rows defined
+from globals that read non-zero as 0 ("D1@Sketch1", ... and 10 more): rows over non-zero
+values all read 0, the sign of the state ...". `equation_list` and `equation_set` read the
+sign through `Misreads` already, so the list warns, and a batch refused while it shows (the
+scenario test's ten globals) names the state and the restart with S112's hint in place of
+"Check the expression", "kept the previous equation" dropping its guess at the value. How
+it keeps a healthy part clean: a row over a global of 0, over a dimension or over a name
+with no row is not judged, one such row alone is not judged, and one row of 0 beside
+another that is not (`"g" - "h"` with `g` = `h`) shows no sign. No description changed.
+Before: the new `EquationReadbackTests.Every_row_from_non_zero_globals_read_0_is_the_sign_when_the_globals_are_whole_numbers`
+(three whole-number globals read right, three dimension rows and a global from them read
+0) failed, "Assert.Equal() Failure: Collections differ ... Expected: ["D1@Sketch1",
+"D2@Sketch1", "D1@Boss-Extrude1", "half"] Actual: []". After: it passes, with three more
+new tests for a healthy part (the same rows read right; a 0 beside a non-zero row; a single
+row of 0 and rows over a global of 0, a dimension or an unknown name: no sign), unit tests
+343/343; live, every test that calls `equation_list` or `equation_set` (the eleven of
+`PropertiesLiveTests`, six of `FeatureManagementLiveTests`, three of `AssemblyLiveTests`,
+the equal chamfer one of `PartFeatureLiveTests`), 21/21 in the good state, no warning where
+none was; `PropertiesOfflineTests` 22/22; `check_repo` ok. No live case of the state (S92
+(c)'s probe did not bring it on): the new sign is proved by the unit tests only.
+Made stricter: `equation_list` and `equation_set` warn, and a refusal names the state, on a
+document where every row from non-zero globals reads 0; nothing that passed is refused.
+Decided 2026-11-22 by the run, not the owner: the sign is a row over non-zero globals read 0,
+judged from the rows alone, not a dimension row against the dimension's value read from the
+model, because it needs no other read of the model, covers a global defined from others as
+well, and stays interop-free for the unit tests.
+Decided 2026-11-22 by the run, not the owner: the rows count only when two or more of them
+are judged and every one reads 0, because one row from globals can be 0 on a healthy part
+(`"g" - "h"`), and a sign on it would tell the user to restart a healthy SOLIDWORKS; a
+document with one such row in the state stays unflagged, as before.
+Decided 2026-11-22 by the run, not the owner: an all-refused batch names the state through
+the widened sign (S112's rule: any refusal while the sign shows), not by the count of
+refused rows alone, because a batch of values the dimensions can't take is refused the same
+way in the good state, where the restart would be a false lead.
 Local: on `sw2023`, in the commit that moves it here; not yet in a build. Upstream: not yet
 decided.

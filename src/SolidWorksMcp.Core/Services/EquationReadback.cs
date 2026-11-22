@@ -5,19 +5,23 @@ namespace SolidWorksMcp.Core.Services;
 
 // Interop-free half of the equation tools' value checks (linked into the offline unit tests).
 
-/// <summary>A global variable set to a plain number that SOLIDWORKS reads back as another value.</summary>
-public sealed record GlobalMisread(string Lhs, string Text, double Read);
+/// <summary>
+/// A global variable set to a plain number that SOLIDWORKS reads back as another value, or (<paramref name="FromOthers"/>)
+/// a row defined from globals that read non-zero, read as 0 as every other such row is (S118).
+/// </summary>
+public sealed record GlobalMisread(string Lhs, string Text, double Read, bool FromOthers = false);
 
 /// <summary>
 /// What a value SOLIDWORKS reads for an equation is checked against (equation_set's tier B), and the sign of the state in
 /// which SOLIDWORKS refuses every equation until it is restarted (S58 b, S92): in it, a global set to a plain number reads
-/// back as another value (60.4mm as 60, 0.5mm as 0) and every row defined from others as 0, before any write. A restart
-/// clears it. equation_list and equation_set read the sign from the document's own globals and name the restart.
+/// back as another value (60.4mm as 60, 0.5mm as 0; a whole number reads right) and every row defined from others as 0,
+/// before any write (S118). A restart clears it. equation_list and equation_set read the sign from the document's own globals and name the restart.
 /// </summary>
 internal static class EquationReadback
 {
     private static readonly Regex LiteralRx = new(@"^\s*([+-]?(?:\d+\.?\d*|\.\d+)(?:[eE][+-]?\d+)?)\s*([A-Za-zµ°'""]*)\s*$", RegexOptions.CultureInvariant);
     private static readonly Regex RhsRx = new(@"^\s*""[^""]+""\s*=(.*)$", RegexOptions.CultureInvariant);
+    private static readonly Regex QuotedRx = new(@"""([^""]+)""", RegexOptions.CultureInvariant);
 
     public const string RestartHint = "Save the open documents, restart SOLIDWORKS and repeat the call; the equation needs no change.";
 
@@ -89,27 +93,64 @@ internal static class EquationReadback
     /// <summary>
     /// Every global variable defined by a plain number whose value read back is another (rows as equation_list reads them;
     /// lin and ang are the document's meters and radians per unit). A row with no value, or not a plain number, or in a
-    /// unit not known here, is not judged.
+    /// unit not known here, is not judged. In the state a whole number reads right, so the rows defined from globals are
+    /// judged too (S118): when two or more of them use only globals that read non-zero and every one of those reads 0,
+    /// each is named. One such row alone, or one 0 beside others that are not, can be a healthy part's ("g" - "h").
     /// </summary>
     public static List<GlobalMisread> Misreads(IEnumerable<(string Lhs, string Text, bool Global, double? Value)> rows, double lin, double ang)
     {
+        var all = rows.ToList();
         var found = new List<GlobalMisread>();
-        foreach (var r in rows)
+        foreach (var r in all)
         {
             if (!r.Global || r.Value is not double read || Rhs(r.Text) is not { } rhs || Literal(rhs) is not { } lit) continue;
             if (lit.Unit.Length > 0 && UnitFactor(lit.Unit) is null) continue;
             if (!LiteralAgrees(read, lit, lin, ang) && !found.Any(f => string.Equals(f.Lhs, r.Lhs, StringComparison.OrdinalIgnoreCase)))
                 found.Add(new GlobalMisread(r.Lhs, r.Text, read));
         }
+        var derived = FromNonZeroGlobals(all);
+        if (derived.Count >= 2 && derived.All(r => r.Value == 0))
+            found.AddRange(derived.Where(r => !found.Any(f => string.Equals(f.Lhs, r.Lhs, StringComparison.OrdinalIgnoreCase)))
+                .Select(r => new GlobalMisread(r.Lhs, r.Text, 0, FromOthers: true)));
         return found;
     }
 
+    /// <summary>
+    /// The rows with a value that are not a plain number and use at least one name, every name a global variable of the
+    /// document that reads non-zero (a row over a 0, a dimension or a name with no row could be 0 on a healthy part).
+    /// </summary>
+    private static List<(string Lhs, string Text, bool Global, double? Value)> FromNonZeroGlobals(
+        List<(string Lhs, string Text, bool Global, double? Value)> rows)
+    {
+        var globals = new Dictionary<string, double?>(StringComparer.OrdinalIgnoreCase);
+        foreach (var r in rows.Where(r => r.Global)) globals.TryAdd(r.Lhs.Trim(), r.Value);
+        return rows.Where(r =>
+        {
+            if (r.Value is null || Rhs(r.Text) is not { } rhs || Literal(rhs) is not null) return false;
+            var names = QuotedRx.Matches(rhs).Select(m => m.Groups[1].Value.Trim()).ToList();
+            return names.Count > 0 && names.All(n => globals.TryGetValue(n, out var v) && v is double x && x != 0);
+        }).ToList();
+    }
+
     /// <summary>The sign, as a sentence without its full stop: which globals read as what, and the state it shows.</summary>
-    public static string Sign(IReadOnlyList<GlobalMisread> misreads) =>
-        "SOLIDWORKS reads " + string.Join(", ", misreads.Take(4).Select(m => $"{m.Text.Trim()} as {F(m.Read)}")) +
-        (misreads.Count > 4 ? $" and {misreads.Count - 4} more" : "") +
-        ": a global set to a number read back as another, the sign of the state in which SOLIDWORKS refuses or misreads " +
-        "every equation, in any document, until it is restarted";
+    public static string Sign(IReadOnlyList<GlobalMisread> misreads)
+    {
+        var plain = misreads.Where(m => !m.FromOthers).ToList();
+        var derived = misreads.Where(m => m.FromOthers).ToList();
+        var reads = new List<string>();
+        if (plain.Count > 0)
+            reads.Add(string.Join(", ", plain.Take(4).Select(m => $"{m.Text.Trim()} as {F(m.Read)}")) +
+                      (plain.Count > 4 ? $" and {plain.Count - 4} more" : ""));
+        if (derived.Count > 0)
+            reads.Add($"all {derived.Count} rows defined from globals that read non-zero as 0 (" +
+                      string.Join(", ", derived.Take(3).Select(m => $"\"{m.Lhs}\"")) +
+                      (derived.Count > 3 ? $" and {derived.Count - 3} more" : "") + ")");
+        var what = new List<string>();
+        if (plain.Count > 0) what.Add("a global set to a number read back as another");
+        if (derived.Count > 0) what.Add("rows over non-zero values all read 0");
+        return "SOLIDWORKS reads " + string.Join("; it reads ", reads) + ": " + string.Join(" and ", what) +
+               ", the sign of the state in which SOLIDWORKS refuses or misreads every equation, in any document, until it is restarted";
+    }
 
     /// <summary>equation_list's warning: its values are not to be trusted.</summary>
     public static string ListWarning(IReadOnlyList<GlobalMisread> misreads, DateTime? started = null) =>

@@ -116,6 +116,69 @@ public class EquationReadbackTests
         Assert.Equal("SOLIDWORKS kept the previous equation \"W\" = 100mm and did not take 73.5mm", inState);
     }
 
+    // S118: in the state a whole number reads right, so a document whose globals are all whole numbers shows S112's sign
+    // nowhere; every row defined from them reads 0 (ten globals, thirteen dimension rows, in the scenario test).
+    private static (string Lhs, string Text, bool Global, double? Value)[] WholeNumberGlobals(double derived) =>
+    [
+        Row("W", "120mm", 120), Row("H", "80mm", 80), Row("T", "6mm", 6),
+        Row("D1@Sketch1", "\"W\"", derived == 0 ? 0 : 120, global: false),
+        Row("D2@Sketch1", "\"H\" - 2 * \"T\"", derived == 0 ? 0 : 68, global: false),
+        Row("D1@Boss-Extrude1", "\"T\"", derived == 0 ? 0 : 6, global: false),
+        Row("half", "\"W\" / 2", derived == 0 ? 0 : 60),
+    ];
+
+    [Fact]
+    public void Every_row_from_non_zero_globals_read_0_is_the_sign_when_the_globals_are_whole_numbers()
+    {
+        var m = EquationReadback.Misreads(WholeNumberGlobals(0), Lin, Ang);
+        Assert.Equal(["D1@Sketch1", "D2@Sketch1", "D1@Boss-Extrude1", "half"], m.Select(x => x.Lhs));
+        Assert.All(m, x => Assert.True(x.FromOthers));
+        string sign = EquationReadback.Sign(m);
+        Assert.Contains("all 4 rows defined from globals that read non-zero as 0", sign);
+        Assert.Contains("D1@Sketch1", sign);
+        Assert.Contains("until it is restarted", sign);
+
+        // The batch of the scenario test, every global refused: the state and the restart, not the expression.
+        const string what = "equation_set, 3 of 3 equations: \"W\" = 140mm: SOLIDWORKS kept the previous equation \"W\" = 120mm";
+        var state = EquationReadback.VerifyFailed(what, "Nothing was changed.", m);
+        Assert.Contains("the expression is likely not at fault", state.Message);
+        Assert.DoesNotContain("Check the expression", state.Hint);
+        Assert.Contains("restart SOLIDWORKS", state.Hint);
+        Assert.Contains("all 4 rows defined from globals", EquationReadback.ListWarning(m));
+    }
+
+    [Fact]
+    public void The_same_rows_read_right_show_no_sign()
+    {
+        Assert.Empty(EquationReadback.Misreads(WholeNumberGlobals(1), Lin, Ang));
+    }
+
+    [Fact]
+    public void A_row_that_is_0_beside_rows_that_are_not_shows_no_sign()
+    {
+        // A healthy part: "g" - "h" is 0 when the two are equal; the other row from them reads its value.
+        var rows = new[]
+        {
+            Row("g", "60mm", 60), Row("h", "60mm", 60), Row("gap", "\"g\" - \"h\"", 0),
+            Row("D1@Sketch1", "\"g\" + \"h\"", 120, global: false),
+        };
+        Assert.Empty(EquationReadback.Misreads(rows, Lin, Ang));
+    }
+
+    [Fact]
+    public void A_single_row_read_0_or_rows_over_a_global_of_0_are_not_judged()
+    {
+        // One row alone can be 0 on a healthy part; a row over a global of 0 (or over a name with no row) can be 0 too.
+        Assert.Empty(EquationReadback.Misreads([Row("g", "60mm", 60), Row("h", "60mm", 60), Row("gap", "\"g\" - \"h\"", 0)], Lin, Ang));
+        var rows = new[]
+        {
+            Row("n", "0", 0), Row("W", "100mm", 100),
+            Row("D1@Sketch1", "\"W\" * \"n\"", 0, global: false), Row("D2@Sketch1", "\"n\"", 0, global: false),
+            Row("D3@Sketch1", "\"X\" * 2", 0, global: false), Row("D4@Sketch1", "\"D1@Sketch2\" * 2", 0, global: false),
+        };
+        Assert.Empty(EquationReadback.Misreads(rows, Lin, Ang));
+    }
+
     [Fact]
     public void Literals_parse_as_equation_set_checks_them()
     {
