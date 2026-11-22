@@ -2455,3 +2455,78 @@ Build `bin\0.1.0-20261122-030022` (`serverVersion` `0.1.0-sw2023-20261122-030022
    Not run: the ten-global intent round trip (point 5's state refused it).
 
 Sorted into S89 (2), checked; S117 (4), new; S118 (5), new; S92 (6), met again; S5 (7), met again, the rest of the regression held. Held: S116 (1), S114 (3); S112 (1), closed.
+
+**2026-11-22: scenario test of S119, S84, S120, S121, S122, S93, S117 and S118, with a short regression run**
+
+Build `bin\0.1.0-20261122-142805` (`serverVersion` `0.1.0-sw2023-20261122-142805+ed486b0`).
+
+1. **S119, held.** (a) A copy of a part whose mirrored ears were deleted with their children,
+   the ears mirrored again about the front plane: `checks` "the copy's faces have 1.052 x the
+   seed's area: faces merge differently from the seed's; the instance faces match", instance
+   faces 9/9, +7 183.229 mm³ as on earlier builds, no warning. (c) On a 100 × 60 × 20 block, a
+   blind Ø10 cut 20 deep from the top, renamed by `name`: "through: the end lies on the far face
+   (D1@<new name> reads 20 mm)", −1 570.796; a Ø4 cut 30 deep from the top of a 10 mm boss down
+   through the 20 mm block (30 of material along the cut): "through" too, −376.991; a Ø6 cut 25
+   deep through the 20 mm block keeps "no floor at 25 mm: the cut broke out of the body before
+   its end".
+2. **S84 (b), held.** A Ø10 boss at x = 40 patterned toward −x, 3 × 30, `name` "Row":
+   "direction flipped", +1 570.796, no rebuild line. A 10 × 10 × 3 block on the top patterned
+   toward −x, 4 × 30, `name` "Row2", the last instance off the block: one line, "'Row2' has
+   rebuild warning 51 (swSketchErrorExtRefFail).", `feature.warning` true, +600.
+3. **S120, held.** A Ø3.2 hole cut through a block's top face, then on that face a concentric
+   Ø6.5 circle: `regions: 1` (the ring); a Ø8 circle beside it in a second `sketch_add`:
+   `regions: 2`; a 2 mm cut from both, −150.812 = the hand figure (ring 50.281 + disc 100.531).
+   On the front plane, two circles in two calls read 2, a circle around the first plus a hexagon
+   in a third call 4, a line joining two opposite corners of the hexagon 5.
+4. **S121, held.** Equal 3 mm chamfers on two block edges, one of them named by `name`: each
+   result's `checks` names both legs ("legs D1@<name> and D3@<name> are separate dimensions:
+   drive both ..."), by the new name. One batch with a global `W` = 5mm and an equation on one
+   leg of the first: written, −300, and the warning naming the other leg and its 3 mm; a batch
+   with `V` = 4mm on both legs of the second: no warning, −350; the other leg of the first in a
+   later call of its own: no warning, −500. The equal chamfer of a bore's edge on an earlier part
+   carries the legs line too, −134.041, no warning.
+5. **S122, held.** The plate whose ends run in a quarter round R7 into a face 30° off their
+   tangent, 10 thick mid-plane: the right round alone at 1 mm, `propagate` off: `FEATURE_FAILED`
+   with "edge E5 ends tangent to E6, not in the call: turn `propagate` on or add it."; both
+   rounds at 0.5: both joints named. Adding the top edge to the call (all three, `propagate`
+   off) builds, −25.993, round face r 1.
+6. **S93, held.** A block with an r 5 fillet on two vertical edges (`propagate` off), the
+   block's sketch reopened and the corner under one edge chamfered 10 in the sketch:
+   `sketch_finish` warned "'Fillet1' now has rebuild warning 13 (swFeatureErrorFilletNoEdge).";
+   the sketch reopened and closed again unchanged: no warning. Small: both `sketch_finish`
+   results list `dimensions` `D3@Sketch1` twice, where `dimension_list` of the sketch has the one
+   dimension the sketch chamfer made; and `sketch_edit` reads `segments: 7` where
+   `sketch_finish` of the same sketch reads 5 (the rectangle's two construction diagonals counted
+   by one and not the other).
+7. **S117, held.** A boss patterned, the base extrude renamed, the pattern suppressed, then
+   `doc_undo`: `unsuppressed` the pattern; `doc_undo` again: `NOT_SUPPORTED` naming
+   `feature_rename` and "the server's feature_pattern_linear" before it. The pattern suppressed
+   again, then `doc_undo {steps:2}`: refused, "before its last 1 undo step(s) (feature_rename)",
+   hint "Pass steps ≤ 1."; one step then ran.
+8. **S118, the good state only.** SOLIDWORKS was in the good state: a part with ten whole-number
+   globals and thirteen rows from them listed every row right, no warning; the ten globals
+   changed in one batch and back, 173 487.816 then 108 553.103, no warning. On a probe part, a
+   global defined as `"W" - "V" - 1mm` reading 0 beside rows that read non-zero gave only the
+   old "evaluates to 0" line, no sign of the state. The state did not come on, so the new sign
+   and the refusal's wording were not seen live.
+9. **`feature_fillet` builds a radius twice the faces' width, consuming a face, reported `ok`
+   with no warning** (S64, a new point). On that 10 × 10 plate section, a constant R20 fillet
+   of the long bottom front edge, `propagate` off, meant as a probe of the radius hint, built:
+   −4 675.894 mm³ (42 % of the part), `faceCountDelta` −1, the box's bottom rising from y −5 to
+   −3.84; `checks` only "volume" and "round face r 20 mm". The round runs across most of the
+   front and bottom faces (a screenshot from the side shows a quarter of the section cut off by
+   the arc). SOLIDWORKS overflowed the fillet; a session would expect a refusal or at least a
+   warning. Proposed: warn when a face of the edge is gone after the fillet, or the radius
+   exceeds the width of a face it blends, naming that face.
+10. **`feature_pattern_linear` averages the volume over an instance that formed nothing.** In
+    point 2's second case: "volume change per instance 200 mm³ (3 instance(s))", where two
+    instances added 300 each and the one off the block added nothing. The warnings said that 2
+    of 15 instance faces were not found, so nothing was hidden, but the per-instance figure
+    names no instance's real volume. Small.
+11. Held, regression: a part opened read-only, force rebuild 174 346.977 mm³, mass 221.42 g,
+    area 116 546.84 mm², box 233 × 68.28 × 174; STEP export and `doc_open` of it, 16 surface
+    bodies (S5, as before); a hinge assembly read-only, interference 0; the hand-built two-part
+    assembly, 2 components, plate fixed, shaft 2 mates without error, 127 402.659 mm³, shaft
+    60 → 80 from the assembly +6 283.185, mates without error, back to 60, closed discarded,
+    files unchanged; a 1:2 plan with two sections on the owner's A3 template, 1 and 3 hatched
+    faces; `doc_undo` in a drawing refused.
