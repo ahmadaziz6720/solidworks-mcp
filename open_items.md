@@ -212,10 +212,19 @@ answer below, across as many sessions as it needs, from the first step not ticke
   the pid, the transcript's mtime past 30 minutes, `sleep 60`), one notification at the end. The
   launcher is started with its path quoted (`-File "\"<path>\""`): unquoted, the space in the
   user folder killed it at once; the pid and the transcript read ~25 s after the start.
+- **Session 3** (2026-11-22, the run): each group's release and check are handed to subagents
+  too, the check at the owner's word ("uji skenario di sesi ini aja, kasi ke sub agent"): a
+  Sonnet subagent frees memory, restarts SOLIDWORKS, starts `check<n>.ps1` detached, watches it
+  to its `EXIT` and resumes it, one report at the end; the main session commits the entry and
+  hands its sort to a default-model subagent with the decisions per point. Group 4's release
+  ran `runall.ps1` at `-MinFreeMB 400` to keep the requeues down (S84 (b) runs in every feature
+  call, so 24 classes, about 195 min). The owner moves to a new session after each group's
+  sort, not mid-group (2026-11-22).
 - **Left for the end of the run** (to file as items with the report): S81's probe saw once, in
   one variant (`doc_open` then `doc_activate` of parts loaded only by the assembly), the live
   fixture's "System preferences changed by this test: Double2: 0.000131 -> 1.085e-05", cause
-  not known.
+  not known. S64 (i), now S121 (closed): `dimension_set` on one leg of an equal chamfer does not
+  warn of the other, and `feature_chamfer`'s edit path gives no legs line (outside its step).
 
 ### Items
 
@@ -569,7 +578,7 @@ its point.
   (its `SWMCP_VBA=on` kept) and this repo, each read back from `~/.claude.json` on the new exe; tag `build-20261122-142805` pushed and read
   back, release page with no files (`ahmadaziz6720/solidworks-mcp` releases, `build-20261122-142805`). SOLIDWORKS restarted from its exe at the end.
   Cost: Sonnet, see the report.
-- [x] Group 4: scenario test (session id: `4f75820d-6e87-4a46-a4f6-093d30178ee6`), its entry committed and sorted (entry `693fd0a`; ended `EXIT 0` 14:41; S119, S84, S120, S121, S122, S93 and S117 held and closed, S118 not proved there (the good state, no false alarm) and its proof moved, S123 to S125 new into group 7, S5 again; release notes updated)
+- [x] Group 4: scenario test (session id: `4f75820d-6e87-4a46-a4f6-093d30178ee6`), its entry committed and sorted (entry `693fd0a`; ended `EXIT 0` 14:41; S119, S84, S120, S121, S122, S93 and S117 held and closed, S118 not proved there (the good state, no false alarm) and its proof moved, S123 to S125 new into group 7, S5 again; release notes updated) (`6f49cc1`)
   Started 14:31 2026-11-22, free memory 2335 MB with SOLIDWORKS restarted from its exe; launcher `%LOCALAPPDATA%\solidworks-mcp\livetest\run-1121\check4.ps1`, launcher pid 2776, output check4.out.txt and check4.err.txt beside it; started and watched by a Sonnet subagent at the owner's word (2026-11-22, "uji skenario di sesi ini aja, kasi ke sub agent"); no resume; about 10 min.
 - [ ] S106: committed
 - [ ] S90: committed
