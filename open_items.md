@@ -554,7 +554,7 @@ its point.
   (its `SWMCP_VBA=on` kept) and this repo, each read back from `~/.claude.json` on the new exe; tag `build-20261122-142805` pushed and read
   back, release page with no files (`ahmadaziz6720/solidworks-mcp` releases, `build-20261122-142805`). SOLIDWORKS restarted from its exe at the end.
   Cost: Sonnet, see the report.
-- [ ] Group 4: scenario test (session id: ), its entry committed and sorted
+- [ ] Group 4: scenario test (session id: `4f75820d-6e87-4a46-a4f6-093d30178ee6`), its entry committed and sorted
 - [ ] S106: committed
 - [ ] S90: committed
 - [ ] S52: committed
