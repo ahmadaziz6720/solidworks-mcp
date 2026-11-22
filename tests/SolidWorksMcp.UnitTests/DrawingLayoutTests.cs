@@ -347,6 +347,45 @@ public class DrawingLayoutTests
     }
 
     [Fact]
+    public void A_section_s_footprint_holds_its_outline_margin_and_its_label()
+    {
+        // S90, as read live on 2023 SP3 at a 1:2 sheet: a 50 x 10 section at [295, 66.25, 345, 76.25] had its outline at
+        // [289.06, 60.31, 350.94, 82.19] and its label's box at [297.152, 54.202, 342.471, 62.22].
+        var view = new SheetRect(295, 66.25, 345, 76.25);
+        var f = DrawingLayout.SectionFootprint(view);
+        Assert.True(new SheetRect(289.06, 60.31, 350.94, 82.19).Inside(f), $"outline not inside {f}");
+        Assert.True(new SheetRect(297.152, 54.202, 342.471, 62.22).Inside(f), $"label not inside {f}");
+        Assert.Equal(view.Cx, f.Cx, 6);
+        // A narrow view: the label is wider than it and sets the width.
+        var narrow = DrawingLayout.SectionFootprint(new SheetRect(100, 100, 110, 160));
+        Assert.True(narrow.W >= DrawingLayout.LabelWidth - 1e-9);
+    }
+
+    [Fact]
+    public void A_section_is_placed_where_its_label_clears_the_title_block()
+    {
+        // S90: a 50 x 10 section "down" from its parent, the title block's top at y 65.25. The view alone fits at y 76 to 86;
+        // with its label (down to 12.1 below it) "down" has no place, the label would lie across the block.
+        var parent = new SheetRect(289, 101, 351, 142.88);
+        var area = new SheetRect(10, 10, 410, 287);
+        var title = new SheetRect(230, 10, 410, 65.25);
+        var (_, _, free0) = DrawingLayout.SideSpot(parent, "down", 50, 10, [title], area);
+        Assert.True(free0);
+        var (_, _, free) = DrawingLayout.SideSpot(parent, "down", 50, 10, [title], area, footprint: DrawingLayout.SectionFootprint);
+        Assert.False(free);
+        // "up" is free, aligned, and its label (below it) clears the parent too.
+        var (ux, uy, ufree) = DrawingLayout.SideSpot(parent, "up", 50, 10, [parent, title], area, footprint: DrawingLayout.SectionFootprint);
+        Assert.True(ufree);
+        Assert.Equal(parent.Cx, ux, 6);
+        var foot = DrawingLayout.SectionFootprint(SheetRect.Around(ux, uy, 50, 10));
+        Assert.False(foot.Overlaps(parent, 5));
+        // The free-space fallback counts it as well.
+        var (fx, fy, ffree) = DrawingLayout.FindSpot(area, [title], 50, 10, [(320, 71.25)], footprint: DrawingLayout.SectionFootprint);
+        Assert.True(ffree);
+        Assert.False(DrawingLayout.SectionFootprint(SheetRect.Around(fx, fy, 50, 10)).Overlaps(title, 5));
+    }
+
+    [Fact]
     public void Free_spots_fall_back_to_the_nearest_free_place()
     {
         var area = new SheetRect(0, 0, 200, 100);

@@ -389,6 +389,35 @@ public class DrawingLiveTests(LiveFixture fx) : LiveTest(fx)
     }
 
     [Fact]
+    public async Task A_section_with_no_atMm_is_placed_so_its_own_label_clears_the_title_block()
+    {
+        // S90: the free-space search counted the view's box, not the label SOLIDWORKS draws under it, so a section "down"
+        // from a view near the title block came to lie with its label across it (1:2 sheet, the sheet's scale).
+        var (_, path) = await BlockAsync("drw_section_label");
+        string drw = await DrawingAsync("drw_section_label");
+        var sheet = (await Drw.SheetSetupAsync(new DrwSheetRequest { Doc = drw, Scale = "1:2" })).Sheet;
+        var title = sheet.TitleBlockMm!;
+        var front = (await Drw.ViewsStandardAsync(path, ["front"], null, drw)).Views[0];
+        // The front view (50 x 30 at 1:2) above the title block: the section under it (50 x 10) would end 1 mm over the block.
+        double wantY0 = title[3] + 1 + 10 + 15; // the parent's bottom: section 10 high, 15 mm gap
+        var at = await Drw.ViewEditAsync(new DrwViewEditRequest { Doc = drw, Kind = "move", View = front.Name, AtMm = [320, wantY0 + 15] });
+        var bounds = at.View.BoundsMm!;
+        var shift = await Drw.ViewEditAsync(new DrwViewEditRequest { Doc = drw, Kind = "move", View = front.Name,
+            AtMm = [320, at.View.CenterMm![1] + (wantY0 - bounds[1])] });
+        Assert.Equal(wantY0, shift.View.BoundsMm![1], 0.5);
+
+        var b = shift.View.ModelBoxMm!;
+        double cy = (b[1] + b[3]) / 2;
+        var sec = await Drw.SectionAsync(front.Name, [b[0] - 10, cy], [b[2] + 10, cy], null, null, drw);
+        string said = string.Join(" | ", sec.Warnings ?? []);
+        // "Down" has no room for the section and its label; the section is above its parent, its label between them, clear.
+        Assert.True(!(sec.Warnings ?? []).Any(w => w.Contains("overlaps")), $"warnings: {said}; section [{string.Join(", ", sec.View.BoundsMm!)}] parent [{string.Join(", ", shift.View.BoundsMm!)}]");
+        Assert.Contains(sec.Checks!, c => c.Contains("clear of the title block"));
+        Assert.True(sec.View.BoundsMm![1] >= shift.View.BoundsMm![3], $"the section {string.Join(", ", sec.View.BoundsMm)} is not above its parent {string.Join(", ", shift.View.BoundsMm)}");
+        Assert.Equal(shift.View.CenterMm![0], sec.View.CenterMm![0], 0.5);
+    }
+
+    [Fact]
     public async Task A_drawing_shows_no_open_sketch_before_or_after_a_section()
     {
         // In a drawing SketchManager.ActiveSketch always names the sheet's or the active view's own sketch, from the new

@@ -761,7 +761,7 @@ public sealed partial class DrawingService(SwSession session)
             double along = Math.Abs(ux) * geo.W + Math.Abs(uy) * geo.H;
             bool vertical = Math.Abs(uy) >= Math.Abs(ux);
             var (w, h) = vertical ? (depth, along) : (along, depth);
-            var (x, y) = at ?? Place(sheet, hit, w, h, vertical ? ["right", "left"] : ["down", "up"], ctx);
+            var (x, y) = at ?? Place(sheet, hit, w, h, vertical ? ["right", "left"] : ["down", "up"], ctx, DrawingLayout.SectionFootprint);
 
             var checks = new List<string>();
             ISketchSegment? seg = null;
@@ -2029,19 +2029,26 @@ public sealed partial class DrawingService(SwSession session)
 
     /// <summary>
     /// A free spot for a new view next to its parent: aligned with it on the preferred sides first (as close as the other
-    /// views allow), then the free place nearest to those; warns when nothing is free.
+    /// views allow), then the free place nearest to those; warns when nothing is free. The format's border and blocks (the
+    /// title block) count (S90); <paramref name="footprint"/> maps the view's box to what it covers with its label.
     /// </summary>
-    private static (double X, double Y) Place(ISheet sheet, ViewHit parent, double w, double h, string[] sides, SwContext ctx)
+    private static (double X, double Y) Place(ISheet sheet, ViewHit parent, double w, double h, string[] sides, SwContext ctx,
+        Func<SheetRect, SheetRect>? footprint = null)
     {
         var area = SheetArea(sheet);
         var occupied = Occupied(sheet);
+        if (FrameOfSheet(ctx.Drawing(), sheet) is { } frame)
+        {
+            occupied.AddRange(frame.Blocks);
+            if (frame.Border is SheetRect border) area = new SheetRect(Math.Max(area.X0, border.X0), Math.Max(area.Y0, border.Y0), Math.Min(area.X1, border.X1), Math.Min(area.Y1, border.Y1));
+        }
         var outline = Outline(parent);
         foreach (var side in sides)
         {
-            var (sx, sy, ok) = DrawingLayout.SideSpot(outline, side, w, h, occupied, area);
+            var (sx, sy, ok) = DrawingLayout.SideSpot(outline, side, w, h, occupied, area, footprint: footprint);
             if (ok) return (sx, sy);
         }
-        var (x, y, free) = DrawingLayout.FindSpot(area, occupied, w, h, DrawingLayout.SideCandidates(outline, w, h, sides));
+        var (x, y, free) = DrawingLayout.FindSpot(area, occupied, w, h, DrawingLayout.SideCandidates(outline, w, h, sides), footprint: footprint);
         if (!free) ctx.Warn($"No free space of {Math.Round(w)} x {Math.Round(h)} mm next to '{parent.Name}'; the new view may overlap others (pass atMm).");
         return (x, y);
     }

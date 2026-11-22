@@ -17,7 +17,7 @@ Closed all the same, its PR named, and an open PR no longer holds an item in Wai
 item sent upstream ends with `**Upstream: PR #9, open.**`, one per PR or issue
 (`merged`, `closed unmerged`; an issue `open` or `closed`), kept to its state.
 
-**Open: S4, S5, S7, S10 to S12, S33, S34, S52, S60, S64, S65, S79 to S82, S85, S86, S90, S92, S94, S96 to S105, S108, S109, S111, S115, S123 to S125.**
+**Open: S4, S5, S7, S10 to S12, S33, S34, S52, S60, S64, S65, S79 to S82, S85, S86, S92, S94, S96 to S105, S108, S109, S111, S115, S123 to S125.**
 Sorted 2026-11-22, the scenario test of build `20261122-142805` (findings 2026-11-22): S119,
 S84, S120, S121, S122, S93 and S117 held and closed; S118 not proved there (SOLIDWORKS in
 the good state, no false alarm), its proof moved to a session that meets S92's state; S123
@@ -580,8 +580,8 @@ its point.
   Cost: Sonnet, see the report.
 - [x] Group 4: scenario test (session id: `4f75820d-6e87-4a46-a4f6-093d30178ee6`), its entry committed and sorted (entry `693fd0a`; ended `EXIT 0` 14:41; S119, S84, S120, S121, S122, S93 and S117 held and closed, S118 not proved there (the good state, no false alarm) and its proof moved, S123 to S125 new into group 7, S5 again; release notes updated) (`6f49cc1`)
   Started 14:31 2026-11-22, free memory 2335 MB with SOLIDWORKS restarted from its exe; launcher `%LOCALAPPDATA%\solidworks-mcp\livetest\run-1121\check4.ps1`, launcher pid 2776, output check4.out.txt and check4.err.txt beside it; started and watched by a Sonnet subagent at the owner's word (2026-11-22, "uji skenario di sesi ini aja, kasi ke sub agent"); no resume; about 10 min.
-- [x] S106: committed
-- [ ] S90: committed
+- [x] S106: committed (`cff9e5c`)
+- [x] S90: committed
 - [ ] S52: committed
 - [ ] S97 and S104: committed
 - [ ] S98: committed
@@ -1760,19 +1760,6 @@ binding went to the name `sketch_constrain` returned. Not said whether S54 (c)'s
 fired; the order the session used avoided the case.
 Decided 2026-11-21 by the owner: (a) taken into the run of 2026-11-21, group 7; (b) stays Open (`## Run 2026-11-21`).
 
-### S90 - `drw_view_section` with no `atMm` places a section so its own label overlaps the title block - OPEN 2026-11-17
-
-Sorted out of the entry of 2026-11-17 (the scenario test of build `20261117-012659`), point
-7; met in three scenario tests. `drw_view_section` with no `atMm` placed a section of a 1:2
-plan where its own view label overlaps the title block by about 0.2 mm, and warned of it
-("view label … overlaps the title block"). The warning is right, so not reported `ok`
-while wrong; the free-space placement does not count the label the call is about to make.
-
-Proposed: the free-space placement counts the view's label with the view before it places
-it. Local, in the drawing code, not group 5's files: for the next plan, not this run. Not
-decided.
-Decided 2026-11-21 by the owner: taken into the run of 2026-11-21, group 5 (`## Run 2026-11-21`).
-
 ### S92 - SOLIDWORKS' state that refuses every equation (S58 (b)) again: hints that blame the expression, `equation_list` wrong, a restart not told - OPEN 2026-11-18
 
 Sorted out of four entries of 2026-11-17 ("an edit to three parts and their assembly",
@@ -2457,5 +2444,61 @@ Decided 2026-11-22 by the run, not the owner: the view check (a view added or mo
 counts the tables, though the plan named only the table, note and dimension checks, because
 its check claims "no overlaps with other views or their annotations" and a table is one; one
 clause, no new option.
+Local: on `sw2023`, in the commit that moves it here; not yet in a build. Upstream: not yet
+decided.
+
+### S90 - `drw_view_section` with no `atMm` places a section so its own label overlaps the title block - BUILT 2026-11-22, proof: the scenario test of the group 5 build
+
+Sorted out of the entry of 2026-11-17 (the scenario test of build `20261117-012659`), point
+7; met in three scenario tests. `drw_view_section` with no `atMm` placed a section of a 1:2
+plan where its own view label overlaps the title block by about 0.2 mm, and warned of it
+("view label … overlaps the title block"). The warning is right, so not reported `ok`
+while wrong; the free-space placement does not count the label the call is about to make.
+
+Proposed: the free-space placement counts the view's label with the view before it places
+it. Local, in the drawing code, not group 5's files: for the next plan, not this run. Not
+decided.
+Decided 2026-11-21 by the owner: taken into the run of 2026-11-21, group 5 (`## Run 2026-11-21`).
+Cause: `Place` (`DrawingService.cs`), which `drw_view_section` and `drw_view_detail` use with no
+`atMm`, searched free space for the view's geometry box only, against the other views'
+outlines and the sheet's 5 mm edge: not the outline margin SOLIDWORKS draws round the view
+(5.94 mm read at a 1:2 sheet), not the label it draws under a section (its box 4.03 to 12.05
+mm below the geometry, 45.3 mm wide for "SECTION A-A", partly outside the outline), and not
+the format's border or title block at all, so a section "down" from a view near the title
+block was placed across it.
+Fix: the interop-free `DrawingLayout.SectionFootprint` (the geometry box with the outline
+margin and the label, constants read live) is what `SideSpot` and `FindSpot` test for a
+section (a new optional `footprint` argument, the view stays aligned with its parent);
+`Place` adds the format's blocks (the title block) to the occupied boxes and the border to
+the area, for sections and details alike. A section with no room "down" takes "up" (its
+label between it and the parent) or the nearest free place; a section with no free place
+still warns as before.
+Before: the new `DrawingLiveTests.A_section_with_no_atMm_is_placed_so_its_own_label_clears_the_title_block`
+(1:2 sheet, the block's front view above the title block, a horizontal cut) failed: the
+section at [289.06, 60.31, 350.94, 82.19] "overlaps the title block [230, 10, 410, 65.25]; view
+label 'DetailItem230' of 'Section View A-A' [297.152, 54.202, 342.471, 62.22] overlaps the
+title block".
+After: it passes (the section above its parent, aligned, no overlap warning, "clear of the
+title block"); live, every test that calls `Place` or makes a section or detail, 9/9
+(`Section_through_the_middle_is_a_hatched_section_view`,
+`A_section_s_model_box_is_what_lies_behind_the_cut`,
+`A_drawing_shows_no_open_sketch_before_or_after_a_section`,
+`Detail_of_a_corner_has_the_requested_scale`, `Detail_leaves_no_sketch_open`,
+`Moving_an_annotation_or_a_view_s_label_onto_another_text_is_warned`,
+`Views_move_with_their_aligned_children_and_are_deleted`,
+`A_parent_with_a_section_is_deleted_only_with_its_children`, and the new one); unit tests
+346/346 (new `DrawingLayoutTests.A_section_s_footprint_holds_its_outline_margin_and_its_label`
+and `A_section_is_placed_where_its_label_clears_the_title_block`); `check_repo` ok. No
+description changed.
+Made stricter: a section or detail with no `atMm` keeps 5 mm clear of the title block and
+inside the border, and a section also clear of its label's box; nothing that passed is
+refused.
+Decided 2026-11-22 by the run, not the owner: the title block and the border count for
+details as well as sections, because the one `Place` serves both and a detail placed across
+the title block is the same fault; only the label's footprint is the section's.
+Decided 2026-11-22 by the run, not the owner: the outline margin and the label's box are
+constants read at a 1:2 sheet on 2023 SP3 (6, 12.1 and 46 mm, rounded up), not read from the
+new view, because its size is known only after it is made, and the call's own overlap check
+still warns when they are off; whether the margin scales with the sheet is not known.
 Local: on `sw2023`, in the commit that moves it here; not yet in a build. Upstream: not yet
 decided.

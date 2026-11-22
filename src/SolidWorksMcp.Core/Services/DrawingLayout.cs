@@ -441,13 +441,15 @@ internal static class DrawingLayout
     /// <summary>
     /// The first candidate centre whose rectangle fits <paramref name="usable"/> without touching <paramref name="occupied"/>,
     /// else the free grid position nearest to the first candidate; Free is false when nothing fits (the first candidate is returned).
+    /// <paramref name="footprint"/> maps the view's box to what it really covers (S90: its outline margin and label).
     /// </summary>
     public static (double X, double Y, bool Free) FindSpot(SheetRect usable, IReadOnlyList<SheetRect> occupied, double w, double h,
-        IReadOnlyList<(double X, double Y)> candidates, double gap = 5)
+        IReadOnlyList<(double X, double Y)> candidates, double gap = 5, Func<SheetRect, SheetRect>? footprint = null)
     {
         bool Ok(double cx, double cy)
         {
             var r = SheetRect.Around(cx, cy, w, h);
+            if (footprint is not null) r = footprint(r);
             return r.Inside(usable) && !occupied.Any(o => r.Overlaps(o, gap));
         }
         foreach (var (cx, cy) in candidates)
@@ -465,6 +467,27 @@ internal static class DrawingLayout
         return best is { } b ? (b.X, b.Y, true) : (first.Item1, first.Item2, false);
     }
 
+    /// <summary>The outline margin SOLIDWORKS 2023 SP3 draws round a view's geometry (mm; 5.94 read at a 1:2 sheet).</summary>
+    public const double ViewMargin = 6;
+
+    /// <summary>How far below a section's geometry its label's box reaches (mm; the label "SECTION A-A" read 4.03 to 12.05 below it).</summary>
+    public const double LabelDrop = 12.1;
+
+    /// <summary>The width of a section's label box, centred on the view (mm; 45.3 read for "SECTION A-A").</summary>
+    public const double LabelWidth = 46;
+
+    /// <summary>
+    /// What a new section view covers on the sheet (S90): its geometry <paramref name="view"/> with the outline margin and the
+    /// label SOLIDWORKS draws under it (the outline does not hold the label's lower part), as the free-space search has to
+    /// count it, or the view lands with its own label across the title block or another view.
+    /// </summary>
+    public static SheetRect SectionFootprint(SheetRect view)
+    {
+        var outline = view.Inflate(ViewMargin);
+        return new SheetRect(Math.Min(outline.X0, view.Cx - LabelWidth / 2), Math.Min(outline.Y0, view.Y0 - LabelDrop),
+            Math.Max(outline.X1, view.Cx + LabelWidth / 2), outline.Y1);
+    }
+
     /// <summary>Candidate centres beside a parent view: the preferred side first, then the others.</summary>
     public static List<(double X, double Y)> SideCandidates(SheetRect parent, double w, double h, params string[] preferred)
     {
@@ -475,15 +498,17 @@ internal static class DrawingLayout
     /// <summary>
     /// The centre of a <paramref name="w"/> × <paramref name="h"/> view on one side of <paramref name="parent"/> and aligned
     /// with it, as close as possible without touching <paramref name="occupied"/> and inside <paramref name="area"/>. Free is
-    /// false when there is no such place (the closest position is returned).
+    /// false when there is no such place (the closest position is returned). <paramref name="footprint"/> maps the view's box
+    /// to what it really covers (S90), the view stays aligned with the parent.
     /// </summary>
     public static (double X, double Y, bool Free) SideSpot(SheetRect parent, string side, double w, double h,
-        IReadOnlyList<SheetRect> occupied, SheetRect area, double gap = Gap, double clearance = 5)
+        IReadOnlyList<SheetRect> occupied, SheetRect area, double gap = Gap, double clearance = 5, Func<SheetRect, SheetRect>? footprint = null)
     {
         for (double d = gap; d <= 5000; d += 5)
         {
             var (x, y) = Beside(parent, side, w, h, d);
             var r = SheetRect.Around(x, y, w, h);
+            if (footprint is not null) r = footprint(r);
             if (!r.Inside(area)) break; // farther out only leaves the sheet
             if (!occupied.Any(o => r.Overlaps(o, clearance))) return (x, y, true);
         }
