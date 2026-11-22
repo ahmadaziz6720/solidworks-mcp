@@ -44,6 +44,12 @@ internal sealed class SwContext
     /// <summary>doc_undo set the document's undo accounting itself (the steps it took off); AfterWrite leaves it (S114 a).</summary>
     internal void UndoRecorded() => _undoRecorded = true;
 
+    /// <summary>
+    /// Features a feature tool found with a rebuild warning when it made them, by id: reported by
+    /// <see cref="Verify.FeatureVerifier.ReportWarnings"/> once the call has renamed and rebuilt them (S84 b).
+    /// </summary>
+    internal List<(IModelDoc2 Doc, int Id)> DeferredWarnings { get; } = [];
+
     public SwContext(SwSession session, ISldWorks app, OperationContext op)
     {
         Session = session;

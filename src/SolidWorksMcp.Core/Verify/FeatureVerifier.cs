@@ -84,7 +84,8 @@ internal static class FeatureVerifier
         if (err != 0 && !isWarning)
             Fail(ctx, doc, before, created, keepOnFailure, ErrorCodes.RebuildError,
                 $"{spec.Tool}: '{main.Name}' has rebuild error {err} ({ErrorName(err)}).", Hint(spec));
-        if (err != 0) ctx.Warn($"'{main.Name}' has rebuild warning {err} ({ErrorName(err)}).");
+        // Reported once the call is done with the feature (S84 b): Result, or the end of the call (ReportWarnings).
+        if (err != 0) ctx.DeferredWarnings.Add((doc, main.GetID()));
 
         if (spec.RequireFaces && main.GetFaceCount() == 0)
             Fail(ctx, doc, before, created, keepOnFailure, ErrorCodes.VerifyFailed,
@@ -188,6 +189,7 @@ internal static class FeatureVerifier
         Vec3? direction = null, IReadOnlyList<ResolvedInfo>? resolved = null, IReadOnlyList<PlacementSketch>? placementSketches = null,
         bool alsoFaces = false)
     {
+        ReportWarnings(ctx); // after the call's rename: the feature is named as the caller asked
         double dv = o.After.Volume - o.Before.Volume;
         var alsoFeats = o.Created.Where(f => !ReferenceEquals(f, o.Main) && !IsSubFeatureOf(f, o.Main)).ToList();
         var faces = Describe.FeatureFaces(ctx, doc, o.Main, 12, out int faceTotal);
@@ -222,6 +224,35 @@ internal static class FeatureVerifier
             PlacementSketches = placementSketches,
             Resolved = resolved,
         };
+    }
+
+    /// <summary>
+    /// S84 (b): reports the rebuild warnings <see cref="CheckCore"/> deferred, read after a rebuild and named as the
+    /// features are called now. A feature taken back since (a pattern redone in the other sense, a failed attempt) or
+    /// whose warning the rebuild cleared is left out (<see cref="RebuildWarnings.Lines"/>). Called by
+    /// <see cref="Result"/>, which tools call after their rename, and at the end of every call for the rest.
+    /// </summary>
+    public static void ReportWarnings(SwContext ctx)
+    {
+        if (ctx.DeferredWarnings.Count == 0) return;
+        var deferred = ctx.DeferredWarnings.ToList();
+        ctx.DeferredWarnings.Clear();
+        foreach (var g in deferred.GroupBy(p => p.Doc))
+        {
+            var d = g.Key;
+            var ids = g.Select(p => p.Id).ToList();
+            var now = Services.FeatureManagementService.ErrorMap(d);
+            if (ids.Any(now.ContainsKey))
+            {
+                using var prefs = ctx.SystemPrefs();
+                prefs.Toggle(Prefs.SystemPrefIds.ShowErrorsEveryRebuild, false); // the What's Wrong box is modal
+                d.ForceRebuild3(false);
+                now = Services.FeatureManagementService.ErrorMap(d);
+            }
+            var states = now.ToDictionary(kv => kv.Key, kv => new RebuildState(kv.Value.Name, kv.Value.Code, kv.Value.Warning,
+                ErrorName(kv.Value.Code, kv.Value.Type)));
+            foreach (var line in RebuildWarnings.Lines(ids, states)) ctx.Warn(line);
+        }
     }
 
     private static bool IsSubFeatureOf(IFeature f, IFeature parent)

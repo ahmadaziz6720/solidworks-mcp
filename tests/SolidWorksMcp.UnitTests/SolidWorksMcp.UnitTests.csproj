@@ -69,6 +69,7 @@
     <Compile Include="..\..\src\SolidWorksMcp.Core\Services\MaterialDensity.cs" Link="Core\Services\MaterialDensity.cs" />
     <Compile Include="..\..\src\SolidWorksMcp.Core\Services\EquationReadback.cs" Link="Core\Services\EquationReadback.cs" />
     <Compile Include="..\..\src\SolidWorksMcp.Core\Services\HardwareCatalog.cs" Link="Core\Services\HardwareCatalog.cs" />
+    <Compile Include="..\..\src\SolidWorksMcp.Core\Verify\RebuildWarnings.cs" Link="Core\Verify\RebuildWarnings.cs" />
   </ItemGroup>
 
 </Project>

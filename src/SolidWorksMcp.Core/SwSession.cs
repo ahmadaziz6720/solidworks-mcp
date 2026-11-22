@@ -161,6 +161,12 @@ public sealed class SwSession : IDisposable
                     ctx.AfterFailedWrite(); // S57: what a failed write left is the server's own
                     throw;
                 }
+                // S84 (b): rebuild warnings a feature check deferred and no Result reported (it reads them after a rebuild).
+                try { Verify.FeatureVerifier.ReportWarnings(ctx); }
+                catch (Exception ex) when (!ComArgs.IsDisconnect(ex))
+                {
+                    ctx.Warn($"The new feature(s) had a rebuild warning when made; it could not be read again ({ex.Message}). feature_list shows it.");
+                }
                 ctx.AfterWrite();
                 if (result is Model.ToolResult tr)
                 {

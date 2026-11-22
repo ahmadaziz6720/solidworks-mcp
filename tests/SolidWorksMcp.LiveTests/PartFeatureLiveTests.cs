@@ -952,6 +952,42 @@ public class PartFeatureLiveTests(LiveFixture fx) : LiveTest(fx)
     }
 
     [Fact]
+    public async Task Linear_pattern_reports_the_rebuild_warning_of_the_pattern_it_keeps_by_its_new_name()
+    {
+        // S84 (b): a boss instance off the body gives the pattern warning 51 (swSketchErrorExtRefFail). From x = 40 toward
+        // -x, SOLIDWORKS' own sense runs +x, off the block: that pattern has the warning and is taken back, the flipped one
+        // lands whole. The warning of the one taken back was reported, under its default name.
+        string doc = await BlockAsync("lpat_warn_gone");
+        var seed = await BossAsync(doc, 40, 0);
+        var r = await Pf.LinearPatternAsync(new LinearPatternRequest
+        {
+            Doc = doc, Features = [seed.Feature.Name], Direction = "-x", Count = 3, SpacingMm = 30, Name = "Row",
+        });
+        Assert.Equal("Row", r.Feature.Name);
+        Assert.Equal(2 * Math.PI * 25 * 10, r.Verified.VolumeDeltaMm3, Vq);
+        Assert.Null(r.Feature.Warning);
+        Assert.DoesNotContain(r.Warnings ?? [], w => w.Contains("rebuild"));
+
+        // A 10 x 10 x 3 block from x = 10 to 20, patterned toward -x: the instance at x = -80 to -70 lies off the block and
+        // the pattern kept has warning 51 after a rebuild too (a cylinder's instance off the block gives none). It is real,
+        // said once, by the name the pattern was given.
+        string doc2 = await BlockAsync("lpat_warn_kept");
+        await Sk.StartAsync(doc2, new EntityRef { At = [15, 20, 10] }, false);
+        await Sk.AddAsync(doc2, [new SketchEntity { Kind = "rectangle", Corners = [[10, 20, 5], [20, 20, 15]] }]);
+        var seed2 = await Fs.ExtrudeAsync(new ExtrudeRequest { Doc = doc2, DepthMm = 3 });
+        Assert.Equal(300, seed2.Verified.VolumeDeltaMm3, V);
+        var kept = await Pf.LinearPatternAsync(new LinearPatternRequest
+        {
+            Doc = doc2, Features = [seed2.Feature.Name], Direction = "-x", Count = 4, SpacingMm = 30, Name = "Row",
+        });
+        Assert.Equal("Row", kept.Feature.Name);
+        Assert.Equal(600, kept.Verified.VolumeDeltaMm3, V); // two instances on the block
+        Assert.True(kept.Feature.Warning);
+        var rebuild = Assert.Single(kept.Warnings!, w => w.Contains("rebuild"));
+        Assert.Equal("'Row' has rebuild warning 51 (swSketchErrorExtRefFail).", rebuild);
+    }
+
+    [Fact]
     public async Task Linear_pattern_rejects_bad_input_and_rolls_back_instances_off_the_part()
     {
         string doc = await BlockAsync("lpat_bad");

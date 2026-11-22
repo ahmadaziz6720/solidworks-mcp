@@ -17,7 +17,7 @@ Closed all the same, its PR named, and an open PR no longer holds an item in Wai
 item sent upstream ends with `**Upstream: PR #9, open.**`, one per PR or issue
 (`merged`, `closed unmerged`; an issue `open` or `closed`), kept to its state.
 
-**Open: S4, S5, S7, S10 to S12, S33, S34, S52, S60, S64, S65, S79 to S82, S84 to S86, S90, S92 to S94, S96 to S106, S108, S109, S111, S115, S117, S118.**
+**Open: S4, S5, S7, S10 to S12, S33, S34, S52, S60, S64, S65, S79 to S82, S85, S86, S90, S92 to S94, S96 to S106, S108, S109, S111, S115, S117, S118.**
 Sorted 2026-11-22, the scenario test of build `20261122-030022` (findings 2026-11-22): S116
 and S114 held and closed; S89 not proved there, its proof moved to a session that launches
 SOLIDWORKS; S117 and S118 new, reported `ok` while wrong, taken into the run's group 4; S92
@@ -519,8 +519,8 @@ its point.
   Cost: Sonnet, see the report.
 - [x] Group 3: scenario test (session id: `ba47a581-7e48-4a8e-98dc-dda2b296ae23`), its entry committed and sorted (entry `f489505`; ended `EXIT 0` 03:09; S116 and S114 held and closed, S89 not proved there and its proof moved, S117 and S118 new into group 4, S92 met live, S5 again; SOLIDWORKS restarted after, as the state was on; release notes updated) (`89d32a7`)
   Started 03:03 2026-11-22, free memory 2602 MB with SOLIDWORKS restarted from its exe; launcher `%LOCALAPPDATA%\solidworks-mcp\livetest\run-1121\check3.ps1` (`-Resume` to resume), pid 17092, output check3.out.txt and check3.err.txt beside it; watched by a background until-loop of the session.
-- [x] S84 (a) and (c): committed (split out as S119)
-- [ ] S84 (b): committed
+- [x] S84 (a) and (c): committed (split out as S119) (`6e4c9f5`)
+- [x] S84 (b): committed (S84 to Waiting)
 - [ ] S64 (l): committed
 - [ ] S64 (i): committed
 - [ ] S64 (c): committed
@@ -1655,53 +1655,6 @@ dimension reads the sketch's contours after and warns when one became invalid. L
 decided.
 Decided 2026-11-21 by the owner: (a) taken into the run of 2026-11-21, group 7, a warning as S42 was decided; (b) stays Open (`## Run 2026-11-21`).
 
-### S84 - Feature results that read as faults on a right result: a mirror's area line, a pattern's rebuild warning under its old name - OPEN 2026-11-16
-
-(a) Sorted out of three entries of 2026-11-16 ("a part edited by rollback", point 6; "an
-edit to four printed parts", point 5; "an edit to three printed parts", point 7), on build
-`20261116-124830`. `feature_mirror` of features about the symmetry plane gave "the copy's
-faces have 0.86 x the seed's area" (then 1.001, 0.996, 1.006) while the volume was exactly
-the seeds' (-2 627.2 = 2 x -1 313.6 in one) and every instance face was found (14/14,
-7/7). The line is in `checks`, not a warning (`AreaNote`, S17 (a)'s fix, Closed: as
-designed), yet each session took it for a warning and checked the volume by hand; "it
-meets the body differently from the seed" reads as a clash.
-(b) "An edit to four printed parts", point 2: `feature_pattern_linear` warned
-"'LPattern1' has rebuild warning 51 (swSketchErrorExtRefFail)", naming the feature by the
-name it had before the call's own `name` renamed it; the next `model_review` was clean.
-
-Proposed: (a) when every instance face is found and the volume matches, the line says so
-("faces merge differently from the seed's; volume and instance faces match"), or it is
-left out below a wider ratio; (b) the rebuild warnings read after the rename's rebuild,
-naming the renamed feature, a transient one dropped. Local. Not decided.
-(c) Sorted out of the entry of 2026-11-17 ("a printed part with a plate tilted 20°",
-point 2), on build `20261117-012659`: the same in another tool. `feature_extrude {cut,
-depthMm:4, direction:"+x"}` from a standard plane through a 4 mm wall, the depth equal to the
-wall on purpose, said in `checks` "no floor at 4 mm: the cut broke out of the body before its
-end (D1@... reads 4 mm)" (S64 (a)'s line); the volume matched (-45.804). A right result
-worded as a fault. Met again the same day ("three printed parts of a box and its lid", point
-2), a blind cut 2 deep through a 2 mm wall, the volume exact. Proposed by the session: a
-blind cut whose depth equals the material it crosses says "through: the end lies on the far
-face". Local. Not decided.
-Met again 2026-11-17 ((a); findings 2026-11-17, "an edit to three parts and their assembly",
-point 4; "three printed parts of a box and its lid", point 2), build `20261117-012659`:
-"the copy's faces have 1.004 x the seed's area: it meets the body differently from the
-seed" on a mirror of three features whose volume closed exactly against the hand figure (to
-0.01 mm³); 1.021 x and 1.003 x on two more mirrors, "instance faces 8/8" and "7/7", the
-volumes exact.
-Met again 2026-11-17 ((b), in another tool; findings 2026-11-17, "a turned printed part with
-two swept internal threads", point 4), the same build: `feature_delete` of a sweep reported
-"'<revolve cut>' now has rebuild error 51 (swSketchErrorExtRefFail)" for the next feature,
-whose sketch is on a standard plane with the origin only; after the sweep was made again
-before it, `model_review` read no error. Whether the error was real while it lasted is not
-known.
-Met again 2026-11-18 ((b); findings 2026-11-18, "a shared global variable changed in two
-parts", point 5), build `20261118-060615`: `feature_pattern_linear` returned `ok` with
-"warning 51 (swSketchErrorExtRefFail)" on the new pattern; after an `equation_set` on its
-spacing the warning was gone and `model_review` clean. The session spent a review to tell
-whether it was real.
-Decided 2026-11-21 by the owner: (a), (b) and (c) taken into the run of 2026-11-21, group 4 (`## Run 2026-11-21`).
-**Done in the run of 2026-11-22, group 4: (a) and (c), split out as S119 (Waiting).** **Left open: (b).**
-
 ### S85 - `feature_delete`'s dry run lists as kept an absorbed sketch the real call removes - OPEN 2026-11-16
 
 Sorted out of the entry of 2026-11-16 ("an edit to three printed parts", point 4), on build
@@ -2378,5 +2331,100 @@ tail only and the figure tells how far the faces differ.
 Decided 2026-11-22 by the run, not the owner: "through" is said only for a blind cut, not
 a mid-plane one, because the plan names a blind cut and a mid-plane cut has two ends to
 read; and the depth dimension stays at the line's end, as S48 (a) names it.
+Local: on `sw2023`, in the commit that moves it here; not yet in a build. Upstream: not yet
+decided.
+
+### S84 - Feature results that read as faults on a right result: a mirror's area line, a pattern's rebuild warning under its old name - BUILT 2026-11-22, proof: the scenario test of group 4's build
+
+(a) Sorted out of three entries of 2026-11-16 ("a part edited by rollback", point 6; "an
+edit to four printed parts", point 5; "an edit to three printed parts", point 7), on build
+`20261116-124830`. `feature_mirror` of features about the symmetry plane gave "the copy's
+faces have 0.86 x the seed's area" (then 1.001, 0.996, 1.006) while the volume was exactly
+the seeds' (-2 627.2 = 2 x -1 313.6 in one) and every instance face was found (14/14,
+7/7). The line is in `checks`, not a warning (`AreaNote`, S17 (a)'s fix, Closed: as
+designed), yet each session took it for a warning and checked the volume by hand; "it
+meets the body differently from the seed" reads as a clash.
+(b) "An edit to four printed parts", point 2: `feature_pattern_linear` warned
+"'LPattern1' has rebuild warning 51 (swSketchErrorExtRefFail)", naming the feature by the
+name it had before the call's own `name` renamed it; the next `model_review` was clean.
+
+Proposed: (a) when every instance face is found and the volume matches, the line says so
+("faces merge differently from the seed's; volume and instance faces match"), or it is
+left out below a wider ratio; (b) the rebuild warnings read after the rename's rebuild,
+naming the renamed feature, a transient one dropped. Local. Not decided.
+(c) Sorted out of the entry of 2026-11-17 ("a printed part with a plate tilted 20°",
+point 2), on build `20261117-012659`: the same in another tool. `feature_extrude {cut,
+depthMm:4, direction:"+x"}` from a standard plane through a 4 mm wall, the depth equal to the
+wall on purpose, said in `checks` "no floor at 4 mm: the cut broke out of the body before its
+end (D1@... reads 4 mm)" (S64 (a)'s line); the volume matched (-45.804). A right result
+worded as a fault. Met again the same day ("three printed parts of a box and its lid", point
+2), a blind cut 2 deep through a 2 mm wall, the volume exact. Proposed by the session: a
+blind cut whose depth equals the material it crosses says "through: the end lies on the far
+face". Local. Not decided.
+Met again 2026-11-17 ((a); findings 2026-11-17, "an edit to three parts and their assembly",
+point 4; "three printed parts of a box and its lid", point 2), build `20261117-012659`:
+"the copy's faces have 1.004 x the seed's area: it meets the body differently from the
+seed" on a mirror of three features whose volume closed exactly against the hand figure (to
+0.01 mm³); 1.021 x and 1.003 x on two more mirrors, "instance faces 8/8" and "7/7", the
+volumes exact.
+Met again 2026-11-17 ((b), in another tool; findings 2026-11-17, "a turned printed part with
+two swept internal threads", point 4), the same build: `feature_delete` of a sweep reported
+"'<revolve cut>' now has rebuild error 51 (swSketchErrorExtRefFail)" for the next feature,
+whose sketch is on a standard plane with the origin only; after the sweep was made again
+before it, `model_review` read no error. Whether the error was real while it lasted is not
+known.
+Met again 2026-11-18 ((b); findings 2026-11-18, "a shared global variable changed in two
+parts", point 5), build `20261118-060615`: `feature_pattern_linear` returned `ok` with
+"warning 51 (swSketchErrorExtRefFail)" on the new pattern; after an `equation_set` on its
+spacing the warning was gone and `model_review` clean. The session spent a review to tell
+whether it was real.
+Decided 2026-11-21 by the owner: (a), (b) and (c) taken into the run of 2026-11-21, group 4 (`## Run 2026-11-21`).
+(a) and (c) done in the run of 2026-11-22, group 4, split out as S119 (Waiting); (b) done in
+the same group, below.
+(b) Cause: `FeatureVerifier.Check` warned of the new feature's rebuild warning the moment it
+read it, before the tool's own rename and before `feature_pattern_linear` had settled its
+sense. A pattern SOLIDWORKS ran the other way is deleted and made again flipped; the one
+taken back had the warning (its instances off the body: a boss instance off the body gives an
+`LPattern` warning 51, swSketchErrorExtRefFail, VERIFIED live), and its line stayed, under its
+default name, while the pattern kept had none. That fits both meetings: "'LPattern1' has
+rebuild warning 51" with `model_review` clean after, and a warning gone at the next rebuild.
+A pattern kept with a real warning was named by its default name too ('LPattern11' for one
+called by `name`). Fix: `Check` records the feature (doc, id) in `SwContext.DeferredWarnings`
+instead of warning; the new `FeatureVerifier.ReportWarnings`, called by `FeatureVerifier.Result`
+(which every tool calls after its rename) and at the end of every call in `SwSession` (for
+the rest), reads the tree's rebuild states (`ErrorMap`), and when a deferred feature still
+has one rebuilds once (`ForceRebuild3`, the What's Wrong box held off) and reads again; the
+rule, in the new interop-free `RebuildWarnings.Lines` (unit-tested), reports each feature
+once by the name it has now, leaves out one no longer in the tree or cleared by the rebuild,
+and says "rebuild error ... after the rebuild; it had a warning when made" for one the
+rebuild made worse. `Result`'s `feature.error`/`warning` are read after it. No description
+changed.
+`feature_delete` (met 2026-11-17, error 51 on the next feature): not the same cause. It reads
+the errors after its own rebuild (`RebuildIfNeeded`), renames nothing and retries nothing,
+and names features as they are called then; whether that error was real is still not known.
+Not changed.
+Before: the new `PartFeatureLiveTests.Linear_pattern_reports_the_rebuild_warning_of_the_pattern_it_keeps_by_its_new_name`
+(a Ø10 boss at x = 40 patterned toward -x, 3 x 30, `name: "Row"`, SOLIDWORKS' own sense off
+the block) failed, "Assert.DoesNotContain() Failure: Filter matched in collection ...
+["'LPattern1' has rebuild warning 51 (swSketchErrorE"...]". After: it passes, with its second
+case (a 10 x 10 x 3 block, 4 x 30 toward -x, the instance at x = -80 off the block: exactly one
+line, "'Row' has rebuild warning 51 (swSketchErrorExtRefFail).", `feature.warning` true), and
+the live tests that call the changed code: the linear pattern tests (toward -x, direction 2
+off the part, a boss, bad input and rollback), two holes at two points, a blind cut kept on
+failure with its name, a circular pattern, a mirror, an offset plane renamed, a convex fillet,
+11/11; unit tests 326/326 (3 new); `check_repo` ok.
+Made stricter: a deferred warning the rebuild turns into an error is now said as an error
+(it was said as a warning, read before).
+Decided 2026-11-22 by the run, not the owner: the warning is read after one forced rebuild
+(`ForceRebuild3`), only when a deferred feature still has one, because `EditRebuild3` does
+nothing to a model SOLIDWORKS holds as rebuilt, so "one gone after that rebuild" could not be
+told, and the forced rebuild costs a call only where a warning stands.
+Decided 2026-11-22 by the run, not the owner: the deferral is kept on the call
+(`SwContext`) and reported in `Result` and again at the call's end, not moved into
+`Result` alone, because tools that make several features (holes at several points, chamfer
+groups) give `Result` only the last outcome, and a warning of an earlier one would be lost.
+Decided 2026-11-22 by the run, not the owner: a deferred warning that is an error after the
+rebuild is reported as a line, not a failure, because the feature passed its checks and the
+call made no other change; failing it then would be a new rule the item does not ask for.
 Local: on `sw2023`, in the commit that moves it here; not yet in a build. Upstream: not yet
 decided.
