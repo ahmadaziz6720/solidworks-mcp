@@ -233,6 +233,9 @@ answer below, across as many sessions as it needs, from the first step not ticke
   cut session is picked up from the first step not ticked. Changed by the owner on their return, still in group 5:
   "stop ya setelah uji scenario grup 5": the session stops once group 5's check is sorted, and hands over;
   group 6 starts in a new session.
+  Session 4 ran group 5 whole: six item steps (subagents 106k to 256k tokens, 4 to 28 min each), the release
+  (Sonnet, 136k, 192 min), the check (Sonnet, 69k, 13 min) and its sort (default model, 178k, 5 min); it handed over
+  at about 160k.
 - **Left for the end of the run** (to file as items with the report): S81's probe saw once, in
   one variant (`doc_open` then `doc_activate` of parts loaded only by the assembly), the live
   fixture's "System preferences changed by this test: Double2: 0.000131 -> 1.085e-05", cause
@@ -640,7 +643,7 @@ its point.
   repo, each read back from `~/.claude.json` on the new exe; tag `build-20261122-194424` pushed and read back, release page
   with no files (`ahmadaziz6720/solidworks-mcp` releases, `build-20261122-194424`). SOLIDWORKS restarted from its exe at the end.
   Cost: Sonnet, 136k tokens, see the report.
-- [x] Group 5: scenario test with S1's proof (session id: `0a60bd46-2242-491b-a386-102f51a0ab03`), its entry committed and sorted (entry `1b57828`; ended `EXIT 0` 19:59; S98, S108, S90, S106, S126, S97 and S104 held and closed (S104 as far as the machine allows), S1 held for the detail and a view at an angle and closed, S127, S128, S130 and S131 new into group 6, S129 new and not in this run, S5 again; release notes updated)
+- [x] Group 5: scenario test with S1's proof (session id: `0a60bd46-2242-491b-a386-102f51a0ab03`), its entry committed and sorted (entry `1b57828`; ended `EXIT 0` 19:59; S98, S108, S90, S106, S126, S97 and S104 held and closed (S104 as far as the machine allows), S1 held for the detail and a view at an angle and closed, S127, S128, S130 and S131 new into group 6, S129 new and not in this run, S5 again; release notes updated) (`bdd4c9d`)
   Started 19:48 2026-11-22, free memory 2203 MB with SOLIDWORKS restarted from its exe; launcher `%LOCALAPPDATA%\solidworks-mcp\livetest\run-1121\check5.ps1`, launcher pid 20984, output check5.out.txt and check5.err.txt beside it; started and watched by a Sonnet subagent; no resume; about 11 min.
 - [ ] S100 (a) and (b): committed
 - [ ] S100 (c): committed
