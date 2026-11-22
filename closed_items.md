@@ -3725,6 +3725,467 @@ nothing"), where the last build answered "Nothing changed" (b); an undone extrud
 before it that left no undo step (a `feature_rename`) is passed over, and the next
 `doc_undo` takes back the step before it, reported `ok`.
 
+### S119 - S84 (a) and (c): a mirror's area line and a cut's no-floor line read as faults on right results - CLOSED 2026-11-22
+
+S84 (a) and (c), split out of S84 (which stays Open for (b)) in the run of 2026-11-21,
+group 4. (a) `feature_mirror` said in `checks` "the copy's faces have 0.75 x the seed's
+area: it meets the body differently from the seed" with every instance face found, a line
+sessions took for a clash; (c) a blind cut whose depth equals the material it crosses said
+"no floor at 20 mm: the cut broke out of the body before its end", a right result worded as a
+fault. Cause: (a) `AreaNote`'s tail named the copy's meeting with the body, which reads as a
+clash; (c) the cut's intent check had one line for every end with no cap at the asked depth,
+and did not tell a depth that equals the material from one that is more. Fix: (a) `AreaNote`
+(`PartFeatureService.cs`) ends "faces merge differently from the seed's; the instance faces
+match", the ratio kept at its head; (c) `FeatureService.ExtrudeIntent`'s break-out line
+asks the new `WallsReach` first: the end points of the cut's face edges, measured along the
+direction as the caps are, reach the asked depth and not past it, and a blind cut then says
+"through: the end lies on the far face" (the depth dimension kept at its end, as S48 (a));
+walls that stop short of the depth still say "no floor at <d> mm: the cut broke out of the
+body before its end", a mid-plane cut keeps its old line. No description changed.
+Before: the new `PartFeatureLiveTests.A_blind_cut_whose_depth_equals_the_material_says_its_end_lies_on_the_far_face`
+(a 20 mm cut through the 20 mm block) failed, "Assert.Contains() Failure: Filter not
+matched in collection ... ["volume", "no floor at 20 mm: the cut broke out of the body
+b"...]"; the mirror test `Mirror_of_a_boss_with_a_face_merged_into_the_body_does_not_warn`,
+given the new wording, failed, "Assert.Contains() Failure: Filter not matched in collection
+... ["volume", "the copy's faces have 0,75 x the seed's area: it m"..., "instance faces
+at the expected positions: 4/4 ..."]". After: both pass, with the two live tests that call
+the changed cut code (`A_blind_cut_that_leaves_the_body_passes_on_its_volume_and_a_kept_failure_takes_its_name`,
+`A_blind_cut_from_a_plane_inside_the_body_that_leaves_it_passes_on_its_volume`), 4/4; unit
+tests 323/323; `check_repo` ok. The first run of the third test lost SOLIDWORKS ("Lost the
+connection ..."), which was restarted; it and the fourth passed after.
+Made stricter: nothing; a cut deeper than the material still says it broke out, and the
+new test holds that case.
+Decided 2026-11-22 by the run, not the owner: (a) and (c) moved to Waiting as a new item
+split out of S84, not as a second S84 heading, because one number heads one item and the
+format splits an item that way.
+Decided 2026-11-22 by the run, not the owner: the mirror's line says "the instance faces
+match" and does not claim "the volume ... match" as the plan wrote it, because the mirror
+holds no figure for the seed's own volume (its rule is only that the volume changed), so
+the words would assert a check that is not made; a volume comparison would need the
+rollback bar moved, a larger change than this wording.
+Decided 2026-11-22 by the run, not the owner: the ratio stays at the head of the mirror's
+line ("the copy's faces have 0.75 x the seed's area: ..."), because the plan changes the
+tail only and the figure tells how far the faces differ.
+Decided 2026-11-22 by the run, not the owner: "through" is said only for a blind cut, not
+a mid-plane one, because the plan names a blind cut and a mid-plane cut has two ends to
+read; and the depth dimension stays at the line's end, as S48 (a) names it.
+Local: on `sw2023`, `6e4c9f5`; in build `20261122-142805`. Upstream: not yet
+decided.
+Held 2026-11-22: the scenario test of build `20261122-142805` (findings 2026-11-22, point 1):
+(a) the ears of a part mirrored again about the front plane read "the copy's faces have 1.052
+x the seed's area: faces merge differently from the seed's; the instance faces match",
+instance faces 9/9, +7 183.229 mm³, no warning; (c) on a 100 x 60 x 20 block a blind Ø10 cut
+20 deep from the top, renamed by `name`, read "through: the end lies on the far face (D1@<new
+name> reads 20 mm)", −1 570.796 mm³, and a Ø4 cut 30 deep from the top of a 10 mm boss through
+the block (30 of material) "through" too, −376.991 mm³; a Ø6 cut 25 deep through the 20 mm
+block kept "no floor at 25 mm: the cut broke out of the body before its end".
+
+### S84 - Feature results that read as faults on a right result: a mirror's area line, a pattern's rebuild warning under its old name - CLOSED 2026-11-22
+
+(a) Sorted out of three entries of 2026-11-16 ("a part edited by rollback", point 6; "an
+edit to four printed parts", point 5; "an edit to three printed parts", point 7), on build
+`20261116-124830`. `feature_mirror` of features about the symmetry plane gave "the copy's
+faces have 0.86 x the seed's area" (then 1.001, 0.996, 1.006) while the volume was exactly
+the seeds' (-2 627.2 = 2 x -1 313.6 in one) and every instance face was found (14/14,
+7/7). The line is in `checks`, not a warning (`AreaNote`, S17 (a)'s fix, Closed: as
+designed), yet each session took it for a warning and checked the volume by hand; "it
+meets the body differently from the seed" reads as a clash.
+(b) "An edit to four printed parts", point 2: `feature_pattern_linear` warned
+"'LPattern1' has rebuild warning 51 (swSketchErrorExtRefFail)", naming the feature by the
+name it had before the call's own `name` renamed it; the next `model_review` was clean.
+
+Proposed: (a) when every instance face is found and the volume matches, the line says so
+("faces merge differently from the seed's; volume and instance faces match"), or it is
+left out below a wider ratio; (b) the rebuild warnings read after the rename's rebuild,
+naming the renamed feature, a transient one dropped. Local. Not decided.
+(c) Sorted out of the entry of 2026-11-17 ("a printed part with a plate tilted 20°",
+point 2), on build `20261117-012659`: the same in another tool. `feature_extrude {cut,
+depthMm:4, direction:"+x"}` from a standard plane through a 4 mm wall, the depth equal to the
+wall on purpose, said in `checks` "no floor at 4 mm: the cut broke out of the body before its
+end (D1@... reads 4 mm)" (S64 (a)'s line); the volume matched (-45.804). A right result
+worded as a fault. Met again the same day ("three printed parts of a box and its lid", point
+2), a blind cut 2 deep through a 2 mm wall, the volume exact. Proposed by the session: a
+blind cut whose depth equals the material it crosses says "through: the end lies on the far
+face". Local. Not decided.
+Met again 2026-11-17 ((a); findings 2026-11-17, "an edit to three parts and their assembly",
+point 4; "three printed parts of a box and its lid", point 2), build `20261117-012659`:
+"the copy's faces have 1.004 x the seed's area: it meets the body differently from the
+seed" on a mirror of three features whose volume closed exactly against the hand figure (to
+0.01 mm³); 1.021 x and 1.003 x on two more mirrors, "instance faces 8/8" and "7/7", the
+volumes exact.
+Met again 2026-11-17 ((b), in another tool; findings 2026-11-17, "a turned printed part with
+two swept internal threads", point 4), the same build: `feature_delete` of a sweep reported
+"'<revolve cut>' now has rebuild error 51 (swSketchErrorExtRefFail)" for the next feature,
+whose sketch is on a standard plane with the origin only; after the sweep was made again
+before it, `model_review` read no error. Whether the error was real while it lasted is not
+known.
+Met again 2026-11-18 ((b); findings 2026-11-18, "a shared global variable changed in two
+parts", point 5), build `20261118-060615`: `feature_pattern_linear` returned `ok` with
+"warning 51 (swSketchErrorExtRefFail)" on the new pattern; after an `equation_set` on its
+spacing the warning was gone and `model_review` clean. The session spent a review to tell
+whether it was real.
+Decided 2026-11-21 by the owner: (a), (b) and (c) taken into the run of 2026-11-21, group 4 (`## Run 2026-11-21`).
+(a) and (c) done in the run of 2026-11-22, group 4, split out as S119 (Waiting); (b) done in
+the same group, below.
+(b) Cause: `FeatureVerifier.Check` warned of the new feature's rebuild warning the moment it
+read it, before the tool's own rename and before `feature_pattern_linear` had settled its
+sense. A pattern SOLIDWORKS ran the other way is deleted and made again flipped; the one
+taken back had the warning (its instances off the body: a boss instance off the body gives an
+`LPattern` warning 51, swSketchErrorExtRefFail, VERIFIED live), and its line stayed, under its
+default name, while the pattern kept had none. That fits both meetings: "'LPattern1' has
+rebuild warning 51" with `model_review` clean after, and a warning gone at the next rebuild.
+A pattern kept with a real warning was named by its default name too ('LPattern11' for one
+called by `name`). Fix: `Check` records the feature (doc, id) in `SwContext.DeferredWarnings`
+instead of warning; the new `FeatureVerifier.ReportWarnings`, called by `FeatureVerifier.Result`
+(which every tool calls after its rename) and at the end of every call in `SwSession` (for
+the rest), reads the tree's rebuild states (`ErrorMap`), and when a deferred feature still
+has one rebuilds once (`ForceRebuild3`, the What's Wrong box held off) and reads again; the
+rule, in the new interop-free `RebuildWarnings.Lines` (unit-tested), reports each feature
+once by the name it has now, leaves out one no longer in the tree or cleared by the rebuild,
+and says "rebuild error ... after the rebuild; it had a warning when made" for one the
+rebuild made worse. `Result`'s `feature.error`/`warning` are read after it. No description
+changed.
+`feature_delete` (met 2026-11-17, error 51 on the next feature): not the same cause. It reads
+the errors after its own rebuild (`RebuildIfNeeded`), renames nothing and retries nothing,
+and names features as they are called then; whether that error was real is still not known.
+Not changed.
+Before: the new `PartFeatureLiveTests.Linear_pattern_reports_the_rebuild_warning_of_the_pattern_it_keeps_by_its_new_name`
+(a Ø10 boss at x = 40 patterned toward -x, 3 x 30, `name: "Row"`, SOLIDWORKS' own sense off
+the block) failed, "Assert.DoesNotContain() Failure: Filter matched in collection ...
+["'LPattern1' has rebuild warning 51 (swSketchErrorE"...]". After: it passes, with its second
+case (a 10 x 10 x 3 block, 4 x 30 toward -x, the instance at x = -80 off the block: exactly one
+line, "'Row' has rebuild warning 51 (swSketchErrorExtRefFail).", `feature.warning` true), and
+the live tests that call the changed code: the linear pattern tests (toward -x, direction 2
+off the part, a boss, bad input and rollback), two holes at two points, a blind cut kept on
+failure with its name, a circular pattern, a mirror, an offset plane renamed, a convex fillet,
+11/11; unit tests 326/326 (3 new); `check_repo` ok.
+Made stricter: a deferred warning the rebuild turns into an error is now said as an error
+(it was said as a warning, read before).
+Decided 2026-11-22 by the run, not the owner: the warning is read after one forced rebuild
+(`ForceRebuild3`), only when a deferred feature still has one, because `EditRebuild3` does
+nothing to a model SOLIDWORKS holds as rebuilt, so "one gone after that rebuild" could not be
+told, and the forced rebuild costs a call only where a warning stands.
+Decided 2026-11-22 by the run, not the owner: the deferral is kept on the call
+(`SwContext`) and reported in `Result` and again at the call's end, not moved into
+`Result` alone, because tools that make several features (holes at several points, chamfer
+groups) give `Result` only the last outcome, and a warning of an earlier one would be lost.
+Decided 2026-11-22 by the run, not the owner: a deferred warning that is an error after the
+rebuild is reported as a line, not a failure, because the feature passed its checks and the
+call made no other change; failing it then would be a new rule the item does not ask for.
+Local: on `sw2023`, `d82a7b2`; in build `20261122-142805`. Upstream: not yet
+decided.
+Held 2026-11-22: the scenario test of build `20261122-142805` (findings 2026-11-22, point 2):
+(b) a Ø10 boss at x = 40 patterned toward −x, 3 x 30, `name` "Row": "direction flipped", +1
+570.796 mm³, no rebuild line; a 10 x 10 x 3 block on the top patterned toward −x, 4 x 30,
+`name` "Row2", the last instance off the block: one line, "'Row2' has rebuild warning 51
+(swSketchErrorExtRefFail).", `feature.warning` true, +600 mm³. Point 10 of the same entry went
+to S125: in that second case the volume per instance was averaged over the instance that
+formed nothing.
+
+### S120 - S64 (l): a closed contour read `regions: 0` around a hole of the face, and the regions lagged a later `sketch_add` - CLOSED 2026-11-22
+
+S64 (l), split out of S64 (which stays Open for its other points) in the run of 2026-11-21,
+group 4. `sketch_add` read a closed contour `"regions":0` while the feature from it was
+right: a Ø6.5 circle around the edge of a Ø3.2 hole cut through the face; a polygon; a
+4-point polyline on a tilted face after a converted edge; two profiles of an arc and a
+polyline each. Cause, two of them. (a) (f)'s rule (`SketchService.OwnRegions`) counted a
+region only when every edge of it lay on the sketch's contours; the ring between the circle
+and the hole has the hole's edge, a model edge, as its inner loop, so it was dropped
+(probed: 4 regions, the Ø8 circle beside it, the ring, the face around both, and the hole's
+disc). (b) In an open sketch SOLIDWORKS' regions lag what a later call drew (the server adds
+with AddToDB, unsolved): two circles drawn in two calls on a plane read 1 region with 2
+closed contours, so a contour drawn after an earlier call can read 0. Fix: (a) the region's
+loops are read (`ISketchRegion.GetFirstLoop`, `ILoop2.IsOuter`), and the new interop-free
+`SketchRegions.IsOwn` (unit-tested) counts a region when its outer loop lies on the
+sketch's contours and each inner loop does too or lies on an inner loop of the face the
+sketch is on, a hole wholly inside the contour; the face around and a hole's disc are still
+not counted. (b) `sketch_add` refreshes the regions before reading them
+(`SketchService.RefreshRegions`: automatic solve off and on, which solves the sketch; no
+undo step, the update stamp unchanged, probed), left alone when the user turned automatic
+solve off. No description changed.
+Before: the new `SketchEditLiveTests.Regions_count_a_contour_around_a_hole_of_the_face` (a
+100 x 60 x 20 block, a Ø3.2 hole cut through, a concentric Ø6.5 circle on the same face)
+failed, "Assert.Equal() Failure: Values differ Expected: 1 Actual: 0"; the new
+`Regions_count_what_a_later_sketch_add_drew` (a second circle in a second call on the
+front plane), run with the refresh left out, failed, "Assert.Equal() Failure: Values
+differ Expected: 2 Actual: 1". After: both pass (the ring 1, a Ø8 circle beside it 2, the
+2 mm cut from both the hand figure; a third circle around the first 3, and the circle not
+moved by the solve), with (f)'s `Regions_count_the_sketchs_own_closed_regions_on_a_face_as_on_a_plane`
+and the live tests that read contours or sketch on a face (convert of a face, info,
+arc merged onto a polyline, engraved text, split line, curve pattern, circular pattern of
+a hole, mirror about a face), 11/11; unit tests 329/329 (3 new, `SketchRegionsTests`);
+`check_repo` ok. `docs/solidworks-api-notes.md` (*Regions*) gains the loops, the lag and
+the refresh.
+Made stricter: none. One result changed with (b): a line across a closed hexagon on a plane
+reads its two halves, `regions: 2`, where it read 1, SOLIDWORKS' count from before the
+line; (f)'s test now expects 2.
+Decided 2026-11-22 by the run, not the owner: a loop of model edges inside the contour
+counts only when every edge lies on an inner loop of the face the sketch is on, not any
+loop inside the outline, because that is the rule as decided, and a model loop of another
+kind (none met) keeps (f)'s refusal rather than a count no case has shown true.
+Decided 2026-11-22 by the run, not the owner: the lag (b) is fixed in the same step,
+because the planned test with a second circle beside the ring could not read true without
+it and three of (l)'s meetings drew their contour after an earlier call; whether those
+three were the lag was not reproduced on their own parts.
+Decided 2026-11-22 by the run, not the owner: the refresh is made in `sketch_add` only, not
+in `sketch_info` (a read) or the sketch edit tools, because the lag was shown after an add
+and not probed after an edit tool; the smaller change.
+Local: on `sw2023`, `c3c3b56`; in build `20261122-142805`. Upstream: not yet
+decided.
+Held 2026-11-22: the scenario test of build `20261122-142805` (findings 2026-11-22, point 3):
+a Ø3.2 hole cut through a block's top face, then on that face a concentric Ø6.5 circle:
+`regions: 1` (the ring); a Ø8 circle beside it in a second `sketch_add`: `regions: 2`; a 2 mm
+cut from both, −150.812 mm³, the hand figure (ring 50.281 + disc 100.531). On the front plane
+two circles in two calls read 2, a circle around the first and a hexagon in a third call 4, a
+line joining two opposite corners of the hexagon 5.
+
+### S121 - S64 (i): an equal chamfer's two legs are separate dimensions, and an equation on one said nothing of the other - CLOSED 2026-11-22
+
+S64 (i), split out of S64 (which stays Open for its other points) in the run of 2026-11-21,
+group 4. `feature_chamfer {type:"equal"}` makes a chamfer with two dimensions (SOLIDWORKS
+2023 builds it as distance-distance with equal legs), independent once one is driven. An
+equation on one alone left the other at its old value when the variable changed, a 6 x 5
+chamfer where 6 x 6 was meant, `equation_set` `ok` with no warning; the workaround (drive
+both) was on no `Usage` line. Cause: nothing in either result said the two were separate
+dimensions, and `equation_set` knew nothing of a chamfer's legs. Fix: (a)
+`PartFeatureService.ChamferAsync`, after the rename (the dimension names carry the feature's
+name), adds a line to the result's `verified.checks` for an equal chamfer: "legs D1@X and
+D3@X are separate dimensions: drive both to keep them equal (an equation on one leaves the
+other as it is)"; no field and no description changed, so no byte of the catalog budget. (b)
+`PropertiesService.OtherChamferLeg`, called by `equation_set` (one equation or a batch)
+before it writes: for a row on a dimension of a Chamfer feature that has two mm dimensions
+equal in value, when the other leg is neither a row of the same call nor already driven by
+an equation, the call warns "D1@X is one leg of the chamfer 'X', whose legs are equal (3
+mm); its other leg D3@X keeps 3 mm, a separate dimension, so the legs part when D1@X
+changes. Set D3@X in the same call to keep them equal." The equation is still written (a
+warning, not a refusal: driving one leg alone can be meant).
+Before: the new `PartFeatureLiveTests.An_equal_chamfer_names_its_two_legs_and_an_equation_on_one_warns_of_the_other`
+(a 100 x 20 x 60 block, two equal 3 mm chamfers on two edges; `W` = 5 mm and an equation on
+one leg of the first alone; `V` = 4 mm on both legs of the second) failed on the result,
+"Assert.Contains() Failure: Filter not matched in collection Collection: ["volume", "legs
+measured on 1 edge(s)", "edge E1: 3 mm along F7 (plane [0, 0, 1]), 3 mm alo"...]", and, with
+the check line in and the warning left out, on the equation, "Assert.Contains() Failure:
+Filter not matched in collection Collection: []" (no warning). After: it passes (the one-leg
+call warns naming the other leg and its value, the two-leg call has no warning, the volume
+120000 - 750 - 800 mm³ as figured), with the other `Chamfer_*` tests of `PartFeatureLiveTests`
+(equal, two distances, sides, edit, flipEdges, circular edges, sliver, bad input), four
+equation tests of `PropertiesLiveTests` (global variable, errors, breaking a feature, a
+plane's offset, several in one call) and the auxiliary view of a chamfer in
+`DrawingLiveTests`, 15 of 15 live; unit tests 329/329; `check_repo` ok; no description
+changed.
+Made stricter: none (a warning and a line in the checks only; the equations are written as
+before). Not done: the result of `feature_chamfer` with `edit` does not carry the legs line
+(the call asked for was the creating one), and `dimension_set` on one leg does not warn.
+Decided 2026-11-22 by the run, not the owner: the legs are named in `verified.checks`, not in
+a warning, because every call of an equal chamfer would then warn (the chamfer tests assert
+no warnings) and a field of its own would be a change of the result's shape; the check line
+is read by a session that reads the result at all.
+Decided 2026-11-22 by the run, not the owner: `equation_set` warns only when the two legs
+were equal before the call, not for every two-leg chamfer, because a chamfer of two distances
+meant to differ has no "other leg that stays" to warn of, and the finding's case is the
+equal one; a leg already driven by an equation, or set in the same call, is not warned of.
+Local: on `sw2023`, `69ae11e`; in build `20261122-142805`. Upstream: not yet
+decided.
+Held 2026-11-22: the scenario test of build `20261122-142805` (findings 2026-11-22, point 4):
+equal 3 mm chamfers on two block edges, one named by `name`: each result's `checks` named both
+legs ("legs D1@<name> and D3@<name> are separate dimensions: drive both ..."), by the new
+name; a batch with a global `W` = 5mm and an equation on one leg of the first: written, −300
+mm³, with the warning naming the other leg and its 3 mm; a batch with `V` = 4mm on both legs
+of the second: no warning, −350 mm³; the other leg of the first in a later call of its own: no
+warning, −500 mm³. The equal chamfer of a bore's edge on an earlier part carried the legs line
+too, no warning.
+
+### S122 - S64 (c): a fillet that stopped at a tangent joint failed with the hint "a radius too large" - CLOSED 2026-11-22
+
+S64 (c), split out of S64 (which stays Open for its other points) in the run of 2026-11-21,
+group 4. `feature_fillet` and `feature_chamfer` of 1 mm over a tangent chain failed five
+times, `FEATURE_FAILED`, the hint "A radius too large for the adjacent faces fails" on faces
+7 and 10 wide; 0.5 went through. The probe of 2026-11-16 (in S64) on a plate whose ends run
+in a quarter round R7 into a face 30° off their tangent did not bring the five back, but
+found the case where the hint misses: a round alone with `propagate` off, and both rounds
+without the line between them, failed "SOLIDWORKS created no feature (the API returned
+nothing)" at 1, 0.5 and 0.2 mm alike, each round ending tangent to the top line, not in the
+call. Decided 2026-11-21 by the owner: such a failure gets the hint "edge <id> ends tangent
+to <id>, not in the call: turn `propagate` on or add it", not the radius. Cause: a fillet
+that stops at a tangent joint fails at any radius, and the constant fillet's failure hint
+named the radius whatever the edges. Fix: `FeatureService.FilletAsync` (a constant fillet),
+with `propagate` off, reads before the call (a rollback disconnects the edges) each end of
+each edge in the call: the other edges at that vertex and their directions away from it (a
+step of 1e-4 of the curve's parameter range, `DirectionAway`); the new interop-free
+`FilletJoints` (unit-tested) keeps the joints where the two run on into each other
+(opposite directions within about 1.4 mrad) and the other edge is not in the call (nor an
+edge of a face in it), and gives the hint. On a failure of the call (any code the
+verifier throws) that hint replaces the radius one; with no such joint, or with
+`propagate` on, nothing is read and the hint is as before. Ids are given only to the edges
+of a joint found, so a fillet with none moves no later id. `docs/solidworks-api-notes.md`
+gains the joint (*A fillet that stops at a tangent joint fails*). No description changed.
+Before: the new `ModellingLiveTests.A_fillet_that_stops_where_its_edge_ends_tangent_to_one_not_in_the_call_names_that_joint`
+(that plate; the right round alone at 1 mm, then both rounds at 0.5 mm, `propagate` off;
+then the round with `propagate` on) failed on the first call's hint, "Assert.Equal()
+Failure: Strings differ … Expected: "edge E1 ends tangent to E3, not in the call: turn "···
+Actual: "A radius too large for the adjacent faces fails; t"···". After: it passes (the
+round alone names its joint with the line, both rounds name both joints and "add it", the
+round with `propagate` on builds with its r 1 face), with the live tests that make a
+constant fillet (convex and concave, the corner point and the query guard, the id made
+stale by a cut and the ids kept with `propagate` off on a block's edges, the model box after
+round faces, the compare with a saved copy, the fillet's info and its delete), 10 of 10
+live; unit tests 333/333 (4 new, `FilletJointsTests`); `check_repo` ok.
+Made stricter: none (a hint only; the call fails or builds as before).
+Decided 2026-11-22 by the run, not the owner: `feature_chamfer` is not changed, because it
+always passes SOLIDWORKS' tangent propagation (it has no `propagate`), so no chamfer call
+stops at a tangent joint; the finding's chamfer failure is not this case.
+Decided 2026-11-22 by the run, not the owner: only the constant fillet (`edges`, with or
+without `faces`) reads the joints, not the variable one, because the probe met the joint on
+the constant fillet and the variable one was not probed; the smaller change.
+Decided 2026-11-22 by the run, not the owner: the joint hint replaces the radius hint on any
+failure of a call that has one, not only on "created no feature", because a fillet that
+stops at an open tangent joint fails whatever the radius, so the joint is the first thing to
+change; a call with no such joint keeps the radius hint.
+Local: on `sw2023`, `3fa3cf4`; in build `20261122-142805`. Upstream: not yet
+decided.
+Held 2026-11-22: the scenario test of build `20261122-142805` (findings 2026-11-22, point 5):
+on the plate whose ends run in a quarter round R7 into a face 30° off their tangent, 10 thick
+mid-plane, the right round alone at 1 mm, `propagate` off: `FEATURE_FAILED` with "edge E5 ends
+tangent to E6, not in the call: turn `propagate` on or add it."; both rounds at 0.5: both
+joints named; the top edge added to the call (all three, `propagate` off): built, −25.993 mm³,
+round face r 1.
+
+### S93 - A write that rebuilds does not name a feature far from the change that gained a rebuild warning - CLOSED 2026-11-22
+
+Sorted out of the entry of 2026-11-17 ("a part's two plates cut back by redrawing one
+sketch", points 1 and 4), on build `20261117-012659`. `dimension_set` of one sketch
+dimension, then a sketch redrawn (`equation_delete` of its one equation, `sketch_edit`,
+`sketch_delete` of all five segments, `sketch_add` of a closed polyline, `sketch_constrain`,
+`sketch_finish`) and `equation_set` binding the new dimension to the old global: none of the
+results named that a fillet at the end of the tree now had rebuild warning 13
+(`swFeatureErrorFilletNoEdge`), one of its four edges lost; `equation_set` read
+`"volumeDeltaMm3":0` and the model's volume. Only `model_review` showed it; the hand figure
+caught it first (+37.6 mm³). Met again in the same session on a second redraw: the same edge
+dropped, named by no write's result. The fillet references a mirrored body's edge far from
+the sketch; by `at` on the same four points three edges resolved to the same ids as before
+and the dropped one to a new id each time. `equation_set` reads new rebuild errors and
+warnings since S58 (a) (Closed); here the warning came with the redraw, whose sketch tools
+do not. Reported `ok`, the result incomplete, not wrong. Workaround: `model_review` after
+every sketch redrawn; the fillet deleted and remade by `at` (3 calls).
+
+Proposed by the session: a write that rebuilds compares the tree's rebuild errors and
+warnings before and after, and names each feature that gained one. Local. Not decided.
+Decided 2026-11-21 by the owner: taken into the run of 2026-11-21, group 4 (`## Run 2026-11-21`).
+Done in the run of 2026-11-22, group 4. The writes that rebuild, listed: `dimension_set`,
+`feature_delete`, `feature_suppress_set`, `equation_set` and `ref_plane`'s flip already compared
+the tree's rebuild errors and warnings before and after (`ErrorMap`, `NewErrors`), so the
+plan's `dimension_set` and `feature_delete` needed nothing. Of the sketch tools, only
+`sketch_finish` closes a sketch that may have features after it: `sketch_import` closes the
+new sketch it made (nothing after it), `sketch_edit` closes only a sketch it opened by
+mistake, unchanged, and the feature tools close the server's open sketch to consume it.
+Cause: `sketch_finish` closed the sketch (`InsertSketch`), and SOLIDWORKS rebuilt the
+features after it, without reading their rebuild states. Fix: `sketch_finish` reads
+`ErrorMap` before the close, closes it with the What's Wrong box held off, rebuilds when
+SOLIDWORKS says the model is out of date, and warns of each feature whose state is new or
+worse, wherever it is in the tree, "'Fillet1' now has rebuild warning 13
+(swFeatureErrorFilletNoEdge)." The line comes from the new
+`FeatureManagementService.WarnNewErrors`, which `feature_delete` and `feature_suppress_set`
+now use for the same line they wrote by hand; it leaves out a feature a feature check of the
+call deferred and has not yet reported (S84 (b), `ReportWarnings`), so no feature is named
+by both. No description changed.
+Before: the new `FeatureManagementLiveTests.Sketch_finish_names_a_feature_the_redrawn_sketch_left_with_a_rebuild_warning`
+(the 100 x 20 x 60 block, an r 5 fillet on two vertical edges with `propagate` off, the
+block's sketch reopened and the corner under one of the edges chamfered 10, `sketch_finish`)
+failed, "Assert.Single() Failure: The collection did not contain any matching items ...
+Collection: []". After: it passes, the line exactly "'Fillet1' now has rebuild warning 13
+(swFeatureErrorFilletNoEdge).", and a second redraw that changes nothing names nothing;
+with the live tests that call the changed code (`feature_delete`: a fillet, a parent with
+children and its dry run, a child's sketch, a plane with its boss and mirror, the equations
+listed and deleted; suppression round trip and refusals; `sketch_finish` of a 3D sketch, of a
+reopened sketch, on the top plane, of an open line), 13 of 13 live; unit tests 333/333;
+`check_repo` ok.
+Made stricter: `sketch_finish` now warns of a rebuild error or warning its close gave a
+feature after the sketch (it said nothing).
+Decided 2026-11-22 by the run, not the owner: only `sketch_finish` gains the compare, because
+the other writes the plan names (`dimension_set`, `feature_delete`) and `feature_suppress_set`,
+`equation_set`, `ref_plane`'s flip already compare, and no other sketch tool closes a sketch with
+features after it; a feature tool that consumes a sketch reopened by `sketch_edit` is left
+as it is, the smaller change.
+Decided 2026-11-22 by the run, not the owner: a new rebuild error after the close is a line,
+not a failure, as `equation_set` (S58 (a)) and `feature_delete` give it, because the sketch
+is what the caller drew and the close is kept; the line names the feature to fix next.
+Local: on `sw2023`, `b3abaf4`; in build `20261122-142805`. Upstream: not yet
+decided.
+Held 2026-11-22: the scenario test of build `20261122-142805` (findings 2026-11-22, point 6):
+a block with an r 5 fillet on two vertical edges (`propagate` off), the block's sketch
+reopened and the corner under one edge chamfered 10 in the sketch: `sketch_finish` warned
+"'Fillet1' now has rebuild warning 13 (swFeatureErrorFilletNoEdge)."; the sketch reopened and
+closed again unchanged: no warning. The point's "Small" went to S123: both results listed
+`D3@Sketch1` twice in `dimensions`, and `sketch_edit` and `sketch_finish` counted the sketch's
+segments 7 and 5.
+
+### S117 - After a `doc_undo` has run past a later step, a change before it that left no undo step is passed over: the next undo takes back the step before it, reported `ok` - CLOSED 2026-11-22
+
+Sorted out of the entry of 2026-11-22 (the scenario test of build `20261122-030022`), point
+4, on S113's and S114's fixes (Closed). A second boss extruded, then `feature_rename` of the
+base extrude, then `feature_suppress_set` of the second boss, then `doc_undo` (ran,
+`unsuppressed` the boss, right), then `doc_undo` again: it ran, `removed:
+["Boss-Extrude3"]`, −392.699 mm³, and the rename stayed (`feature_list` shows the new name).
+Expected: S113's refusal, as given straight after a rename ("feature_rename left no
+SOLIDWORKS undo step: undo would take back the step before it ... and leave the
+feature_rename in place"), since the rename is now the server's last change not undone. The
+same where the rename was of the boss itself (the boss went, and its new name with it). The
+result named truly what it removed, so nothing was hidden; the refusal is not armed again
+once an undo has run past the step after the change. Reported `ok`.
+
+Local, small, in the files of group 2 and group 3 (`doc_undo` and `SwContext`'s undo
+accounting).
+Decided 2026-11-22 by the run, not the owner: once a `doc_undo` has taken back the step after
+a change that left no undo step, that change is again the server's last change not undone,
+and the next `doc_undo` refuses naming it, as S113 does. Test to start from: the entry's
+sequence, a boss, a rename of the base extrude, a suppress of the boss, `doc_undo`, then
+`doc_undo` again: refused naming `feature_rename` (fails now: it runs, removing
+`Boss-Extrude3`). Default model.
+Decided 2026-11-22 by the run, not the owner: taken into group 4, by the run's rule "a new
+point, small and in the group's files, a later step of this run ... taken into the next
+group", because it is a small change to the undo accounting group 3 changed, found by group
+3's check.
+Cause: a counted write after a change that left no undo step cleared the change from the
+document's record (`NoUndoChanges`), and the undo that took that write back left the record
+empty, so nothing said the change was again the server's last not undone.
+Fix: the record is a new interop-free `UndoLedger` (`Documents/UndoLedger.cs`, in place of
+the entry's `NoUndoChanges` and `UndoSteps`): each counted step keeps the changes with no
+undo step that came before it; `doc_undo` puts them on record again when it takes that
+step back, so the next undo refuses as S113's does ("The server's last change in 'X'
+(feature_rename) left no SOLIDWORKS undo step: undo would take back the step before it, the
+server's feature_extrude instead ..."). An undo of several steps that would pass over one
+is refused too, naming it and how many steps it can take back first ("... before its last
+1 undo step(s) (feature_rename) left no SOLIDWORKS undo step: past them undo would take
+back ...", hint "Pass steps ≤ 1."). No description changed.
+Before: the new `FeatureManagementLiveTests.Undo_refuses_again_after_an_undo_past_the_step_that_followed_a_change_with_no_undo_step`
+(the 100 x 20 x 60 block, an r 5 x 5 boss on its top, the base extrude renamed, the boss
+suppressed, `doc_undo`, `doc_undo`) failed at the second undo, "Assert.Throws() Failure: No
+exception was thrown". After: it passes (the second undo refused naming `feature_rename`
+and the server's `feature_extrude`, the boss kept; a suppress again, then `steps: 2`
+refused with "steps ≤ 1"); with every `doc_undo` test (`FeatureManagementLiveTests`' five,
+the assembly's and the drawing's), the stamp tests
+(`The_servers_own_failed_kept_and_rolled_back_changes_do_not_read_as_the_users`,
+`An_assembly_adopted_after_the_server_saved_its_parts_does_not_read_as_changed_by_the_user`)
+and the drawing section test that undoes in a drawing, 11 of 11 live; the new unit tests
+`UndoLedgerTests` (6) in unit tests 339/339; `check_repo` ok.
+Made stricter: `doc_undo` refuses after an undo past the step that followed a change with no
+undo step, and an undo of several steps that would pass over one; nothing else that passed
+is refused.
+Decided 2026-11-22 by the run, not the owner: an undo of several steps that would pass over
+such a change is refused too, naming how many it can take back first, because it is the same
+fault in one call, and refusing only the one-step undo would leave it passing as `ok`.
+Decided 2026-11-22 by the run, not the owner: the changes are kept with the step after them
+in a new interop-free `UndoLedger`, unit-tested offline, rather than a second list beside
+`UndoSteps`, because the rule is then one function each for a write, an undo and a refusal.
+Local: on `sw2023`, `ee5c4c5`; in build `20261122-142805`. Upstream: not yet
+decided.
+Held 2026-11-22: the scenario test of build `20261122-142805` (findings 2026-11-22, point 7):
+a boss patterned, the base extrude renamed, the pattern suppressed, then `doc_undo`:
+`unsuppressed` the pattern; `doc_undo` again: `NOT_SUPPORTED` naming `feature_rename` and "the
+server's feature_pattern_linear" before it. The pattern suppressed again, then `doc_undo
+{steps:2}`: refused, "before its last 1 undo step(s) (feature_rename)", hint "Pass steps ≤
+1."; one step then ran.
+
 ## Not items
 
 - **SW 2023 interop patch** (`27e8c25`): `swCustomInfoEquation` case removed,

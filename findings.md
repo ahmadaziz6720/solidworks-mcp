@@ -2530,3 +2530,5 @@ Build `bin\0.1.0-20261122-142805` (`serverVersion` `0.1.0-sw2023-20261122-142805
     60 → 80 from the assembly +6 283.185, mates without error, back to 60, closed discarded,
     files unchanged; a 1:2 plan with two sections on the owner's A3 template, 1 and 3 hatched
     faces; `doc_undo` in a drawing refused.
+
+Sorted into S118 (8), checked; S123 (6), new; S124 (9), new; S125 (10), new; S5 (11), met again, the rest of the regression held. Held: S119 (1), S84 (2), S120 (3), S121 (4), S122 (5), S93 (6), S117 (7).
