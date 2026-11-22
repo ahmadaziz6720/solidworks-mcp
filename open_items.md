@@ -220,6 +220,12 @@ answer below, across as many sessions as it needs, from the first step not ticke
   ran `runall.ps1` at `-MinFreeMB 400` to keep the requeues down (S84 (b) runs in every feature
   call, so 24 classes, about 195 min). The owner moves to a new session after each group's
   sort, not mid-group (2026-11-22).
+- **Session 4** (2026-11-22, the owner, mid-group 5, leaving the laptop): "nanti lanjut aja ya ke grup 6.
+  gausah pindah sesi": after group 5's check is sorted the same session goes on into group 6 (and on), past the
+  150k hand-over, its context summarized by Claude Code as needed; every step still committed and ticked, so a
+  cut session is picked up from the first step not ticked. Changed by the owner on their return, still in group 5:
+  "stop ya setelah uji scenario grup 5": the session stops once group 5's check is sorted, and hands over;
+  group 6 starts in a new session.
 - **Left for the end of the run** (to file as items with the report): S81's probe saw once, in
   one variant (`doc_open` then `doc_activate` of parts loaded only by the assembly), the live
   fixture's "System preferences changed by this test: Double2: 0.000131 -> 1.085e-05", cause
@@ -585,9 +591,32 @@ its point.
 - [x] S52: committed (split out as S126) (`ca11c05`)
 - [x] S97 and S104: committed (material_list's description changed: docs/tools.md at the release) (`fd64df4`)
 - [x] S98: committed (doc_open's description changed: docs/tools.md at the release) (`027e13c`)
-- [x] S108: committed (doc_new's description changed: docs/tools.md at the release)
-- [ ] Group 5: full live tests and release (build: )
-- [ ] Group 5: scenario test with S1's proof (session id: ), its entry committed and sorted
+- [x] S108: committed (doc_new's description changed: docs/tools.md at the release) (`6535044`)
+- [x] Group 5: full live tests and release (build: `20261122-194424`, `a6a39d4`)
+  Live: SketchEditLiveTests 79, PartFeatureLiveTests 53, FeatureManagementLiveTests 41, AdvancedFeatureLiveTests 30,
+  BodySheetMetalLiveTests 52, ReferenceLiveTests 47, ModellingLiveTests 10, SurfaceShapeLiveTests 8, WeldmentLiveTests 11,
+  FaceEditLiveTests 5 of 6, MoldingLiveTests 4, PropertiesLiveTests 26 of 27, AssemblyLiveTests 65, DrawingLiveTests 60,
+  ExportLiveTests 22, M0LiveTests 25, TopDownLiveTests 4, RecognitionLiveTests 1, AssemblyStructureLiveTests 2,
+  ConfigurationLiveTests 7, HardwareLiveTests 3, VisualsLiveTests 3, SimulationLiveTests 17, SimulationExtrasLiveTests 3,
+  TemplateLiveTests 0 of 1 (skips itself: the 2025 templates are not installed): 578 passed of 580 run in 25 classes, as
+  S98's guard runs in every write call and `doc_new` in every test. All passed but two, neither a fault of this group's code:
+  `FaceEditLiveTests.Delete_heals_a_hole_in_an_imported_STEP_body_without_history` (S5, in the class run and alone after a
+  restart) and `PropertiesLiveTests.A_custom_material_is_listed_…` (S72). One flake: `AssemblyLiveTests.An_assembly_adopted_after_the_server_saved_its_parts_does_not_read_as_changed_by_the_user`
+  failed in the class run (S112's equation state), passed 1/1 alone after a restart. Guard stops, not test failures (free
+  memory low, two other processes holding about 600 MB, the guard at `-MinFreeMB 400`): AssemblyLiveTests once (22 tests done,
+  the rest one by one) and two tests alone, SimulationExtrasLiveTests at its start and each test alone; all passed rerun one by
+  one after a restart each with the guard at 250 MB (`group5b.ps1`), but `A_nonlinear_study_of_a_small_load_matches_the_linear_one`,
+  stopped again at 116 MB free and passed 1/1 alone at `-MinFreeMB 100` (`group5c.ps1`, below the plan's 250). No "low on
+  memory" dialog. SOLIDWORKS' default drawing template read before, after the tests and at the end: the owner's own, unchanged
+  (the S108 tests set and restore it). Run class by class with SOLIDWORKS restarted before each and `dotnet build-server
+  shutdown`. The live tests took about 190 min on the clock (16:33 to 19:43), the whole release about 192 min. Unit 355,
+  `check_repo` ok. Descriptions changed (doc_new, doc_open, doc_list, sw_status, material_list): `--check-catalog` ok (165
+  tools, 247.6 KB), `docs/tools.md` regenerated and committed alone (`a6a39d4`); published from a worktree at it, as
+  `open_items.md` held this note. Registered in `claude_solidworks`, `clove sorter` (its `SWMCP_VBA=on` kept) and this
+  repo, each read back from `~/.claude.json` on the new exe; tag `build-20261122-194424` pushed and read back, release page
+  with no files (`ahmadaziz6720/solidworks-mcp` releases, `build-20261122-194424`). SOLIDWORKS restarted from its exe at the end.
+  Cost: Sonnet, 136k tokens, see the report.
+- [ ] Group 5: scenario test with S1's proof (session id: `0a60bd46-2242-491b-a386-102f51a0ab03`), its entry committed and sorted
 - [ ] S100 (a) and (b): committed
 - [ ] S100 (c): committed
 - [ ] S100 (d): committed
@@ -2338,7 +2367,7 @@ state, because the state cannot be brought on at will (S92 (c)'s probe did not r
 and a check in the good state shows only that the sign raises no false alarm; the unit tests
 hold the rule meanwhile.
 
-### S106 - The drawing's overlap checks count neither tables nor views, and `drw_table_add` gives no extent - BUILT 2026-11-22, proof: the scenario test of the group 5 build
+### S106 - The drawing's overlap checks count neither tables nor views, and `drw_table_add` gives no extent - BUILT 2026-11-22, proof: the scenario test of build 20261122-194424
 
 Sorted out of the entry of 2026-11-18 ("a two-sheet A3 drawing of a 16-member weldment
 part", point 1), on build `20261118-060615`. **A result reported `ok` while wrong.**
@@ -2395,10 +2424,10 @@ Decided 2026-11-22 by the run, not the owner: the view check (a view added or mo
 counts the tables, though the plan named only the table, note and dimension checks, because
 its check claims "no overlaps with other views or their annotations" and a table is one; one
 clause, no new option.
-Local: on `sw2023`, in the commit that moves it here; not yet in a build. Upstream: not yet
+Local: on `sw2023`, `cff9e5c`; in build `20261122-194424`. Upstream: not yet
 decided.
 
-### S90 - `drw_view_section` with no `atMm` places a section so its own label overlaps the title block - BUILT 2026-11-22, proof: the scenario test of the group 5 build
+### S90 - `drw_view_section` with no `atMm` places a section so its own label overlaps the title block - BUILT 2026-11-22, proof: the scenario test of build 20261122-194424
 
 Sorted out of the entry of 2026-11-17 (the scenario test of build `20261117-012659`), point
 7; met in three scenario tests. `drw_view_section` with no `atMm` placed a section of a 1:2
@@ -2451,10 +2480,10 @@ Decided 2026-11-22 by the run, not the owner: the outline margin and the label's
 constants read at a 1:2 sheet on 2023 SP3 (6, 12.1 and 46 mm, rounded up), not read from the
 new view, because its size is known only after it is made, and the call's own overlap check
 still warns when they are off; whether the margin scales with the sheet is not known.
-Local: on `sw2023`, in the commit that moves it here; not yet in a build. Upstream: not yet
+Local: on `sw2023`, `82087b8`; in build `20261122-194424`. Upstream: not yet
 decided.
 
-### S126 - S52 (d): `body_list`'s box is `GetBodyBox`'s loose bound, not the tight box of the other results - BUILT 2026-11-22, proof: the scenario test of the group 5 build
+### S126 - S52 (d): `body_list`'s box is `GetBodyBox`'s loose bound, not the tight box of the other results - BUILT 2026-11-22, proof: the scenario test of build 20261122-194424
 
 Point (d) of S52 (S52 stays Open for the rest) (findings 2026-11-16, "a part edited by rollback", point 9, build
 `20261116-124830`): `body_list` gave a box max of 149.016816 where `equation_set` and
@@ -2488,10 +2517,10 @@ Decided 2026-11-22 by the run, not the owner: only `body_list`'s read changed, n
 `BodyKit.Row`, because the plan names `body_list`, and `BodyGeom.Box` is also the key of the
 before/after body comparisons, whose tolerance a change of box would touch; the rows of the
 other body tools are left for S52's remainder.
-Local: on `sw2023`, in the commit that moves it here; not yet in a build. Upstream: not yet
+Local: on `sw2023`, `ca11c05`; in build `20261122-194424`. Upstream: not yet
 decided.
 
-### S97 - `material_list` with no match does not say which databases it read - BUILT 2026-11-22, proof: the scenario test of the group 5 build
+### S97 - `material_list` with no match does not say which databases it read - BUILT 2026-11-22, proof: the scenario test of build 20261122-194424
 
 Sorted out of the entry of 2026-11-17 ("a printed plate with two walls standing off it in an
 L", point 2), on build `20261117-012659`. `material_list {filter}` with no match returned
@@ -2519,10 +2548,10 @@ fails on this machine before and after, a custom library, not this change); unit
 346/346; `PropertiesOfflineTests` 24/24; `ContractTests.Tool_catalog_follows_the_conventions`
 and `--check-catalog` ok; `check_repo` ok.
 Made stricter: nothing refused; a miss's `databases` is no longer empty.
-Local: on `sw2023`, in the commit that moves it here; not yet in a build. Upstream: not yet
+Local: on `sw2023`, `fd64df4`; in build `20261122-194424`. Upstream: not yet
 decided.
 
-### S104 - `material_list` lists one database twice, under its short and its long path - BUILT 2026-11-22, proof: the scenario test of the group 5 build
+### S104 - `material_list` lists one database twice, under its short and its long path - BUILT 2026-11-22, proof: the scenario test of build 20261122-194424
 
 Sorted out of the entry of 2026-11-18 ("a weldment frame of 16 members in one custom
 profile", point 3), on build `20261118-060615`. `material_list {filter:"606"}` returned 24
@@ -2546,10 +2575,10 @@ twice in the databases; unit tests 346/346; `check_repo` ok.
 Made stricter: nothing refused; a folder given twice under two spellings is read once.
 Decided 2026-11-22 by the run, not the owner: the real 8.3 test skips when the volume has 8.3
 names off, because the rule is also held by the fake-resolver test, which needs none.
-Local: on `sw2023`, in the commit that moves it here; not yet in a build. Upstream: not yet
+Local: on `sw2023`, `fd64df4`; in build `20261122-194424`. Upstream: not yet
 decided.
 
-### S98 - `doc_open {readOnly:true}` reports `access: owned` and says the server may edit it - BUILT 2026-11-22, proof: the scenario test of the group 5 build
+### S98 - `doc_open {readOnly:true}` reports `access: owned` and says the server may edit it - BUILT 2026-11-22, proof: the scenario test of build 20261122-194424
 
 Sorted out of the entry of 2026-11-17 ("read-only checks of rebuilt parts and an assembly",
 point 1). A read-only check opened six parts and an assembly with `readOnly: true`; each came
@@ -2611,10 +2640,10 @@ already asks for.
 Decided 2026-11-22 by the run, not the owner: the mark follows the `readOnly` asked, not
 SOLIDWORKS' `IsOpenedReadOnly`, because it is the caller's intent the access reports; a file
 SOLIDWORKS opened read-only unasked stays `owned` (saved by `copy` or `as`).
-Local: on `sw2023`, in the commit that moves it here; not yet in a build. Upstream: not yet
+Local: on `sw2023`, `027e13c`; in build `20261122-194424`. Upstream: not yet
 decided.
 
-### S108 - `doc_new {type:"drawing"}` with no `template` replaces a custom default template's format with ISO and its units with MMGS - BUILT 2026-11-22, proof: the scenario test of the group 5 build
+### S108 - `doc_new {type:"drawing"}` with no `template` replaces a custom default template's format with ISO and its units with MMGS - BUILT 2026-11-22, proof: the scenario test of build 20261122-194424
 
 Sorted out of the entry of 2026-11-18 ("a custom sheet format made from the ISO one with
 `vba_run`", point 6), on build `20261118-060615`. With SOLIDWORKS' default drawing template
@@ -2676,5 +2705,5 @@ Decided 2026-11-22 by the run, not the owner: `units` left out keeps the custom 
 units, and `units` named wins over them, while the sheet stays the template's either way,
 because the caller who names units asks for exactly that, and the sheet has no such option
 in `doc_new` (`drw_sheet_setup` changes it).
-Local: on `sw2023`, in the commit that moves it here; not yet in a build. Upstream: not yet
+Local: on `sw2023`, `6535044`; in build `20261122-194424`. Upstream: not yet
 decided.
