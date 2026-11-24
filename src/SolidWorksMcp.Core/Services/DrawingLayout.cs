@@ -532,6 +532,26 @@ internal static class DrawingLayout
     }
 
     /// <summary>
+    /// S128: the first shift <c>t</c> (mm, from <paramref name="tMin"/> up to <paramref name="tMax"/>) along the unit
+    /// direction <paramref name="dir"/> that puts <paramref name="box"/> inside <paramref name="area"/> clear of
+    /// <paramref name="occupied"/> by <paramref name="clearance"/>; null when there is none. An aligned view moves only so.
+    /// </summary>
+    public static double? FirstFreeAlong(SheetRect box, (double X, double Y) dir, double tMin, double tMax, SheetRect area,
+        IReadOnlyList<SheetRect> occupied, double clearance = 5, double step = 1)
+    {
+        bool wasInside = false;
+        for (double t = tMin; t <= tMax + 1e-9; t += step)
+        {
+            var r = new SheetRect(box.X0 + dir.X * t, box.Y0 + dir.Y * t, box.X1 + dir.X * t, box.Y1 + dir.Y * t);
+            bool inside = r.Inside(area);
+            if (!inside && wasInside) break; // the box crosses the area once: farther out only leaves it
+            wasInside |= inside;
+            if (inside && !occupied.Any(o => r.Overlaps(o, clearance))) return t;
+        }
+        return null;
+    }
+
+    /// <summary>
     /// Moves a standard-view layout (centred in <paramref name="usable"/>) to the free place nearest the centre when other
     /// views are already on the sheet. Free is false when no free place fits the whole group (the layout is unchanged).
     /// </summary>

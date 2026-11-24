@@ -592,6 +592,28 @@ public class DrawingLiveTests(LiveFixture fx) : LiveTest(fx)
         }
     }
 
+    /// <summary>
+    /// S128: a detail with no atMm beside a hole table. The free-space search counted the views, the border and the
+    /// title block, not tables, so the detail landed over the table (warned "overlaps table" only after).
+    /// </summary>
+    [Fact]
+    public async Task A_detail_with_no_atMm_is_placed_clear_of_a_hole_table()
+    {
+        var (drw, r) = await ViewsAsync("drw_detail_table", ["front"], hole: true);
+        var front = r.Views[0];
+        var b = front.BoundsMm!;
+        // The table where the detail would go: right of the front view, across its centre line.
+        var t = await Drw.TableAddAsync(new DrwTableRequest { Doc = drw, Kind = "hole", View = front.Name, AtMm = [b[2] + 20, (b[1] + b[3]) / 2 + 5] });
+        var e = t.ExtentMm!;
+        var m = front.ModelBoxMm!;
+        var det = await Drw.DetailAsync(front.Name, [m[2] - 5, m[3] - 5], 10, "2:1", null, null, drw);
+        var o = det.View.BoundsMm!;
+        string seen = $"detail [{string.Join(", ", o)}], table [{string.Join(", ", e)}], front [{string.Join(", ", b)}]; warnings: {string.Join(" | ", det.Warnings ?? [])}";
+        Assert.False(Overlap(o, e), $"the detail lies over the table: {seen}");
+        Assert.DoesNotContain(det.Warnings ?? [], w => w.Contains("overlaps", StringComparison.Ordinal));
+        Assert.Contains(det.Checks!, c => c.StartsWith("no overlaps", StringComparison.Ordinal));
+    }
+
     [Fact]
     public async Task Detail_leaves_no_sketch_open()
     {
@@ -915,6 +937,42 @@ public class DrawingLiveTests(LiveFixture fx) : LiveTest(fx)
         var straight = await Assert.ThrowsAsync<SwException>(() =>
             Drw.ViewAddAsync(new DrwViewAddRequest { Doc = drw, Kind = "auxiliary", Parent = front.Name, Edge = new EntityRef { Type = "edge", At = [0, 10, 20] } }));
         Assert.Contains(straight.Code, new[] { ErrorCodes.InvalidArgument, ErrorCodes.EntityNotFound });
+    }
+
+    /// <summary>
+    /// S128: an auxiliary view with no atMm. It was put a fixed reach from its parent's centre, whatever its own size, and
+    /// said nothing when it landed over the parent or off the sheet; now it goes to the first free spot along its
+    /// alignment, and where there is none the result says so, with the hint (atMm, a smaller scale).
+    /// </summary>
+    [Fact]
+    public async Task An_auxiliary_with_no_atMm_goes_clear_along_its_alignment_or_says_there_is_no_room()
+    {
+        var (doc, path) = await BlockAsync("drw_aux_place", dimensions: false);
+        await new PartFeatureService(S).ChamferAsync(new ChamferRequest { Doc = doc, Edges = [new EntityRef { At = [50, 30, 10] }], DistanceMm = 10 });
+        await Docs.SaveAsync(doc, "inPlace", null, false);
+        var edge = new EntityRef { Type = "edge", At = [45, 25, 20] };
+
+        // 1:1: room along the alignment, clear of the parent.
+        string drw = await DrawingAsync("drw_aux_place");
+        var front = (await Drw.ViewsStandardAsync(path, ["front"], "1:1", drw)).Views.Single();
+        var aux = await Drw.ViewAddAsync(new DrwViewAddRequest { Doc = drw, Kind = "auxiliary", Parent = front.Name, Edge = edge });
+        string seen = $"aux [{string.Join(", ", aux.View.BoundsMm!)}], front [{string.Join(", ", front.BoundsMm!)}]; warnings: {string.Join(" | ", aux.Warnings ?? [])}";
+        Assert.False(Overlap(aux.View.BoundsMm!, front.BoundsMm!), $"the auxiliary lies over its parent: {seen}");
+        Assert.DoesNotContain(aux.Warnings ?? [], w => w.Contains("overlaps", StringComparison.Ordinal));
+        Assert.Contains(aux.Checks!, c => c.Contains("along its alignment", StringComparison.Ordinal));
+        // Still aligned: the chamfer runs at 45°, so the view's centre lies on the diagonal through its parent's.
+        var (ac, fc) = (aux.View.BoundsMm!, front.BoundsMm!);
+        double dx = (ac[0] + ac[2] - fc[0] - fc[2]) / 2, dy = (ac[1] + ac[3] - fc[1] - fc[3]) / 2;
+        Assert.True(Math.Abs(Math.Abs(dx) - Math.Abs(dy)) <= 1, $"off its alignment: centre offset [{dx}, {dy}]; {seen}");
+
+        // 2:1: no room along the alignment on the sheet: said, with the hint.
+        string drw2 = await DrawingAsync("drw_aux_noroom");
+        var big = (await Drw.ViewsStandardAsync(path, ["front"], "2:1", drw2)).Views.Single();
+        var aux2 = await Drw.ViewAddAsync(new DrwViewAddRequest { Doc = drw2, Kind = "auxiliary", Parent = big.Name, Edge = edge });
+        string said = string.Join(" | ", aux2.Warnings ?? []);
+        Assert.True((aux2.Warnings ?? []).Any(w => w.Contains("No free spot", StringComparison.Ordinal) && w.Contains("alignment", StringComparison.Ordinal)
+                                                   && w.Contains("atMm", StringComparison.Ordinal) && w.Contains("smaller scale", StringComparison.Ordinal)),
+            $"no hint: aux [{string.Join(", ", aux2.View.BoundsMm!)}], front [{string.Join(", ", big.BoundsMm!)}]; warnings: {said}");
     }
 
     [Fact]

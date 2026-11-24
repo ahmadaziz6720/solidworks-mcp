@@ -755,7 +755,9 @@ type libraries and writes `sldworks_api.txt`, `swconst_enums.txt`, `swcommands.t
 - **Auxiliary view** (VERIFIED). The angled edge selected in the parent view, then `CreateAuxiliaryViewAt2(x, y, 0, false,
   label, true, false)` → a `swDrawingAuxiliaryView` (5) looking square to the edge. **It leaves the view's
   PropertyManager open**, so the next call would see a running command: `ISldWorks.RunCommand(swCommands_PmOK = -2, "")`
-  presses OK.
+  presses OK. Its outline is centred on the point given (2023 SP3), and `IView.Position` set to a point along the
+  alignment moves it there; its size is known only once made, so the server places it, then moves it to the first free
+  spot along the alignment on that side (S128).
 - **Broken view** (VERIFIED). `IView.InsertBreak3(orientation, p1, p2, style, intensity, true)` with the positions relative to
   `IView.Position` (sheet m) **only draws the break lines**; `IDrawingDoc.BreakView()` on the selected view applies them.
   `GetOutline` keeps the unbroken outline afterwards; `IView.IsBroken()` and `IBreakLine.GetPosition(0/1)` read the break

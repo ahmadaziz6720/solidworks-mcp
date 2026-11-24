@@ -323,6 +323,11 @@ public sealed partial class DrawingService
                     throw new SwException(ErrorCodes.VerifyFailed, $"'{info.Name}' is not perpendicular to '{hit.Name}'.");
                 checks.Add($"looks along [{Dir(toward)}]: square to {r.Label} and to '{hit.Name}'");
             }
+            if (at is null)
+            {
+                PlaceAlongAlignment(ctx, sheet, hit, nv, (nx, ny), checks);
+                info = ViewInfo(ctx, nv, false);
+            }
             OverlapCheck(ctx, sheet, [nv], checks);
             return new DrwViewResult { Doc = ctx.Title(d), View = info with { Parent = hit.Name, Model = FileOnly(info.Model) }, Label = label, Checks = checks };
         }

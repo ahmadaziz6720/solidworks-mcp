@@ -17,7 +17,7 @@ Closed all the same, its PR named, and an open PR no longer holds an item in Wai
 item sent upstream ends with `**Upstream: PR #9, open.**`, one per PR or issue
 (`merged`, `closed unmerged`; an issue `open` or `closed`), kept to its state.
 
-**Open: S4, S5, S7, S10 to S12, S33, S34, S52, S60, S64, S65, S79 to S82, S85, S86, S92, S94, S96, S99, S101, S105, S109, S111, S115, S123 to S125, S128 to S131.**
+**Open: S4, S5, S7, S10 to S12, S33, S34, S52, S60, S64, S65, S79 to S82, S85, S86, S92, S94, S96, S99, S101, S105, S109, S111, S115, S123 to S125, S129 to S131.**
 Sorted 2026-11-22, the scenario test of build `20261122-194424` (findings 2026-11-22): S98,
 S108, S90, S106, S126, S97 and S104 held and closed, S104 as far as this machine allows (no
 8.3 folder in its File Locations); S1 held for `drw_view_detail` and a view at an angle and
@@ -650,8 +650,8 @@ its point.
 - [x] S100 (d): committed (S100 to Waiting) (`4b13b83`)
 - [x] S102: committed (`3a19df8`)
 - [x] S103 (a) and (b): committed (the failed-split hint, changed after its live run, has no live test) (`285249f`)
-- [x] S127: committed
-- [ ] S128: committed
+- [x] S127: committed (`8f88347`)
+- [x] S128: committed
 - [ ] S130: committed
 - [ ] S131: committed
 - [ ] Group 6: full live tests and release (build: )
@@ -2137,34 +2137,6 @@ point, small and in the group's files, a later step of this run ... taken into t
 group", because it is a
 small line of the pattern's result, found by group 4's check.
 
-### S128 - With no `atMm`, an auxiliary view lands over its parent and the title block though said to be a free spot, and the free-space search does not count tables - OPEN 2026-11-22
-
-Sorted out of the entry of 2026-11-22 (the scenario test of build `20261122-194424`), point
-7; bears on S90 and S106, both held (S106's checks warned of each overlap, S90's section
-label cleared the title block). (a) `drw_view_add auxiliary` with no `atMm`, whose
-description says "default: a free spot (beside the parent for auxiliary)", put a 155 x 101
-mm view on a 1:2 plan over the plan, the section below it and the title block, with the
-three overlap warnings. Along its alignment there was no free spot on that sheet, so a
-refusal or a hint (a smaller scale, `atMm`) would have served; `drw_view_edit move` off the
-alignment is refused `VERIFY_FAILED` with the alignment hint (right). (b) A 2:1 detail with
-no `atMm` was placed with its outline over a hole table's corner: the free-space search
-(`Place`) counts the views, the border and the title block, not tables; the overlap check
-after it does ("overlaps table"). Warned each time, so nothing hidden; the free spot the
-description claims was not one.
-
-Local, in group 5's files (`DrawingService.cs` `Place`, `DrawingLayout.cs`).
-Decided 2026-11-22 by the run, not the owner: `Place` counts the sheet's tables as occupied;
-where no free spot exists along an aligned view's alignment, the result says so with the
-hint (a smaller scale, or `atMm`) instead of claiming a free spot. Test to start from: a
-detail with no `atMm` beside a hole table, placed not over it (fails now: over the table's
-corner); an auxiliary with no room along its alignment, the result giving the hint (fails
-now: placed over the parent, the section and the title block, only the overlaps warned).
-Default model.
-Decided 2026-11-22 by the run, not the owner: taken into group 6, by the run's rule "a new
-point, small and in the group's files, a later step of this run ... taken into the next
-group", because it extends the placement S90 and S106 changed in group 5's files, needing
-no choice of the owner's, found by group 5's check.
-
 ### S129 - An auxiliary view's arrow and letter are drawn about 90 mm from the edge it was made from - OPEN 2026-11-22
 
 Sorted out of the entry of 2026-11-22 (the scenario test of build `20261122-194424`), point
@@ -2643,4 +2615,41 @@ Fix: `ViewInfo` gives a detail view's `centerMm` as its outline's centre, so `dr
 Before: `DrawingLiveTests.Detail_center_is_the_center_of_its_bounds_in_both_reads` failed "drw_view_detail: centerMm [260,849, 161,306] is not the centre of boundsMm [253,509, 133,966, 342,189, 222,646] (drw_view_detail centerMm [260,849, 161,306], boundsMm [253,509, 133,966, 342,189, 222,646]; drw_info centerMm [217,849, 138,306], boundsMm [253,509, 133,966, 342,189, 222,646])".
 After: it passes, its move of the detail included, with `Detail_of_a_corner_has_the_requested_scale`, `Detail_leaves_no_sketch_open`, `Views_move_with_their_aligned_children_and_are_deleted`, `A_section_with_no_atMm_is_placed_so_its_own_label_clears_the_title_block`, `View_moves_and_deletes_that_cannot_work_are_refused` and `Moving_an_annotation_or_a_view_s_label_onto_another_text_is_warned` (live, 7/7); unit tests 357/357; `check_repo` ok. Not run: `--check-catalog` and the catalog test (no description changed).
 Made stricter: a detail's move is checked by its outline's centre, not only by the position SOLIDWORKS echoes back.
+Local: on `sw2023`, in the commit that moves it here; not yet in a build. Upstream: not yet decided.
+
+### S128 - With no `atMm`, an auxiliary view lands over its parent and the title block though said to be a free spot, and the free-space search does not count tables - BUILT 2026-11-24, proof: the scenario test of the group 6 build
+
+Sorted out of the entry of 2026-11-22 (the scenario test of build `20261122-194424`), point
+7; bears on S90 and S106, both held (S106's checks warned of each overlap, S90's section
+label cleared the title block). (a) `drw_view_add auxiliary` with no `atMm`, whose
+description says "default: a free spot (beside the parent for auxiliary)", put a 155 x 101
+mm view on a 1:2 plan over the plan, the section below it and the title block, with the
+three overlap warnings. Along its alignment there was no free spot on that sheet, so a
+refusal or a hint (a smaller scale, `atMm`) would have served; `drw_view_edit move` off the
+alignment is refused `VERIFY_FAILED` with the alignment hint (right). (b) A 2:1 detail with
+no `atMm` was placed with its outline over a hole table's corner: the free-space search
+(`Place`) counts the views, the border and the title block, not tables; the overlap check
+after it does ("overlaps table"). Warned each time, so nothing hidden; the free spot the
+description claims was not one.
+
+Local, in group 5's files (`DrawingService.cs` `Place`, `DrawingLayout.cs`).
+Decided 2026-11-22 by the run, not the owner: `Place` counts the sheet's tables as occupied;
+where no free spot exists along an aligned view's alignment, the result says so with the
+hint (a smaller scale, or `atMm`) instead of claiming a free spot. Test to start from: a
+detail with no `atMm` beside a hole table, placed not over it (fails now: over the table's
+corner); an auxiliary with no room along its alignment, the result giving the hint (fails
+now: placed over the parent, the section and the title block, only the overlaps warned).
+Default model.
+Decided 2026-11-22 by the run, not the owner: taken into group 6, by the run's rule "a new
+point, small and in the group's files, a later step of this run ... taken into the next
+group", because it extends the placement S90 and S106 changed in group 5's files, needing
+no choice of the owner's, found by group 5's check.
+Decided 2026-11-24 by the run, not the owner: an auxiliary view made with no `atMm` is moved, once made (its size is known only then), to the first free spot along its alignment on the side of its parent it was made on, not across the parent, because across it the view would lie opposite its arrow.
+Decided 2026-11-24 by the run, not the owner: where no spot is free the view stays where it was made and the result warns with the hint, not a refusal, because the plan asks the result to say so and the view itself is right.
+Decided 2026-11-24 by the run, not the owner: the detail keeps its placement by the estimated size (now with the tables counted), with no re-placement by its real outline, because the plan's point is the tables and the overlap check after it still warns of any clash.
+Cause: (b) `Place` (sections, details) built its free space from the views' outlines, the border and the title block, not the tables, though the overlap check after it counts them (S106). (a) An auxiliary view with no `atMm` was put a fixed reach (half the parent's larger side plus 30 mm) from its parent's centre along the alignment, whatever its own size, with no free-space search at all.
+Fix: `FreeSpace` (`DrawingService.Placement.cs`) gives the area and what is taken, the tables on the current sheet included; `Place` uses it. `PlaceAlongAlignment` reads the new auxiliary's outline and its own label, finds the first shift along the alignment (`DrawingLayout.FirstFreeAlong`, 1 mm steps, from the parent's centre outward on that side) that clears the other views, the tables, the title block and the border, moves the view by it and reads the outline back (else puts it back and warns); with none it warns "No free spot of W x H mm for '<view>' along its alignment with '<parent>', on the side it was made on: it was left at [x, y] mm. Pass atMm, or give '<parent>' a smaller scale." `docs/solidworks-api-notes.md` §9 records it.
+Before: `DrawingLiveTests.A_detail_with_no_atMm_is_placed_clear_of_a_hole_table` failed "the detail lies over the table: detail [286,808, 154,366, 334,688, 202,246], table [290,94, 170,72, 435,703, 183,2], front [159,06, 142,26, 270,94, 214,14]; warnings: 'Detail View A (2 : 1)' overlaps table 'DetailItem233' [290.94, 170.72, 435.703, 183.2]."; `DrawingLiveTests.An_auxiliary_with_no_atMm_goes_clear_along_its_alignment_or_says_there_is_no_room` failed "the auxiliary lies over its parent: aux [101,22, 64,42, 207,242, 170,442], front [159,06, 142,26, 270,94, 214,14]; warnings: 'Drawing View2' overlaps 'Drawing View1'." (its 2:1 part, the hint, not reached).
+After: both pass (the auxiliary moved along its 45° alignment clear of its parent at 1:1, the hint at 2:1), with `Auxiliary_view_looks_square_onto_a_chamfer`, `A_section_with_no_atMm_is_placed_so_its_own_label_clears_the_title_block`, `Section_through_the_middle_is_a_hatched_section_view`, `Detail_of_a_corner_has_the_requested_scale`, `Detail_center_is_the_center_of_its_bounds_in_both_reads`, `Views_move_with_their_aligned_children_and_are_deleted` and `A_parent_with_a_section_is_deleted_only_with_its_children` (live, 9/9); unit tests 358/358 (`DrawingLayoutTests.An_aligned_view_moves_to_the_first_free_spot_along_its_alignment_or_to_none` new); `check_repo` ok. Not run: `--check-catalog` and the catalog test (no description changed).
+Made stricter: an auxiliary's default place is checked for free space and its move read back; the free-space search counts tables.
 Local: on `sw2023`, in the commit that moves it here; not yet in a build. Upstream: not yet decided.

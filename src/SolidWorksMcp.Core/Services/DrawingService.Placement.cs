@@ -94,6 +94,67 @@ public sealed partial class DrawingService
         catch (COMException e) when (!ComArgs.IsDisconnect(e)) { return []; }
     }
 
+    /// <summary>
+    /// Where a new view may go on a sheet (mm): the sheet inside its 5 mm edge and the format's border, and what is taken
+    /// there: the views' outlines (but <paramref name="except"/>), the format's blocks (the title block, S90) and the
+    /// tables (S128; read on the current sheet, as the overlap check reads them).
+    /// </summary>
+    private static (SheetRect Area, List<SheetRect> Occupied) FreeSpace(SwContext ctx, ISheet sheet, string? except = null)
+    {
+        var area = SheetArea(sheet);
+        var occupied = sheet.DrwViews().Where(v => except is null || !string.Equals(v.GetName2(), except, StringComparison.OrdinalIgnoreCase))
+            .Select(v => SheetRect.FromMeters(v.DrwOutline())).OfType<SheetRect>().ToList();
+        var drw = ctx.Drawing();
+        if (FrameOfSheet(drw, sheet) is { } frame)
+        {
+            occupied.AddRange(frame.Blocks);
+            if (frame.Border is SheetRect border) area = new SheetRect(Math.Max(area.X0, border.X0), Math.Max(area.Y0, border.Y0), Math.Min(area.X1, border.X1), Math.Min(area.Y1, border.Y1));
+        }
+        if (string.Equals(drw.DrwCurrentSheet()?.GetName(), sheet.GetName(), StringComparison.OrdinalIgnoreCase))
+            occupied.AddRange(PlacedOnSheet(ctx, drw).Where(p => p.Kind == "table").Select(p => p.Box));
+        return (area, occupied);
+    }
+
+    /// <summary>
+    /// S128: an auxiliary view made with no atMm goes to the first free spot along its alignment, on the side of its
+    /// parent it was made on (across the parent it would lie opposite its arrow): what it covers, its outline and its own
+    /// label, clear of the other views, the tables, the title block and the border. Where there is none it stays, and
+    /// the result says so with the hint, rather than claim a free spot.
+    /// </summary>
+    private static void PlaceAlongAlignment(SwContext ctx, ISheet sheet, ViewHit parent, IView v, (double X, double Y) dir, List<string> checks)
+    {
+        string name = v.GetName2() ?? "";
+        if (SheetRect.FromMeters(v.DrwOutline()) is not SheetRect now) return;
+        var foot = PlacedOnSheet(ctx, ctx.Drawing()).Where(p => p.Kind == "view_label" && string.Equals(p.View, name, StringComparison.OrdinalIgnoreCase))
+            .Select(p => p.Box).Aggregate(now, (a, b) => new SheetRect(Math.Min(a.X0, b.X0), Math.Min(a.Y0, b.Y0), Math.Max(a.X1, b.X1), Math.Max(a.Y1, b.Y1)));
+        var (area, occupied) = FreeSpace(ctx, sheet, name);
+        var p0 = Outline(parent);
+        double back = (now.Cx - p0.Cx) * dir.X + (now.Cy - p0.Cy) * dir.Y; // the view's centre along the line, from the parent's
+        double? found = DrawingLayout.FirstFreeAlong(foot, (dir.X, dir.Y), -back, 3000, area, occupied);
+        if (found is not double t)
+        {
+            ctx.Warn($"No free spot of {Math.Round(foot.W)} x {Math.Round(foot.H)} mm for '{name}' along its alignment with '{parent.Name}', on the side it was made on: it was left " +
+                     $"at [{Fmt([now.Cx, now.Cy])}] mm. Pass atMm, or give '{parent.Name}' a smaller scale.");
+            return;
+        }
+        if (Math.Abs(t) < 0.5) { checks.Add($"a free spot along its alignment with '{parent.Name}'"); return; }
+        var pos = v.DrwPosition();
+        if (pos.Length < 2) return;
+        v.DrwMoveTo(pos[0] + Units.M(dir.X * t), pos[1] + Units.M(dir.Y * t));
+        ctx.Doc.GraphicsRedraw2();
+        var got = SheetRect.FromMeters(v.DrwOutline());
+        double wx = now.Cx + dir.X * t, wy = now.Cy + dir.Y * t;
+        if (got is SheetRect g && Math.Abs(g.Cx - wx) <= 0.5 && Math.Abs(g.Cy - wy) <= 0.5)
+            checks.Add($"moved {Math.Round(Math.Abs(t), 1)} mm along its alignment with '{parent.Name}' to the first free spot");
+        else
+        {
+            v.DrwMoveTo(pos[0], pos[1]);
+            ctx.Doc.GraphicsRedraw2();
+            ctx.Warn($"'{name}' could not be moved along its alignment to the free spot at [{Fmt([wx, wy])}] mm (it read " +
+                     $"[{(got is SheetRect r ? Fmt([r.Cx, r.Cy]) : "?")}]); it was left where it was made. Pass atMm.");
+        }
+    }
+
     /// <summary>The frame of a sheet of the drawing (the current one through its own view; another through GetViews).</summary>
     private static SheetFrame? FrameOfSheet(IDrawingDoc drw, ISheet sheet)
     {

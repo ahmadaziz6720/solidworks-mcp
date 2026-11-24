@@ -406,6 +406,27 @@ public class DrawingLayoutTests
     }
 
     [Fact]
+    public void An_aligned_view_moves_to_the_first_free_spot_along_its_alignment_or_to_none()
+    {
+        // S128, as read live on 2023 SP3 at a 1:1 sheet: an auxiliary of a 45° chamfer made at [101.22, 64.42, 207.242,
+        // 170.442], over its parent [159.06, 142.26, 270.94, 214.14]; down-left along the diagonal it clears it.
+        var parent = new SheetRect(159.06, 142.26, 270.94, 214.14);
+        var aux = new SheetRect(101.22, 64.42, 207.242, 170.442);
+        var area = new SheetRect(10, 10, 410, 287);
+        var dir = (-Math.Sqrt(0.5), -Math.Sqrt(0.5));
+        double? t = DrawingLayout.FirstFreeAlong(aux, dir, -80, 3000, area, [parent]);
+        Assert.NotNull(t);
+        var r = new SheetRect(aux.X0 + dir.Item1 * t!.Value, aux.Y0 + dir.Item2 * t.Value, aux.X1 + dir.Item1 * t.Value, aux.Y1 + dir.Item2 * t.Value);
+        Assert.False(r.Overlaps(parent, 5));
+        Assert.True(r.Inside(area));
+        // The nearest such spot: 1 mm less along the line still touches the parent.
+        var closer = new SheetRect(r.X0 - dir.Item1, r.Y0 - dir.Item2, r.X1 - dir.Item1, r.Y1 - dir.Item2);
+        Assert.True(closer.Overlaps(parent, 5));
+        // A title block across that spot: none on that side (the other side is not searched).
+        Assert.Null(DrawingLayout.FirstFreeAlong(aux, dir, -80, 3000, area, [parent, new SheetRect(10, 10, 410, 120)]));
+    }
+
+    [Fact]
     public void Free_spots_fall_back_to_the_nearest_free_place()
     {
         var area = new SheetRect(0, 0, 200, 100);
