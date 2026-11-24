@@ -322,6 +322,13 @@ public class WeldmentLiveTests(LiveFixture fx) : LiveTest(fx)
             Assert.Equal(ErrorCodes.InvalidArgument, solo.Code);
             Assert.Contains("one configuration", solo.Message);
             Assert.Contains(@"custom\solo\<size>.sldlfp", solo.Hint);
+
+            // A wrong type lists the folder type as usable and that file as a type it is not (S102).
+            string doc3 = await RectangleAsync("wm_list");
+            var wrong = await Assert.ThrowsAsync<SwException>(() => Wm.MemberAsync(new WeldmentMemberRequest { Doc = doc3, Standard = "custom", Type = "hexagon bar", Size = "1" }));
+            Assert.Contains("flat bar", wrong.Hint);
+            Assert.Contains("solo (not usable: one configuration)", wrong.Hint);
+            Assert.DoesNotContain("flat bar (", wrong.Hint);
         }
         finally
         {

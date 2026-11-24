@@ -17,7 +17,7 @@ Closed all the same, its PR named, and an open PR no longer holds an item in Wai
 item sent upstream ends with `**Upstream: PR #9, open.**`, one per PR or issue
 (`merged`, `closed unmerged`; an issue `open` or `closed`), kept to its state.
 
-**Open: S4, S5, S7, S10 to S12, S33, S34, S52, S60, S64, S65, S79 to S82, S85, S86, S92, S94, S96, S99, S101 to S103, S105, S109, S111, S115, S123 to S125, S127 to S131.**
+**Open: S4, S5, S7, S10 to S12, S33, S34, S52, S60, S64, S65, S79 to S82, S85, S86, S92, S94, S96, S99, S101, S103, S105, S109, S111, S115, S123 to S125, S127 to S131.**
 Sorted 2026-11-22, the scenario test of build `20261122-194424` (findings 2026-11-22): S98,
 S108, S90, S106, S126, S97 and S104 held and closed, S104 as far as this machine allows (no
 8.3 folder in its File Locations); S1 held for `drw_view_detail` and a view at an angle and
@@ -647,8 +647,8 @@ its point.
   Started 19:48 2026-11-22, free memory 2203 MB with SOLIDWORKS restarted from its exe; launcher `%LOCALAPPDATA%\solidworks-mcp\livetest\run-1121\check5.ps1`, launcher pid 20984, output check5.out.txt and check5.err.txt beside it; started and watched by a Sonnet subagent; no resume; about 11 min.
 - [x] S100 (a) and (b): committed (split out as S132) (`af90447`)
 - [x] S100 (c): committed (split out as S133) (`def120d`)
-- [x] S100 (d): committed (S100 to Waiting)
-- [ ] S102: committed
+- [x] S100 (d): committed (S100 to Waiting) (`4b13b83`)
+- [x] S102: committed
 - [ ] S103 (a) and (b): committed
 - [ ] S127: committed
 - [ ] S128: committed
@@ -1995,19 +1995,6 @@ Proposed: a probe of where the time goes (the per-entity checks, S65 (e)'s merge
 contour read), then a batch path or a limit that grows with the count. Local. Not decided.
 Decided 2026-11-21 by the owner: taken into the run of 2026-11-21, group 7, a probe first (`## Run 2026-11-21`).
 
-### S102 - `weldment_member`'s "No profile" lists a one-configuration file it then refuses - OPEN 2026-11-18
-
-Sorted out of the entry of 2026-11-18 (the scenario test of build `20261118-060615`), point
-2; met in S91's own fix (Closed). With a one-configuration copy of a profile directly in the
-standard folder, a wrong `type` was refused "Profiles: <the copy's name>, <the subfolder
-type>". The copy is offered as a type although the next call with it is refused
-(`INVALID_ARGUMENT` "has one configuration ... would make no member"). Not reported `ok`.
-
-Proposed by the session: leave a one-configuration file in the standard folder out of the
-list, or mark it ("not usable: one configuration"). Local. Not decided.
-Decided 2026-11-21 by the owner: taken into the run of 2026-11-21, group 6 (`## Run 2026-11-21`).
-Decided 2026-11-21 in the plan, not the owner: the file is marked "not usable: one configuration", not left out, because a file left out of the list reads as one the server did not find.
-
 ### S103 - `weldment_member`: lines in two directions that do not touch fail with the path hint, and the result does not say which way the section lies - OPEN 2026-11-21
 
 Sorted out of the entry of 2026-11-18 ("a weldment frame of 16 members in one custom
@@ -2620,3 +2607,23 @@ part and the fault is the open document's, which the message names; refusing wou
 refuse a part copy nobody saves the profile after.
 Local: on `sw2023`, in the commit that moves it here; not yet in a build. Upstream: not yet
 decided.
+
+### S102 - `weldment_member`'s "No profile" listed a one-configuration file it then refused - BUILT 2026-11-24, proof: the scenario test of the group 6 build
+
+Sorted out of the entry of 2026-11-18 (the scenario test of build `20261118-060615`), point
+2; met in S91's own fix (Closed). With a one-configuration copy of a profile directly in the
+standard folder, a wrong `type` was refused "Profiles: <the copy's name>, <the subfolder
+type>". The copy is offered as a type although the next call with it is refused
+(`INVALID_ARGUMENT` "has one configuration ... would make no member"). Not reported `ok`.
+
+Proposed by the session: leave a one-configuration file in the standard folder out of the
+list, or mark it ("not usable: one configuration").
+Decided 2026-11-21 by the owner: taken into the run of 2026-11-21, group 6 (`## Run 2026-11-21`).
+Decided 2026-11-21 in the plan, not the owner: the file is marked "not usable: one configuration", not left out, because a file left out of the list reads as one the server did not find.
+Decided 2026-11-24 by the run, not the owner: a file with no configuration at all is marked "not usable: no configurations" by the same rule, because the call with it is refused as well, and a one-configuration file with a folder of its name is listed once, unmarked, as the folder's type, because that folder is what SOLIDWORKS offers.
+Cause: `WeldmentSpec.PickProfile`'s "No profile" listed every file in the standard folder and every subfolder as a type, though a file there with fewer than two configurations is refused by the next call (S91).
+Fix: the list reads the configurations of each file in the standard folder (only on this error path) and writes one with fewer than two as `<name> (not usable: one configuration)`, after the usable types, which stay listed alphabetically.
+Before: `WeldmentLiveTests.A_one_size_profile_is_read_from_its_type_folder_and_refused_directly_in_the_standard_folder`, with a wrong type added after S91's case, failed: "Assert.Contains() Failure: Sub-string not found. String: "Profiles: flat bar, solo." Not found: "solo (not usable: one configuration)"".
+After: it passes, with `Unknown_profiles_sizes_and_segments_are_refused_with_what_there_is` (live, 2/2); unit tests 355/355 (`WeldmentSpecTests.Unknown_types_and_sizes_list_both_layouts` changed: the marked list and a file with a folder of its name); `check_repo` ok. Not run: `--check-catalog` and the catalog test (no description changed).
+Made stricter: nothing; a refused call's hint lists the same types plus the marked file.
+Local: on `sw2023`, in the commit that moves it here; not yet in a build. Upstream: not yet decided.

@@ -63,7 +63,8 @@ internal static class WeldmentSpec
     /// <paramref name="filesIn"/> a subfolder's .sldlfp files, <paramref name="configurations"/> a file's configurations.
     /// The configuration to insert is the size for a file of sizes, and none ("") for a size file.
     /// A file directly in the standard folder with fewer than two configurations is refused: SOLIDWORKS does not list it
-    /// as a type, and inserting it makes no member (VERIFIED on 2023 SP3). Unknown names list what there is.
+    /// as a type, and inserting it makes no member (VERIFIED on 2023 SP3). Unknown names list what there is, such a file
+    /// marked "not usable: one configuration" (S102).
     /// </summary>
     public static ProfilePick PickProfile(string standard, IReadOnlyList<string> files, IReadOnlyList<string> folders,
         Func<string, IReadOnlyList<string>> filesIn, Func<string, IReadOnlyList<string>> configurations, string type, string size)
@@ -105,9 +106,22 @@ internal static class WeldmentSpec
             // it made the members in each of 4.
             return new ProfilePick(sizeFiles[names.IndexOf(got)], folderType, got, "");
         }
-        var types = files.Select(f => Path.GetFileNameWithoutExtension(f)).Concat(folders.Select(f => Path.GetFileName(f)))
-            .Distinct(StringComparer.OrdinalIgnoreCase).Order(StringComparer.OrdinalIgnoreCase);
-        throw SwException.InvalidArgument($"No profile '{type}' in the {standard} standard.", $"Profiles: {Few(types)}.");
+        // A file directly in the standard folder with fewer than two configurations (and no folder of its name) is no type
+        // SOLIDWORKS offers, and a call with it is refused above: it is listed, marked, so the list reads as complete.
+        var folderTypes = folders.Select(f => Path.GetFileName(f)).ToList();
+        var usable = new List<string>(folderTypes);
+        var unusable = new List<string>();
+        foreach (string f in files)
+        {
+            string name = Path.GetFileNameWithoutExtension(f);
+            if (folderTypes.Contains(name, StringComparer.OrdinalIgnoreCase)) continue;
+            int n = configurations(f).Count;
+            if (n >= 2) usable.Add(name);
+            else unusable.Add($"{name} (not usable: {(n == 1 ? "one configuration" : "no configurations")})");
+        }
+        var types = usable.Distinct(StringComparer.OrdinalIgnoreCase).Order(StringComparer.OrdinalIgnoreCase).ToList();
+        string list = Few(types) + (unusable.Count > 0 && types.Count > 0 ? ", " : "") + string.Join(", ", unusable.Order(StringComparer.OrdinalIgnoreCase));
+        throw SwException.InvalidArgument($"No profile '{type}' in the {standard} standard.", $"Profiles: {list}.");
     }
 
     public static string? Norm(string? s) =>

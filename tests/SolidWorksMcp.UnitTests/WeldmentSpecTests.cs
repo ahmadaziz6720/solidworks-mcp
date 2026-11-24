@@ -76,7 +76,10 @@ public class WeldmentSpecTests
     public void Unknown_types_and_sizes_list_both_layouts()
     {
         var type = Assert.Throws<SwException>(() => Pick("hexagon bar", "10"));
-        Assert.Equal("Profiles: empty, flat bar, solo, square tube.", type.Hint);
+        Assert.Equal("Profiles: empty, flat bar, square tube, solo (not usable: one configuration).", type.Hint);
+        // A one-configuration file with a folder of its name is that folder's type: listed once, not marked.
+        var withFolder = Assert.Throws<SwException>(() => Pick("hexagon bar", "10", folders: [@"p\custom\solo"]));
+        Assert.Equal("Profiles: solo, square tube.", withFolder.Hint);
         Assert.Contains("40 x 5, 50 X 8", Assert.Throws<SwException>(() => Pick("flat bar", "60 x 10")).Hint);
         Assert.Contains("20 x 20 x 2, 40 x 40 x 4", Assert.Throws<SwException>(() => Pick("square tube", "60 x 60 x 5")).Hint);
         Assert.Contains("holds no .sldlfp", Assert.Throws<SwException>(() => Pick("empty", "1")).Message);
