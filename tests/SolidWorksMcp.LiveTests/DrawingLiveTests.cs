@@ -605,6 +605,8 @@ public class DrawingLiveTests(LiveFixture fx) : LiveTest(fx)
                 $"{what}: centerMm [{c[0]}, {c[1]}] lies outside boundsMm [{string.Join(", ", o)}]" + seen);
             Assert.True(Math.Abs(c[0] - (o[0] + o[2]) / 2) <= 0.5 && Math.Abs(c[1] - (o[1] + o[3]) / 2) <= 0.5,
                 $"{what}: centerMm [{c[0]}, {c[1]}] is not the centre of boundsMm [{string.Join(", ", o)}]" + seen);
+            // The detail circle, 8 mm on the 1:2 view, is 64 mm across at 2:1: the outline holds it (a stale read was 43 mm).
+            Assert.True(o[2] - o[0] >= 63.5 && o[3] - o[1] >= 63.5, $"{what}: boundsMm [{string.Join(", ", o)}] do not hold the 64 mm detail circle" + seen);
         }
         Assert.True(Math.Abs(det.CenterMm![0] - info.CenterMm![0]) <= 0.01 && Math.Abs(det.CenterMm[1] - info.CenterMm[1]) <= 0.01,
             $"centerMm [{string.Join(", ", det.CenterMm)}] in drw_view_detail, [{string.Join(", ", info.CenterMm!)}] in drw_info");

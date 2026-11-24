@@ -946,6 +946,10 @@ public sealed partial class DrawingService(SwSession session)
             try
             {
                 d.EditRebuild3(); // earlier testing saw an empty detail view before a rebuild
+                double circle = 2 * radiusMm * s / ps;
+                if (!AwaitDetailOutline(dv, circle))
+                    ctx.Warn($"The outline of '{SafeName(dv)}' read {Fmt(SheetRect.FromMeters(dv.DrwOutline())?.ToArray() ?? [])} mm, smaller than its " +
+                             $"{Fmt([circle])} mm circle: SOLIDWORKS may not have laid the view out yet. Read it again with drw_info.");
                 var info = ViewInfo(ctx, dv, false);
                 if (dv.Type != (int)swDrawingViewTypes_e.swDrawingDetailView)
                     throw new SwException(ErrorCodes.VerifyFailed, $"The new view '{info.Name}' is a {info.Type} view, not a detail view.");
@@ -967,6 +971,22 @@ public sealed partial class DrawingService(SwSession session)
                 throw Rolled(ex, rb);
             }
         }, RunOptions.Write(doc) with { Timeout = Longer(session, 120) }, ct);
+    }
+
+    /// <summary>
+    /// S127: SOLIDWORKS lays a new detail view out after the call that made it returns, so for up to about a second its
+    /// outline (and Position) read stale, smaller than the circle it shows, a rebuild before it or not (live, 2023 SP3).
+    /// Waits, up to 5 s, until the outline holds the circle at the detail's scale; false when it never did.
+    /// </summary>
+    private static bool AwaitDetailOutline(IView dv, double circleMm)
+    {
+        var clock = System.Diagnostics.Stopwatch.StartNew();
+        while (true)
+        {
+            if (SheetRect.FromMeters(dv.DrwOutline()) is SheetRect o && o.W >= circleMm - 0.5 && o.H >= circleMm - 0.5) return true;
+            if (clock.ElapsedMilliseconds >= 5000) return false;
+            Thread.Sleep(100);
+        }
     }
 
     // ================================================================== drw_dimensions_auto
