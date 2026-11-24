@@ -245,6 +245,10 @@ answer below, across as many sessions as it needs, from the first step not ticke
   Session 4 ran group 5 whole: six item steps (subagents 106k to 256k tokens, 4 to 28 min each), the release
   (Sonnet, 136k, 192 min), the check (Sonnet, 69k, 13 min) and its sort (default model, 178k, 5 min); it handed over
   at about 160k.
+- **Session 6** (2026-11-24, the run): group 6 from S127 again to its sort: S127 again (default model, 133k tokens,
+  16 min), the release (Sonnet, 109k, 41 min, `DrawingLiveTests` alone rerun as decided), the check (Sonnet, 61k,
+  12 min, no resume) and its sort (default model, 181k, 5 min); handed over after the sort, as the owner's rule of
+  2026-11-22 gives, group 7 in a new session.
 - **Left for the end of the run** (to file as items with the report): S81's probe saw once, in
   one variant (`doc_open` then `doc_activate` of parts loaded only by the assembly), the live
   fixture's "System preferences changed by this test: Double2: 0.000131 -> 1.085e-05", cause
