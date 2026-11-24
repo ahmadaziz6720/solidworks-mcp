@@ -379,6 +379,40 @@ public class WeldmentLiveTests(LiveFixture fx) : LiveTest(fx)
     }
 
     [Fact]
+    public async Task A_library_feature_part_lists_its_wrapper_as_internal_and_its_sketch_as_the_profile()
+    {
+        string roots = await TestHooks.WeldmentProfileFoldersAsync(S);
+        string shipped = roots.Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Select(r => Path.Combine(r, "iso", "square tube.sldlfp")).First(File.Exists);
+        string dir = Path.Combine(Path.GetTempPath(), $"swmcp_lfp_{Guid.NewGuid():N}");
+        Directory.CreateDirectory(dir);
+        string copy = Path.Combine(dir, "lfp_list_tube.sldlfp");
+        File.Copy(shipped, copy);
+        try
+        {
+            var r = await new OpenService(S).OpenAsync(copy, readOnly: false, null);
+            Track(r.Document.Handle);
+            var tree = await new InspectService(S).FeatureListAsync(r.Document.Handle, false, 500, 0);
+            var lib = tree.Features.FirstOrDefault(f => f.Type == "LibraryFeature");
+            string dump = string.Join(", ", tree.Features.Select(f => $"{f.Name} ({f.Type}) [{string.Join(" ", f.Children ?? [])}] {f.Note}"));
+            Assert.True(lib != null, "No LibraryFeature row: " + dump);
+            Assert.True(!string.IsNullOrEmpty(lib!.Note), "The LibraryFeature row has no mark: " + dump);
+            Assert.Contains("internal", lib.Note!, StringComparison.OrdinalIgnoreCase);
+            Assert.Contains("profile", lib.Note!, StringComparison.OrdinalIgnoreCase);
+            Assert.NotEmpty(lib.Children ?? []);
+            string sketch = lib.Children![0];
+            Assert.Contains(sketch, lib.Note!);
+            Assert.All(tree.Features.Where(f => f != lib), f => Assert.Null(f.Note));
+            await new DocumentService(S).CloseAsync(r.Document.Handle, save: false, discard: true);
+        }
+        finally
+        {
+            try { Directory.Delete(dir, recursive: true); }
+            catch (Exception e) when (e is IOException or UnauthorizedAccessException) { /* the fixture sweeps it */ }
+        }
+    }
+
+    [Fact]
     public async Task A_part_saved_as_sldlfp_reopens_with_its_sketch_and_makes_a_member()
     {
         // The profile of the one-size test (a 40 × 20 rectangle on the front plane), saved by doc_save itself; the file,

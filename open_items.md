@@ -645,8 +645,8 @@ its point.
   Cost: Sonnet, 136k tokens, see the report.
 - [x] Group 5: scenario test with S1's proof (session id: `0a60bd46-2242-491b-a386-102f51a0ab03`), its entry committed and sorted (entry `1b57828`; ended `EXIT 0` 19:59; S98, S108, S90, S106, S126, S97 and S104 held and closed (S104 as far as the machine allows), S1 held for the detail and a view at an angle and closed, S127, S128, S130 and S131 new into group 6, S129 new and not in this run, S5 again; release notes updated) (`bdd4c9d`)
   Started 19:48 2026-11-22, free memory 2203 MB with SOLIDWORKS restarted from its exe; launcher `%LOCALAPPDATA%\solidworks-mcp\livetest\run-1121\check5.ps1`, launcher pid 20984, output check5.out.txt and check5.err.txt beside it; started and watched by a Sonnet subagent; no resume; about 11 min.
-- [x] S100 (a) and (b): committed (split out as S132)
-- [ ] S100 (c): committed
+- [x] S100 (a) and (b): committed (split out as S132) (`af90447`)
+- [x] S100 (c): committed (split out as S133)
 - [ ] S100 (d): committed
 - [ ] S102: committed
 - [ ] S103 (a) and (b): committed
@@ -2017,6 +2017,7 @@ Local. Not decided.
 Decided 2026-11-21 by the owner: (a) to (d) taken into the run of 2026-11-21, group 6; not a folder added to File Locations (`## Run 2026-11-21`).
 Decided 2026-11-21 in the plan, not the owner: (d)'s save of a library feature part that no longer holds a sketch is `VERIFY_FAILED`, the file named as written, not `ok` with a warning, because `ok` is what let the session close it.
 (a) and (b) are done: moved to Waiting as S132, 2026-11-24 (the run of 2026-11-21, group 6).
+(c) is done: moved to Waiting as S133, 2026-11-24 (the run of 2026-11-21, group 6).
 
 ### S101 - `sketch_add` of a hundred entities takes minutes and times out - OPEN 2026-11-18
 
@@ -2537,5 +2538,33 @@ Decided 2026-11-24 by the run, not the owner: `doc_save` selects nothing before 
 `.sldlfp`, because the probe showed the save with nothing selected keeps the sketch and makes
 members; the read back is the document's path, not a reopen, because a reopen would close
 the target mid-call, and the reopen with its sketch is the live test's.
+Local: on `sw2023`, in the commit that moves it here; not yet in a build. Upstream: not yet
+decided.
+
+### S133 - S100 (c): `feature_list` listed a library feature part's `LibFeat1` as a feature of its own - BUILT 2026-11-24, proof: the scenario test of the group 6 build
+
+Point (c) of S100 (S100 stays Open for (d)) (findings 2026-11-17 and 2026-11-18, on build
+`20261117-012659`): `feature_list` on a library feature part (a weldment profile) showed its
+marked sketch inside a `LibFeat1` of type `LibraryFeature`, where the FeatureManager shows the
+sketch at the top level marked L and no `LibFeat1`; a session took it as the profile's fault
+and made two hand re-saves.
+Decided 2026-11-21 by the owner: taken into the run of 2026-11-21, group 6 (`## Run 2026-11-21`).
+Cause: the row was listed like any feature, with nothing saying SOLIDWORKS makes it itself.
+Fix: a `LibraryFeature` row of `feature_list` carries a new `note`: "SOLIDWORKS' internal
+wrapper of the library feature, not a fault in the part; its profile is the sketch <the row's
+children>." (or "it holds no sketch" when it has none). Other rows have no `note`. The
+description is unchanged (a field in a result costs none of the catalog's budget).
+Before: the new `WeldmentLiveTests.A_library_feature_part_lists_its_wrapper_as_internal_and_its_sketch_as_the_profile`
+(a shipped profile copied to a temp folder, opened by `doc_open`) failed, "The LibraryFeature
+row has no mark: ... LibFeat1 (LibraryFeature) [Sketch1] , Sketch1 (ProfileFeature) [...]".
+After: it passes (the `LibFeat1` row carries the note naming `Sketch1`, no other row has one);
+live, with the tests that call `feature_list`, `A_part_saved_as_sldlfp_reopens_with_its_sketch_and_makes_a_member`
+and `M0LiveTests.A_boss_buried_in_the_body_is_rolled_back`, 3/3; unit tests 355/355;
+`check_repo` ok. Not run: `--check-catalog` and the catalog test (no description changed).
+Made stricter: nothing; a result gains an optional field.
+Decided 2026-11-24 by the run, not the owner: the mark is a `note` on the row, not a changed
+`type` or a hidden row, because the type and the row are what SOLIDWORKS reports and other
+tools (`sketch_edit`, `feature_delete`) address by them; the profile's name is read from the
+row's children, so a profile with no sketch says so.
 Local: on `sw2023`, in the commit that moves it here; not yet in a build. Upstream: not yet
 decided.

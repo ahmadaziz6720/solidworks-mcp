@@ -46,6 +46,7 @@ public sealed class FeatureRow
     public bool? RolledBack { get; init; }
     public IReadOnlyList<string>? Children { get; init; }
     public IReadOnlyList<string>? Parents { get; init; }
+    public string? Note { get; init; }
 }
 
 public sealed class FeatureListResult : ToolResult
@@ -171,16 +172,18 @@ public sealed class InspectService(SwSession session)
                 try { suppressed = f.IsSuppressed(); } catch { /* not applicable */ }
                 bool rolledBack = false;
                 try { rolledBack = f.IsRolledBack(); } catch { /* not applicable */ }
+                string type = f.GetTypeName2();
                 return new FeatureRow
                 {
                     Name = f.Name,
-                    Type = f.GetTypeName2(),
+                    Type = type,
                     Error = err == 0 ? null : err,
                     Warning = warn && err != 0 ? true : null,
                     Suppressed = suppressed ? true : null,
                     RolledBack = rolledBack ? true : null,
                     Children = kids.Count == 0 ? null : kids,
                     Parents = parents.Count == 0 ? null : parents,
+                    Note = LibraryFeatureNote(type, kids),
                 };
             }).ToList();
             return new FeatureListResult
@@ -191,6 +194,13 @@ public sealed class InspectService(SwSession session)
                 Truncated = offset + rows.Count < all.Count ? true : null,
             };
         }, RunOptions.Read(doc), ct);
+
+    /// <summary>A library feature part (.sldlfp, e.g. a weldment profile) lists its marked sketch inside a LibFeat row;
+    /// the FeatureManager shows that sketch at the top, marked L, and no such row (S100 c).</summary>
+    internal static string? LibraryFeatureNote(string type, IReadOnlyList<string> children) =>
+        type != "LibraryFeature" ? null
+        : "SOLIDWORKS' internal wrapper of the library feature, not a fault in the part; " +
+          (children.Count == 0 ? "it holds no sketch" : $"its profile is the sketch {string.Join(", ", children)}") + ".";
 
     public Task<FaceListResult> FaceListAsync(string? doc, EntityFilter? filter, int limit, int offset, CancellationToken ct = default) =>
         session.RunAsync("face_list", ctx =>
