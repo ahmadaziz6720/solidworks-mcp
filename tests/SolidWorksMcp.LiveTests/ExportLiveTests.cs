@@ -773,6 +773,7 @@ public class ExportRequestTests
 
     [Theory]
     [InlineData(".SLDPRT", "part")]
+    [InlineData(".SLDLFP", "part")]
     [InlineData(".sldasm", "assembly")]
     [InlineData(".slddrw", "drawing")]
     [InlineData(".stp", "STEP")]

@@ -47,7 +47,7 @@ public sealed class DocumentTools(SwSession session)
                  "need overwrite=true (a file this server didn't write is backed up first). Verifies the file was written.")]
     public async Task<string> DocSave(
         [Description("inPlace | as | copy")] string mode = "inPlace",
-        [Description("Target file for as/copy (.sldprt/.sldasm; the extension is added if missing).")] string? path = null,
+        [Description("Target file for as/copy (.sldprt/.sldlfp/.sldasm; extension added if missing).")] string? path = null,
         [Description("Replace an existing file.")] bool overwrite = false,
         [Description("Document (handle, title or path); default: the target document.")] string? doc = null,
         CancellationToken cancellationToken = default) =>

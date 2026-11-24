@@ -346,4 +346,84 @@ public class WeldmentLiveTests(LiveFixture fx) : LiveTest(fx)
         var seg = await Assert.ThrowsAsync<SwException>(() => Wm.MemberAsync(new WeldmentMemberRequest { Doc = doc, Type = "square tube", Size = "40 x 40 x 4", Segments = ["Line99"] }));
         Assert.Equal(ErrorCodes.EntityNotFound, seg.Code);
     }
+
+    // ------------------------------------------------------------------ library feature parts (S100 a, b)
+
+    [Fact]
+    public async Task A_shipped_profile_copied_to_a_temp_folder_opens_as_a_part_with_its_sizes()
+    {
+        // A copy under another name: SOLIDWORKS can't hold two documents of one file name, and a member test may have
+        // loaded the shipped file.
+        string roots = await TestHooks.WeldmentProfileFoldersAsync(S);
+        string shipped = roots.Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Select(r => Path.Combine(r, "iso", "square tube.sldlfp")).First(File.Exists);
+        string dir = Path.Combine(Path.GetTempPath(), $"swmcp_lfp_{Guid.NewGuid():N}");
+        Directory.CreateDirectory(dir);
+        string copy = Path.Combine(dir, "lfp_open_tube.sldlfp");
+        File.Copy(shipped, copy);
+        try
+        {
+            var r = await new OpenService(S).OpenAsync(copy, readOnly: false, null);
+            Track(r.Document.Handle);
+            Assert.Equal("part", r.Document.Type);
+            Assert.Equal(copy, r.Document.Path, ignoreCase: true);
+            Assert.Equal("owned", r.Document.Access);
+            Assert.Contains("40 x 40 x 4", r.Configurations!);
+            await new DocumentService(S).CloseAsync(r.Document.Handle, save: false, discard: true);
+        }
+        finally
+        {
+            try { Directory.Delete(dir, recursive: true); }
+            catch (Exception e) when (e is IOException or UnauthorizedAccessException) { /* the fixture sweeps it */ }
+        }
+    }
+
+    [Fact]
+    public async Task A_part_saved_as_sldlfp_reopens_with_its_sketch_and_makes_a_member()
+    {
+        // The profile of the one-size test (a 40 × 20 rectangle on the front plane), saved by doc_save itself; the file,
+        // reopened, holds the sketch, and in a standard's type folder it makes members of 800 mm² section.
+        string dir = Path.Combine(Path.GetTempPath(), $"swmcp_lfp_{Guid.NewGuid():N}");
+        string std = Path.Combine(dir, "custom");
+        Directory.CreateDirectory(Path.Combine(std, "flat bar"));
+        string prof = await NewPartAsync("lfp_save");
+        await Sk.StartAsync(prof, new EntityRef { Name = "front" }, false);
+        await Sk.AddAsync(prof, [new SketchEntity { Kind = "rectangle", Center = [0, 0], WidthMm = 40, HeightMm = 20 }]);
+        await Sk.FinishAsync(prof);
+        string lfp = Path.Combine(dir, "lfp_saved_bar.sldlfp");
+        var docs = new DocumentService(S);
+        var asm = await Assert.ThrowsAsync<SwException>(() => docs.SaveAsync(prof, "as", Path.Combine(dir, "lfp_saved_bar.sldasm"), overwrite: false));
+        Assert.Equal(ErrorCodes.InvalidArgument, asm.Code);
+        Assert.Contains(".sldprt or .sldlfp", asm.Message);
+        var saved = await docs.SaveAsync(prof, "as", lfp, overwrite: false);
+        Assert.Equal(lfp, saved.SavedTo, ignoreCase: true);
+        Assert.Equal(lfp, saved.Document.Path, ignoreCase: true);
+        Assert.Equal("part", saved.Document.Type);
+        await docs.CloseAsync(prof, save: false, discard: false);
+
+        string roots = await TestHooks.WeldmentProfileFoldersAsync(S);
+        try
+        {
+            var r = await new OpenService(S).OpenAsync(lfp, readOnly: false, null);
+            Track(r.Document.Handle);
+            Assert.Equal("part", r.Document.Type);
+            var tree = await new InspectService(S).FeatureListAsync(r.Document.Handle, false, 500, 0);
+            Assert.True(tree.Features.Any(f => f.Name == "Sketch1" || f.Children?.Contains("Sketch1") == true),
+                "No Sketch1 in the reopened file: " + string.Join(", ", tree.Features.Select(f => $"{f.Name} ({f.Type}) [{string.Join(" ", f.Children ?? [])}]")));
+            await docs.CloseAsync(r.Document.Handle, save: false, discard: true);
+
+            File.Copy(lfp, Path.Combine(std, "flat bar", "40 x 20.sldlfp"));
+            await TestHooks.WeldmentProfileFoldersAsync(S, roots.Length == 0 ? dir : roots + ";" + dir);
+            string doc = await RectangleAsync("lfp_member");
+            var m = await Wm.MemberAsync(new WeldmentMemberRequest { Doc = doc, Standard = "custom", Type = "flat bar", Size = "40 x 20", Corner = "none" });
+            Assert.Equal(4, m.Members.Count);
+            Assert.All(m.Members, x => Assert.Equal(800, Area(x), 0.01));
+        }
+        finally
+        {
+            Assert.Equal(roots, await TestHooks.WeldmentProfileFoldersAsync(S, roots));
+            try { Directory.Delete(dir, recursive: true); }
+            catch (Exception e) when (e is IOException or UnauthorizedAccessException) { /* the fixture sweeps it */ }
+        }
+    }
 }

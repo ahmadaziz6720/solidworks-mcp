@@ -13,8 +13,8 @@ public sealed class OpenTools(SwSession session)
     private readonly OpenService _svc = new(session);
 
     [McpServerTool(Name = "doc_open", Title = "Open or import a file", ReadOnly = false, Destructive = false, Idempotent = false, OpenWorld = false)]
-    [Description("Open a file: .sldprt/.sldasm/.slddrw opens silently without a rebuild prompt; STEP/IGES/Parasolid/SAT/STL is imported as a " +
-                 "new part (or assembly) with MMGS units and its bodies verified. The document becomes the target; this server may edit it unless readOnly. A file that " +
+    [Description("Open a file: .sldprt/.sldlfp/.sldasm/.slddrw opens silently, no rebuild prompt; STEP/IGES/Parasolid/SAT/STL is imported as a " +
+                 "new part (or assembly) in MMGS, its bodies verified. The document becomes the target; this server may edit it unless readOnly. A file that " +
                  "is already open is not reopened: it becomes the target with alreadyOpen=true and keeps its access. Reports load warnings (missing references, read-only, newer version) and, for imports, bodies and volume.")]
     public Task<string> DocOpen(
         IProgress<ProgressNotificationValue> progress,

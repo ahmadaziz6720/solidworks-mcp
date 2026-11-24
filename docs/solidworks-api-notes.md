@@ -363,6 +363,8 @@ type libraries and writes `sldworks_api.txt`, `swconst_enums.txt`, `swcommands.t
   per segment. A 400 × 300 rectangle in ISO square tube 40 x 40 x 4 gave 534.8 mm² of section per mm on every member,
   mitered members 20 mm (half the profile) longer than their segment at each end. A group holds contiguous (or parallel)
   segments: a table frame from one 3D sketch is two calls, the top rectangle (miter) and the legs (no corner treatment).
+  A `.sldlfp` opens with `OpenDoc6` as `swDocPART`; `SaveAs3` of a part with one sketch to a `.sldlfp` path, nothing
+  selected, writes a profile that reopens with its sketch and makes members (VERIFIED 2026-11-24 on 2023 SP3).
 - **Cut list** (VERIFIED 2026-10-31). The items are the tree's `CutListFolder` features, each `GetSpecificFeature2()` an
   `IBodyFolder` (`GetBodyCount`, `GetBodies`, `GetCutListType()`: `swCutListType_e` 1 solid, 2 sheet metal,
   3 weldment); their parent `SolidBodyFolder` has `GetAutomaticUpdate()` and `UpdateCutList()`. The properties come from

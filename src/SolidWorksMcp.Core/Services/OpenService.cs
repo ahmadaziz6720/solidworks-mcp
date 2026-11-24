@@ -50,11 +50,12 @@ public sealed class OpenResult : ToolResult
 /// <summary>The file kinds doc_open accepts: native documents (OpenDoc6) and neutral formats (LoadFile4 import).</summary>
 internal sealed record OpenKind(string Label, swDocumentTypes_e? Native, string? Neutral)
 {
-    public const string Extensions = ".sldprt .sldasm .slddrw (open); .step .stp .iges .igs .x_t .x_b .sat .sab .stl (import)";
+    public const string Extensions = ".sldprt .sldlfp .sldasm .slddrw (open); .step .stp .iges .igs .x_t .x_b .sat .sab .stl (import)";
 
     public static OpenKind? FromExtension(string extension) => extension.ToLowerInvariant() switch
     {
-        ".sldprt" => new("part", swDocumentTypes_e.swDocPART, null),
+        // A library feature part (a weldment profile among them) is a part document (S100 a).
+        ".sldprt" or ".sldlfp" => new("part", swDocumentTypes_e.swDocPART, null),
         ".sldasm" => new("assembly", swDocumentTypes_e.swDocASSEMBLY, null),
         ".slddrw" => new("drawing", swDocumentTypes_e.swDocDRAWING, null),
         ".step" or ".stp" => new("STEP", null, "step"),

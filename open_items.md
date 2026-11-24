@@ -645,7 +645,7 @@ its point.
   Cost: Sonnet, 136k tokens, see the report.
 - [x] Group 5: scenario test with S1's proof (session id: `0a60bd46-2242-491b-a386-102f51a0ab03`), its entry committed and sorted (entry `1b57828`; ended `EXIT 0` 19:59; S98, S108, S90, S106, S126, S97 and S104 held and closed (S104 as far as the machine allows), S1 held for the detail and a view at an angle and closed, S127, S128, S130 and S131 new into group 6, S129 new and not in this run, S5 again; release notes updated) (`bdd4c9d`)
   Started 19:48 2026-11-22, free memory 2203 MB with SOLIDWORKS restarted from its exe; launcher `%LOCALAPPDATA%\solidworks-mcp\livetest\run-1121\check5.ps1`, launcher pid 20984, output check5.out.txt and check5.err.txt beside it; started and watched by a Sonnet subagent; no resume; about 11 min.
-- [ ] S100 (a) and (b): committed
+- [x] S100 (a) and (b): committed (split out as S132)
 - [ ] S100 (c): committed
 - [ ] S100 (d): committed
 - [ ] S102: committed
@@ -2016,6 +2016,7 @@ holds its sketch.
 Local. Not decided.
 Decided 2026-11-21 by the owner: (a) to (d) taken into the run of 2026-11-21, group 6; not a folder added to File Locations (`## Run 2026-11-21`).
 Decided 2026-11-21 in the plan, not the owner: (d)'s save of a library feature part that no longer holds a sketch is `VERIFY_FAILED`, the file named as written, not `ok` with a warning, because `ok` is what let the session close it.
+(a) and (b) are done: moved to Waiting as S132, 2026-11-24 (the run of 2026-11-21, group 6).
 
 ### S101 - `sketch_add` of a hundred entities takes minutes and times out - OPEN 2026-11-18
 
@@ -2490,3 +2491,51 @@ Decided 2026-11-22 by the run, not the owner: the proof moved to a session that 
 state, because the state cannot be brought on at will (S92 (c)'s probe did not reproduce it)
 and a check in the good state shows only that the sign raises no false alarm; the unit tests
 hold the rule meanwhile.
+
+### S132 - S100 (a) and (b): `doc_open` and `doc_save` refused library feature parts (.sldlfp) - BUILT 2026-11-24, proof: the scenario test of the group 6 build
+
+Points (a) and (b) of S100 (S100 stays Open for (c) and (d)) (findings 2026-11-17 and
+2026-11-18, on build `20261117-012659`): `doc_open` refused a `.sldlfp` ("can't open
+'.SLDLFP' files"), so a weldment profile could not be read back, and `doc_save` refused any
+extension but `.sldprt` for a part, so a custom profile could not be made end to end.
+Decided 2026-11-21 by the owner: taken into the run of 2026-11-21, group 6; not a folder added to File Locations (`## Run 2026-11-21`).
+Cause: `OpenKind.FromExtension` knew `.sldprt`, `.sldasm` and `.slddrw` only, and
+`DocumentService.WithNativeExtension` took one extension per document type.
+Fix: `doc_open` opens a `.sldlfp` as a part (`OpenDoc6`, `swDocPART`), its sizes listed as
+`configurations` like any part's. `doc_save` modes `as` and `copy` take a `.sldlfp` path for
+a part (`SaveAs3` to it, as SOLIDWORKS' Save As Lib Feat Part); a path with no extension
+still gets `.sldprt`, and an assembly or drawing to `.sldlfp` is refused, the message naming
+".sldprt or .sldlfp" for a part. Read back: after mode `as`, the document's path as
+SOLIDWORKS reports it must be the `.sldlfp` written, else `VERIFY_FAILED` naming both.
+Probed live first: `SaveAs3` of a part with one sketch to a `.sldlfp`, nothing selected,
+writes a profile that reopens with its sketch and makes members (in
+`docs/solidworks-api-notes.md`). Both descriptions name `.sldlfp`, paid for by trimming
+("opens silently, no rebuild prompt", "in MMGS", "extension added if missing").
+Before: the new `WeldmentLiveTests.A_shipped_profile_copied_to_a_temp_folder_opens_as_a_part_with_its_sizes`
+(SOLIDWORKS' ISO square tube copied to a temp folder under another name) failed,
+"doc_open can't open '.sldlfp' files."; the new
+`WeldmentLiveTests.A_part_saved_as_sldlfp_reopens_with_its_sketch_and_makes_a_member` (a
+40 x 20 rectangle on the front plane, saved by `doc_save {mode:"as"}`) failed, "doc_save
+writes native .sldprt files; '.sldlfp' is not one."
+After: both pass (the copy opens as an owned part at its path with "40 x 40 x 4" among its
+configurations; the saved file reads back at the `.sldlfp` path, reopens as a part holding
+`Sketch1`, and in a standard's type folder makes four members of 800 mm² section; a save
+of the part to `.sldasm` is `INVALID_ARGUMENT`); live, with the tests that open and save
+files, `A_one_size_profile_is_read_from_its_type_folder_and_refused_directly_in_the_standard_folder`,
+the six open tests of `ExportLiveTests`, three of `M0LiveTests` (save copy, dirty, foreign),
+`Saved_bodies_become_parts_with_their_volumes_and_an_assembly_of_them` and
+`A_part_the_server_owned_comes_back_owned_when_its_owned_assembly_loads_it`, 14/14;
+offline `ExportRequestTests` (`.SLDLFP` added to `Doc_open_knows_these_file_kinds`) and
+`ContractTests` (`Tool_catalog_follows_the_conventions` among them), 31/31; unit tests
+355/355; `--check-catalog` ok; `check_repo` ok.
+Made stricter: a Save As to `.sldlfp` whose document does not read back as that file is
+`VERIFY_FAILED`; nothing that passed is refused.
+Decided 2026-11-24 by the run, not the owner: mode `copy` takes a `.sldlfp` too, not only
+`as`, because both go through one extension rule, and a copy is how a part is kept while its
+profile is written (the live tests' own profiles are written so).
+Decided 2026-11-24 by the run, not the owner: `doc_save` selects nothing before it writes a
+`.sldlfp`, because the probe showed the save with nothing selected keeps the sketch and makes
+members; the read back is the document's path, not a reopen, because a reopen would close
+the target mid-call, and the reopen with its sketch is the live test's.
+Local: on `sw2023`, in the commit that moves it here; not yet in a build. Upstream: not yet
+decided.

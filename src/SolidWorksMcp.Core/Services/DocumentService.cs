@@ -241,6 +241,12 @@ public sealed class DocumentService(SwSession session)
                     if (File.GetLastWriteTimeUtc(saved) <= before)
                         throw new SwException(ErrorCodes.VerifyFailed, $"SOLIDWORKS reported success but did not rewrite '{saved}'.");
                     ctx.Paths.RecordWritten(saved);
+                    // Read back that the document is now the library feature part it was saved as (S100 b).
+                    if (!copy && saved.EndsWith(LibFeatExt, StringComparison.OrdinalIgnoreCase) &&
+                        DocumentRegistry.SafePath(target) is var now && !SamePath(now, saved))
+                        throw new SwException(ErrorCodes.VerifyFailed,
+                            $"SOLIDWORKS wrote '{saved}', but the document reads as '{now}', not as that library feature part.",
+                            "Open the written file with doc_open to work on it.");
                     if (!copy) entry.Path = saved;
                     break;
                 default:
@@ -484,6 +490,8 @@ public sealed class DocumentService(SwSession session)
         1 => "CGS", 2 => "MKS", 3 => "IPS", 4 => "custom", 5 => "MMGS", _ => unitSystem.ToString(),
     };
 
+    private const string LibFeatExt = ".sldlfp";
+
     private static string WithNativeExtension(string path, int docType)
     {
         string want = docType switch
@@ -494,8 +502,10 @@ public sealed class DocumentService(SwSession session)
         };
         string ext = Path.GetExtension(path).ToLowerInvariant();
         if (ext.Length == 0) return path + want;
+        // A part may also be written as a library feature part, the file a weldment profile is (S100 b).
+        if (ext == LibFeatExt && docType == (int)swDocumentTypes_e.swDocPART) return path;
         if (ext != want)
-            throw SwException.InvalidArgument($"doc_save writes native {want} files; '{ext}' is not one.",
+            throw SwException.InvalidArgument($"doc_save writes native {want}{(docType == (int)swDocumentTypes_e.swDocPART ? " or " + LibFeatExt : "")} files; '{ext}' is not one.",
                 "Use the export tool for STEP/STL/PDF/DXF and other formats.");
         return path;
     }
