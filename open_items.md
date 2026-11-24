@@ -654,7 +654,7 @@ its point.
 - [x] S128: committed (`abe65d4`)
 - [x] S130: committed (`8949e93`)
 - [x] S131: committed (`67e7395`)
-- [x] S127 again: committed
+- [x] S127 again: committed (`05e4ee3`)
   Group 6's full live tests (2026-11-24, on `67e7395`, 13:21 to 16:36, `group6.ps1`, `group6b.ps1`, `group6c.ps1` in
   `run-1121`, Sonnet, 139k tokens) stopped the release before publishing: S127's own
   `DrawingLiveTests.Detail_center_is_the_center_of_its_bounds_in_both_reads` fails in the class run and alone after a
@@ -672,8 +672,37 @@ its point.
   Decided 2026-11-24 by the run, not the owner: after S127 again, the release's live tests rerun DrawingLiveTests in
   full and the classes that call the code it changes, not the other classes, which passed on `67e7395` and call no
   drawing code, because a fix confined to the drawing services leaves their result as it was.
-- [ ] Group 6: full live tests and release (build: )
-- [ ] Group 6: scenario test (session id: ), its entry committed and sorted
+- [x] Group 6: full live tests and release (build: `20261124-174916`, `3276b18`)
+  Live: SketchEditLiveTests 79, PartFeatureLiveTests 53, FeatureManagementLiveTests 41, AdvancedFeatureLiveTests 30,
+  BodySheetMetalLiveTests 52, ReferenceLiveTests 47, ModellingLiveTests 10, SurfaceShapeLiveTests 8, WeldmentLiveTests 18,
+  FaceEditLiveTests 5 of 6, MoldingLiveTests 4, PropertiesLiveTests 26 of 27, AssemblyLiveTests 65, DrawingLiveTests 65,
+  ExportLiveTests 21, M0LiveTests 25, TopDownLiveTests 4, RecognitionLiveTests 1, AssemblyStructureLiveTests 2,
+  ConfigurationLiveTests 6, HardwareLiveTests 3, VisualsLiveTests 3, SimulationLiveTests 17, SimulationExtrasLiveTests 3,
+  TemplateLiveTests 0 of 1 (skips itself: the 2025 templates are not installed): 588 passed of 590 run in 25 classes. The
+  first full run was on `67e7395` (13:21 to 16:36, `group6.ps1`, `group6b.ps1`, `group6c.ps1`); it stopped at S127's own test
+  (see "S127 again" above); after `05e4ee3` (which changes only `DrawingService.DetailAsync` and the detail test) the run
+  decided on 2026-11-24 reran only DrawingLiveTests in full, the one class whose tests call `drw_view_detail` (grep of the
+  live tests), `group6d.ps1`: 65 of 65 passed, 17:11 to 17:48 (36 min; the runner's own summary line reads `status=failed
+  exit=` for it, an empty exit code beside "Passed! total 65 failed 0", as a second launch had left `summary.txt` locked for
+  a moment; its test log and the dotnet summary both read 65 passed). The other 24 classes' counts are those of the run on
+  `67e7395`, and as `05e4ee3` touches no code they call, they were not rerun. All passed but two, neither a fault of this
+  group's code: `FaceEditLiveTests.Delete_heals_a_hole_in_an_imported_STEP_body_without_history` (S5, in the class run and
+  alone after a restart) and `PropertiesLiveTests.A_custom_material_is_listed_…` (S72). One flake:
+  `AssemblyLiveTests.An_assembly_adopted_after_the_server_saved_its_parts_does_not_read_as_changed_by_the_user` failed in
+  the class run (S112's equation state), passed 1/1 alone after a restart. Guard stops, not test failures (free memory low,
+  the guard at `-MinFreeMB 400`): AssemblyLiveTests twice (two tests, rerun alone, 3 of 3) and SimulationExtrasLiveTests at its
+  start, each test alone; `A_nonlinear_study_of_a_small_load_matches_the_linear_one` stopped again and passed 1/1 alone at
+  `-MinFreeMB 100` (`group6c.ps1`). SOLIDWORKS' default drawing template: not read again in this step (the S108 tests set and
+  restore it). Run class by class with SOLIDWORKS restarted before each and `dotnet build-server shutdown`. Unit 358,
+  `check_repo` ok. Descriptions changed (doc_open, doc_save): `--check-catalog` ok (165 tools, 247.6 KB), `docs/tools.md`
+  regenerated and committed alone (`3276b18`, as the owner, no trailer), `sw2023` pushed to `origin`; published from the
+  main tree, clean at that commit (`open_items.md` unmodified then). Registered in `claude_solidworks`, `clove sorter` (its
+  `SWMCP_VBA=on` kept) and this repo, each read back from `~/.claude.json` on the new exe; tag `build-20261124-174916`
+  pushed and read back (`ls-remote`), release page with no files (`ahmadaziz6720/solidworks-mcp` releases,
+  `build-20261124-174916`). The nine items of the build (S100, S102, S103, S127, S128, S130, S131, S132, S133) are BUILT,
+  proof: the scenario test of this build. SOLIDWORKS restarted from its exe at the end.
+  Cost: Sonnet, 109k tokens, 41 min.
+- [ ] Group 6: scenario test (session id: `c71866a6-d4e8-4628-9225-f00fe0a0daa8`), its entry committed and sorted
 - [ ] S80 (a) and (c): committed
 - [ ] S82 (a): committed
 - [ ] S86 (a): committed
@@ -2347,7 +2376,7 @@ state, because the state cannot be brought on at will (S92 (c)'s probe did not r
 and a check in the good state shows only that the sign raises no false alarm; the unit tests
 hold the rule meanwhile.
 
-### S132 - S100 (a) and (b): `doc_open` and `doc_save` refused library feature parts (.sldlfp) - BUILT 2026-11-24, proof: the scenario test of the group 6 build
+### S132 - S100 (a) and (b): `doc_open` and `doc_save` refused library feature parts (.sldlfp) - BUILT 2026-11-24, proof: the scenario test of build 20261124-174916
 
 Points (a) and (b) of S100 (S100 stays Open for (c) and (d)) (findings 2026-11-17 and
 2026-11-18, on build `20261117-012659`): `doc_open` refused a `.sldlfp` ("can't open
@@ -2392,10 +2421,10 @@ Decided 2026-11-24 by the run, not the owner: `doc_save` selects nothing before 
 `.sldlfp`, because the probe showed the save with nothing selected keeps the sketch and makes
 members; the read back is the document's path, not a reopen, because a reopen would close
 the target mid-call, and the reopen with its sketch is the live test's.
-Local: on `sw2023`, in the commit that moves it here; not yet in a build. Upstream: not yet
+Local: on `sw2023`, `af90447`; in build `20261124-174916`. Upstream: not yet
 decided.
 
-### S133 - S100 (c): `feature_list` listed a library feature part's `LibFeat1` as a feature of its own - BUILT 2026-11-24, proof: the scenario test of the group 6 build
+### S133 - S100 (c): `feature_list` listed a library feature part's `LibFeat1` as a feature of its own - BUILT 2026-11-24, proof: the scenario test of build 20261124-174916
 
 Point (c) of S100 (S100 stays Open for (d)) (findings 2026-11-17 and 2026-11-18, on build
 `20261117-012659`): `feature_list` on a library feature part (a weldment profile) showed its
@@ -2420,10 +2449,10 @@ Decided 2026-11-24 by the run, not the owner: the mark is a `note` on the row, n
 `type` or a hidden row, because the type and the row are what SOLIDWORKS reports and other
 tools (`sketch_edit`, `feature_delete`) address by them; the profile's name is read from the
 row's children, so a profile with no sketch says so.
-Local: on `sw2023`, in the commit that moves it here; not yet in a build. Upstream: not yet
+Local: on `sw2023`, `def120d`; in build `20261124-174916`. Upstream: not yet
 decided.
 
-### S100 - Library feature parts (.sldlfp): not opened or saved through the server, read as a wrapper, and a save that lost the sketch, reported `ok` - BUILT 2026-11-24, proof: the scenario test of the group 6 build
+### S100 - Library feature parts (.sldlfp): not opened or saved through the server, read as a wrapper, and a save that lost the sketch, reported `ok` - BUILT 2026-11-24, proof: the scenario test of build 20261124-174916
 
 Sorted out of the entries of 2026-11-17 ("a weldment profile made from a vendor's DXF",
 points 3 and 4) and 2026-11-18 ("reading a hand-saved weldment profile", point 2; "a custom
@@ -2509,10 +2538,10 @@ Decided 2026-11-24 by the run, not the owner: a copy to a `.sldprt` of a library
 is written and then `VERIFY_FAILED`, not refused before, because the file written is a good
 part and the fault is the open document's, which the message names; refusing would also
 refuse a part copy nobody saves the profile after.
-Local: on `sw2023`, in the commit that moves it here; not yet in a build. Upstream: not yet
+Local: on `sw2023`, `af90447`, `def120d`, `4b13b83`; in build `20261124-174916`. Upstream: not yet
 decided.
 
-### S102 - `weldment_member`'s "No profile" listed a one-configuration file it then refused - BUILT 2026-11-24, proof: the scenario test of the group 6 build
+### S102 - `weldment_member`'s "No profile" listed a one-configuration file it then refused - BUILT 2026-11-24, proof: the scenario test of build 20261124-174916
 
 Sorted out of the entry of 2026-11-18 (the scenario test of build `20261118-060615`), point
 2; met in S91's own fix (Closed). With a one-configuration copy of a profile directly in the
@@ -2530,9 +2559,9 @@ Fix: the list reads the configurations of each file in the standard folder (only
 Before: `WeldmentLiveTests.A_one_size_profile_is_read_from_its_type_folder_and_refused_directly_in_the_standard_folder`, with a wrong type added after S91's case, failed: "Assert.Contains() Failure: Sub-string not found. String: "Profiles: flat bar, solo." Not found: "solo (not usable: one configuration)"".
 After: it passes, with `Unknown_profiles_sizes_and_segments_are_refused_with_what_there_is` (live, 2/2); unit tests 355/355 (`WeldmentSpecTests.Unknown_types_and_sizes_list_both_layouts` changed: the marked list and a file with a folder of its name); `check_repo` ok. Not run: `--check-catalog` and the catalog test (no description changed).
 Made stricter: nothing; a refused call's hint lists the same types plus the marked file.
-Local: on `sw2023`, in the commit that moves it here; not yet in a build. Upstream: not yet decided.
+Local: on `sw2023`, `3a19df8`; in build `20261124-174916`. Upstream: not yet decided.
 
-### S103 - `weldment_member`: lines in two directions that do not touch fail with the path hint, and the result does not say which way the section lies - BUILT 2026-11-24, proof: the scenario test of the group 6 build
+### S103 - `weldment_member`: lines in two directions that do not touch fail with the path hint, and the result does not say which way the section lies - BUILT 2026-11-24, proof: the scenario test of build 20261124-174916
 
 Sorted out of the entry of 2026-11-18 ("a weldment frame of 16 members in one custom
 profile", points 1 and 2), on build `20261118-060615`.
@@ -2563,9 +2592,9 @@ Fix: (a) when the one group made no body and `WeldmentSpec.ParallelSets` (lines 
 Before: `WeldmentLiveTests.Lines_in_two_directions_that_do_not_touch_are_made_as_one_group_per_parallel_set` failed "VERIFY_FAILED: weldment_member: 'Weldment' was created but has no faces, so it changed no geometry. Rolled back: deleted Weldment."; `WeldmentLiveTests.Each_member_gives_its_sections_extents_along_the_model_axes` failed "Assert.NotNull() Failure: Value is null" (the field there, not filled).
 After: both pass, with the rest of `WeldmentLiveTests` and `DrawingLiveTests.Cut_list_table_lists_a_frames_members_and_weld_symbols_read_back` (live, 19/19); unit tests 357/357 (two new in `WeldmentSpecTests`: the parallel sets, the across axes); `check_repo` ok. Not run: `--check-catalog` and the catalog test (no description changed); the hint of a split that also fails (no live case of it).
 Made stricter: nothing weakened; the one-body-per-segment check is unchanged and now names the groups when split.
-Local: on `sw2023`, in the commit that moves it here; not yet in a build. Upstream: not yet decided.
+Local: on `sw2023`, `285249f`; in build `20261124-174916`. Upstream: not yet decided.
 
-### S127 - A detail view's `centerMm` lies outside its own bounds and changes between `drw_view_detail` and `drw_info`, reported `ok` - BUILT 2026-11-24, proof: the scenario test of the group 6 build
+### S127 - A detail view's `centerMm` lies outside its own bounds and changes between `drw_view_detail` and `drw_info`, reported `ok` - BUILT 2026-11-24, proof: the scenario test of build 20261124-174916
 
 Sorted out of the entry of 2026-11-22 (the scenario test of build `20261122-194424`), point
 6. A 2:1 detail of a 1:2 plan placed with no `atMm`: the PDF shows it centred at about [331,
@@ -2595,7 +2624,7 @@ Fix: `ViewInfo` gives a detail view's `centerMm` as its outline's centre, so `dr
 Before: `DrawingLiveTests.Detail_center_is_the_center_of_its_bounds_in_both_reads` failed "drw_view_detail: centerMm [260,849, 161,306] is not the centre of boundsMm [253,509, 133,966, 342,189, 222,646] (drw_view_detail centerMm [260,849, 161,306], boundsMm [253,509, 133,966, 342,189, 222,646]; drw_info centerMm [217,849, 138,306], boundsMm [253,509, 133,966, 342,189, 222,646])".
 After: it passes, its move of the detail included, with `Detail_of_a_corner_has_the_requested_scale`, `Detail_leaves_no_sketch_open`, `Views_move_with_their_aligned_children_and_are_deleted`, `A_section_with_no_atMm_is_placed_so_its_own_label_clears_the_title_block`, `View_moves_and_deletes_that_cannot_work_are_refused` and `Moving_an_annotation_or_a_view_s_label_onto_another_text_is_warned` (live, 7/7); unit tests 357/357; `check_repo` ok. Not run: `--check-catalog` and the catalog test (no description changed).
 Made stricter: a detail's move is checked by its outline's centre, not only by the position SOLIDWORKS echoes back.
-Local: on `sw2023`, in the commit that moves it here; not yet in a build. Upstream: not yet decided.
+Local: on `sw2023`, `8f88347`, `05e4ee3`; in build `20261124-174916`. Upstream: not yet decided.
 Again 2026-11-24 (group 6's release live tests): on `67e7395`, after S128 and S130, `DrawingLiveTests.Detail_center_is_the_center_of_its_bounds_in_both_reads` failed in the class run and alone after a restart, the same numbers both times: the centre equal, the outline 43 x 43 mm in `drw_view_detail` and 89 x 89 mm in `drw_info`, the finding's own symptom. Cause: SOLIDWORKS lays a new detail view out after the call that made it returns. A live probe in the creating call read the outline [276.309, 156.766, 319.389, 199.846] (43 mm, smaller than the 64 mm circle the 2:1 detail shows) and the stale position [260.849, 161.306] after `EditRebuild3`, twice in a row; after a 1.5 s pause, with no other call, [253.509, 133.966, 342.189, 222.646] (89 mm) and [217.849, 138.306], which every later read gives (enumerating the views, `GraphicsRedraw2`, `ForceRebuild3`, `drw_info`). So the 89 mm outline is the true one (it holds the circle; the stale one cannot), and S127's step passed by timing. S128 and S130 change neither the detail's place (the same centre both times) nor its read.
 Fix: `DetailAsync` waits after its rebuild, up to 5 s in 100 ms steps (`AwaitDetailOutline`), until the detail's outline holds its circle at the detail's scale (2 x radius x detail scale / parent scale, 0.5 mm tolerance), then reads the view; if it never does, the result warns that the outline read smaller than the circle and to read it again with `drw_info`. `docs/solidworks-api-notes.md` §9 records the late layout.
 Decided 2026-11-24 by the run, not the owner: the creating call waits for the outline to hold the detail circle, not for two equal reads or a fixed pause, because two reads in a row agreed while stale and a pause long enough on one machine may not be on another, while the circle is a size the true outline must reach.
@@ -2603,7 +2632,7 @@ Before: `DrawingLiveTests.Detail_center_is_the_center_of_its_bounds_in_both_read
 After: it passes, with `Detail_of_a_corner_has_the_requested_scale`, `Detail_leaves_no_sketch_open`, `A_detail_with_no_atMm_is_placed_clear_of_a_hole_table`, `Detail_circles_off_the_part_or_out_of_range_are_refused` and `Views_move_with_their_aligned_children_and_are_deleted` (live, 6/6), and `A_section_with_no_atMm_is_placed_so_its_own_label_clears_the_title_block`, `View_moves_and_deletes_that_cannot_work_are_refused`, `Moving_an_annotation_or_a_view_s_label_onto_another_text_is_warned`, `An_auxiliary_with_no_atMm_goes_clear_along_its_alignment_or_says_there_is_no_room`, `Auxiliary_view_looks_square_onto_a_chamfer`, `Section_through_the_middle_is_a_hatched_section_view` and `A_parent_with_a_section_is_deleted_only_with_its_children` (live, 7/7), S127's and S128's other live tests; unit tests 358/358; `check_repo` ok. Not run: `--check-catalog` and the catalog test (no description changed).
 Made stricter: the test checks that both reads' outline holds the 64 mm detail circle.
 
-### S128 - With no `atMm`, an auxiliary view lands over its parent and the title block though said to be a free spot, and the free-space search does not count tables - BUILT 2026-11-24, proof: the scenario test of the group 6 build
+### S128 - With no `atMm`, an auxiliary view lands over its parent and the title block though said to be a free spot, and the free-space search does not count tables - BUILT 2026-11-24, proof: the scenario test of build 20261124-174916
 
 Sorted out of the entry of 2026-11-22 (the scenario test of build `20261122-194424`), point
 7; bears on S90 and S106, both held (S106's checks warned of each overlap, S90's section
@@ -2638,9 +2667,9 @@ Fix: `FreeSpace` (`DrawingService.Placement.cs`) gives the area and what is take
 Before: `DrawingLiveTests.A_detail_with_no_atMm_is_placed_clear_of_a_hole_table` failed "the detail lies over the table: detail [286,808, 154,366, 334,688, 202,246], table [290,94, 170,72, 435,703, 183,2], front [159,06, 142,26, 270,94, 214,14]; warnings: 'Detail View A (2 : 1)' overlaps table 'DetailItem233' [290.94, 170.72, 435.703, 183.2]."; `DrawingLiveTests.An_auxiliary_with_no_atMm_goes_clear_along_its_alignment_or_says_there_is_no_room` failed "the auxiliary lies over its parent: aux [101,22, 64,42, 207,242, 170,442], front [159,06, 142,26, 270,94, 214,14]; warnings: 'Drawing View2' overlaps 'Drawing View1'." (its 2:1 part, the hint, not reached).
 After: both pass (the auxiliary moved along its 45° alignment clear of its parent at 1:1, the hint at 2:1), with `Auxiliary_view_looks_square_onto_a_chamfer`, `A_section_with_no_atMm_is_placed_so_its_own_label_clears_the_title_block`, `Section_through_the_middle_is_a_hatched_section_view`, `Detail_of_a_corner_has_the_requested_scale`, `Detail_center_is_the_center_of_its_bounds_in_both_reads`, `Views_move_with_their_aligned_children_and_are_deleted` and `A_parent_with_a_section_is_deleted_only_with_its_children` (live, 9/9); unit tests 358/358 (`DrawingLayoutTests.An_aligned_view_moves_to_the_first_free_spot_along_its_alignment_or_to_none` new); `check_repo` ok. Not run: `--check-catalog` and the catalog test (no description changed).
 Made stricter: an auxiliary's default place is checked for free space and its move read back; the free-space search counts tables.
-Local: on `sw2023`, in the commit that moves it here; not yet in a build. Upstream: not yet decided.
+Local: on `sw2023`, `abe65d4`; in build `20261124-174916`. Upstream: not yet decided.
 
-### S130 - `drw_view_section` moves `atMm` onto the alignment line without a word - BUILT 2026-11-24, proof: the scenario test of the group 6 build
+### S130 - `drw_view_section` moves `atMm` onto the alignment line without a word - BUILT 2026-11-24, proof: the scenario test of build 20261124-174916
 
 Sorted out of the entry of 2026-11-22 (the scenario test of build `20261122-194424`), point
 9. A section across a turned auxiliary view (S1's proof, point 5 (d)), `atMm` [340, 100]:
@@ -2663,9 +2692,9 @@ Fix: after the view is read, `SectionAsync` warns "'<view>' is at [x, y] mm, not
 Before: `DrawingLiveTests.A_section_given_an_atMm_off_its_alignment_warns_of_where_it_went` failed "no warning that the section is not at atMm: atMm [305, 218,2], centre [305, 178,2]; warnings: " (empty).
 After: it passes (a vertical cut with `atMm` 40 mm off the parent's row warned, `atMm` on the row not), with `Section_through_the_middle_is_a_hatched_section_view`, `A_section_with_no_atMm_is_placed_so_its_own_label_clears_the_title_block`, `Views_move_with_their_aligned_children_and_are_deleted` and `A_section_s_model_box_is_what_lies_behind_the_cut` (live, 5/5; the four others run before a wording change of the warning only); unit tests 358/358; `check_repo` ok. Not run: `--check-catalog` and the catalog test (no description changed). The finding's own case (a section across an auxiliary view) was not rebuilt: the same code path, the alignment being the parent's, shown here with a plain parent.
 Made stricter: a section not where `atMm` asked is no longer silent.
-Local: on `sw2023`, in the commit that moves it here; not yet in a build. Upstream: not yet decided.
+Local: on `sw2023`, `8949e93`; in build `20261124-174916`. Upstream: not yet decided.
 
-### S131 - `drw_table_add {kind:"hole"}` with no `face` picks a tab with one hole over a floor with six countersunk holes - BUILT 2026-11-24, proof: the scenario test of the group 6 build
+### S131 - `drw_table_add {kind:"hole"}` with no `face` picks a tab with one hole over a floor with six countersunk holes - BUILT 2026-11-24, proof: the scenario test of build 20261124-174916
 
 Sorted out of the entry of 2026-11-22 (the scenario test of build `20261122-194424`), point
 12. `drw_table_add {kind:"hole"}` on a top plan view with no `face`: one row, a Ø4.5 hole
@@ -2691,4 +2720,4 @@ Fix: `HolesOn` walks from each full circle down the coaxial faces (`BoreOf`: hol
 Before: `DrawingLiveTests.Hole_table_default_face_counts_countersunk_holes_and_names_the_face` failed with "rows [A1, 10, 10, <MOD-DIAM> 4,50 <HOLE-DEPTH> 4,00]; checks ['origin' picked at its sheet position | 1 row(s), each hole's X/Y from the origin and size read back | ...]" (the tab, one row).
 After: it passes (a floor with six M4 countersunk holes and one M4 counterbore, a 5 mm tab with a Ø4.5 drill: the floor chosen, 7 rows, Y 15 and 45 from its corner, the face's id in `resolved` and the check), with `Hole_table_lists_the_hole_from_the_lower_left_corner_and_from_a_given_origin`, `A_table_over_a_view_gives_its_extent_and_is_warned_and_so_is_a_note_across_it`, `Tables_that_cant_work_are_refused` and `A_detail_with_no_atMm_is_placed_clear_of_a_hole_table` (live, 5/5); unit tests 358/358; `check_repo` ok. Not run: `--check-catalog` and the catalog test (no description changed). The finding's own part was not rebuilt.
 Made stricter: a countersunk or counterbored hole is counted and checked, and the default face is named with its count.
-Local: on `sw2023`, in the commit that moves it here; not yet in a build. Upstream: not yet decided.
+Local: on `sw2023`, `67e7395`; in build `20261124-174916`. Upstream: not yet decided.
