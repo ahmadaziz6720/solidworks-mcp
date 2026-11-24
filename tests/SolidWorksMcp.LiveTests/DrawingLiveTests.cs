@@ -423,6 +423,39 @@ public class DrawingLiveTests(LiveFixture fx) : LiveTest(fx)
         Assert.Contains(info.Sheets[0].Views!, v => v.Name == sec.View.Name && v.Type == "section");
     }
 
+    /// <summary>
+    /// S130: a section is aligned with its parent, so SOLIDWORKS puts it on the line square to the cut through the parent
+    /// whatever atMm says; the result said nothing of it. Now a centre more than 1 mm from atMm is warned of, naming both
+    /// points and the alignment; an atMm on the alignment gives no such word.
+    /// </summary>
+    [Fact]
+    public async Task A_section_given_an_atMm_off_its_alignment_warns_of_where_it_went()
+    {
+        var (drw, r) = await ViewsAsync("drw_section_atmm", ["front"]);
+        var front = r.Views[0];
+        var b = front.ModelBoxMm!;
+        var fb = front.BoundsMm!;
+        double cx = (b[0] + b[2]) / 2, fcx = (fb[0] + fb[2]) / 2, fcy = (fb[1] + fb[3]) / 2;
+        // A vertical cut: the section lines up with the parent on its row (same y), so a y 40 mm off the row is not kept.
+        double[] off = [fcx + 90, fcy + 40];
+        var sec = await Drw.SectionAsync(front.Name, [cx, b[1] - 10], [cx, b[3] + 10], null, off, drw);
+        var c = sec.View.CenterMm!;
+        string seen = $"atMm [{off[0]}, {off[1]}], centre [{c[0]}, {c[1]}]; warnings: {string.Join(" | ", sec.Warnings ?? [])}";
+        Assert.True(Math.Abs(c[1] - off[1]) > 1, $"the section was not moved off atMm, so the test shows nothing: {seen}");
+        Assert.True((sec.Warnings ?? []).Any(w => w.Contains("atMm", StringComparison.Ordinal) && w.Contains("alignment", StringComparison.Ordinal)
+                                                  && w.Contains(Math.Round(c[1], 1).ToString(System.Globalization.CultureInfo.InvariantCulture), StringComparison.Ordinal)
+                                                  && w.Contains(Math.Round(off[1], 1).ToString(System.Globalization.CultureInfo.InvariantCulture), StringComparison.Ordinal)),
+            $"no warning that the section is not at atMm: {seen}");
+
+        // On the alignment (the parent's row): no such warning.
+        var (drw2, r2) = await ViewsAsync("drw_section_atmm_ok", ["front"]);
+        var f2 = r2.Views[0];
+        var b2 = f2.ModelBoxMm!;
+        double cx2 = (b2[0] + b2[2]) / 2, fcy2 = (f2.BoundsMm![1] + f2.BoundsMm[3]) / 2, fcx2 = (f2.BoundsMm[0] + f2.BoundsMm[2]) / 2;
+        var ok = await Drw.SectionAsync(f2.Name, [cx2, b2[1] - 10], [cx2, b2[3] + 10], null, [fcx2 + 90, fcy2], drw2);
+        Assert.DoesNotContain(ok.Warnings ?? [], w => w.Contains("atMm", StringComparison.Ordinal));
+    }
+
     [Fact]
     public async Task A_section_s_model_box_is_what_lies_behind_the_cut()
     {

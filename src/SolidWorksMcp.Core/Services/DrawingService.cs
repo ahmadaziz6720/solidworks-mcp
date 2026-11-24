@@ -810,6 +810,11 @@ public sealed partial class DrawingService(SwSession session)
                 if (sv.Type != (int)swDrawingViewTypes_e.swDrawingSectionView)
                     throw new SwException(ErrorCodes.VerifyFailed, $"The new view '{info.Name}' is a {info.Type} view, not a section view.");
                 checks.Add($"section view '{info.Name}' (label {lb})");
+                // S130: a section is aligned with its parent, so SOLIDWORKS keeps it on the line square to the cut
+                // whatever atMm says; the caller is told where it went and why.
+                if (at is { } asked && info.CenterMm is { Length: >= 2 } cm && Math.Max(Math.Abs(cm[0] - asked.X), Math.Abs(cm[1] - asked.Y)) > 1)
+                    ctx.Warn($"'{info.Name}' is at [{Fmt(cm[..2])}] mm, not at atMm [{Fmt([asked.X, asked.Y])}]: a section view keeps its alignment with '{hit.Name}' " +
+                             $"(on the line square to the cut through it), so only the position along that line is kept.");
                 var sx = sv.DrwModelToSheet();
                 if (pa is not null && sx.Length >= 13)
                 {

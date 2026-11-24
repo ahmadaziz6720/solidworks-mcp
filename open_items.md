@@ -17,7 +17,7 @@ Closed all the same, its PR named, and an open PR no longer holds an item in Wai
 item sent upstream ends with `**Upstream: PR #9, open.**`, one per PR or issue
 (`merged`, `closed unmerged`; an issue `open` or `closed`), kept to its state.
 
-**Open: S4, S5, S7, S10 to S12, S33, S34, S52, S60, S64, S65, S79 to S82, S85, S86, S92, S94, S96, S99, S101, S105, S109, S111, S115, S123 to S125, S129 to S131.**
+**Open: S4, S5, S7, S10 to S12, S33, S34, S52, S60, S64, S65, S79 to S82, S85, S86, S92, S94, S96, S99, S101, S105, S109, S111, S115, S123 to S125, S129, S131.**
 Sorted 2026-11-22, the scenario test of build `20261122-194424` (findings 2026-11-22): S98,
 S108, S90, S106, S126, S97 and S104 held and closed, S104 as far as this machine allows (no
 8.3 folder in its File Locations); S1 held for `drw_view_detail` and a view at an angle and
@@ -651,8 +651,8 @@ its point.
 - [x] S102: committed (`3a19df8`)
 - [x] S103 (a) and (b): committed (the failed-split hint, changed after its live run, has no live test) (`285249f`)
 - [x] S127: committed (`8f88347`)
-- [x] S128: committed
-- [ ] S130: committed
+- [x] S128: committed (`abe65d4`)
+- [x] S130: committed
 - [ ] S131: committed
 - [ ] Group 6: full live tests and release (build: )
 - [ ] Group 6: scenario test (session id: ), its entry committed and sorted
@@ -2154,24 +2154,6 @@ Decided 2026-11-22 by the run, not the owner: left out of the run, by the run's 
 point needing the owner (a choice, a large change), a new Open item, not in this run",
 because it needs a probe first and may be SOLIDWORKS' own: for the next plan.
 
-### S130 - `drw_view_section` moves `atMm` onto the alignment line without a word - OPEN 2026-11-22
-
-Sorted out of the entry of 2026-11-22 (the scenario test of build `20261122-194424`), point
-9. A section across a turned auxiliary view (S1's proof, point 5 (d)), `atMm` [340, 100]:
-placed at [309.4, 32.3], the projection of that point on the line square to the cut through
-the parent, partly off the sheet. The warnings said it ran off the sheet and over the title
-block; none said the view was not where `atMm` asked, or why. Small; reported `ok`.
-
-Local, small, in group 5's files (`DrawingService.cs`, the section).
-Decided 2026-11-22 by the run, not the owner: `drw_view_section` warns when the view's centre
-lands more than 1 mm from `atMm`, naming both points and why (the alignment with its parent).
-Test to start from: point 9's case, a section given an `atMm` off its alignment: the warning
-naming `atMm`, the centre and the alignment (fails now: none). Sonnet.
-Decided 2026-11-22 by the run, not the owner: taken into group 6, by the run's rule "a new
-point, small and in the group's files, a later step of this run ... taken into the next
-group", because it is one warning in the section code group 5 changed, found by group 5's
-check.
-
 ### S131 - `drw_table_add {kind:"hole"}` with no `face` picks a tab with one hole over a floor with six countersunk holes - OPEN 2026-11-22
 
 Sorted out of the entry of 2026-11-22 (the scenario test of build `20261122-194424`), point
@@ -2652,4 +2634,29 @@ Fix: `FreeSpace` (`DrawingService.Placement.cs`) gives the area and what is take
 Before: `DrawingLiveTests.A_detail_with_no_atMm_is_placed_clear_of_a_hole_table` failed "the detail lies over the table: detail [286,808, 154,366, 334,688, 202,246], table [290,94, 170,72, 435,703, 183,2], front [159,06, 142,26, 270,94, 214,14]; warnings: 'Detail View A (2 : 1)' overlaps table 'DetailItem233' [290.94, 170.72, 435.703, 183.2]."; `DrawingLiveTests.An_auxiliary_with_no_atMm_goes_clear_along_its_alignment_or_says_there_is_no_room` failed "the auxiliary lies over its parent: aux [101,22, 64,42, 207,242, 170,442], front [159,06, 142,26, 270,94, 214,14]; warnings: 'Drawing View2' overlaps 'Drawing View1'." (its 2:1 part, the hint, not reached).
 After: both pass (the auxiliary moved along its 45° alignment clear of its parent at 1:1, the hint at 2:1), with `Auxiliary_view_looks_square_onto_a_chamfer`, `A_section_with_no_atMm_is_placed_so_its_own_label_clears_the_title_block`, `Section_through_the_middle_is_a_hatched_section_view`, `Detail_of_a_corner_has_the_requested_scale`, `Detail_center_is_the_center_of_its_bounds_in_both_reads`, `Views_move_with_their_aligned_children_and_are_deleted` and `A_parent_with_a_section_is_deleted_only_with_its_children` (live, 9/9); unit tests 358/358 (`DrawingLayoutTests.An_aligned_view_moves_to_the_first_free_spot_along_its_alignment_or_to_none` new); `check_repo` ok. Not run: `--check-catalog` and the catalog test (no description changed).
 Made stricter: an auxiliary's default place is checked for free space and its move read back; the free-space search counts tables.
+Local: on `sw2023`, in the commit that moves it here; not yet in a build. Upstream: not yet decided.
+
+### S130 - `drw_view_section` moves `atMm` onto the alignment line without a word - BUILT 2026-11-24, proof: the scenario test of the group 6 build
+
+Sorted out of the entry of 2026-11-22 (the scenario test of build `20261122-194424`), point
+9. A section across a turned auxiliary view (S1's proof, point 5 (d)), `atMm` [340, 100]:
+placed at [309.4, 32.3], the projection of that point on the line square to the cut through
+the parent, partly off the sheet. The warnings said it ran off the sheet and over the title
+block; none said the view was not where `atMm` asked, or why. Small; reported `ok`.
+
+Local, small, in group 5's files (`DrawingService.cs`, the section).
+Decided 2026-11-22 by the run, not the owner: `drw_view_section` warns when the view's centre
+lands more than 1 mm from `atMm`, naming both points and why (the alignment with its parent).
+Test to start from: point 9's case, a section given an `atMm` off its alignment: the warning
+naming `atMm`, the centre and the alignment (fails now: none). Sonnet.
+Decided 2026-11-22 by the run, not the owner: taken into group 6, by the run's rule "a new
+point, small and in the group's files, a later step of this run ... taken into the next
+group", because it is one warning in the section code group 5 changed, found by group 5's
+check.
+Decided 2026-11-24 by the run, not the owner: the section's centre is read as `centerMm` (its position), compared with `atMm` by the larger of the two coordinate differences, because that is the centre the result already reports, and an `atMm` on the alignment read back within 1 mm live (no warning).
+Cause: `CreateSectionViewAt5` takes the position asked but SOLIDWORKS keeps a section aligned with its parent, so only the coordinate along the alignment line is kept; the code never compared the view made with `atMm`.
+Fix: after the view is read, `SectionAsync` warns "'<view>' is at [x, y] mm, not at atMm [x, y]: a section view keeps its alignment with '<parent>' (on the line square to the cut through it), so only the position along that line is kept." when the centre lies more than 1 mm from `atMm` in either coordinate.
+Before: `DrawingLiveTests.A_section_given_an_atMm_off_its_alignment_warns_of_where_it_went` failed "no warning that the section is not at atMm: atMm [305, 218,2], centre [305, 178,2]; warnings: " (empty).
+After: it passes (a vertical cut with `atMm` 40 mm off the parent's row warned, `atMm` on the row not), with `Section_through_the_middle_is_a_hatched_section_view`, `A_section_with_no_atMm_is_placed_so_its_own_label_clears_the_title_block`, `Views_move_with_their_aligned_children_and_are_deleted` and `A_section_s_model_box_is_what_lies_behind_the_cut` (live, 5/5; the four others run before a wording change of the warning only); unit tests 358/358; `check_repo` ok. Not run: `--check-catalog` and the catalog test (no description changed). The finding's own case (a section across an auxiliary view) was not rebuilt: the same code path, the alignment being the parent's, shown here with a plain parent.
+Made stricter: a section not where `atMm` asked is no longer silent.
 Local: on `sw2023`, in the commit that moves it here; not yet in a build. Upstream: not yet decided.
