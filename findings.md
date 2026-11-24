@@ -2623,3 +2623,68 @@ Build `bin\0.1.0-20261122-194424` (`serverVersion` `0.1.0-sw2023-20261122-194424
     Files unchanged.
 
 Sorted into S127 (6), new; S128 (7), new; S129 (8), new; S130 (9), new; S131 (12), new; S5 (13), met again, the rest of the regression held. Held: S98 (1), S108 (2), S90 (3), S106 (4), S1 (5), S126 (10), S97 (11), S104 (11).
+
+**2026-11-24: scenario test of S100, S102, S103, S127, S128, S130, S131, S132 and S133, with a short regression run**
+
+Build `bin\0.1.0-20261124-174916` (`serverVersion` `0.1.0-sw2023-20261124-174916+3276b18`, the tag's commit).
+
+1. **S132, held.** `doc_open` of a copy of SOLIDWORKS' shipped ISO square tube profile (`.sldlfp`): a part, `owned`,
+   its four sizes as `configurations`. A new part with a 40 × 20 rectangle on the front plane, `doc_save {mode:"as"}` to
+   a `.sldlfp`: the document reads back at that path, and `feature_list` shows `LibFeat1` holding `Sketch1`. The same
+   save to `.sldasm` is `INVALID_ARGUMENT` naming ".sldprt or .sldlfp". Put in a standard's type folder as
+   `<type>\40 x 20.sldlfp`, it made members of 800 mm² (128 000 mm³ on a 160 mm line).
+2. **S133, held.** The `LibFeat1` row carries the note "SOLIDWORKS' internal wrapper of the library feature, not a
+   fault in the part; its profile is the sketch Sketch1." on the shipped copy, on the copies edited in 3 and on the
+   part saved in 1; no other row has a note.
+3. **S100 (d), held, on both routes.** The finding's sequence (the first configuration table deleted, `config_add`,
+   the four sizes deleted, `sketch_edit`, the 16 segments deleted, two rectangles added, `sketch_finish`, `doc_save`
+   in place, `doc_close`) on (a) a copy opened by `doc_open`, and (b) a copy opened outside the server (COM
+   `OpenDoc`, as the user would) and adopted by `doc_activate {allowEdit:true}`. The backup of (b) is now a `.sldlfp`.
+   Both saved 66–67 KB (the shipped file 74.9 KB, the finding's broken one 41 KB); reopened read-only, `LibFeat1`
+   holds `Sketch1` with the eight new lines. On a third owned copy, `doc_save {mode:"copy"}` to a `.sldprt` is
+   `VERIFY_FAILED` naming the file written and "SOLIDWORKS dissolved the open part's library feature (it held
+   Sketch1)", hint to close without saving; a `doc_save` in place after it is `VERIFY_FAILED` "written without a
+   sketch in its library feature". Small: that second save has already overwritten the only good file (a document
+   opened by `doc_open` has no backup), while its hint says "open the last good copy (the file before, or
+   doc_activate's backup)". The open document was already known dissolved from the first call, so the save in place
+   could be refused before writing. Unchanged from the finding: `feature_delete` of the second table of the
+   `Tables` folder (`Configuration Table`) is `FEATURE_FAILED` "Could not select"; not reported `ok`.
+4. **S102, held.** With a one-configuration copy put directly in a standard folder beside two type folders,
+   `weldment_member` with a wrong `type`: "Profiles: <type>, <type>, <copy> (not usable: one configuration)." The
+   call with the copy as `type` is refused with the folder-layout hint, as before.
+5. **S103, held.** (a) A top-plane sketch of four lines, two along X and two along Z, none touching, default segments,
+   `corner:"none"`: 4 members in one feature, `groups` [[Line1, Line2], [Line3, Line4]], the warning naming both
+   groups, the check "in 2 groups, one per parallel set", volumes exact (128 000 and 48 000 mm³). (b) `sectionMm`
+   equals each body's box across its line: lines along X [0, 20, 40], along Z [40, 20, 0]; a vertical line on the
+   right plane at `rotateDeg` 0 [20, 0, 40], at 90 [40, 0, 20], each matching `body_list`.
+6. **S127, held.** A 2:1 detail of a 1:2 plan with no `atMm`: `centerMm` [330.967, 178.306] = the centre of `boundsMm`
+   [286.627, 133.966, 375.307, 222.646] (88.7 mm, holding the 64 mm circle); `drw_info` the same values.
+   `drw_view_edit move` to [340, 230]: `centerMm` [340, 230], check "outline centre read back"; the PDF shows it there.
+7. **S128, held.** (b) The same detail, with a hole table on the sheet at [150.8, 45.0, 295.6, 118.8], was placed
+   clear of it. (a) An auxiliary with no `atMm` square to a slanted edge of the 1:2 plan: "No free spot of 155 x 110 mm
+   … along its alignment … Pass atMm, or give 'Drawing View1' a smaller scale.", with the overlap warnings; the same
+   on a 1:5 plan alone: "moved 1.2 mm along its alignment … to the first free spot", no overlap.
+8. **S130, held.** A vertical cut on the plan with `atMm` [80, 140]: placed at [80, 178.2], warning "… is at [80,
+   178.2] mm, not at atMm [80, 140]: a section view keeps its alignment …". 3 hatched faces.
+9. **S131, held.** `drw_table_add {kind:"hole"}` on the top plan, no `face`: the floor, 6 countersunk rows, `resolved`
+   "face (default)" F25, check "face F25 by default: toward the viewer, the most holes, 6 hole(s); next of 4 other
+   face(s): 1".
+10. **A hole table's default place lies over the title block** (new, small; bears on S128). The table of 9 with no
+    `atMm` ("default below the view") went to [150.8, 45.0, 295.6, 118.8], over the title block, with a warning. The
+    free-space search S128 gave views does not place tables.
+11. **A cut line's letters overlap a table and a view label, with "no overlaps"** (S14, met again). The vertical cut of
+    8, drawn after the table, put its lower letter on the table's header row and its upper letter on the other
+    section's label (PDF); its result said "no overlaps with other views or their annotations".
+12. **`doc_close` of a part an open drawing uses: `VERIFY_FAILED` with a hint that misses** (new). `doc_close
+    {discard:true}` on an owned part whose drawing was still open: "… is still open after CloseDoc. Hint: A dialog may
+    have interrupted the close; check dialog_list." No dialog was up; the drawing held it (`doc_list` then showed the
+    part `dirty: false`, its changes gone), and closing the drawing later said "SOLIDWORKS also closed: <part>". Not
+    reported `ok`; the hint could name the open drawing that references it.
+13. **`doc_activate {allowEdit:true}` on a document opened read-only says nothing** (new, small). The result was
+    "Active and targeted." with `access` still `readOnly`; nothing said `allowEdit` did not apply.
+14. Small: a drawing saved by `doc_save {mode:"as"}` and then exported to PDF read `dirty: true`, and `doc_close` was
+    refused `DIRTY`, with no change made in between.
+15. Held, regression: the part, force rebuild 174 346.977 mm³, 221.42 g, area 116 546.84 mm², box 233 × 68.28 × 174;
+    STEP export and `doc_open` of it, 16 surface bodies (S5, as before); a hinge assembly read-only, interference 0;
+    the hand-built two-part assembly read-only, 2 components, plate fixed, shaft 2 mates without error, 127 402.659
+    mm³; a 1:2 plan with two sections, 1 and 3 hatched faces. Files unchanged.
