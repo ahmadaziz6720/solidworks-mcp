@@ -150,6 +150,13 @@ type libraries and writes `sldworks_api.txt`, `swconst_enums.txt`, `swcommands.t
     patterned relations; a line or polyline end drawn on an existing segment end is merged onto that point (one point,
     no relation). `SketchAddConstraints` then **ignores** a relation the sketch already has (equal on those two sides,
     coincident of a line's own end and the line): nothing added, nothing moved.
+  - **`AddToDB` on does not stop all of it, and the shape can move** (VERIFIED 2023 SP3, S80): a corner rectangle
+    drawn on a face, a corner on the face's 5 mm edge 0.5 mm from its midpoint, got `midpoint` to that edge and was
+    solved 2.5 tall where 3 was drawn; one drawn 1 mm over another rectangle's bottom got `coincident` to that line and
+    was pulled onto it. Without any relation, a point is snapped as it is drawn onto the x or y of another entity's
+    point (a polygon's vertex 0.28 mm onto a slot end's height 36 mm away; a centre rectangle drawn 6 tall came out 7).
+    How far depends on the view (inference works in pixels). Read the points back after the sketch is solved (the
+    `SetAutomaticSolve` off/on of the region refresh solves it) and compare with what was asked.
   - **What a relation relates:** `ISketchRelation.GetEntities` gives model geometry as the sketch's own external point
     (`ISketchPoint.Type` 10) or segment; `GetDefinitionEntities2` gives what it is (for a corner on the origin: the
     origin's point, whose `GetSketch()` is the origin feature, type `OriginProfileFeature`, and the corner point).

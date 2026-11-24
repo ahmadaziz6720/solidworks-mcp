@@ -727,9 +727,9 @@ its point.
   `build-20261124-174916`). The nine items of the build (S100, S102, S103, S127, S128, S130, S131, S132, S133) are BUILT,
   proof: the scenario test of this build. SOLIDWORKS restarted from its exe at the end.
   Cost: Sonnet, 109k tokens, 41 min.
-- [x] Group 6: scenario test (session id: `c71866a6-d4e8-4628-9225-f00fe0a0daa8`), its entry committed and sorted (entry `bc8c8a9`; ended `EXIT 0` 18:03; S132, S133, S100, S102, S103, S127, S128, S130 and S131 held and closed, S100 whole; S134 and S135 new into group 7; S136 (S14 again, reported `ok` while wrong, a probe first), S137, S138 and S139 new, not in this run; S5 again; release notes updated)
+- [x] Group 6: scenario test (session id: `c71866a6-d4e8-4628-9225-f00fe0a0daa8`), its entry committed and sorted (entry `bc8c8a9`; ended `EXIT 0` 18:03; S132, S133, S100, S102, S103, S127, S128, S130 and S131 held and closed, S100 whole; S134 and S135 new into group 7; S136 (S14 again, reported `ok` while wrong, a probe first), S137, S138 and S139 new, not in this run; S5 again; release notes updated) (`8a3a447`)
   Started 17:53:58 2026-11-24, free memory 1809 MB with SOLIDWORKS restarted from its exe (twice; under the plan's 2 GB, started anyway); launcher `%LOCALAPPDATA%\solidworks-mcp\livetest\run-1121\check6.ps1`, launcher pid 16492, output check6.out.txt and check6.err.txt beside it; started and watched by a Sonnet subagent (61k tokens); no resume; ended `EXIT 0` 18:03, about 10 min.
-- [ ] S80 (a) and (c): committed
+- [x] S80 (a) and (c): committed (split out as S140; sketch_start's description changed: docs/tools.md at the release)
 - [ ] S82 (a): committed
 - [ ] S86 (a): committed
 - [ ] S101: probed
@@ -1769,6 +1769,7 @@ description saying a rectangle drawn square gets an `equal`, or no `equal` added
 decided.
 Decided 2026-11-21 by the owner: (a) and (c) taken into the run of 2026-11-21, group 7, warnings; (b) stays Open (`## Run 2026-11-21`).
 Decided 2026-11-21 in the plan, not the owner: no option to keep or drop relations to model geometry in this run, because it is a new option the owner was not asked, and the warning shows either case.
+(a) and (c) are done: moved to Waiting as S140, 2026-11-24 (the run of 2026-11-21, group 7).
 
 ### S81 - "modified outside this server (by the user?)" again after the server's own changes - OPEN 2026-11-16
 
@@ -2513,3 +2514,79 @@ Decided 2026-11-22 by the run, not the owner: the proof moved to a session that 
 state, because the state cannot be brought on at will (S92 (c)'s probe did not reproduce it)
 and a check in the good state shows only that the sign raises no false alarm; the unit tests
 hold the rule meanwhile.
+
+### S140 - S80 (a) and (c): `sketch_add` said nothing when SOLIDWORKS moved what it drew, or made a rectangle drawn square equal-sided - BUILT 2026-11-24, proof: the scenario test of the group 7 build
+
+Points (a) and (c) of S80 (S80 stays Open for (b)) (findings 2026-11-16, 2026-11-17 and
+2026-11-18, on builds `20261116-124830` to `20261118-060615`): a rectangle drawn on a planar
+face, its bottom on the face's boundary edge, came back with "midpoint: Line3 end, a model
+edge" among its relations and 2.5 tall where 3 was drawn, fully defined, reported `ok`; a
+rectangle drawn 8 x 8 came back with "equal: Line2, Line1", a square for good. Both were
+listed under the entity's `relations`; nothing said the shape was not the one asked.
+Decided 2026-11-21 by the owner: (a) and (c) taken into the run of 2026-11-21, group 7, warnings; (b) stays Open (`## Run 2026-11-21`).
+Cause: `AddToDB` on does not stop SOLIDWORKS relating and snapping what is drawn. Probed
+live on 2023 SP3: a 195 x 5 x 10 block on the front plane, a corner rectangle from
+[100, 40] to [-95, 43] on its front face got "coincident: a model entity, Line1 start" and
+"midpoint: Line3 end, a model edge" (the face's 5 mm left edge, its midpoint 0.5 mm from the
+corner) and read 2.5 tall in `sketch_info`; on a 200 mm block (no edge at x -95) the same
+rectangle got only the coincident and stayed 3 tall. One drawn 1 mm over the first one's
+bottom got "coincident: Line1, …" and was pulled onto it. Without any relation, a point is
+snapped as it is drawn onto the x or y of another entity's point: in one call of fourteen
+kinds, a polygon's vertex moved 0.28 mm onto the height of a slot's end 36 mm away and a
+centre rectangle drawn 6 tall came out 7, no relation added (in
+`docs/solidworks-api-notes.md`). sketch_add compared nothing with what it was asked.
+Fix: `Draw` records each point as asked (sketch m): a line's `from` and `to`, a polyline's
+points, a rectangle's two corners and the two it implies (a centre rectangle's four), a
+circle's, polygon's and ellipse's centre, a polygon's first vertex, an arc's ends (and
+centre), a slot's `from` and `to`, a spline's ends, a point's `at`. After the contour read
+(whose automatic solve off/on solves the sketch) each is matched to the nearest point of its
+entity's segments (ends and centres) or its free point; one farther than `MergeTol` (1e-4 mm)
+moved. The interop-free rule (`SketchDrift.Moved`, `src/SolidWorksMcp.Core/Services/SketchDrift.cs`)
+warns per entity: "entities[0] (rectangle) is not where it was drawn: SOLIDWORKS moved
+corners[1] [-95, 43] to [-95, 42.5] (0.5 mm), a corner [100, 43] to [100, 42.5] (0.5 mm), by
+its relations midpoint: Line3 end, a model edge. Draw it clear of other geometry and model
+edges and place it by dimensions, or sketch_delete it." The relations named are the entity's
+relations to other geometry that name a moved point or its segment (all of them when none
+does; a centre rectangle's own centre point counts as its own); with none, "with no relation
+to other geometry: snapped to it as SOLIDWORKS drew". (c): a rectangle whose relations hold an
+`equal` warns "entities[0] (rectangle) was drawn square, and SOLIDWORKS made its sides equal
+(equal: …): a width and a height driven apart later conflict. For a rectangle that may change
+shape, draw it a closed polyline." (`SketchDrift.SquareEqual`). `sketch_start`'s description
+said "Inference snapping is off while this server draws", false as the probe showed: now
+"SOLIDWORKS may still snap; sketch_add warns of it." (shorter, no bytes added).
+Before: the new `SketchEditLiveTests.Sketch_add_warns_when_SOLIDWORKS_moves_what_it_drew_onto_a_model_edge`
+(the probe's block and rectangle) and `SketchEditLiveTests.Sketch_add_warns_when_a_rectangle_drawn_square_gets_an_equal`
+(a centre rectangle 8 x 8 and a corner one 10 x 12) both failed, "Assert.Single() Failure: The
+collection did not contain any matching items" (no warning).
+After: both pass (the moved warning names corners[1], the implied corner, 0.5 mm and the
+`midpoint` relation and not the corner's `coincident`; the rectangle 1 mm over the first is
+warned naming "coincident: Line1, …"; one drawn clear is not; the 8 x 8 warns naming its
+`equal`, the 10 x 12 does not), with the new
+`Sketch_add_of_every_kind_drawn_apart_stays_where_it_was_drawn` (fourteen kinds, model
+points among them, on a staircase with no two points within 4 mm in x or y: no warning),
+3/3; live, the tests that read what `sketch_add` drew and relates (the relations and merges,
+the arc merged on a polyline, the centre rectangle's diagonals, the rectangle constrained in
+one call, the point followed through a merge, merge and coincident, the three region tests,
+the offset rectangle, a text's position, the 3D sketch, and `M0LiveTests.Top_plane_sketch_frame_is_x_0_minus_y`),
+13/13; unit tests 363/363 (new `SketchDriftTests`, 5); `--check-catalog` ok (165 tools,
+247.6 KB); `ContractTests.Tool_catalog_follows_the_conventions` 1/1; `check_repo` ok.
+`docs/tools.md` to regenerate at the release (`sketch_start` changed).
+Made stricter: `sketch_add` warns when a point it drew is not where it was asked, and when a
+rectangle drawn square was made equal-sided; nothing that passed is refused.
+Decided 2026-11-24 by the run, not the owner: both are warnings, no result field and no
+relation removed, because the relations are already listed per entity, the warning says
+what they did, and removing a relation SOLIDWORKS made is a new behaviour the owner was not
+asked (S80's plan line: no option to keep or drop relations in this run).
+Decided 2026-11-24 by the run, not the owner: the points are read after the sketch is
+solved, each asked point against the nearest point of its own entity, to `MergeTol`
+(1e-4 mm), because the tools check sketch geometry to it and S65 (e)'s merge moves an end by
+up to it; the points a kind does not hold as sketch points (a 3-point arc's mid, a spline's
+inner fit points, a 3D rectangle's implied corners) are not compared.
+Decided 2026-11-24 by the run, not the owner: a point moved with no relation is warned too,
+as snapped, because the probe saw it (the polygon's vertex onto another entity's height) and
+the shape is not the one drawn just the same.
+Decided 2026-11-24 by the run, not the owner: `sketch_start`'s "Inference snapping is off
+while this server draws" replaced, because the probe showed it false and the shorter text
+costs no catalog bytes.
+Local: on `sw2023`, in the commit that moves it here; not yet in a build. Upstream: not yet
+decided.

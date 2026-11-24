@@ -803,6 +803,82 @@ public class SketchEditLiveTests(LiveFixture fx) : LiveTest(fx)
     }
 
     [Fact]
+    public async Task Sketch_add_warns_when_SOLIDWORKS_moves_what_it_drew_onto_a_model_edge()
+    {
+        // S80 (a): a rectangle drawn 3 tall on a planar face, its bottom on the face's boundary edge and its left side on
+        // the face's left edge, came back 2.5 tall: SOLIDWORKS related a corner to that edge's midpoint and solved it
+        // there. The relations were listed; nothing said the shape was not the one drawn.
+        string doc = await NewPartAsync("s80_moved");
+        await Sk.StartAsync(doc, new EntityRef { Name = "front" }, false);
+        await Sk.AddAsync(doc, [new SketchEntity { Kind = "rectangle", Corners = [[-95, 40], [100, 45]] }]);
+        await new FeatureService(S).ExtrudeAsync(new ExtrudeRequest { Doc = doc, DepthMm = 10 });
+        await Sk.StartAsync(doc, new EntityRef { Type = "face", At = [0, 42, 10] }, false);
+        var added = await Sk.AddAsync(doc, [new SketchEntity { Kind = "rectangle", Corners = [[100, 40, 10], [-95, 43, 10]] }]);
+        var rect = added.Entities[0];
+        string moved = Assert.Single(added.Warnings ?? [], w => w.StartsWith("entities[0] (rectangle) is not where it was drawn"));
+        var heights = (await Ed.InfoAsync(doc, null)).Segments.Where(s => rect.Segments.Contains(s.Name) && Math.Abs(s.StartMm![0] - s.EndMm![0]) < L)
+            .Select(s => s.LengthMm!.Value).ToList();
+        Assert.All(heights, h => Assert.Equal(2.5, h, 1e-4)); // what SOLIDWORKS made of it: the warning tells it
+        Assert.Contains("corners[1] [-95, 43] to [-95, 42.5] (0.5 mm)", moved);
+        Assert.Contains("[100, 43] to [100, 42.5] (0.5 mm)", moved);
+        string mid = Assert.Single(rect.Relations!, r => r.StartsWith("midpoint: "));
+        Assert.Contains(mid, moved);
+        Assert.DoesNotContain("coincident: ", moved); // the corner on the vertex did not move: not named
+
+        // Drawn 1 mm over the first one's bottom, it was related to that line and pulled onto it: warned, the relation named.
+        var near = await Sk.AddAsync(doc, [new SketchEntity { Kind = "rectangle", Corners = [[90, 41, 10], [-90, 44, 10]] }]);
+        string pulled = Assert.Single(near.Warnings ?? [], w => w.StartsWith("entities[0] (rectangle) is not where it was drawn"));
+        Assert.Contains("corners[0] [90, 41] to [90, 40] (1 mm)", pulled);
+        Assert.Contains($"coincident: {rect.Sides!["bottom"]}, ", pulled);
+
+        // One drawn clear of every edge stays where it was drawn: no warning.
+        var clear = await Sk.AddAsync(doc, [new SketchEntity { Kind = "rectangle", Corners = [[-50, 70, 10], [50, 80, 10]] }]);
+        Assert.False(clear.Warnings?.Any(w => w.Contains("is not where it was drawn")) == true, string.Join(" | ", clear.Warnings ?? []));
+    }
+
+    [Fact]
+    public async Task Sketch_add_of_every_kind_drawn_apart_stays_where_it_was_drawn()
+    {
+        // S80 (a)'s check against a false alarm: each kind solved where its points were asked. SOLIDWORKS snaps a point as
+        // it draws onto the height or the x of another entity's point (seen: a polygon's vertex 0.28 mm onto a slot end's
+        // height, 36 mm away, no relation added; the warning then is true), so the kinds stand on a staircase, no two
+        // points within 4 mm in x or in y but those an entity makes so.
+        var (_, _, added) = await SketchAsync("s80_kinds", "front",
+            Line([0, 0], [10, 6]),
+            Centerline([20, 20], [30, 26]),
+            new SketchEntity { Kind = "polyline", Points = [[40, 40], [50, 44], [55, 50], [44, 55]], Closed = true },
+            new SketchEntity { Kind = "rectangle", Corners = [[62, 62], [74, 69]] },
+            new SketchEntity { Kind = "rectangle", Center = [88, 88], WidthMm = 14, HeightMm = 6 },
+            Circle([110, 110], 4),
+            new SketchEntity { Kind = "arc", Start = [122, 120], Mid = [129, 127], End = [136, 124] },
+            new SketchEntity { Kind = "arc", Center = [150, 150], RadiusMm = 6, StartDeg = 20, EndDeg = 150 },
+            new SketchEntity { Kind = "slot", From = [165, 165], To = [180, 172], WidthMm = 6 },
+            new SketchEntity { Kind = "polygon", Center = [200, 200], Sides = 6, CircumradiusMm = 7, RotationDeg = 15 },
+            new SketchEntity { Kind = "ellipse", Center = [222, 222], MajorRadiusMm = 8, MinorRadiusMm = 4, RotationDeg = 30 },
+            new SketchEntity { Kind = "spline", Points = [[238, 238], [244, 247], [251, 242], [257, 251]] },
+            Point([268, 268]),
+            new SketchEntity { Kind = "polyline", Points = [[280, 280, 0], [292, 286, 0]] });
+        Assert.Equal(14, added.Entities.Count);
+        Assert.False(added.Warnings?.Any(w => w.Contains("is not where it was drawn")) == true, string.Join(" | ", added.Warnings ?? []));
+        Assert.DoesNotContain(added.Warnings ?? [], w => w.Contains("was drawn square"));
+    }
+
+    [Fact]
+    public async Task Sketch_add_warns_when_a_rectangle_drawn_square_gets_an_equal()
+    {
+        // S80 (c): a rectangle drawn 8 x 8 came back with "equal: Line2, Line1", a square for good, so a width and a height
+        // driven apart later conflict. Listed among its relations; nothing said what it does.
+        var (doc, _, added) = await SketchAsync("s80_square", "front",
+            Rect(8, 8),
+            new SketchEntity { Kind = "rectangle", Corners = [[20, 0], [30, 12]] });
+        string eq = Assert.Single(added.Entities[0].Relations!, r => r.StartsWith("equal: "));
+        string w = Assert.Single(added.Warnings ?? [], x => x.StartsWith("entities[0] (rectangle) was drawn square"));
+        Assert.Contains(eq, w);
+        Assert.DoesNotContain(added.Warnings ?? [], x => x.StartsWith("entities[1]")); // 10 x 12: no equal, no warning
+        Assert.DoesNotContain(added.Warnings ?? [], x => x.Contains("is not where it was drawn"));
+    }
+
+    [Fact]
     public async Task Sketch_add_merges_an_arc_drawn_on_a_polyline_s_ends_into_one_closed_contour()
     {
         // S65 (e): a polyline and a separate arc drawn on its two ends left those ends unmerged ("ManyOpen"), and no

@@ -16,7 +16,7 @@ public sealed class SketchTools(SwSession session)
     [McpServerTool(Name = "sketch_start", Title = "Start sketch", ReadOnly = false, Destructive = false, Idempotent = false, OpenWorld = false)]
     [Description("Opens a new sketch on a plane ({name:'top'|'front'|'right'} or a plane's name) or on a planar face ({id:'F3'} or " +
                  "{at:[x,y,z]}). Returns the sketch name and its frame in model space (origin, x axis, y axis, normal), and for a face " +
-                 "its extents in sketch coordinates. Inference snapping is off while this server draws.")]
+                 "its extents in sketch coordinates. SOLIDWORKS may still snap; sketch_add warns of it.")]
     public async Task<string> SketchStart(
         [Description("Plane or planar face to sketch on.")] EntityRef? on = null,
         [Description("Open a 3D sketch instead (points are then model [x,y,z]).")] bool threeD = false,

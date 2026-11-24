@@ -76,7 +76,7 @@ public sealed class SketchFinishResult : ToolResult
     public IReadOnlyList<DimensionInfo>? Dimensions { get; init; }
 }
 
-/// <summary>Opening, drawing in and closing sketches (inference off while the server draws).</summary>
+/// <summary>Opening, drawing in and closing sketches (inference off while the server draws, though SOLIDWORKS still snaps some: S80).</summary>
 public sealed class SketchService(SwSession session)
 {
     private const double Tol = 1e-6; // m
@@ -178,6 +178,8 @@ public sealed class SketchService(SwSession session)
             var results = new List<SketchEntityResult>();
             // S56: the points already in the sketch, to tell which ends SOLIDWORKS merged onto one of them.
             var known = SketchRelations.PointKeys(sketch);
+            // S80 (a): each entity's points as asked, its segments and free points, compared with the solved sketch at the end.
+            var asked = new List<(List<DrawnPoint> Drawn, List<ISketchSegment> Segs, List<ISketchPoint> Free)>();
             try
             {
                 for (int i = 0; i < entities.Count; i++)
@@ -187,13 +189,17 @@ public sealed class SketchService(SwSession session)
                     int pointsBefore = sketch.Points().Count, textsBefore = Texts(sketch), relationsBefore = SketchRelations.Count(sketch);
                     var conv = new PointConverter(m2s, is3D, $"entities[{i}]", ctx);
                     var checks = new List<string>();
-                    Draw(d, sm, e, conv, checks);
+                    var drawn = new List<DrawnPoint>();
+                    var free = new List<ISketchPoint>();
+                    Draw(d, sm, e, conv, checks, drawn, free, is3D);
                     var segs = sketch.Segments().Where(s => !before.Contains(s.GetName())).ToList();
+                    asked.Add((drawn, segs, free));
                     created.AddRange(segs);
                     foreach (var s in segs) entityOf[s.GetName()] = i;
                     int newPoints = sketch.Points().Count - pointsBefore;
                     var made = SketchRelations.Made(sketch, segs, newPoints, relationsBefore, known);
                     results.Add(Check(e, i, segs, newPoints, Texts(sketch) - textsBefore, checks, conv, made));
+                    if (SketchDrift.SquareEqual($"entities[{i}] ({results[^1].Kind})", results[^1].Kind, made.Relations) is { } sq) ctx.Warn(sq);
                 }
                 MergeEnds(ctx, d, sketch, created, entityOf, results);
             }
@@ -207,13 +213,22 @@ public sealed class SketchService(SwSession session)
                 sm.AddToDB = oldAddToDb;
                 d.ClearSelection2(true);
             }
+            var contours = Contours(sketch, editing: true); // solves the sketch (RefreshRegions): read the points after it
+            for (int i = 0; i < asked.Count; i++)
+            {
+                var (drawn, segs, free) = asked[i];
+                var solved = Solved(segs, free);
+                if (SketchDrift.Moved($"entities[{i}] ({results[i].Kind})", drawn, solved, results[i].Relations,
+                        segs.Select(s => s.GetName()).ToList(), is3D, MergeTol) is { } moved)
+                    ctx.Warn(moved);
+            }
             return new SketchAddResult
             {
                 Doc = ctx.Title(d),
                 Sketch = ((IFeature)sketch).Name,
                 Entities = results,
                 EndsMerged = results.Sum(r => r.Merged?.Count ?? 0) is > 0 and var n ? n : null,
-                Contours = Contours(sketch, editing: true),
+                Contours = contours,
             };
         }, RunOptions.Write(doc), ct);
 
@@ -382,6 +397,22 @@ public sealed class SketchService(SwSession session)
         }
     }
 
+    /// <summary>S80 (a): the points of what one entity drew, where the solved sketch has them, each with who has it.</summary>
+    private static List<SolvedPoint> Solved(List<ISketchSegment> segs, List<ISketchPoint> free)
+    {
+        var at = new Dictionary<string, (List<string> Owners, Vec3 At)>(StringComparer.Ordinal);
+        foreach (var s in segs)
+            foreach (var (w, p) in SketchRelations.Ends(s))
+            {
+                string k = SketchRelations.PointKey(p);
+                if (!at.TryGetValue(k, out var v)) at[k] = v = ([], new Vec3(p.X, p.Y, p.Z));
+                v.Owners.Add($"{s.GetName()} {w}");
+            }
+        var list = at.Values.Select(v => new SolvedPoint(v.Owners, v.At)).ToList();
+        list.AddRange(free.Select(p => new SolvedPoint(["a point"], new Vec3(p.X, p.Y, p.Z))));
+        return list;
+    }
+
     private static string Mm6(double m) => (Units.Mm(m) + 0.0).ToString("0.######", System.Globalization.CultureInfo.InvariantCulture);
 
     private static HashSet<string> SegmentNames(ISketch s) => s.Segments().Select(x => x.GetName()).ToHashSet(StringComparer.Ordinal);
@@ -487,9 +518,13 @@ public sealed class SketchService(SwSession session)
         }
     }
 
-    private static void Draw(IModelDoc2 d, ISketchManager sm, SketchEntity e, PointConverter c, List<string> notes)
+    /// <param name="drawn">S80 (a): the points as asked (sketch m), to compare with the solved sketch.</param>
+    /// <param name="free">A point entity's point, which no segment holds.</param>
+    private static void Draw(IModelDoc2 d, ISketchManager sm, SketchEntity e, PointConverter c, List<string> notes,
+        List<DrawnPoint> drawn, List<ISketchPoint> free, bool is3D)
     {
         string kind = e.Kind.Trim().ToLowerInvariant();
+        void At(string label, Vec3 p) => drawn.Add(new DrawnPoint(label, p));
         bool construction = e.Construction == true;
         object? made;
         switch (kind)
@@ -500,12 +535,14 @@ public sealed class SketchService(SwSession session)
                 var a = c.P(e.From, "from");
                 var b = c.P(e.To, "to");
                 if (a.DistanceTo(b) < Tol) throw SwException.InvalidArgument("A line needs two distinct points.");
+                At("from", a); At("to", b);
                 made = kind == "line" ? sm.CreateLine(a.X, a.Y, a.Z, b.X, b.Y, b.Z) : sm.CreateCenterLine(a.X, a.Y, a.Z, b.X, b.Y, b.Z);
                 break;
             }
             case "polyline":
             {
                 var pts = e.Points!.Select((p, k) => c.P(p, $"points[{k}]")).ToList();
+                for (int k = 0; k < pts.Count; k++) At($"points[{k}]", pts[k]);
                 if (e.Closed == true && pts[0].DistanceTo(pts[^1]) > Tol) pts.Add(pts[0]);
                 made = null;
                 for (int k = 0; k + 1 < pts.Count; k++)
@@ -525,12 +562,17 @@ public sealed class SketchService(SwSession session)
                 {
                     p1 = c.P(e.Corners[0], "corners[0]");
                     p2 = c.P(e.Corners[1], "corners[1]");
+                    At("corners[0]", p1); At("corners[1]", p2);
+                    if (!is3D) { At("a corner", new Vec3(p1.X, p2.Y, 0)); At("a corner", new Vec3(p2.X, p1.Y, 0)); }
                     made = (object?)sm.CreateCornerRectangle(p1.X, p1.Y, p1.Z, p2.X, p2.Y, p2.Z);
                 }
                 else
                 {
                     var ctr = c.P(e.Center, "center");
                     double w = Units.M(e.WidthMm!.Value) / 2, h = Units.M(e.HeightMm!.Value) / 2;
+                    if (!is3D)
+                        foreach (var (sx, sy) in new[] { (-1, -1), (1, -1), (1, 1), (-1, 1) })
+                            At("a corner", new Vec3(ctr.X + sx * w, ctr.Y + sy * h, 0));
                     made = (object?)sm.CreateCenterRectangle(ctr.X, ctr.Y, ctr.Z, ctr.X + w, ctr.Y + h, ctr.Z);
                 }
                 break;
@@ -539,6 +581,7 @@ public sealed class SketchService(SwSession session)
             {
                 var ctr = c.P(e.Center, "center");
                 double r = e.RadiusMm is double rm ? Units.M(rm) : Units.M(e.DiameterMm!.Value) / 2;
+                At("center", ctr);
                 made = sm.CreateCircleByRadius(ctr.X, ctr.Y, ctr.Z, r);
                 break;
             }
@@ -549,6 +592,7 @@ public sealed class SketchService(SwSession session)
                     var s = c.P(e.Start, "start");
                     var m = c.P(e.Mid, "mid");
                     var en = c.P(e.End, "end");
+                    At("start", s); At("end", en);
                     made = sm.Create3PointArc(s.X, s.Y, s.Z, en.X, en.Y, en.Z, m.X, m.Y, m.Z);
                 }
                 else
@@ -558,6 +602,7 @@ public sealed class SketchService(SwSession session)
                     double a0 = Units.Rad(e.StartDeg!.Value), a1 = Units.Rad(e.EndDeg!.Value);
                     var s = new Vec3(ctr.X + r * Math.Cos(a0), ctr.Y + r * Math.Sin(a0), ctr.Z);
                     var en = new Vec3(ctr.X + r * Math.Cos(a1), ctr.Y + r * Math.Sin(a1), ctr.Z);
+                    At("center", ctr); At("its start", s); At("its end", en);
                     made = sm.CreateArc(ctr.X, ctr.Y, ctr.Z, s.X, s.Y, s.Z, en.X, en.Y, en.Z, 1); // +1 = counter-clockwise
                 }
                 break;
@@ -571,6 +616,7 @@ public sealed class SketchService(SwSession session)
                 var dir = (b - a);
                 if (dir.Length < Tol) throw SwException.InvalidArgument("A slot needs two distinct end centers.");
                 dir = dir.Normalized();
+                At("from", a); At("to", b);
                 var n = new Vec3(-dir.Y, dir.X, 0) * r;
                 var a1 = a + n; var a2 = a - n; var b1 = b + n; var b2 = b - n;
                 var l1 = sm.CreateLine(a1.X, a1.Y, 0, b1.X, b1.Y, 0);
@@ -591,6 +637,7 @@ public sealed class SketchService(SwSession session)
                 double rCirc = e.CircumradiusMm is double cr ? Units.M(cr) : Units.M(e.InradiusMm!.Value) / Math.Cos(Math.PI / sides);
                 double rot = Units.Rad(e.RotationDeg ?? 90);
                 var v = new Vec3(ctr.X + rCirc * Math.Cos(rot), ctr.Y + rCirc * Math.Sin(rot), ctr.Z);
+                At("center", ctr); At("its first vertex", v);
                 // Inscribed = true: the construction circle passes through the vertices.
                 made = (object?)sm.CreatePolygon(ctr.X, ctr.Y, ctr.Z, v.X, v.Y, v.Z, sides, true);
                 break;
@@ -600,6 +647,7 @@ public sealed class SketchService(SwSession session)
                 var ctr = c.P(e.Center, "center");
                 double a = Units.M(e.MajorRadiusMm!.Value), b = Units.M(e.MinorRadiusMm!.Value);
                 double rot = Units.Rad(e.RotationDeg ?? 0);
+                At("center", ctr);
                 var major = new Vec3(ctr.X + a * Math.Cos(rot), ctr.Y + a * Math.Sin(rot), ctr.Z);
                 // The minor point exactly perpendicular to the major axis (a skewed one distorts the ellipse).
                 var minor = new Vec3(ctr.X - b * Math.Sin(rot), ctr.Y + b * Math.Cos(rot), ctr.Z);
@@ -608,14 +656,18 @@ public sealed class SketchService(SwSession session)
             }
             case "spline":
             {
-                var pts = e.Points!.Select((p, k) => c.P(p, $"points[{k}]")).SelectMany(p => new[] { p.X, p.Y, p.Z }).ToArray();
+                var fit = e.Points!.Select((p, k) => c.P(p, $"points[{k}]")).ToList();
+                At("points[0]", fit[0]); At($"points[{fit.Count - 1}]", fit[^1]); // its ends: the fit points between are no segment's ends
+                var pts = fit.SelectMany(p => new[] { p.X, p.Y, p.Z }).ToArray();
                 made = sm.CreateSpline2(pts, true);
                 break;
             }
             case "point":
             {
                 var p = c.P(e.At, "at");
-                made = sm.CreatePoint(p.X, p.Y, p.Z);
+                var pt = sm.CreatePoint(p.X, p.Y, p.Z);
+                if (pt is not null) { At("at", p); free.Add(pt); }
+                made = pt;
                 construction = false;
                 break;
             }
