@@ -2688,3 +2688,5 @@ Build `bin\0.1.0-20261124-174916` (`serverVersion` `0.1.0-sw2023-20261124-174916
     STEP export and `doc_open` of it, 16 surface bodies (S5, as before); a hinge assembly read-only, interference 0;
     the hand-built two-part assembly read-only, 2 components, plate fixed, shaft 2 mates without error, 127 402.659
     mm³; a 1:2 plan with two sections, 1 and 3 hatched faces. Files unchanged.
+
+Sorted into S134 (3), new; S135 (10), new; S136 (11), new, S14 again; S137 (12), new; S138 (13), new; S139 (14), new; S5 (15), met again, the rest of the regression held. Held: S132 (1), S133 (2), S100 (3), S102 (4), S103 (5), S127 (6), S128 (7), S130 (8), S131 (9).

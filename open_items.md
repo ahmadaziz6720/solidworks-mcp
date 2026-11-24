@@ -17,7 +17,16 @@ Closed all the same, its PR named, and an open PR no longer holds an item in Wai
 item sent upstream ends with `**Upstream: PR #9, open.**`, one per PR or issue
 (`merged`, `closed unmerged`; an issue `open` or `closed`), kept to its state.
 
-**Open: S4, S5, S7, S10 to S12, S33, S34, S52, S60, S64, S65, S79 to S82, S85, S86, S92, S94, S96, S99, S101, S105, S109, S111, S115, S123 to S125, S129.**
+**Open: S4, S5, S7, S10 to S12, S33, S34, S52, S60, S64, S65, S79 to S82, S85, S86, S92, S94, S96, S99, S101, S105, S109, S111, S115, S123 to S125, S129, S134 to S139.**
+Sorted 2026-11-24, the scenario test of build `20261124-174916` (findings 2026-11-24): S132,
+S133, S100 (whole, its (a) to (d)), S102, S103, S127, S128, S130 and S131 held and closed;
+S134 (a save in place of a library feature part already known dissolved overwrites the only
+good file) and S135 (a hole table's default place over the title block) new, taken into the
+run's group 7; S136 new (a cut line's letters over a table and a label, with "no overlaps",
+reported `ok` while wrong; S14 and S106 again), not in this run, a probe first; S137, S138
+and S139 new (a close held by an open drawing, `allowEdit` on a read-only document, a
+drawing dirty after a save and a PDF export), not in this run; S5 met again. The run goes on
+with group 7.
 Sorted 2026-11-22, the scenario test of build `20261122-194424` (findings 2026-11-22): S98,
 S108, S90, S106, S126, S97 and S104 held and closed, S104 as far as this machine allows (no
 8.3 folder in its File Locations); S1 held for `drw_view_detail` and a view at an angle and
@@ -467,6 +476,18 @@ its point.
   - **S125** (Sonnet), added by group 4's check: `feature_pattern_linear`'s volume per instance
     not averaged over an instance that formed nothing, or that instance named. Test: point 2's
     second case of the entry (fails now: "200 mm³ (3 instance(s))", averaged over the empty one).
+  - **S134** (default model), added by group 6's check, in group 6's files (`DocumentService.cs`
+    saves): a save in place of a library feature part already known dissolved is refused before
+    writing, the file on disk left as it was. Test: an owned copy of a shipped profile opened by
+    `doc_open`, `doc_save {mode:"copy"}` to a `.sldprt`, then `doc_save` in place: refused, the
+    `.sldlfp` on disk unchanged and reopening with its sketch (fails now: overwritten without its
+    sketch, then `VERIFY_FAILED`).
+  - **S135** (default model), added by group 6's check, in group 6's files
+    (`DrawingService.Tables.cs`, `DrawingService.Placement.cs`): a table with no `atMm` is placed
+    by the same free-space search as the views, clear of the title block, or warned with a hint
+    (`atMm`) where no spot is free. Test: point 10's case, a hole table with no `atMm` below a 1:2
+    plan whose space below reaches the title block (fails now: over the title block, only the
+    overlap warned).
 - **For the owner**: nothing to prepare. S1's proof is in group 5's check.
 - **Out of this run**: S4, S5, S7, S12 (wait on upstream); S10, S11, S33, S34 (parked,
   taken up when a job needs them); S60 (a) (parked); S64 (b) (left out on the owner's word,
@@ -672,7 +693,7 @@ its point.
   Decided 2026-11-24 by the run, not the owner: after S127 again, the release's live tests rerun DrawingLiveTests in
   full and the classes that call the code it changes, not the other classes, which passed on `67e7395` and call no
   drawing code, because a fix confined to the drawing services leaves their result as it was.
-- [x] Group 6: full live tests and release (build: `20261124-174916`, `3276b18`)
+- [x] Group 6: full live tests and release (build: `20261124-174916`, `3276b18`) (`136ee52`)
   Live: SketchEditLiveTests 79, PartFeatureLiveTests 53, FeatureManagementLiveTests 41, AdvancedFeatureLiveTests 30,
   BodySheetMetalLiveTests 52, ReferenceLiveTests 47, ModellingLiveTests 10, SurfaceShapeLiveTests 8, WeldmentLiveTests 18,
   FaceEditLiveTests 5 of 6, MoldingLiveTests 4, PropertiesLiveTests 26 of 27, AssemblyLiveTests 65, DrawingLiveTests 65,
@@ -702,7 +723,8 @@ its point.
   `build-20261124-174916`). The nine items of the build (S100, S102, S103, S127, S128, S130, S131, S132, S133) are BUILT,
   proof: the scenario test of this build. SOLIDWORKS restarted from its exe at the end.
   Cost: Sonnet, 109k tokens, 41 min.
-- [ ] Group 6: scenario test (session id: `c71866a6-d4e8-4628-9225-f00fe0a0daa8`), its entry committed and sorted
+- [x] Group 6: scenario test (session id: `c71866a6-d4e8-4628-9225-f00fe0a0daa8`), its entry committed and sorted (entry `bc8c8a9`; ended `EXIT 0` 18:03; S132, S133, S100, S102, S103, S127, S128, S130 and S131 held and closed, S100 whole; S134 and S135 new into group 7; S136 (S14 again, reported `ok` while wrong, a probe first), S137, S138 and S139 new, not in this run; S5 again; release notes updated)
+  Started 17:53:58 2026-11-24, free memory 1809 MB with SOLIDWORKS restarted from its exe (twice; under the plan's 2 GB, started anyway); launcher `%LOCALAPPDATA%\solidworks-mcp\livetest\run-1121\check6.ps1`, launcher pid 16492, output check6.out.txt and check6.err.txt beside it; started and watched by a Sonnet subagent (61k tokens); no resume; ended `EXIT 0` 18:03, about 10 min.
 - [ ] S80 (a) and (c): committed
 - [ ] S82 (a): committed
 - [ ] S86 (a): committed
@@ -710,6 +732,8 @@ its point.
 - [ ] S123: committed
 - [ ] S124: committed
 - [ ] S125: committed
+- [ ] S134: committed
+- [ ] S135: committed
 - [ ] Group 7: full live tests and release (build: )
 - [ ] Group 7: scenario test (session id: ), its entry committed and sorted
 - [ ] The report
@@ -764,6 +788,8 @@ Met again 2026-11-22 (findings 2026-11-22, the scenario test of build `20261122-
 point 11): a STEP export opened by `doc_open`, 16 surface bodies, as before.
 Met again 2026-11-22 (findings 2026-11-22, the scenario test of build `20261122-194424`,
 point 13): a STEP export opened by `doc_open`, 16 surface bodies, as before.
+Met again 2026-11-24 (findings 2026-11-24, the scenario test of build `20261124-174916`,
+point 15): a STEP export opened by `doc_open`, 16 surface bodies, as before.
 
 **Upstream: issue #2, open.**
 
@@ -2201,6 +2227,114 @@ Decided 2026-11-22 by the run, not the owner: left out of the run, by the run's 
 point needing the owner (a choice, a large change), a new Open item, not in this run",
 because it needs a probe first and may be SOLIDWORKS' own: for the next plan.
 
+### S134 - `doc_save` in place of a library feature part already known dissolved overwrites the only good file before it refuses - OPEN 2026-11-24
+
+Sorted out of the entry of 2026-11-24 (the scenario test of build `20261124-174916`), point
+3, its small part; bears on S100 (held and closed by the same point). On an owned copy of a
+profile opened by `doc_open`, `doc_save {mode:"copy"}` to a `.sldprt` was `VERIFY_FAILED`
+naming the file written and "SOLIDWORKS dissolved the open part's library feature (it held
+Sketch1)", with the hint to close without saving; a `doc_save` in place after it was
+`VERIFY_FAILED` "written without a sketch in its library feature", but by then the `.sldlfp`
+on disk, the only good file (a document opened by `doc_open` has no backup), had been
+overwritten, while the hint said "open the last good copy (the file before, or
+doc_activate's backup)". The server already knew the open document dissolved from the first
+call, so the save in place could have been refused before writing. Not reported `ok`.
+
+Local, small, in group 6's files (`DocumentService.cs` saves).
+Decided 2026-11-24 by the run, not the owner: a save in place of a part already known
+dissolved is refused before writing, the file on disk left as it was. Test to start from: an
+owned copy of a shipped profile opened by `doc_open`, `doc_save {mode:"copy"}` to a
+`.sldprt`, then `doc_save` in place: refused, the `.sldlfp` on disk unchanged and reopening
+with `LibFeat1` holding its sketch (fails now: written without its sketch, then
+`VERIFY_FAILED`; the second save of
+`WeldmentLiveTests.A_save_that_leaves_a_library_feature_part_without_its_sketch_is_verify_failed`
+expects that write and changes with it). Default model.
+Decided 2026-11-24 by the run, not the owner: taken into group 7, by the run's rule "a new
+point, small and in the group's files, a later step of this run ... taken into the next
+group", because it bears on S100 (d)'s own check and risks the user's only good file.
+
+### S135 - A hole table with no `atMm` is placed over the title block: the free-space search does not place tables - OPEN 2026-11-24
+
+Sorted out of the entry of 2026-11-24 (the scenario test of build `20261124-174916`), point
+10; bears on S128 (held and closed by point 7 of the same entry). `drw_table_add
+{kind:"hole"}` on the top plan of a 1:2 drawing with no `atMm` (the description: "default
+below the view") went to [150.8, 45.0, 295.6, 118.8], over the title block, with an overlap
+warning. The free-space search S128 gave the views does not place tables. Warned, so nothing
+hidden; small.
+
+Local, small, in group 6's files (`DrawingService.Tables.cs`, `DrawingService.Placement.cs`).
+Decided 2026-11-24 by the run, not the owner: a table with no `atMm` is placed by the same
+free-space search, clear of the title block (and of the views, the border and the other
+tables), or, where no spot is free, warned with a hint (`atMm`). Test to start from: point
+10's case, a hole table with no `atMm` under a plan whose space below reaches the title
+block: placed clear of it, or the hint (fails now: over the title block, only the overlap
+warned). Default model.
+Decided 2026-11-24 by the run, not the owner: taken into group 7, by the run's rule "a new
+point, small and in the group's files, a later step of this run ... taken into the next
+group", because it extends S128's placement to tables, in the drawing files group 6 changed,
+needing no choice of the owner's.
+
+### S136 - A section's cut line letters overlap a table and another section's label, the result saying "no overlaps", reported `ok` - OPEN 2026-11-24
+
+Sorted out of the entry of 2026-11-24 (the scenario test of build `20261124-174916`), point
+11; S14 again (closed: its overlap checks left a section line's letters in the parent view
+uncovered) and S106 (closed: the overlap checks count tables). The vertical cut of S130's
+proof (point 8), drawn after a hole table, put its lower letter on the table's header row
+and its upper letter on another section's label (in the PDF), while its result said "no
+overlaps with other views or their annotations". Reported `ok` while wrong.
+
+Proposed: a probe first: whether SOLIDWORKS lists a section line's letters as annotations of
+the parent view, or gives their place another way (the section line's ends), so the check
+can count them and warn, or the letters be moved. Local, in the drawing code. Not decided.
+Decided 2026-11-24 by the run, not the owner: left out of the run, by the run's rule "a new
+point needing the owner (a choice, a large change), a new Open item, not in this run",
+because it needs a probe first, as S129: for the next plan.
+
+### S137 - `doc_close` of a part an open drawing uses is `VERIFY_FAILED` with a hint of a dialog, not of the drawing - OPEN 2026-11-24
+
+Sorted out of the entry of 2026-11-24 (the scenario test of build `20261124-174916`), point
+12. `doc_close {discard:true}` on an owned part whose drawing was still open:
+`VERIFY_FAILED` "... is still open after CloseDoc. Hint: A dialog may have interrupted the
+close; check dialog_list." No dialog was up; the open drawing held the part. `doc_list` then
+showed the part `dirty: false`, its changes gone, and closing the drawing later said
+"SOLIDWORKS also closed: <part>". Not reported `ok`; the hint misses the cause, and nothing
+said the changes were discarded though the part stayed open.
+
+Proposed: the error names the open documents that use the part ("the drawing <name> uses it;
+close it first, or close the part with it") and says whether the discard took. Local, in
+`DocumentService.cs`. Not decided.
+Decided 2026-11-24 by the run, not the owner: not taken into this run, because it is a
+behaviour group 6 did not change, found beside its proof, and group 7 is the owner's extras:
+for the next plan.
+
+### S138 - `doc_activate {allowEdit:true}` on a document opened read-only does not say that `allowEdit` did not apply - OPEN 2026-11-24
+
+Sorted out of the entry of 2026-11-24 (the scenario test of build `20261124-174916`), point
+13; bears on S98 (closed: a read-only document's way back to editing is `doc_close` and
+`doc_open` without `readOnly`). `doc_activate {allowEdit:true}` on a document opened
+`readOnly:true`: "Active and targeted.", `access` still `readOnly`; nothing said `allowEdit`
+did not apply, or how to edit it. Small; the access read right.
+
+Proposed: a warning that `allowEdit` does not apply to a document opened read-only, with
+S98's reopen hint. Local, small, in `DocumentService.cs`. Not decided.
+Decided 2026-11-24 by the run, not the owner: not taken into this run, because it is a
+behaviour group 6 did not change, found beside its proof, and group 7 is the owner's extras:
+for the next plan.
+
+### S139 - A drawing saved by `doc_save` as and exported to PDF reads `dirty: true`, and `doc_close` is refused `DIRTY` - OPEN 2026-11-24
+
+Sorted out of the entry of 2026-11-24 (the scenario test of build `20261124-174916`), point
+14. A drawing saved by `doc_save {mode:"as"}` and then exported to PDF read `dirty: true`,
+and `doc_close` was refused `DIRTY`, with no change made in between. Which call set the flag
+(the save as, the export) is not known. Not S60 (a), the other way round (there
+`dirty:false` over unsaved work). Small.
+
+Proposed: a probe first: which call sets a drawing's flag after a save; then the call that
+sets it says so, or leaves the flag as it found it. Local. Not decided.
+Decided 2026-11-24 by the run, not the owner: not taken into this run, because it is a
+behaviour group 6 did not change, found beside its proof, and group 7 is the owner's extras:
+for the next plan.
+
 ## Waiting
 
 ### S89 - SOLIDWORKS started by `sw_connect launch` cannot be reached from a later server process - BUILT 2026-11-22, proof: a session that runs `sw_connect {launch:true}` with SOLIDWORKS closed
@@ -2375,349 +2509,3 @@ Decided 2026-11-22 by the run, not the owner: the proof moved to a session that 
 state, because the state cannot be brought on at will (S92 (c)'s probe did not reproduce it)
 and a check in the good state shows only that the sign raises no false alarm; the unit tests
 hold the rule meanwhile.
-
-### S132 - S100 (a) and (b): `doc_open` and `doc_save` refused library feature parts (.sldlfp) - BUILT 2026-11-24, proof: the scenario test of build 20261124-174916
-
-Points (a) and (b) of S100 (S100 stays Open for (c) and (d)) (findings 2026-11-17 and
-2026-11-18, on build `20261117-012659`): `doc_open` refused a `.sldlfp` ("can't open
-'.SLDLFP' files"), so a weldment profile could not be read back, and `doc_save` refused any
-extension but `.sldprt` for a part, so a custom profile could not be made end to end.
-Decided 2026-11-21 by the owner: taken into the run of 2026-11-21, group 6; not a folder added to File Locations (`## Run 2026-11-21`).
-Cause: `OpenKind.FromExtension` knew `.sldprt`, `.sldasm` and `.slddrw` only, and
-`DocumentService.WithNativeExtension` took one extension per document type.
-Fix: `doc_open` opens a `.sldlfp` as a part (`OpenDoc6`, `swDocPART`), its sizes listed as
-`configurations` like any part's. `doc_save` modes `as` and `copy` take a `.sldlfp` path for
-a part (`SaveAs3` to it, as SOLIDWORKS' Save As Lib Feat Part); a path with no extension
-still gets `.sldprt`, and an assembly or drawing to `.sldlfp` is refused, the message naming
-".sldprt or .sldlfp" for a part. Read back: after mode `as`, the document's path as
-SOLIDWORKS reports it must be the `.sldlfp` written, else `VERIFY_FAILED` naming both.
-Probed live first: `SaveAs3` of a part with one sketch to a `.sldlfp`, nothing selected,
-writes a profile that reopens with its sketch and makes members (in
-`docs/solidworks-api-notes.md`). Both descriptions name `.sldlfp`, paid for by trimming
-("opens silently, no rebuild prompt", "in MMGS", "extension added if missing").
-Before: the new `WeldmentLiveTests.A_shipped_profile_copied_to_a_temp_folder_opens_as_a_part_with_its_sizes`
-(SOLIDWORKS' ISO square tube copied to a temp folder under another name) failed,
-"doc_open can't open '.sldlfp' files."; the new
-`WeldmentLiveTests.A_part_saved_as_sldlfp_reopens_with_its_sketch_and_makes_a_member` (a
-40 x 20 rectangle on the front plane, saved by `doc_save {mode:"as"}`) failed, "doc_save
-writes native .sldprt files; '.sldlfp' is not one."
-After: both pass (the copy opens as an owned part at its path with "40 x 40 x 4" among its
-configurations; the saved file reads back at the `.sldlfp` path, reopens as a part holding
-`Sketch1`, and in a standard's type folder makes four members of 800 mm² section; a save
-of the part to `.sldasm` is `INVALID_ARGUMENT`); live, with the tests that open and save
-files, `A_one_size_profile_is_read_from_its_type_folder_and_refused_directly_in_the_standard_folder`,
-the six open tests of `ExportLiveTests`, three of `M0LiveTests` (save copy, dirty, foreign),
-`Saved_bodies_become_parts_with_their_volumes_and_an_assembly_of_them` and
-`A_part_the_server_owned_comes_back_owned_when_its_owned_assembly_loads_it`, 14/14;
-offline `ExportRequestTests` (`.SLDLFP` added to `Doc_open_knows_these_file_kinds`) and
-`ContractTests` (`Tool_catalog_follows_the_conventions` among them), 31/31; unit tests
-355/355; `--check-catalog` ok; `check_repo` ok.
-Made stricter: a Save As to `.sldlfp` whose document does not read back as that file is
-`VERIFY_FAILED`; nothing that passed is refused.
-Decided 2026-11-24 by the run, not the owner: mode `copy` takes a `.sldlfp` too, not only
-`as`, because both go through one extension rule, and a copy is how a part is kept while its
-profile is written (the live tests' own profiles are written so).
-Decided 2026-11-24 by the run, not the owner: `doc_save` selects nothing before it writes a
-`.sldlfp`, because the probe showed the save with nothing selected keeps the sketch and makes
-members; the read back is the document's path, not a reopen, because a reopen would close
-the target mid-call, and the reopen with its sketch is the live test's.
-Local: on `sw2023`, `af90447`; in build `20261124-174916`. Upstream: not yet
-decided.
-
-### S133 - S100 (c): `feature_list` listed a library feature part's `LibFeat1` as a feature of its own - BUILT 2026-11-24, proof: the scenario test of build 20261124-174916
-
-Point (c) of S100 (S100 stays Open for (d)) (findings 2026-11-17 and 2026-11-18, on build
-`20261117-012659`): `feature_list` on a library feature part (a weldment profile) showed its
-marked sketch inside a `LibFeat1` of type `LibraryFeature`, where the FeatureManager shows the
-sketch at the top level marked L and no `LibFeat1`; a session took it as the profile's fault
-and made two hand re-saves.
-Decided 2026-11-21 by the owner: taken into the run of 2026-11-21, group 6 (`## Run 2026-11-21`).
-Cause: the row was listed like any feature, with nothing saying SOLIDWORKS makes it itself.
-Fix: a `LibraryFeature` row of `feature_list` carries a new `note`: "SOLIDWORKS' internal
-wrapper of the library feature, not a fault in the part; its profile is the sketch <the row's
-children>." (or "it holds no sketch" when it has none). Other rows have no `note`. The
-description is unchanged (a field in a result costs none of the catalog's budget).
-Before: the new `WeldmentLiveTests.A_library_feature_part_lists_its_wrapper_as_internal_and_its_sketch_as_the_profile`
-(a shipped profile copied to a temp folder, opened by `doc_open`) failed, "The LibraryFeature
-row has no mark: ... LibFeat1 (LibraryFeature) [Sketch1] , Sketch1 (ProfileFeature) [...]".
-After: it passes (the `LibFeat1` row carries the note naming `Sketch1`, no other row has one);
-live, with the tests that call `feature_list`, `A_part_saved_as_sldlfp_reopens_with_its_sketch_and_makes_a_member`
-and `M0LiveTests.A_boss_buried_in_the_body_is_rolled_back`, 3/3; unit tests 355/355;
-`check_repo` ok. Not run: `--check-catalog` and the catalog test (no description changed).
-Made stricter: nothing; a result gains an optional field.
-Decided 2026-11-24 by the run, not the owner: the mark is a `note` on the row, not a changed
-`type` or a hidden row, because the type and the row are what SOLIDWORKS reports and other
-tools (`sketch_edit`, `feature_delete`) address by them; the profile's name is read from the
-row's children, so a profile with no sketch says so.
-Local: on `sw2023`, `def120d`; in build `20261124-174916`. Upstream: not yet
-decided.
-
-### S100 - Library feature parts (.sldlfp): not opened or saved through the server, read as a wrapper, and a save that lost the sketch, reported `ok` - BUILT 2026-11-24, proof: the scenario test of build 20261124-174916
-
-Sorted out of the entries of 2026-11-17 ("a weldment profile made from a vendor's DXF",
-points 3 and 4) and 2026-11-18 ("reading a hand-saved weldment profile", point 2; "a custom
-weldment profile with one size made to work", points 3 and 4), on build `20261117-012659`.
-A weldment profile is a library feature part, the file `weldment_member` reads (S91).
-(a) `doc_open` refuses `.sldlfp` ("can't open '.SLDLFP' files"): a profile could not be read
-back, and a shipped one had to be opened by the user for a comparison; the read tools then
-read it with `doc` given (foreign, not adopted).
-(b) `doc_save` refuses any extension but the native one ("doc_save writes native .sldprt
-files") and `model_export` has no such format, so a custom profile cannot be made end to end:
-the user saved it as `.sldlfp` by hand and added the folder to File Locations. Proposed by
-the session: `doc_save` takes `.sldlfp` for a part (SaveAs3 to that extension), and a tool or
-an option adds a profile folder to the Weldment Profiles file location.
-(c) `feature_list` on a library feature part shows its marked sketch inside a `LibFeat1` of
-type `LibraryFeature`, where the FeatureManager shows the sketch at the top level marked L
-and no `LibFeat1`. A session took that as the profile's fault, which cost two hand re-saves
-(Dissolve Library Feature, Add to Library). Proposed by the session: `feature_list` says the
-wrapper is internal, or lists the sketch as the library feature it is.
-(d) **A result reported `ok` while wrong.** `doc_save` of an adopted library feature part
-reported success and the profile sketch was gone on reopening. On a copy of a shipped
-profile, adopted by `doc_activate {allowEdit:true}`: its configuration table deleted
-(`feature_delete`, one table refused "Could not select"), `config_add` and three
-`config_delete`, `sketch_edit` of the profile sketch, `sketch_delete` of all 16 segments,
-`sketch_add` of 112, `sketch_finish` (4 closed contours), `doc_save` (`savedTo` the .sldlfp,
-41 145 bytes against 74 903 before), `doc_close`. Reopened by the user: no profile sketch,
-`LibFeat1` with no children. Not known which step dropped it; nothing reported a fault. A
-`feature_list` after the save would have caught it before the close. Proposed: a probe of
-which step, and `doc_save` of a library feature part checking its library feature still
-holds its sketch.
-
-Local. Not decided.
-Decided 2026-11-21 by the owner: (a) to (d) taken into the run of 2026-11-21, group 6; not a folder added to File Locations (`## Run 2026-11-21`).
-Decided 2026-11-21 in the plan, not the owner: (d)'s save of a library feature part that no longer holds a sketch is `VERIFY_FAILED`, the file named as written, not `ok` with a warning, because `ok` is what let the session close it.
-(a) and (b) are done: moved to Waiting as S132, 2026-11-24 (the run of 2026-11-21, group 6).
-(c) is done: moved to Waiting as S133, 2026-11-24 (the run of 2026-11-21, group 6).
-(d) is done, the last point, so S100 moved here, 2026-11-24 (the run of 2026-11-21, group 6).
-Probed live first, step by step on a copy of SOLIDWORKS' ISO square tube, each step's tree
-read and a `.sldlfp` copy written and reopened: opened by `doc_open`, the whole sequence
-(configuration table deleted, `config_add`, the four sizes deleted by `config_delete`,
-`sketch_edit`, the 16 segments deleted and a rectangle added, `sketch_finish`, `doc_save`
-in place) kept `LibFeat1` holding `Sketch1`, reopened too. Opened as the user would and
-adopted by `doc_activate {allowEdit:true}`, as in the finding, `LibFeat1` was gone from the
-tree right after the adoption, and the first copy was 42 030 bytes (the finding's 41 145);
-deleting the table then removed the sketch, and `sketch_edit` found none. A `doc_save
-{mode:"copy"}` of an owned profile to a `.sldprt` did the same; its `.sldlfp` copy after
-reopened with an empty `LibFeat1`.
-Cause: `doc_activate`'s backup is a `SaveAs3` copy to a `.sldprt`, and SOLIDWORKS' save of a
-library feature part to a `.sldprt`, even as a copy, dissolves the library feature of the
-open document; every later save of the `.sldlfp` writes it without its sketch, and
-`doc_save` read back the file's size only. In `docs/solidworks-api-notes.md`.
-Fix: the backup of a library feature part is a `.sldlfp` copy, which keeps it. `doc_save`
-reads the part's library feature before and after the save: a part whose library feature
-held something, or that is a `.sldlfp` document after the save, must still hold something
-there, else `VERIFY_FAILED`, the file named as written ("... it was written without a sketch
-in its library feature ...", or for a copy to a `.sldprt` "SOLIDWORKS dissolved the open
-part's library feature ..."), with a hint to close without saving and reopen. No description
-changed.
-Before: the new `WeldmentLiveTests.A_library_feature_part_adopted_and_redrawn_keeps_its_profile_sketch_when_saved`
-(the finding's sequence on a copy opened raw and adopted, saved in place, reopened) failed,
-"Adopting the part left its library feature without 'Sketch1' (backup ...\lfp_adopt_tube.sldprt):
-... Tables (ConfigTableFolder) [...], Sketch1 (ProfileFeature) [...] ..."; the new
-`WeldmentLiveTests.A_save_that_leaves_a_library_feature_part_without_its_sketch_is_verify_failed`
-(an owned copy saved as a `.sldprt` copy, then in place) failed, "doc_save copy to .sldprt
-reported ok; the open part's library feature now: ... Sketch1 (ProfileFeature) ..." (no
-`LibFeat1`).
-After: both pass (the backup is a `.sldlfp`, the reopened profile's `LibFeat1` holds
-`Sketch1`; the `.sldprt` copy is written and `VERIFY_FAILED` naming it, the save in place
-after it `VERIFY_FAILED` "written without"); live, with the tests that save, adopt and open
-library feature parts, the other four `.sldlfp` tests of `WeldmentLiveTests`, four of
-`M0LiveTests` (save copy, dirty, dirty through another process, foreign),
-`ExportLiveTests.A_saved_part_reopens_as_owned_target_with_its_geometry`,
-`AssemblyLiveTests.An_assembly_adopted_after_the_server_saved_its_parts_does_not_read_as_changed_by_the_user`
-and `TopDownLiveTests.Saved_bodies_become_parts_with_their_volumes_and_an_assembly_of_them`,
-13/13; unit tests 355/355; `check_repo` ok. Not run: `--check-catalog` and the catalog test
-(no description changed).
-Made stricter: a save that leaves a library feature part with an empty library feature, or
-none, is `VERIFY_FAILED` where it was `ok`; a copy of a plain part to a `.sldlfp` is not
-checked (the open document stays the part it was).
-Decided 2026-11-24 by the run, not the owner: the check is "the library feature holds
-something", not "holds a sketch", because a library feature part other than a profile holds
-features (a cut) whose sketch sits under them, and an empty `LibFeat1` is what the probe saw.
-Decided 2026-11-24 by the run, not the owner: a copy to a `.sldprt` of a library feature part
-is written and then `VERIFY_FAILED`, not refused before, because the file written is a good
-part and the fault is the open document's, which the message names; refusing would also
-refuse a part copy nobody saves the profile after.
-Local: on `sw2023`, `af90447`, `def120d`, `4b13b83`; in build `20261124-174916`. Upstream: not yet
-decided.
-
-### S102 - `weldment_member`'s "No profile" listed a one-configuration file it then refused - BUILT 2026-11-24, proof: the scenario test of build 20261124-174916
-
-Sorted out of the entry of 2026-11-18 (the scenario test of build `20261118-060615`), point
-2; met in S91's own fix (Closed). With a one-configuration copy of a profile directly in the
-standard folder, a wrong `type` was refused "Profiles: <the copy's name>, <the subfolder
-type>". The copy is offered as a type although the next call with it is refused
-(`INVALID_ARGUMENT` "has one configuration ... would make no member"). Not reported `ok`.
-
-Proposed by the session: leave a one-configuration file in the standard folder out of the
-list, or mark it ("not usable: one configuration").
-Decided 2026-11-21 by the owner: taken into the run of 2026-11-21, group 6 (`## Run 2026-11-21`).
-Decided 2026-11-21 in the plan, not the owner: the file is marked "not usable: one configuration", not left out, because a file left out of the list reads as one the server did not find.
-Decided 2026-11-24 by the run, not the owner: a file with no configuration at all is marked "not usable: no configurations" by the same rule, because the call with it is refused as well, and a one-configuration file with a folder of its name is listed once, unmarked, as the folder's type, because that folder is what SOLIDWORKS offers.
-Cause: `WeldmentSpec.PickProfile`'s "No profile" listed every file in the standard folder and every subfolder as a type, though a file there with fewer than two configurations is refused by the next call (S91).
-Fix: the list reads the configurations of each file in the standard folder (only on this error path) and writes one with fewer than two as `<name> (not usable: one configuration)`, after the usable types, which stay listed alphabetically.
-Before: `WeldmentLiveTests.A_one_size_profile_is_read_from_its_type_folder_and_refused_directly_in_the_standard_folder`, with a wrong type added after S91's case, failed: "Assert.Contains() Failure: Sub-string not found. String: "Profiles: flat bar, solo." Not found: "solo (not usable: one configuration)"".
-After: it passes, with `Unknown_profiles_sizes_and_segments_are_refused_with_what_there_is` (live, 2/2); unit tests 355/355 (`WeldmentSpecTests.Unknown_types_and_sizes_list_both_layouts` changed: the marked list and a file with a folder of its name); `check_repo` ok. Not run: `--check-catalog` and the catalog test (no description changed).
-Made stricter: nothing; a refused call's hint lists the same types plus the marked file.
-Local: on `sw2023`, `3a19df8`; in build `20261124-174916`. Upstream: not yet decided.
-
-### S103 - `weldment_member`: lines in two directions that do not touch fail with the path hint, and the result does not say which way the section lies - BUILT 2026-11-24, proof: the scenario test of build 20261124-174916
-
-Sorted out of the entry of 2026-11-18 ("a weldment frame of 16 members in one custom
-profile", points 1 and 2), on build `20261118-060615`.
-(a) `weldment_member` on one 2D sketch of four lines, two vertical and two horizontal, none
-touching another, all segments by default, `corner:"none"`, failed `VERIFY_FAILED: ...
-'Weldment' was created but has no faces ... Rolled back`, hint "The segments must form a path
-a profile can follow (no zero-length or overlapping lines)". The same sketch with `segments`
-the two parallel lines, then the other two, made both members, volumes exact. Likely:
-SOLIDWORKS takes a group of segments only when they are contiguous or all parallel. S91's
-hint point (Closed), met with another cause. Not reported `ok`.
-(b) The result does not say which way the section lies. `rotateDeg` 0 on vertical lines in
-a sketch on a Right-offset plane put the section's long side along the sketch normal, 90 in
-the plane; the same for horizontal lines there and on Front-offset planes; on a Top-offset
-plane 0 gave the long side vertical. Found only from `model.box` and `body_list`'s boxes, and
-one undo.
-
-Proposed by the session: (a) the server splits the segments into groups by that rule (one
-group per parallel set, as groups of one feature), or the hint names the rule; (b) each
-member in the result gives its section's extents along the model axes, or the long side's
-direction, so a wrong rotation shows in the call that made it. Local. Not decided.
-Decided 2026-11-21 by the owner: (a) and (b) taken into the run of 2026-11-21, group 6 (`## Run 2026-11-21`).
-Decided 2026-11-21 in the plan, not the owner: (a) the server retries a refused group as one group per parallel set and says so, rather than the hint alone, because the hint would leave the split to every caller.
-Decided 2026-11-24 by the run, not the owner: the split is tried only when the one group made no member body and its segments fall into more than one parallel set, and the groups go into one member feature, because a group that made members needs no split and one feature keeps the call one feature, as before.
-Decided 2026-11-24 by the run, not the owner: (b) is `sectionMm` [x, y, z] on each member, the extents of its cross-section along the model axes (0 along the axis an axis-parallel segment runs on), for lines only (absent for an arc), because a body box mixes the length in and an arc's section turns along it.
-Decided 2026-11-24 by the run, not the owner: the tool description is unchanged, because the new result fields carry their own names and the catalog is at its byte budget.
-Cause: (a) SOLIDWORKS makes no member feature at all of a structural member group whose segments neither form a path nor are all parallel; the server passed every segment as one group, so only the Weldment feature was new and the check failed on it. (b) The result gave each member's body, lengths and volume, nothing of its section's orientation.
-Fix: (a) when the one group made no body and `WeldmentSpec.ParallelSets` (lines parallel in either sense share a group, an arc alone) gives more than one set, the failed try is cleaned up back to the Weldment feature and the segments go again as one group per parallel set in one `InsertStructuralWeldment5`; the result gains `groups` (each group's segment names), a warning naming them, and the check ", in N groups, one per parallel set". A split that also fails names both tries ahead of the path hint. (b) Each straight member gains `sectionMm`, from the body's extreme points along each model axis' part across the segment (`WeldmentSpec.AcrossAxes`). `docs/solidworks-api-notes.md` §6 records both.
-Before: `WeldmentLiveTests.Lines_in_two_directions_that_do_not_touch_are_made_as_one_group_per_parallel_set` failed "VERIFY_FAILED: weldment_member: 'Weldment' was created but has no faces, so it changed no geometry. Rolled back: deleted Weldment."; `WeldmentLiveTests.Each_member_gives_its_sections_extents_along_the_model_axes` failed "Assert.NotNull() Failure: Value is null" (the field there, not filled).
-After: both pass, with the rest of `WeldmentLiveTests` and `DrawingLiveTests.Cut_list_table_lists_a_frames_members_and_weld_symbols_read_back` (live, 19/19); unit tests 357/357 (two new in `WeldmentSpecTests`: the parallel sets, the across axes); `check_repo` ok. Not run: `--check-catalog` and the catalog test (no description changed); the hint of a split that also fails (no live case of it).
-Made stricter: nothing weakened; the one-body-per-segment check is unchanged and now names the groups when split.
-Local: on `sw2023`, `285249f`; in build `20261124-174916`. Upstream: not yet decided.
-
-### S127 - A detail view's `centerMm` lies outside its own bounds and changes between `drw_view_detail` and `drw_info`, reported `ok` - BUILT 2026-11-24, proof: the scenario test of build 20261124-174916
-
-Sorted out of the entry of 2026-11-22 (the scenario test of build `20261122-194424`), point
-6. A 2:1 detail of a 1:2 plan placed with no `atMm`: the PDF shows it centred at about [331,
-178]. `drw_view_detail` gave `centerMm` [287.467, 251.306] with `boundsMm` [310.627,
-155.566, 351.307, 201.046], the centre outside its own bounds; the next `drw_info` gave
-`centerMm` [243.967, 328.306] (above the 297 mm sheet) and `boundsMm` [286.627, 133.966,
-375.307, 222.646]. The bounds' centres are right ([331, 178.3]), their sizes differ between
-the two calls (40.7 x 45.5 against 88.7 x 88.7; the detail circle drawn about 64 mm
-across). A 1:1 detail given `atMm` [70, 220]: `centerMm` [194.941, 191.813], its bounds
-centred at [69.9, 220.1]. Sections, auxiliary and named views read right. Reported `ok`
-while wrong: a caller placing an annotation from `centerMm` would put it elsewhere.
-
-Local, small, in group 5's files (`DrawingService.cs`, the detail view and `drw_info`).
-Decided 2026-11-22 by the run, not the owner: a detail view's `centerMm` comes from the same
-source as its bounds (or is the bounds' centre), and reads the same in `drw_view_detail` and
-`drw_info`. Test to start from: a 2:1 detail placed by default: `centerMm` inside its
-`boundsMm` and at their centre, equal across the two calls (fails now: outside its bounds,
-and another value in `drw_info`). Default model.
-Decided 2026-11-22 by the run, not the owner: taken into group 6, by the run's rule "a new
-point, small and in the group's files, a later step of this run ... taken into the next
-group", because it is a read of the detail view in the drawing files group 5 changed,
-needing no choice of the owner's, found by group 5's check.
-Decided 2026-11-24 by the run, not the owner: a detail view's `centerMm` is its outline's centre, not a corrected `IView.Position`, because the outline is what `boundsMm` reads and reads the same in both calls, while the position was stale in the call that made the view.
-Decided 2026-11-24 by the run, not the owner: `drw_view_edit` move puts a detail view's outline centre on `atMm` (its position shifted by the offset read before the move), because its description says it moves the view's centre there, and a caller moving a detail from its new `centerMm` would otherwise have it land by that offset.
-Cause: `ViewInfo` gave every view's `centerMm` as `IView.Position`. For a detail view that is where the model origin falls at the detail's scale (live: a 2:1 detail of a 1:2 view of a corner, the origin 80 x 40 mm off the outline's centre, outside it), and in the call that made the view it read another, stale value ([260.849, 161.306] there, [217.849, 138.306] in `drw_info`, the outline [253.509, 133.966, 342.189, 222.646] in both). The finding's differing bounds (40.7 x 45.5 against 88.7 x 88.7) did not recur in this step, the outline reading the same in both calls; they came back in group 6's release run (below), a matter of timing.
-Fix: `ViewInfo` gives a detail view's `centerMm` as its outline's centre, so `drw_view_detail`, `drw_info` and `drw_view_edit` read one value. `MoveView` sets a detail's position to `atMm` plus the position's offset from the outline's centre, and checks the outline's centre read back within 0.05 mm ("outline centre read back"), else puts it back and refuses as before. `DrwView.CenterMm`'s doc and `docs/solidworks-api-notes.md` §9 record it.
-Before: `DrawingLiveTests.Detail_center_is_the_center_of_its_bounds_in_both_reads` failed "drw_view_detail: centerMm [260,849, 161,306] is not the centre of boundsMm [253,509, 133,966, 342,189, 222,646] (drw_view_detail centerMm [260,849, 161,306], boundsMm [253,509, 133,966, 342,189, 222,646]; drw_info centerMm [217,849, 138,306], boundsMm [253,509, 133,966, 342,189, 222,646])".
-After: it passes, its move of the detail included, with `Detail_of_a_corner_has_the_requested_scale`, `Detail_leaves_no_sketch_open`, `Views_move_with_their_aligned_children_and_are_deleted`, `A_section_with_no_atMm_is_placed_so_its_own_label_clears_the_title_block`, `View_moves_and_deletes_that_cannot_work_are_refused` and `Moving_an_annotation_or_a_view_s_label_onto_another_text_is_warned` (live, 7/7); unit tests 357/357; `check_repo` ok. Not run: `--check-catalog` and the catalog test (no description changed).
-Made stricter: a detail's move is checked by its outline's centre, not only by the position SOLIDWORKS echoes back.
-Local: on `sw2023`, `8f88347`, `05e4ee3`; in build `20261124-174916`. Upstream: not yet decided.
-Again 2026-11-24 (group 6's release live tests): on `67e7395`, after S128 and S130, `DrawingLiveTests.Detail_center_is_the_center_of_its_bounds_in_both_reads` failed in the class run and alone after a restart, the same numbers both times: the centre equal, the outline 43 x 43 mm in `drw_view_detail` and 89 x 89 mm in `drw_info`, the finding's own symptom. Cause: SOLIDWORKS lays a new detail view out after the call that made it returns. A live probe in the creating call read the outline [276.309, 156.766, 319.389, 199.846] (43 mm, smaller than the 64 mm circle the 2:1 detail shows) and the stale position [260.849, 161.306] after `EditRebuild3`, twice in a row; after a 1.5 s pause, with no other call, [253.509, 133.966, 342.189, 222.646] (89 mm) and [217.849, 138.306], which every later read gives (enumerating the views, `GraphicsRedraw2`, `ForceRebuild3`, `drw_info`). So the 89 mm outline is the true one (it holds the circle; the stale one cannot), and S127's step passed by timing. S128 and S130 change neither the detail's place (the same centre both times) nor its read.
-Fix: `DetailAsync` waits after its rebuild, up to 5 s in 100 ms steps (`AwaitDetailOutline`), until the detail's outline holds its circle at the detail's scale (2 x radius x detail scale / parent scale, 0.5 mm tolerance), then reads the view; if it never does, the result warns that the outline read smaller than the circle and to read it again with `drw_info`. `docs/solidworks-api-notes.md` §9 records the late layout.
-Decided 2026-11-24 by the run, not the owner: the creating call waits for the outline to hold the detail circle, not for two equal reads or a fixed pause, because two reads in a row agreed while stale and a pause long enough on one machine may not be on another, while the circle is a size the true outline must reach.
-Before: `DrawingLiveTests.Detail_center_is_the_center_of_its_bounds_in_both_reads` failed "boundsMm [276,309, 156,766, 319,389, 199,846] in drw_view_detail, [253,509, 133,966, 342,189, 222,646] in drw_info" (rerun in this step, the same).
-After: it passes, with `Detail_of_a_corner_has_the_requested_scale`, `Detail_leaves_no_sketch_open`, `A_detail_with_no_atMm_is_placed_clear_of_a_hole_table`, `Detail_circles_off_the_part_or_out_of_range_are_refused` and `Views_move_with_their_aligned_children_and_are_deleted` (live, 6/6), and `A_section_with_no_atMm_is_placed_so_its_own_label_clears_the_title_block`, `View_moves_and_deletes_that_cannot_work_are_refused`, `Moving_an_annotation_or_a_view_s_label_onto_another_text_is_warned`, `An_auxiliary_with_no_atMm_goes_clear_along_its_alignment_or_says_there_is_no_room`, `Auxiliary_view_looks_square_onto_a_chamfer`, `Section_through_the_middle_is_a_hatched_section_view` and `A_parent_with_a_section_is_deleted_only_with_its_children` (live, 7/7), S127's and S128's other live tests; unit tests 358/358; `check_repo` ok. Not run: `--check-catalog` and the catalog test (no description changed).
-Made stricter: the test checks that both reads' outline holds the 64 mm detail circle.
-
-### S128 - With no `atMm`, an auxiliary view lands over its parent and the title block though said to be a free spot, and the free-space search does not count tables - BUILT 2026-11-24, proof: the scenario test of build 20261124-174916
-
-Sorted out of the entry of 2026-11-22 (the scenario test of build `20261122-194424`), point
-7; bears on S90 and S106, both held (S106's checks warned of each overlap, S90's section
-label cleared the title block). (a) `drw_view_add auxiliary` with no `atMm`, whose
-description says "default: a free spot (beside the parent for auxiliary)", put a 155 x 101
-mm view on a 1:2 plan over the plan, the section below it and the title block, with the
-three overlap warnings. Along its alignment there was no free spot on that sheet, so a
-refusal or a hint (a smaller scale, `atMm`) would have served; `drw_view_edit move` off the
-alignment is refused `VERIFY_FAILED` with the alignment hint (right). (b) A 2:1 detail with
-no `atMm` was placed with its outline over a hole table's corner: the free-space search
-(`Place`) counts the views, the border and the title block, not tables; the overlap check
-after it does ("overlaps table"). Warned each time, so nothing hidden; the free spot the
-description claims was not one.
-
-Local, in group 5's files (`DrawingService.cs` `Place`, `DrawingLayout.cs`).
-Decided 2026-11-22 by the run, not the owner: `Place` counts the sheet's tables as occupied;
-where no free spot exists along an aligned view's alignment, the result says so with the
-hint (a smaller scale, or `atMm`) instead of claiming a free spot. Test to start from: a
-detail with no `atMm` beside a hole table, placed not over it (fails now: over the table's
-corner); an auxiliary with no room along its alignment, the result giving the hint (fails
-now: placed over the parent, the section and the title block, only the overlaps warned).
-Default model.
-Decided 2026-11-22 by the run, not the owner: taken into group 6, by the run's rule "a new
-point, small and in the group's files, a later step of this run ... taken into the next
-group", because it extends the placement S90 and S106 changed in group 5's files, needing
-no choice of the owner's, found by group 5's check.
-Decided 2026-11-24 by the run, not the owner: an auxiliary view made with no `atMm` is moved, once made (its size is known only then), to the first free spot along its alignment on the side of its parent it was made on, not across the parent, because across it the view would lie opposite its arrow.
-Decided 2026-11-24 by the run, not the owner: where no spot is free the view stays where it was made and the result warns with the hint, not a refusal, because the plan asks the result to say so and the view itself is right.
-Decided 2026-11-24 by the run, not the owner: the detail keeps its placement by the estimated size (now with the tables counted), with no re-placement by its real outline, because the plan's point is the tables and the overlap check after it still warns of any clash.
-Cause: (b) `Place` (sections, details) built its free space from the views' outlines, the border and the title block, not the tables, though the overlap check after it counts them (S106). (a) An auxiliary view with no `atMm` was put a fixed reach (half the parent's larger side plus 30 mm) from its parent's centre along the alignment, whatever its own size, with no free-space search at all.
-Fix: `FreeSpace` (`DrawingService.Placement.cs`) gives the area and what is taken, the tables on the current sheet included; `Place` uses it. `PlaceAlongAlignment` reads the new auxiliary's outline and its own label, finds the first shift along the alignment (`DrawingLayout.FirstFreeAlong`, 1 mm steps, from the parent's centre outward on that side) that clears the other views, the tables, the title block and the border, moves the view by it and reads the outline back (else puts it back and warns); with none it warns "No free spot of W x H mm for '<view>' along its alignment with '<parent>', on the side it was made on: it was left at [x, y] mm. Pass atMm, or give '<parent>' a smaller scale." `docs/solidworks-api-notes.md` §9 records it.
-Before: `DrawingLiveTests.A_detail_with_no_atMm_is_placed_clear_of_a_hole_table` failed "the detail lies over the table: detail [286,808, 154,366, 334,688, 202,246], table [290,94, 170,72, 435,703, 183,2], front [159,06, 142,26, 270,94, 214,14]; warnings: 'Detail View A (2 : 1)' overlaps table 'DetailItem233' [290.94, 170.72, 435.703, 183.2]."; `DrawingLiveTests.An_auxiliary_with_no_atMm_goes_clear_along_its_alignment_or_says_there_is_no_room` failed "the auxiliary lies over its parent: aux [101,22, 64,42, 207,242, 170,442], front [159,06, 142,26, 270,94, 214,14]; warnings: 'Drawing View2' overlaps 'Drawing View1'." (its 2:1 part, the hint, not reached).
-After: both pass (the auxiliary moved along its 45° alignment clear of its parent at 1:1, the hint at 2:1), with `Auxiliary_view_looks_square_onto_a_chamfer`, `A_section_with_no_atMm_is_placed_so_its_own_label_clears_the_title_block`, `Section_through_the_middle_is_a_hatched_section_view`, `Detail_of_a_corner_has_the_requested_scale`, `Detail_center_is_the_center_of_its_bounds_in_both_reads`, `Views_move_with_their_aligned_children_and_are_deleted` and `A_parent_with_a_section_is_deleted_only_with_its_children` (live, 9/9); unit tests 358/358 (`DrawingLayoutTests.An_aligned_view_moves_to_the_first_free_spot_along_its_alignment_or_to_none` new); `check_repo` ok. Not run: `--check-catalog` and the catalog test (no description changed).
-Made stricter: an auxiliary's default place is checked for free space and its move read back; the free-space search counts tables.
-Local: on `sw2023`, `abe65d4`; in build `20261124-174916`. Upstream: not yet decided.
-
-### S130 - `drw_view_section` moves `atMm` onto the alignment line without a word - BUILT 2026-11-24, proof: the scenario test of build 20261124-174916
-
-Sorted out of the entry of 2026-11-22 (the scenario test of build `20261122-194424`), point
-9. A section across a turned auxiliary view (S1's proof, point 5 (d)), `atMm` [340, 100]:
-placed at [309.4, 32.3], the projection of that point on the line square to the cut through
-the parent, partly off the sheet. The warnings said it ran off the sheet and over the title
-block; none said the view was not where `atMm` asked, or why. Small; reported `ok`.
-
-Local, small, in group 5's files (`DrawingService.cs`, the section).
-Decided 2026-11-22 by the run, not the owner: `drw_view_section` warns when the view's centre
-lands more than 1 mm from `atMm`, naming both points and why (the alignment with its parent).
-Test to start from: point 9's case, a section given an `atMm` off its alignment: the warning
-naming `atMm`, the centre and the alignment (fails now: none). Sonnet.
-Decided 2026-11-22 by the run, not the owner: taken into group 6, by the run's rule "a new
-point, small and in the group's files, a later step of this run ... taken into the next
-group", because it is one warning in the section code group 5 changed, found by group 5's
-check.
-Decided 2026-11-24 by the run, not the owner: the section's centre is read as `centerMm` (its position), compared with `atMm` by the larger of the two coordinate differences, because that is the centre the result already reports, and an `atMm` on the alignment read back within 1 mm live (no warning).
-Cause: `CreateSectionViewAt5` takes the position asked but SOLIDWORKS keeps a section aligned with its parent, so only the coordinate along the alignment line is kept; the code never compared the view made with `atMm`.
-Fix: after the view is read, `SectionAsync` warns "'<view>' is at [x, y] mm, not at atMm [x, y]: a section view keeps its alignment with '<parent>' (on the line square to the cut through it), so only the position along that line is kept." when the centre lies more than 1 mm from `atMm` in either coordinate.
-Before: `DrawingLiveTests.A_section_given_an_atMm_off_its_alignment_warns_of_where_it_went` failed "no warning that the section is not at atMm: atMm [305, 218,2], centre [305, 178,2]; warnings: " (empty).
-After: it passes (a vertical cut with `atMm` 40 mm off the parent's row warned, `atMm` on the row not), with `Section_through_the_middle_is_a_hatched_section_view`, `A_section_with_no_atMm_is_placed_so_its_own_label_clears_the_title_block`, `Views_move_with_their_aligned_children_and_are_deleted` and `A_section_s_model_box_is_what_lies_behind_the_cut` (live, 5/5; the four others run before a wording change of the warning only); unit tests 358/358; `check_repo` ok. Not run: `--check-catalog` and the catalog test (no description changed). The finding's own case (a section across an auxiliary view) was not rebuilt: the same code path, the alignment being the parent's, shown here with a plain parent.
-Made stricter: a section not where `atMm` asked is no longer silent.
-Local: on `sw2023`, `8949e93`; in build `20261124-174916`. Upstream: not yet decided.
-
-### S131 - `drw_table_add {kind:"hole"}` with no `face` picks a tab with one hole over a floor with six countersunk holes - BUILT 2026-11-24, proof: the scenario test of build 20261124-174916
-
-Sorted out of the entry of 2026-11-22 (the scenario test of build `20261122-194424`), point
-12. `drw_table_add {kind:"hole"}` on a top plan view with no `face`: one row, a Ø4.5 hole
-through a 5 mm tab, its origin a vertex of the tab, while the floor facing the same way
-holds six countersunk holes. The description says "default: the face toward the viewer with
-the most holes"; whether countersinks count as holes there, or "toward the viewer" means the
-nearest face, is not said. Small; reported `ok`.
-
-Local, small, in group 5's files (`DrawingService.Tables.cs`).
-Decided 2026-11-22 by the run, not the owner: the default face counts countersunk and
-counterbored holes as holes, and the result names the face chosen and its hole count. Test
-to start from: point 12's case, a part with a tab of one plain hole and a floor of six
-countersunk holes facing the same way: the floor chosen, its six holes listed, the face and
-the count named (fails now: the tab, one row). Default model.
-Decided 2026-11-22 by the run, not the owner: taken into group 6, by the run's rule "a new
-point, small and in the group's files, a later step of this run ... taken into the next
-group", because it is the default face's count in the table code group 5 changed (S106),
-needing no choice of the owner's, found by group 5's check.
-Decided 2026-11-24 by the run, not the owner: a hole is a full circle on the face that leads, through coaxial cones (a countersink) and annular planes (a counterbore's floor), to a hole's cylinder, and a row's size may read either its bore or its diameter at the face, because the size column of a Hole Wizard hole reads the bore first while a cut's reads the edge, and the X/Y check stays as strict.
-Decided 2026-11-24 by the run, not the owner: the face and its count are named for the default only, as a `resolved` entry "face (default)" with its id and a check line with the runner-up's count, because a given face is already echoed in `resolved` and the check line counts the rows.
-Cause: `HolesOn` counted a circular edge of the face only when the face across it was a hole's cylinder; a countersunk hole's edge on the face meets a cone, so the floor counted 0 and the tab's plain hole won; a counterbored one counted with its counterbore's diameter.
-Fix: `HolesOn` walks from each full circle down the coaxial faces (`BoreOf`: hole cylinders, cones, annular planes, up to six steps) and keeps the smallest hole cylinder as the bore; the size check accepts the bore or the diameter at the face. With no `face`, the result names the face chosen (`resolved` "face (default)", its id) and a check "face F<n> by default: toward the viewer, the most holes, <n> hole(s); next of <k> other face(s): <m>".
-Before: `DrawingLiveTests.Hole_table_default_face_counts_countersunk_holes_and_names_the_face` failed with "rows [A1, 10, 10, <MOD-DIAM> 4,50 <HOLE-DEPTH> 4,00]; checks ['origin' picked at its sheet position | 1 row(s), each hole's X/Y from the origin and size read back | ...]" (the tab, one row).
-After: it passes (a floor with six M4 countersunk holes and one M4 counterbore, a 5 mm tab with a Ø4.5 drill: the floor chosen, 7 rows, Y 15 and 45 from its corner, the face's id in `resolved` and the check), with `Hole_table_lists_the_hole_from_the_lower_left_corner_and_from_a_given_origin`, `A_table_over_a_view_gives_its_extent_and_is_warned_and_so_is_a_note_across_it`, `Tables_that_cant_work_are_refused` and `A_detail_with_no_atMm_is_placed_clear_of_a_hole_table` (live, 5/5); unit tests 358/358; `check_repo` ok. Not run: `--check-catalog` and the catalog test (no description changed). The finding's own part was not rebuilt.
-Made stricter: a countersunk or counterbored hole is counted and checked, and the default face is named with its count.
-Local: on `sw2023`, `67e7395`; in build `20261124-174916`. Upstream: not yet decided.
