@@ -1,4 +1,5 @@
 using SolidWorksMcp.Core;
+using SolidWorksMcp.Core.Geometry;
 using SolidWorksMcp.Core.Model;
 using SolidWorksMcp.Core.Services;
 using Xunit;
@@ -153,5 +154,35 @@ public class WeldmentSpecTests
             new WeldmentFinishRequest { Faces = One, ThicknessMm = 5, SizeMm = 4, LegsMm = [50, 50] }));
         Assert.Equal(["thicknessMm"], WeldmentSpec.CheckFinish("bead",
             new WeldmentFinishRequest { Faces = One, Faces2 = One, SizeMm = 4, ThicknessMm = 5 }));
+    }
+
+    [Fact]
+    public void Segments_split_into_one_group_per_parallel_set_in_their_order_each_arc_alone()
+    {
+        // S103 (a): two vertical and two horizontal lines (one reversed), an arc and a slanted line.
+        Vec3?[] dirs = [Vec3.UnitY, Vec3.UnitX, -Vec3.UnitY, Vec3.UnitX, null, new Vec3(1, 1, 0).Normalized()];
+        var sets = WeldmentSpec.ParallelSets(dirs);
+        Assert.Equal(4, sets.Count);
+        Assert.Equal([0, 2], sets[0]);
+        Assert.Equal([1, 3], sets[1]);
+        Assert.Equal([4], sets[2]);
+        Assert.Equal([5], sets[3]);
+        Assert.Single(WeldmentSpec.ParallelSets([Vec3.UnitZ, -Vec3.UnitZ]));
+    }
+
+    [Fact]
+    public void A_segments_across_axes_drop_the_axis_it_runs_on()
+    {
+        // S103 (b): along x, the x axis has no part across it; y and z are whole.
+        var a = WeldmentSpec.AcrossAxes(Vec3.UnitX);
+        Assert.Equal(0, a[0].Length, 12);
+        Assert.Equal(Vec3.UnitY, a[1]);
+        Assert.Equal(Vec3.UnitZ, a[2]);
+        // At 45° in the xy plane, x and y keep half their length squared each: |d| = √½.
+        var s = WeldmentSpec.AcrossAxes(new Vec3(1, 1, 0).Normalized());
+        Assert.Equal(Math.Sqrt(0.5), s[0].Length, 12);
+        Assert.Equal(Math.Sqrt(0.5), s[1].Length, 12);
+        Assert.Equal(0, s[0].Dot(new Vec3(1, 1, 0)), 12);
+        Assert.Equal(Vec3.UnitZ, s[2]);
     }
 }

@@ -17,7 +17,7 @@ Closed all the same, its PR named, and an open PR no longer holds an item in Wai
 item sent upstream ends with `**Upstream: PR #9, open.**`, one per PR or issue
 (`merged`, `closed unmerged`; an issue `open` or `closed`), kept to its state.
 
-**Open: S4, S5, S7, S10 to S12, S33, S34, S52, S60, S64, S65, S79 to S82, S85, S86, S92, S94, S96, S99, S101, S103, S105, S109, S111, S115, S123 to S125, S127 to S131.**
+**Open: S4, S5, S7, S10 to S12, S33, S34, S52, S60, S64, S65, S79 to S82, S85, S86, S92, S94, S96, S99, S101, S105, S109, S111, S115, S123 to S125, S127 to S131.**
 Sorted 2026-11-22, the scenario test of build `20261122-194424` (findings 2026-11-22): S98,
 S108, S90, S106, S126, S97 and S104 held and closed, S104 as far as this machine allows (no
 8.3 folder in its File Locations); S1 held for `drw_view_detail` and a view at an angle and
@@ -648,8 +648,8 @@ its point.
 - [x] S100 (a) and (b): committed (split out as S132) (`af90447`)
 - [x] S100 (c): committed (split out as S133) (`def120d`)
 - [x] S100 (d): committed (S100 to Waiting) (`4b13b83`)
-- [x] S102: committed
-- [ ] S103 (a) and (b): committed
+- [x] S102: committed (`3a19df8`)
+- [x] S103 (a) and (b): committed (the failed-split hint, changed after its live run, is covered by the group's full live tests)
 - [ ] S127: committed
 - [ ] S128: committed
 - [ ] S130: committed
@@ -1995,30 +1995,6 @@ Proposed: a probe of where the time goes (the per-entity checks, S65 (e)'s merge
 contour read), then a batch path or a limit that grows with the count. Local. Not decided.
 Decided 2026-11-21 by the owner: taken into the run of 2026-11-21, group 7, a probe first (`## Run 2026-11-21`).
 
-### S103 - `weldment_member`: lines in two directions that do not touch fail with the path hint, and the result does not say which way the section lies - OPEN 2026-11-21
-
-Sorted out of the entry of 2026-11-18 ("a weldment frame of 16 members in one custom
-profile", points 1 and 2), on build `20261118-060615`.
-(a) `weldment_member` on one 2D sketch of four lines, two vertical and two horizontal, none
-touching another, all segments by default, `corner:"none"`, failed `VERIFY_FAILED: ...
-'Weldment' was created but has no faces ... Rolled back`, hint "The segments must form a path
-a profile can follow (no zero-length or overlapping lines)". The same sketch with `segments`
-the two parallel lines, then the other two, made both members, volumes exact. Likely:
-SOLIDWORKS takes a group of segments only when they are contiguous or all parallel. S91's
-hint point (Closed), met with another cause. Not reported `ok`.
-(b) The result does not say which way the section lies. `rotateDeg` 0 on vertical lines in
-a sketch on a Right-offset plane put the section's long side along the sketch normal, 90 in
-the plane; the same for horizontal lines there and on Front-offset planes; on a Top-offset
-plane 0 gave the long side vertical. Found only from `model.box` and `body_list`'s boxes, and
-one undo.
-
-Proposed by the session: (a) the server splits the segments into groups by that rule (one
-group per parallel set, as groups of one feature), or the hint names the rule; (b) each
-member in the result gives its section's extents along the model axes, or the long side's
-direction, so a wrong rotation shows in the call that made it. Local. Not decided.
-Decided 2026-11-21 by the owner: (a) and (b) taken into the run of 2026-11-21, group 6 (`## Run 2026-11-21`).
-Decided 2026-11-21 in the plan, not the owner: (a) the server retries a refused group as one group per parallel set and says so, rather than the hint alone, because the hint would leave the split to every caller.
-
 ### S105 - No tool hides or shows reference geometry and sketches - OPEN 2026-11-21
 
 Sorted out of the entry of 2026-11-18 ("a weldment frame of 16 members in one custom
@@ -2626,4 +2602,37 @@ Fix: the list reads the configurations of each file in the standard folder (only
 Before: `WeldmentLiveTests.A_one_size_profile_is_read_from_its_type_folder_and_refused_directly_in_the_standard_folder`, with a wrong type added after S91's case, failed: "Assert.Contains() Failure: Sub-string not found. String: "Profiles: flat bar, solo." Not found: "solo (not usable: one configuration)"".
 After: it passes, with `Unknown_profiles_sizes_and_segments_are_refused_with_what_there_is` (live, 2/2); unit tests 355/355 (`WeldmentSpecTests.Unknown_types_and_sizes_list_both_layouts` changed: the marked list and a file with a folder of its name); `check_repo` ok. Not run: `--check-catalog` and the catalog test (no description changed).
 Made stricter: nothing; a refused call's hint lists the same types plus the marked file.
+Local: on `sw2023`, in the commit that moves it here; not yet in a build. Upstream: not yet decided.
+
+### S103 - `weldment_member`: lines in two directions that do not touch fail with the path hint, and the result does not say which way the section lies - BUILT 2026-11-24, proof: the scenario test of the group 6 build
+
+Sorted out of the entry of 2026-11-18 ("a weldment frame of 16 members in one custom
+profile", points 1 and 2), on build `20261118-060615`.
+(a) `weldment_member` on one 2D sketch of four lines, two vertical and two horizontal, none
+touching another, all segments by default, `corner:"none"`, failed `VERIFY_FAILED: ...
+'Weldment' was created but has no faces ... Rolled back`, hint "The segments must form a path
+a profile can follow (no zero-length or overlapping lines)". The same sketch with `segments`
+the two parallel lines, then the other two, made both members, volumes exact. Likely:
+SOLIDWORKS takes a group of segments only when they are contiguous or all parallel. S91's
+hint point (Closed), met with another cause. Not reported `ok`.
+(b) The result does not say which way the section lies. `rotateDeg` 0 on vertical lines in
+a sketch on a Right-offset plane put the section's long side along the sketch normal, 90 in
+the plane; the same for horizontal lines there and on Front-offset planes; on a Top-offset
+plane 0 gave the long side vertical. Found only from `model.box` and `body_list`'s boxes, and
+one undo.
+
+Proposed by the session: (a) the server splits the segments into groups by that rule (one
+group per parallel set, as groups of one feature), or the hint names the rule; (b) each
+member in the result gives its section's extents along the model axes, or the long side's
+direction, so a wrong rotation shows in the call that made it. Local. Not decided.
+Decided 2026-11-21 by the owner: (a) and (b) taken into the run of 2026-11-21, group 6 (`## Run 2026-11-21`).
+Decided 2026-11-21 in the plan, not the owner: (a) the server retries a refused group as one group per parallel set and says so, rather than the hint alone, because the hint would leave the split to every caller.
+Decided 2026-11-24 by the run, not the owner: the split is tried only when the one group made no member body and its segments fall into more than one parallel set, and the groups go into one member feature, because a group that made members needs no split and one feature keeps the call one feature, as before.
+Decided 2026-11-24 by the run, not the owner: (b) is `sectionMm` [x, y, z] on each member, the extents of its cross-section along the model axes (0 along the axis an axis-parallel segment runs on), for lines only (absent for an arc), because a body box mixes the length in and an arc's section turns along it.
+Decided 2026-11-24 by the run, not the owner: the tool description is unchanged, because the new result fields carry their own names and the catalog is at its byte budget.
+Cause: (a) SOLIDWORKS makes no member feature at all of a structural member group whose segments neither form a path nor are all parallel; the server passed every segment as one group, so only the Weldment feature was new and the check failed on it. (b) The result gave each member's body, lengths and volume, nothing of its section's orientation.
+Fix: (a) when the one group made no body and `WeldmentSpec.ParallelSets` (lines parallel in either sense share a group, an arc alone) gives more than one set, the failed try is cleaned up back to the Weldment feature and the segments go again as one group per parallel set in one `InsertStructuralWeldment5`; the result gains `groups` (each group's segment names), a warning naming them, and the check ", in N groups, one per parallel set". A split that also fails names both tries ahead of the path hint. (b) Each straight member gains `sectionMm`, from the body's extreme points along each model axis' part across the segment (`WeldmentSpec.AcrossAxes`). `docs/solidworks-api-notes.md` §6 records both.
+Before: `WeldmentLiveTests.Lines_in_two_directions_that_do_not_touch_are_made_as_one_group_per_parallel_set` failed "VERIFY_FAILED: weldment_member: 'Weldment' was created but has no faces, so it changed no geometry. Rolled back: deleted Weldment."; `WeldmentLiveTests.Each_member_gives_its_sections_extents_along_the_model_axes` failed "Assert.NotNull() Failure: Value is null" (the field there, not filled).
+After: both pass, with the rest of `WeldmentLiveTests` and `DrawingLiveTests.Cut_list_table_lists_a_frames_members_and_weld_symbols_read_back` (live, 19/19); unit tests 357/357 (two new in `WeldmentSpecTests`: the parallel sets, the across axes); `check_repo` ok. Not run: `--check-catalog` and the catalog test (no description changed); the hint of a split that also fails (no live case of it).
+Made stricter: nothing weakened; the one-body-per-segment check is unchanged and now names the groups when split.
 Local: on `sw2023`, in the commit that moves it here; not yet in a build. Upstream: not yet decided.

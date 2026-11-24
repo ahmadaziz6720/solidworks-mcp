@@ -34,6 +34,11 @@ public sealed class WeldmentMember
     /// <summary>The member's length along its segment (its body's extent there, corner treatments included).</summary>
     public double LengthMm { get; init; }
     public double VolumeMm3 { get; init; }
+    /// <summary>
+    /// The section's extents along model x, y and z, measured across the segment (0 along the axis an axis-parallel
+    /// segment runs on), so the way a profile lies shows here: a 50 x 30 tube along x reads [0, 50, 30] or [0, 30, 50].
+    /// </summary>
+    public double[]? SectionMm { get; init; }
 }
 
 public sealed class WeldmentResult : ToolResult
@@ -47,6 +52,11 @@ public sealed class WeldmentResult : ToolResult
     public required Verified Verified { get; init; }
     public required ModelState Model { get; init; }
     public IReadOnlyList<FeatureRef>? AlsoCreated { get; init; }
+    /// <summary>
+    /// Set when SOLIDWORKS made nothing of the segments as one group (they neither form a path nor are all parallel) and
+    /// the server made them as one group per parallel set: each group's segment names.
+    /// </summary>
+    public IReadOnlyList<IReadOnlyList<string>>? Groups { get; init; }
 }
 
 /// <summary>
@@ -96,7 +106,7 @@ public sealed partial class WeldmentService(SwSession session)
         if (segments.Count == 0)
             throw SwException.InvalidArgument($"'{sketchFeat.Name}' has no lines or arcs to put members on (construction lines don't count).");
         if (segments.Count > 200) throw SwException.InvalidArgument($"At most 200 segments per call (got {segments.Count}).");
-        var paths = segments.Select(s => (Name: s.GetName(), Ends: Ends(s, s2m))).ToList();
+        var paths = segments.Select(s => (Name: s.GetName(), Ends: Ends(s, s2m), Line: s is ISketchLine)).ToList();
 
         using var prefs = ctx.SystemPrefs();
         prefs.Toggle(SystemPrefIds.ShowErrorsEveryRebuild, false);
@@ -110,27 +120,34 @@ public sealed partial class WeldmentService(SwSession session)
                 throw new SwException(ErrorCodes.FeatureFailed, "SOLIDWORKS added no Weldment feature to the part.");
         }
         var fm = d.FeatureManager;
-        var group = fm.CreateStructuralMemberGroup()
-                    ?? throw new SwException(ErrorCodes.Internal, "CreateStructuralMemberGroup returned nothing.");
-        if (!SetSegments(group, segments, attempts))
-            throw new SwException(ErrorCodes.FeatureFailed, $"The structural member group took none of the {segments.Count} segment(s) ({string.Join("; ", attempts)}).");
-        group.ApplyCornerTreatment = corner.Code != 0;
-        if (corner.Code != 0) group.CornerTreatmentType = corner.Code;
-        group.Angle = Units.Rad(q.RotateDeg);
-        object? api = null;
-        try
-        {
-            api = fm.InsertStructuralWeldment5(path, 1, false, new[] { new DispatchWrapper(group) }, pick.Configuration);
-        }
-        catch (COMException e) when (!ComArgs.IsDisconnect(e))
-        {
-            attempts.Add($"InsertStructuralWeldment5: {e.Message}");
-        }
+        var withWeldment = Snapshot.Take(d);
+        object? api = Insert(fm, path, pick.Configuration, [segments], corner.Code, q.RotateDeg, attempts);
         d.ClearSelection2(true);
 
+        // S103 (a): SOLIDWORKS makes nothing of a group whose segments neither form a path nor are all parallel. Such a
+        // group is made again as one group per parallel set, in one feature, and the result says so.
+        List<List<string>>? split = null;
+        var sets = WeldmentSpec.ParallelSets(paths.Select(p => p.Line ? (Vec3?)(p.Ends.B - p.Ends.A).Normalized() : null).ToList());
+        if (sets.Count > 1 && NewBodies(part, bodiesBefore).Count == 0)
+        {
+            attempts.Add($"as one group of {segments.Count} segment(s): no member");
+            BodyKit.CleanUp(ctx, d, withWeldment);
+            var groups = sets.Select(set => set.Select(i => segments[i]).ToList()).ToList();
+            api = Insert(fm, path, pick.Configuration, groups, corner.Code, q.RotateDeg, attempts);
+            d.ClearSelection2(true);
+            if (NewBodies(part, bodiesBefore).Count > 0)
+            {
+                split = sets.Select(set => set.Select(i => paths[i].Name).ToList()).ToList();
+                attempts.Clear();
+                ctx.Warn($"SOLIDWORKS made no member of the {segments.Count} segments as one group (they neither form one path nor are all parallel); " +
+                         $"made as {split.Count} groups, one per parallel set: {string.Join("; ", split.Select(g => string.Join(", ", g)))}.");
+            }
+            else attempts.Add($"as {sets.Count} groups, one per parallel set: no member");
+        }
+
         string profileName = $"{stdName} / {pick.Type} / {pick.Size}";
-        var o = BodyKit.Verify(ctx, d, before, MemberSpec, (main, after, checks) => MemberIntent(part, bodiesBefore, paths, checks),
-            q.KeepOnFailure, api, attempts.Count > 0 ? string.Join("; ", attempts) : "The segments must form a path a profile can follow (no zero-length or overlapping lines).",
+        var o = BodyKit.Verify(ctx, d, before, MemberSpec, (main, after, checks) => MemberIntent(part, bodiesBefore, paths, split, checks),
+            q.KeepOnFailure, api, (attempts.Count > 0 ? string.Join("; ", attempts) + ". " : "") + "The segments must form a path a profile can follow (no zero-length or overlapping lines).",
             guessedType: true);
         var fr = FeatureVerifier.Result(ctx, d, o, null, null, null);
         var members = Members(part, bodiesBefore, paths);
@@ -145,7 +162,38 @@ public sealed partial class WeldmentService(SwSession session)
             Verified = fr.Verified,
             Model = fr.Model,
             AlsoCreated = fr.AlsoCreated,
+            Groups = split,
         };
+    }
+
+    /// <summary>
+    /// One member feature of <paramref name="groups"/>, each a structural member group of its segments with the corner
+    /// treatment and rotation; null (and the reason in <paramref name="attempts"/>) when SOLIDWORKS refuses it.
+    /// </summary>
+    private static object? Insert(IFeatureManager fm, string path, string configuration, List<List<ISketchSegment>> groups,
+        int corner, double rotateDeg, List<string> attempts)
+    {
+        var wrapped = new List<DispatchWrapper>();
+        foreach (var segs in groups)
+        {
+            var group = fm.CreateStructuralMemberGroup()
+                        ?? throw new SwException(ErrorCodes.Internal, "CreateStructuralMemberGroup returned nothing.");
+            if (!SetSegments(group, segs, attempts))
+                throw new SwException(ErrorCodes.FeatureFailed, $"The structural member group took none of the {segs.Count} segment(s) ({string.Join("; ", attempts)}).");
+            group.ApplyCornerTreatment = corner != 0;
+            if (corner != 0) group.CornerTreatmentType = corner;
+            group.Angle = Units.Rad(rotateDeg);
+            wrapped.Add(new DispatchWrapper(group));
+        }
+        try
+        {
+            return fm.InsertStructuralWeldment5(path, 1, false, wrapped.ToArray(), configuration);
+        }
+        catch (COMException e) when (!ComArgs.IsDisconnect(e))
+        {
+            attempts.Add($"InsertStructuralWeldment5: {e.Message}");
+            return null;
+        }
     }
 
     // ------------------------------------------------------------------ profiles
@@ -267,7 +315,8 @@ public sealed partial class WeldmentService(SwSession session)
         return (best, hi > lo ? hi - lo : 0, AsmMath.PointToLine(ends.A, u, best.Com));
     }
 
-    private static IEnumerable<string> MemberIntent(IPartDoc part, HashSet<string> before, List<(string Name, (Vec3 A, Vec3 B) Ends)> paths, List<string> checks)
+    private static IEnumerable<string> MemberIntent(IPartDoc part, HashSet<string> before, List<(string Name, (Vec3 A, Vec3 B) Ends, bool Line)> paths,
+        List<List<string>>? split, List<string> checks)
     {
         var fresh = NewBodies(part, before);
         if (fresh.Count != paths.Count)
@@ -276,7 +325,7 @@ public sealed partial class WeldmentService(SwSession session)
             yield break;
         }
         var left = fresh.ToList();
-        foreach (var (name, ends) in paths)
+        foreach (var (name, ends, _) in paths)
         {
             double len = ends.A.DistanceTo(ends.B);
             if (Along(left, ends) is not { } hit)
@@ -295,14 +344,14 @@ public sealed partial class WeldmentService(SwSession session)
             }
             left.Remove(hit.Body);
         }
-        checks.Add($"{paths.Count} member(s), one solid body along each segment");
+        checks.Add($"{paths.Count} member(s), one solid body along each segment" + (split is null ? "" : $", in {split.Count} groups, one per parallel set"));
     }
 
-    private static List<WeldmentMember> Members(IPartDoc part, HashSet<string> before, List<(string Name, (Vec3 A, Vec3 B) Ends)> paths)
+    private static List<WeldmentMember> Members(IPartDoc part, HashSet<string> before, List<(string Name, (Vec3 A, Vec3 B) Ends, bool Line)> paths)
     {
         var left = NewBodies(part, before);
         var list = new List<WeldmentMember>();
-        foreach (var (name, ends) in paths)
+        foreach (var (name, ends, line) in paths)
         {
             if (Along(left, ends) is not { } hit) continue;
             left.Remove(hit.Body);
@@ -313,8 +362,35 @@ public sealed partial class WeldmentService(SwSession session)
                 SegmentLengthMm = Units.Mm(ends.A.DistanceTo(ends.B)),
                 LengthMm = Units.Mm(hit.Along),
                 VolumeMm3 = Units.Mm3(hit.Body.Volume),
+                SectionMm = line ? Section(hit.Body.Body, (ends.B - ends.A).Normalized()) : null,
             });
         }
         return list;
+    }
+
+    /// <summary>S103 (b): a straight member's section extents along model x, y, z (WeldmentSpec.AcrossAxes); null when an extreme point can't be read.</summary>
+    private static double[]? Section(IBody2 body, Vec3 u)
+    {
+        var res = new double[3];
+        var across = WeldmentSpec.AcrossAxes(u);
+        for (int i = 0; i < 3; i++)
+        {
+            var d = across[i];
+            if (d.Length < 1e-9) continue;
+            var n = d.Normalized();
+            var ext = new Vec3[2];
+            for (int k = 0; k < 2; k++)
+            {
+                var dir = k == 0 ? n : -n;
+                bool ok;
+                double x, y, z;
+                try { ok = body.GetExtremePoint(dir.X, dir.Y, dir.Z, out x, out y, out z); }
+                catch (COMException e) when (!ComArgs.IsDisconnect(e)) { return null; }
+                if (!ok) return null;
+                ext[k] = new Vec3(x, y, z);
+            }
+            res[i] = Math.Round(Units.Mm(Math.Abs((ext[0] - ext[1]).Dot(d))), 4);
+        }
+        return res;
     }
 }

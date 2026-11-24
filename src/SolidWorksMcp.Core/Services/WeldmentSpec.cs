@@ -1,4 +1,5 @@
 using System.Text.RegularExpressions;
+using SolidWorksMcp.Core.Geometry;
 using SolidWorksMcp.Core.Model;
 
 namespace SolidWorksMcp.Core.Services;
@@ -311,6 +312,33 @@ internal static class WeldmentSpec
         }
         return given.Where(g => !uses.Contains(g)).ToList();
     }
+
+    /// <summary>
+    /// S103 (a): the segments split into one group per parallel set, each group's indexes in the given order: lines whose
+    /// directions are parallel (either sense) share a group; an arc (a null direction) is a group of its own. SOLIDWORKS
+    /// makes members of a group only when its segments form a path or are all parallel.
+    /// </summary>
+    public static List<List<int>> ParallelSets(IReadOnlyList<Vec3?> directions)
+    {
+        var sets = new List<(Vec3? Dir, List<int> Members)>();
+        for (int i = 0; i < directions.Count; i++)
+        {
+            var d = directions[i];
+            int k = d is { } v ? sets.FindIndex(s => s.Dir is { } w && v.IsParallelTo(w)) : -1;
+            if (k < 0) sets.Add((d, [i]));
+            else sets[k].Members.Add(i);
+        }
+        return sets.Select(s => s.Members).ToList();
+    }
+
+    /// <summary>
+    /// S103 (b): each model axis' part across a straight segment of unit direction <paramref name="u"/>, e − (e·u)u. A
+    /// point p of the member's cross-section has p·e = p·d + a constant, so the section's extent along axis e is its
+    /// extent along d: the body's extreme points along ±d (a prism's, the whole section's) dotted with d. d is zero for
+    /// the axis an axis-parallel segment runs on.
+    /// </summary>
+    public static Vec3[] AcrossAxes(Vec3 u) =>
+        [Vec3.UnitX - u * u.X, Vec3.UnitY - u * u.Y, Vec3.UnitZ - u * u.Z];
 
     /// <summary>A list for an error message: the first <paramref name="max"/> names, then "…".</summary>
     public static string Few(IEnumerable<string> names, int max = 12)

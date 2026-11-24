@@ -363,6 +363,11 @@ type libraries and writes `sldworks_api.txt`, `swconst_enums.txt`, `swcommands.t
   per segment. A 400 × 300 rectangle in ISO square tube 40 x 40 x 4 gave 534.8 mm² of section per mm on every member,
   mitered members 20 mm (half the profile) longer than their segment at each end. A group holds contiguous (or parallel)
   segments: a table frame from one 3D sketch is two calls, the top rectangle (miter) and the legs (no corner treatment).
+  A group of segments that neither form a path nor are all parallel (two vertical and two horizontal lines, none
+  touching) makes no member feature at all; the same segments as one group per parallel set, the groups passed together
+  in one `InsertStructuralWeldment5` call, make one feature with a member each, volumes exact (VERIFIED 2026-11-24 on
+  2023 SP3, S103 a). Which way a section lies is read from the member body's extreme points along each model axis'
+  part across the segment (`IBody2.GetExtremePoint`; S103 b).
   A `.sldlfp` opens with `OpenDoc6` as `swDocPART`; `SaveAs3` of a part with one sketch to a `.sldlfp` path, nothing
   selected, writes a profile that reopens with its sketch and makes members (VERIFIED 2026-11-24 on 2023 SP3).
   **`SaveAs3` of a library feature part to a `.sldprt`, even with `swSaveAsOptions_Copy`, dissolves the library feature

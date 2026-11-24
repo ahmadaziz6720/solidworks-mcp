@@ -266,6 +266,62 @@ public class WeldmentLiveTests(LiveFixture fx) : LiveTest(fx)
     }
 
     [Fact]
+    public async Task Lines_in_two_directions_that_do_not_touch_are_made_as_one_group_per_parallel_set()
+    {
+        // S103 (a): two vertical and two horizontal lines on the front plane, none touching another. SOLIDWORKS makes a
+        // feature with no faces of them as one group; the server makes them again as two groups, and says so.
+        string doc = await NewPartAsync("wm_split");
+        await Sk.StartAsync(doc, new EntityRef { Name = "front" }, false);
+        await Sk.AddAsync(doc,
+        [
+            new SketchEntity { Kind = "line", From = [-200, 50], To = [-200, 250] }, new SketchEntity { Kind = "line", From = [200, 50], To = [200, 250] },
+            new SketchEntity { Kind = "line", From = [-150, 0], To = [150, 0] }, new SketchEntity { Kind = "line", From = [-150, 300], To = [150, 300] },
+        ]);
+        var r = await Wm.MemberAsync(new WeldmentMemberRequest { Doc = doc, Type = "square tube", Size = "40 x 40 x 4", Corner = "none" });
+        Assert.Equal(4, r.Members.Count);
+        Assert.Equal(4, r.Model.Bodies);
+        Assert.NotNull(r.Groups);
+        Assert.Equal(2, r.Groups.Count);
+        Assert.All(r.Groups, g => Assert.Equal(2, g.Count));
+        Assert.Equal([200, 200, 300, 300], r.Members.Select(m => m.SegmentLengthMm).Order().ToArray());
+        foreach (var m in r.Members) Assert.Equal(m.SegmentLengthMm, m.LengthMm, 0.01);
+        double a = Area(r.Members[0]);
+        Assert.InRange(a, 500, 600);
+        Assert.All(r.Members, m => Assert.Equal(a, Area(m), 0.01));
+        Assert.Equal(a * 1000, r.Verified.VolumeDeltaMm3, 1);
+        Assert.Contains(r.Warnings ?? [], w => w.Contains("groups, one per parallel set", StringComparison.Ordinal));
+        Assert.Contains(r.Verified.Checks!, c => c.EndsWith("in 2 groups, one per parallel set", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task Each_member_gives_its_sections_extents_along_the_model_axes()
+    {
+        // S103 (b): a 50 x 30 tube on two horizontal lines of the front plane, one turned 90°, and on a vertical one:
+        // the section's extents show which way its long side lies, 0 along the axis the member runs on.
+        string doc = await NewPartAsync("wm_section");
+        await Sk.StartAsync(doc, new EntityRef { Name = "front" }, false);
+        var add = await Sk.AddAsync(doc,
+        [
+            new SketchEntity { Kind = "line", From = [-150, 0], To = [150, 0] }, new SketchEntity { Kind = "line", From = [-150, 200], To = [150, 200] },
+            new SketchEntity { Kind = "line", From = [300, 50], To = [300, 250] },
+        ]);
+        var seg = add.Entities.Select(e => e.Segments[0]).ToList();
+        WeldmentMemberRequest Tube(string s, double rot) => new() { Doc = doc, Sketch = "Sketch1", Type = "rectangular tube", Size = "50 x 30 x 2.6", Segments = [s], Corner = "none", RotateDeg = rot };
+        var s0 = Assert.Single((await Wm.MemberAsync(Tube(seg[0], 0))).Members).SectionMm;
+        Assert.NotNull(s0);
+        Assert.Equal(3, s0.Length);
+        Assert.Equal(0, s0[0], 0.01);
+        Assert.Equal([30, 50], new[] { s0[1], s0[2] }.Order().Select(x => Math.Round(x, 2)).ToArray());
+        var s90 = Assert.Single((await Wm.MemberAsync(Tube(seg[1], 90))).Members).SectionMm!;
+        Assert.Equal(0, s90[0], 0.01);
+        Assert.Equal(s0[1], s90[2], 0.01); // turned: y and z swap
+        Assert.Equal(s0[2], s90[1], 0.01);
+        var sv = Assert.Single((await Wm.MemberAsync(Tube(seg[2], 0))).Members).SectionMm!;
+        Assert.Equal(0, sv[1], 0.01);
+        Assert.Equal([30, 50], new[] { sv[0], sv[2] }.Order().Select(x => Math.Round(x, 2)).ToArray());
+    }
+
+    [Fact]
     public async Task Table_frame_from_a_3D_sketch_is_a_mitered_top_and_four_square_cut_legs()
     {
         // A 600 × 400 top at 700 mm and four legs down to the floor, all lines of one 3D sketch (model mm).
