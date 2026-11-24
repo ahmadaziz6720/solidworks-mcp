@@ -653,7 +653,25 @@ its point.
 - [x] S127: committed (`8f88347`)
 - [x] S128: committed (`abe65d4`)
 - [x] S130: committed (`8949e93`)
-- [x] S131: committed
+- [x] S131: committed (`67e7395`)
+- [ ] S127 again: committed
+  Group 6's full live tests (2026-11-24, on `67e7395`, 13:21 to 16:36, `group6.ps1`, `group6b.ps1`, `group6c.ps1` in
+  `run-1121`, Sonnet, 139k tokens) stopped the release before publishing: S127's own
+  `DrawingLiveTests.Detail_center_is_the_center_of_its_bounds_in_both_reads` fails in the class run and alone after a
+  restart, the same numbers both times: `boundsMm [276.309, 156.766, 319.389, 199.846] in drw_view_detail, [253.509,
+  133.966, 342.189, 222.646] in drw_info`, the centre equal, the outline 43 x 43 mm in the creating call and 89 x 89 mm
+  in `drw_info` (log `livetest\logs\DrawingLiveTests.Detail_center_is_the_center_of_its_bounds_in_both_reads.log`).
+  It passed in S127's step: the outline read in the creating call may be stale (as S127 found for `Position`), or S128
+  or S130, after it, change it. For a fresh default-model subagent, this report in its brief. Every other class passed
+  but the known S5 and S72 tests, one flake (S112's state, passed alone) and guard stops passed rerun (SimulationExtras'
+  nonlinear test at `-MinFreeMB 100`): SketchEdit 79, PartFeature 53, FeatureManagement 41, AdvancedFeature 30,
+  BodySheetMetal 52, Reference 47, Modelling 10, SurfaceShape 8, Weldment 18, FaceEdit 5 of 6, Molding 4, Properties 26
+  of 27, Assembly 65, Drawing 64 of 65, Export 21, M0 25, TopDown 4, Recognition 1, AssemblyStructure 2, Configuration
+  6, Hardware 3, Visuals 3, Simulation 17, SimulationExtras 3; unit 358, `check_repo` ok. Nothing built, pushed or
+  registered; `docs/tools.md` still to regenerate (`doc_open`, `doc_save` changed).
+  Decided 2026-11-24 by the run, not the owner: after S127 again, the release's live tests rerun DrawingLiveTests in
+  full and the classes that call the code it changes, not the other classes, which passed on `67e7395` and call no
+  drawing code, because a fix confined to the drawing services leaves their result as it was.
 - [ ] Group 6: full live tests and release (build: )
 - [ ] Group 6: scenario test (session id: ), its entry committed and sorted
 - [ ] S80 (a) and (c): committed
