@@ -729,8 +729,8 @@ its point.
   Cost: Sonnet, 109k tokens, 41 min.
 - [x] Group 6: scenario test (session id: `c71866a6-d4e8-4628-9225-f00fe0a0daa8`), its entry committed and sorted (entry `bc8c8a9`; ended `EXIT 0` 18:03; S132, S133, S100, S102, S103, S127, S128, S130 and S131 held and closed, S100 whole; S134 and S135 new into group 7; S136 (S14 again, reported `ok` while wrong, a probe first), S137, S138 and S139 new, not in this run; S5 again; release notes updated) (`8a3a447`)
   Started 17:53:58 2026-11-24, free memory 1809 MB with SOLIDWORKS restarted from its exe (twice; under the plan's 2 GB, started anyway); launcher `%LOCALAPPDATA%\solidworks-mcp\livetest\run-1121\check6.ps1`, launcher pid 16492, output check6.out.txt and check6.err.txt beside it; started and watched by a Sonnet subagent (61k tokens); no resume; ended `EXIT 0` 18:03, about 10 min.
-- [x] S80 (a) and (c): committed (split out as S140; sketch_start's description changed: docs/tools.md at the release)
-- [ ] S82 (a): committed
+- [x] S80 (a) and (c): committed (split out as S140; sketch_start's description changed: docs/tools.md at the release) (`b33b246`)
+- [x] S82 (a): committed (split out as S141)
 - [ ] S86 (a): committed
 - [ ] S101: probed
 - [ ] S123: committed
@@ -1855,6 +1855,7 @@ was decided a warning, not a refusal, by the owner); (b) `dimension_set` on a sk
 dimension reads the sketch's contours after and warns when one became invalid. Local. Not
 decided.
 Decided 2026-11-21 by the owner: (a) taken into the run of 2026-11-21, group 7, a warning as S42 was decided; (b) stays Open (`## Run 2026-11-21`).
+(a) is done: moved to Waiting as S141, 2026-11-24 (the run of 2026-11-21, group 7).
 
 ### S85 - `feature_delete`'s dry run lists as kept an absorbed sketch the real call removes - OPEN 2026-11-16
 
@@ -2588,5 +2589,63 @@ the shape is not the one drawn just the same.
 Decided 2026-11-24 by the run, not the owner: `sketch_start`'s "Inference snapping is off
 while this server draws" replaced, because the probe showed it false and the shorter text
 costs no catalog bytes.
+Local: on `sw2023`, in the commit that moves it here; not yet in a build. Upstream: not yet
+decided.
+
+### S141 - S82 (a): `sketch_constrain` angular where two lines meet only virtually turned the shape inside out, reported `ok` - BUILT 2026-11-24, proof: the scenario test of the group 7 build
+
+Point (a) of S82 (S82 stays Open for (b)) (finding 2026-11-16, on build `20261116-124830`):
+an angular dimension between a 3 mm line and a long horizontal line 55 above it, meeting
+only virtually, `valueDeg` 60 with `textAt` in the angle across the vertex: the line turned
+to 120°, a trapezoid's 126 wide top became 6, reported `ok` with "geometry measures 60°";
+only `changed` showed it. S42's sign of a line turned by more than 90° did not fire.
+Decided 2026-11-21 by the owner: (a) taken into the run of 2026-11-21, group 7, a warning as S42 was decided; (b) stays Open (`## Run 2026-11-21`).
+Cause: the value holds on the dimension's own angle, so the read-back and the measure pass;
+the lines turned 60°, no line reversed, so `WarnFlips` named nothing, and an angle gives it
+no value change to compare a move with. S42's mirrored-shape warning is skipped when
+`textAt` picked the supplement. `dimension_set` of a sketch dimension read no sketch at all.
+Reproduced live on 2023 SP3: a trapezoid on the front plane, bottom 70 (fixed), sides
+leaning out 60° to a top 133.508 wide at y 55, the top's ends symmetric about a fixed
+centreline, the right side a 3 mm line and a long one collinear with it; angular 60 between
+the 3 mm line and the top, `textAt` [76.75, 37.7]: "the angle that was 119.999793°… then
+60.000207°", the top 133.508 to 6.492, no warning (the finding's numbers). Then
+`sketch_finish` and `dimension_set` 120 put it back, as the finding's workaround.
+Fix: an interop-free rule (`SketchShrink.Warning`, `src/SolidWorksMcp.Core/Services/SketchShrink.cs`)
+names each line less than half as long after as before, longer than 1e-6 m before, and,
+for a length dimension, shorter by more than twice the value's change (a rectangle 100 set
+to 40 is not warned); up to three lines, the largest drop first. `sketch_dimension_add` and
+`sketch_constrain` (`AddDimension`) call it on the changed lines when a value was set:
+"Step 1: After the angular dimension, a line is less than half as long as before: 'Line4'
+133.509 to 6.491 mm. The value reads back, but the sketch may have turned inside out: if
+that was not meant, sketch_finish, then dimension_set 'D1@Sketch1' back to 120."
+`dimension_set` in a part reads the lines of each sketch whose dimensions it sets before
+the values and after the rebuild (the sketch found again by name) and warns the same,
+"After the dimension_set of 'D1@Sketch1', …: if that was not meant, dimension_set
+'D1@Sketch1' back to 60.000207". A warning, the result unchanged; no description changed.
+Before: the new `SketchEditLiveTests.An_angle_that_turns_the_shape_inside_out_warns_of_the_line_it_shrank`
+(the trapezoid, `sketch_constrain`) and
+`SketchEditLiveTests.Dimension_set_of_a_sketch_angle_that_turns_the_shape_inside_out_warns_of_the_line_it_shrank`
+(the angle dimensioned between the rays, finished, `dimension_set` 120, then 60) both
+failed, "Assert.Single() Failure: The collection did not contain any matching items" (no
+warning; the top read 6.4916 in `changed`).
+After: both pass, with the live tests that run `AddDimension` and `dimension_set` (the
+dimensions that drive a rectangle, a diameter, angles, radial and point-to-point ones, the
+supplement by `textAt` and without it, the origin, an over-defining one, S42's mirrored
+shape in a dimension and in a step, the far move, a rectangle constrained in one call,
+twenty steps on two dozen segments, an edited dimension rebuilding the extrude,
+`FeatureManagementLiveTests`' three `dimension_set` tests and the in-context cover that
+follows a grown box), 20/20; unit tests 367/367 (new `SketchShrinkTests`, 4); `check_repo` ok.
+Made stricter: `sketch_dimension_add`, `sketch_constrain` and `dimension_set` warn when a
+sketch line ends less than half as long as it was; nothing that passed is refused.
+Decided 2026-11-24 by the run, not the owner: lines only, not arcs or circles, because a
+radius or diameter set smaller shrinks an arc's length by more than twice its own change as
+meant, and the finding's collapse was a line.
+Decided 2026-11-24 by the run, not the owner: a length dimension's change explains a drop
+up to twice itself (the sum of the length values set in that sketch for `dimension_set`),
+an angle none, because a width set from 100 to 40 halves its lines as asked, and S42's far
+move uses the same twice.
+Decided 2026-11-24 by the run, not the owner: the warning names the way back as
+`dimension_set` to the value before (after `sketch_finish` in an open sketch), because it is
+the finding's own workaround, held, and the same for every cause.
 Local: on `sw2023`, in the commit that moves it here; not yet in a build. Upstream: not yet
 decided.

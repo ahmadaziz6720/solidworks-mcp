@@ -72,6 +72,7 @@
     <Compile Include="..\..\src\SolidWorksMcp.Core\Verify\RebuildWarnings.cs" Link="Core\Verify\RebuildWarnings.cs" />
     <Compile Include="..\..\src\SolidWorksMcp.Core\Services\SketchRegions.cs" Link="Core\Services\SketchRegions.cs" />
     <Compile Include="..\..\src\SolidWorksMcp.Core\Services\SketchDrift.cs" Link="Core\Services\SketchDrift.cs" />
+    <Compile Include="..\..\src\SolidWorksMcp.Core\Services\SketchShrink.cs" Link="Core\Services\SketchShrink.cs" />
     <Compile Include="..\..\src\SolidWorksMcp.Core\Verify\FilletJoints.cs" Link="Core\Verify\FilletJoints.cs" />
     <Compile Include="..\..\src\SolidWorksMcp.Core\Documents\UndoLedger.cs" Link="Core\Documents\UndoLedger.cs" />
   </ItemGroup>

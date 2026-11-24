@@ -503,12 +503,18 @@ public sealed class SketchEditService(SwSession session)
                      $"the vertex was the one meant, delete and redraw the segment, then pass textAt inside that angle, e.g. textAt " +
                      $"{SupplementTextPoint(items)} (sketch mm).");
         WarnFlips(ctx, before, after, diff, is3D, $"{kind} dimension", target is double tv && kind != "angular" ? Math.Abs(tv - v0) : null, step);
+        var info = FeatureVerifier.Dimension(dim);
+        // S82 (a): the shape turned inside out with no line reversed (an angle taken across the vertex): a line collapsed.
+        if (target is double ts && SketchShrink.Warning($"{kind} dimension", Lines(before, after, diff),
+                kind == "angular" ? 0 : Math.Abs(ts - v0),
+                $"sketch_finish, then dimension_set '{info.Name}' back to {Invariant(kind == "angular" ? Units.Deg(v0) : Units.Mm(v0))}") is { } shrunk)
+            ctx.Warn(step + shrunk);
         return new SketchDimensionResult
         {
             Doc = ctx.Title(d),
             Sketch = feat.Name,
             Kind = kind,
-            Dimension = FeatureVerifier.Dimension(dim),
+            Dimension = info,
             Measured = measured is double ms ? (kind == "angular" ? Units.Deg(ms) : Units.Mm(ms)) : null,
             Constrained = ConstrainedName(after.Status),
             Changed = ChangedList(diff, before, after, is3D),
@@ -2377,6 +2383,13 @@ public sealed class SketchEditService(SwSession session)
     }
 
     private static string Num(double v) => Math.Round(v, 3).ToString(System.Globalization.CultureInfo.InvariantCulture);
+
+    private static string Invariant(double v) => v.ToString(System.Globalization.CultureInfo.InvariantCulture);
+
+    /// <summary>The lines among the changed segments, with their lengths before and after (S82 a).</summary>
+    private static IEnumerable<LineLength> Lines(SkState before, SkState after, SkDiff diff) =>
+        diff.Changed.Where(n => before.Segs[n].Kind == "line" && after.Segs[n].Kind == "line")
+                    .Select(n => new LineLength(n, before.Segs[n].Length, after.Segs[n].Length));
 
     private static string Show(Vec3 p, bool is3D) => "[" + string.Join(", ", Pt(p, is3D).Select(Num)) + "]";
 

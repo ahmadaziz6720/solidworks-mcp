@@ -655,6 +655,66 @@ public class SketchEditLiveTests(LiveFixture fx) : LiveTest(fx)
         Assert.Contains("for a value that changed by 5 mm", w);
     }
 
+    /// <summary>
+    /// S82 (a): a trapezoid on the Front plane, 70 wide at the bottom (fixed), its sides leaning out 60° to a top 133.508
+    /// wide at y 55, the top's ends symmetric about a fixed vertical centreline; the right side is a 3 mm line and a long
+    /// one collinear with it, so the 3 mm line meets the top only virtually, at the top's right end. Returns the 3 mm line
+    /// and the top.
+    /// </summary>
+    private async Task<(string Doc, string Short, string Top)> InsideOutTrapezoidAsync(string name)
+    {
+        double s3 = 1.5 * Math.Sqrt(3), x = 36.5 + (55 - s3) / Math.Sqrt(3); // 66.754199
+        var (doc, _, added) = await SketchAsync(name, "front",
+            Line([-35, 0], [35, 0]), Line([35, 0], [36.5, s3]), Line([36.5, s3], [x, 55]), Line([x, 55], [-x, 55]),
+            Line([-x, 55], [-35, 0]), Centerline([0, -10], [0, 70]));
+        string bottom = Name(added, 0), sh = Name(added, 1), side = Name(added, 2), top = Name(added, 3), axis = Name(added, 5);
+        var held = await Ed.ConstrainAsync(doc,
+        [
+            Rel("fix", Seg(bottom)), Rel("fix", Seg(axis)), Rel("collinear", Seg(sh), Seg(side)), Rel("horizontal", Seg(top)),
+            Rel("symmetric", At(x, 55), At(-x, 55), Seg(axis)),
+        ]);
+        Assert.Null(held.Warnings);
+        return (doc, sh, top);
+    }
+
+    [Fact]
+    public async Task An_angle_that_turns_the_shape_inside_out_warns_of_the_line_it_shrank()
+    {
+        // S82 (a): angular 60 between the 3 mm line and the top, textAt in the angle across the vertex (120° as drawn): the
+        // sides turned to lean in 60°, the top went from 133.5 to 6.5 long. The value read back 60 and the geometry measured
+        // 60 on the dimension's own angle; only `changed` showed the shape turned inside out.
+        var (doc, sh, top) = await InsideOutTrapezoidAsync("s82_constrain");
+        var r = await Ed.ConstrainAsync(doc,
+            [new SketchConstraint { Dimension = "angular", Entities = [Seg(sh), Seg(top)], ValueDeg = 60, TextAt = [76.75, 37.7] }]);
+        var now = Assert.Single(r.Changed!, c => c.Name == top);
+        Assert.Equal(6.4916, now.LengthMm!.Value, 1e-3); // what SOLIDWORKS made of it: the warning tells it
+        string w = Assert.Single(r.Warnings ?? [], x => x.Contains("less than half", StringComparison.Ordinal));
+        Assert.StartsWith("Step 1: After the angular dimension", w);
+        Assert.Matches($@"'{top}' 133\.5\d* to 6\.49\d* mm", w);
+        Assert.Contains("dimension_set 'D1@", w);
+        Assert.Matches(@"back to (119\.99\d*|120)\.$", w); // the angle across the vertex as drawn
+    }
+
+    [Fact]
+    public async Task Dimension_set_of_a_sketch_angle_that_turns_the_shape_inside_out_warns_of_the_line_it_shrank()
+    {
+        // S82 (a), dimension_set: the same angle dimensioned between the rays as drawn (60°), the sketch finished, then set to
+        // 120: the sides lean in and the top shrinks to 6.5. Set back to 60, the top grows again: no warning.
+        var (doc, sh, top) = await InsideOutTrapezoidAsync("s82_set");
+        var dim = await Ed.DimensionAddAsync(doc, [Seg(sh), Seg(top)], "angular", textAt: [49.4, 45]);
+        Assert.Equal(60, dim.Dimension.Value, 1e-3);
+        await Sk.FinishAsync(doc);
+        var fm = new FeatureManagementService(S);
+        var set = await fm.DimensionSetAsync(doc, [new DimensionValue { Name = dim.Dimension.Name, Value = 120 }]);
+        string w = Assert.Single(set.Warnings ?? [], x => x.Contains("less than half", StringComparison.Ordinal));
+        Assert.StartsWith($"After the dimension_set of '{dim.Dimension.Name}'", w);
+        Assert.Matches($@"'{top}' 133\.5\d* to 6\.49\d* mm", w);
+        Assert.Contains($"dimension_set '{dim.Dimension.Name}' back to 60", w);
+
+        var back = await fm.DimensionSetAsync(doc, [new DimensionValue { Name = dim.Dimension.Name, Value = 60 }]);
+        Assert.DoesNotContain(back.Warnings ?? [], x => x.Contains("less than half", StringComparison.Ordinal));
+    }
+
     [Fact]
     public async Task A_centre_rectangle_names_its_two_construction_diagonals()
     {

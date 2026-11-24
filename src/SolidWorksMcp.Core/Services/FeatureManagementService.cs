@@ -991,6 +991,7 @@ public sealed partial class FeatureManagementService(SwSession session)
             }
 
             var before = Snapshot.Take(d);
+            var sketchLines = part ? SketchLinesBefore(d, plan) : [];
             double? asmBefore = part ? null : MassVolume(d);
             var stampsBefore = part ? null : OtherStamps(ctx, d);
             var errorsBefore = ErrorMap(d);
@@ -1032,6 +1033,7 @@ public sealed partial class FeatureManagementService(SwSession session)
                     "Use values that fit the geometry (e.g. a fillet radius smaller than the faces it joins).");
             }
             foreach (var e in newErrors) ctx.Warn($"'{e.Feature}' now has rebuild warning {e.Code} ({e.Error}).");
+            WarnShrunkSketches(ctx, d, sketchLines);
 
             var after = Snapshot.Take(d);
             double? asmAfter = part ? null : MassVolume(d);
@@ -1073,6 +1075,64 @@ public sealed partial class FeatureManagementService(SwSession session)
             return double.IsFinite(lo) && double.IsFinite(hi) && lo < hi ? (lo, hi) : null;
         }
         catch (Exception ex) when (!ComArgs.IsDisconnect(ex)) { return null; }
+    }
+
+    /// <summary>A sketch whose dimensions dimension_set sets, the entries that set them and its lines' lengths before (m).</summary>
+    private sealed record SketchLines(string Sketch, List<PlannedValue> Values, Dictionary<string, double> Before);
+
+    /// <summary>
+    /// S82 (a): the sketches of a part whose dimensions the batch sets (D1@Sketch1), each with its lines' lengths before.
+    /// Read only to warn: a sketch that can't be read is left out.
+    /// </summary>
+    private static List<SketchLines> SketchLinesBefore(IModelDoc2 d, List<PlannedValue> plan)
+    {
+        var list = new List<SketchLines>();
+        foreach (var g in plan.GroupBy(p => p.Name.Split('@') is { Length: >= 2 } s ? s[1] : "", StringComparer.OrdinalIgnoreCase))
+        {
+            try
+            {
+                if (SketchNamed(d, g.Key) is { } sketch) list.Add(new SketchLines(g.Key, g.ToList(), LineLengths(sketch)));
+            }
+            catch (Exception ex) when (!ComArgs.IsDisconnect(ex)) { /* a check, not the call's work */ }
+        }
+        return list;
+    }
+
+    /// <summary>S82 (a): a sketch dimension set to a value that turned the sketch inside out, a line collapsed, is warned of.</summary>
+    private static void WarnShrunkSketches(SwContext ctx, IModelDoc2 d, List<SketchLines> sketches)
+    {
+        foreach (var s in sketches)
+        {
+            Dictionary<string, double> now;
+            try
+            {
+                // Found again by name: the rebuild may have replaced the sketch object read before.
+                if (SketchNamed(d, s.Sketch) is not { } sketch) continue;
+                now = LineLengths(sketch);
+            }
+            catch (Exception ex) when (!ComArgs.IsDisconnect(ex)) { continue; }
+            var lines = s.Before.Where(kv => now.ContainsKey(kv.Key)).Select(kv => new LineLength(kv.Key, kv.Value, now[kv.Key]));
+            // A length dimension explains a change up to twice its own; an angle none.
+            double explained = s.Values.Where(p => FeatureManagementLogic.UnitOf(p.Type) == "mm").Sum(p => Math.Abs(p.Api - p.Previous));
+            string names = string.Join(", ", s.Values.Select(p => $"'{p.Name}'"));
+            string undo = "dimension_set " + string.Join(", ", s.Values.Select(p =>
+                $"'{p.Name}' back to {FeatureManagementLogic.FromApi(p.Type, p.Previous).ToString(CultureInfo.InvariantCulture)}"));
+            if (SketchShrink.Warning($"dimension_set of {names}", lines, explained, undo) is { } w) ctx.Warn(w);
+        }
+    }
+
+    private static ISketch? SketchNamed(IModelDoc2 d, string name) =>
+        name.Length > 0 && EntityResolver.FeatureByName(d, name) is { } f && EntityResolver.FeatureKind(f) == EntityKind.Sketch
+            ? f.Specific() as ISketch : null;
+
+    /// <summary>Each line of a sketch by name, its length (m).</summary>
+    private static Dictionary<string, double> LineLengths(ISketch sketch)
+    {
+        var map = new Dictionary<string, double>(StringComparer.Ordinal);
+        foreach (var seg in sketch.Segments())
+            if (seg.GetType() == (int)swSketchSegments_e.swSketchLINE && seg is ISketchLine l && l.SkStart() is { } a && l.SkEnd() is { } b)
+                map[seg.GetName()] = Math.Sqrt((a.X - b.X) * (a.X - b.X) + (a.Y - b.Y) * (a.Y - b.Y) + (a.Z - b.Z) * (a.Z - b.Z));
+        return map;
     }
 
     /// <summary>An assembly's volume from its mass properties (m³), null when SOLIDWORKS gives none.</summary>
