@@ -460,4 +460,107 @@ public class WeldmentLiveTests(LiveFixture fx) : LiveTest(fx)
             catch (Exception e) when (e is IOException or UnauthorizedAccessException) { /* the fixture sweeps it */ }
         }
     }
+    // ------------------------------------------------------------------ a library feature part's save (S100 d)
+
+    /// <summary>A copy of the shipped ISO square tube under a new temp folder, and the sketch its library feature holds.</summary>
+    private async Task<(string Dir, string Copy)> ShippedTubeCopyAsync(string name)
+    {
+        string roots = await TestHooks.WeldmentProfileFoldersAsync(S);
+        string shipped = roots.Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Select(r => Path.Combine(r, "iso", "square tube.sldlfp")).First(File.Exists);
+        string dir = Path.Combine(Path.GetTempPath(), $"swmcp_lfp_{Guid.NewGuid():N}");
+        Directory.CreateDirectory(dir);
+        string copy = Path.Combine(dir, name + ".sldlfp");
+        File.Copy(shipped, copy);
+        return (dir, copy);
+    }
+
+    private static string TreeText(FeatureListResult t) =>
+        string.Join(", ", t.Features.SkipWhile(f => f.Type != "RefPlane").Select(f => $"{f.Name} ({f.Type}) [{string.Join(" ", f.Children ?? [])}]"));
+
+    /// <summary>The sketches the part's library feature holds (none when it has no LibraryFeature row).</summary>
+    private async Task<(List<string> Sketches, string Tree)> LibraryFeatureSketchesAsync(string doc)
+    {
+        var t = await new InspectService(S).FeatureListAsync(doc, false, 500, 0);
+        return (t.Features.FirstOrDefault(f => f.Type == "LibraryFeature")?.Children?.ToList() ?? [], TreeText(t));
+    }
+
+    [Fact]
+    public async Task A_library_feature_part_adopted_and_redrawn_keeps_its_profile_sketch_when_saved()
+    {
+        // The finding's sequence on a copy the user opened: adopted, its configuration table deleted, a configuration added
+        // and the others deleted, the profile sketch redrawn, saved in place; reopened, its library feature holds the sketch.
+        var (dir, copy) = await ShippedTubeCopyAsync("lfp_adopt_tube");
+        var docs = new DocumentService(S);
+        var props = new PropertiesService(S);
+        var ed = new SketchEditService(S);
+        try
+        {
+            string doc = await TestHooks.OpenRawAsync(S, copy);
+            Track(doc);
+            var (sketches, _) = await LibraryFeatureSketchesAsync(doc);
+            string sketch = Assert.Single(sketches);
+            var act = await docs.ActivateAsync(doc, allowEdit: true);
+            var adopted = await LibraryFeatureSketchesAsync(doc);
+            Assert.True(adopted.Sketches.Contains(sketch), $"Adopting the part left its library feature without '{sketch}' (backup {act.BackupPath}): " + adopted.Tree);
+            Assert.EndsWith(".sldlfp", act.BackupPath!, StringComparison.OrdinalIgnoreCase); // the backup keeps the file's kind
+
+            var table = (await new InspectService(S).FeatureListAsync(doc, true, 500, 0)).Features
+                .First(f => f.Type == "ConfigTableFolder").Children![0];
+            await new FeatureManagementService(S).DeleteAsync(doc, [table]);
+            var configs = (await props.ConfigListAsync(doc)).Configurations;
+            await props.ConfigAddAsync(doc, "P1");
+            foreach (var c in configs) await props.ConfigDeleteAsync(doc, c);
+            await ed.EditAsync(doc, sketch);
+            var info = await ed.InfoAsync(doc, sketch);
+            await ed.DeleteAsync(doc, info.Segments.Select(x => new EntityRef { Name = x.Name, Type = "sketch_segment" }).ToList());
+            await Sk.AddAsync(doc, [new SketchEntity { Kind = "rectangle", Center = [0, 0], WidthMm = 40, HeightMm = 20 }]);
+            await Sk.FinishAsync(doc);
+            await docs.SaveAsync(doc, "inPlace", null, overwrite: false);
+            await docs.CloseAsync(doc, save: false, discard: false);
+
+            var back = await new OpenService(S).OpenAsync(copy, readOnly: true, null);
+            Track(back.Document.Handle);
+            var reopened = await LibraryFeatureSketchesAsync(back.Document.Handle);
+            Assert.True(reopened.Sketches.Contains(sketch), $"The saved profile reopens without '{sketch}' in its library feature: " + reopened.Tree);
+            await docs.CloseAsync(back.Document.Handle, save: false, discard: true);
+        }
+        finally
+        {
+            try { Directory.Delete(dir, recursive: true); }
+            catch (Exception e) when (e is IOException or UnauthorizedAccessException) { /* the fixture sweeps it */ }
+        }
+    }
+
+    [Fact]
+    public async Task A_save_that_leaves_a_library_feature_part_without_its_sketch_is_verify_failed()
+    {
+        // SOLIDWORKS dissolves the library feature of the open document when it writes a copy of it as a .sldprt; that copy,
+        // and every later save of the .sldlfp (which would write a profile with no sketch), is VERIFY_FAILED, not ok.
+        var (dir, copy) = await ShippedTubeCopyAsync("lfp_guard_tube");
+        var docs = new DocumentService(S);
+        try
+        {
+            var r = await new OpenService(S).OpenAsync(copy, readOnly: false, null);
+            string doc = r.Document.Handle;
+            Track(doc);
+            string prt = Path.Combine(dir, "lfp_guard_part.sldprt");
+            var asPart = await Record.ExceptionAsync(() => docs.SaveAsync(doc, "copy", prt, overwrite: false));
+            var lost = await LibraryFeatureSketchesAsync(doc);
+            Assert.True(asPart is SwException, $"doc_save copy to .sldprt reported ok; the open part's library feature now: " + lost.Tree);
+            var e = (SwException)asPart!;
+            Assert.Equal(ErrorCodes.VerifyFailed, e.Code);
+            Assert.Contains(prt, e.Message, StringComparison.OrdinalIgnoreCase);
+            Assert.True(File.Exists(prt));
+            var inPlace = await Assert.ThrowsAsync<SwException>(() => docs.SaveAsync(doc, "inPlace", null, overwrite: false));
+            Assert.Equal(ErrorCodes.VerifyFailed, inPlace.Code);
+            Assert.Contains("written without", inPlace.Message);
+            await docs.CloseAsync(doc, save: false, discard: true);
+        }
+        finally
+        {
+            try { Directory.Delete(dir, recursive: true); }
+            catch (Exception e) when (e is IOException or UnauthorizedAccessException) { /* the fixture sweeps it */ }
+        }
+    }
 }

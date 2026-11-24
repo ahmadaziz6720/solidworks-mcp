@@ -17,7 +17,7 @@ Closed all the same, its PR named, and an open PR no longer holds an item in Wai
 item sent upstream ends with `**Upstream: PR #9, open.**`, one per PR or issue
 (`merged`, `closed unmerged`; an issue `open` or `closed`), kept to its state.
 
-**Open: S4, S5, S7, S10 to S12, S33, S34, S52, S60, S64, S65, S79 to S82, S85, S86, S92, S94, S96, S99 to S103, S105, S109, S111, S115, S123 to S125, S127 to S131.**
+**Open: S4, S5, S7, S10 to S12, S33, S34, S52, S60, S64, S65, S79 to S82, S85, S86, S92, S94, S96, S99, S101 to S103, S105, S109, S111, S115, S123 to S125, S127 to S131.**
 Sorted 2026-11-22, the scenario test of build `20261122-194424` (findings 2026-11-22): S98,
 S108, S90, S106, S126, S97 and S104 held and closed, S104 as far as this machine allows (no
 8.3 folder in its File Locations); S1 held for `drw_view_detail` and a view at an angle and
@@ -646,8 +646,8 @@ its point.
 - [x] Group 5: scenario test with S1's proof (session id: `0a60bd46-2242-491b-a386-102f51a0ab03`), its entry committed and sorted (entry `1b57828`; ended `EXIT 0` 19:59; S98, S108, S90, S106, S126, S97 and S104 held and closed (S104 as far as the machine allows), S1 held for the detail and a view at an angle and closed, S127, S128, S130 and S131 new into group 6, S129 new and not in this run, S5 again; release notes updated) (`bdd4c9d`)
   Started 19:48 2026-11-22, free memory 2203 MB with SOLIDWORKS restarted from its exe; launcher `%LOCALAPPDATA%\solidworks-mcp\livetest\run-1121\check5.ps1`, launcher pid 20984, output check5.out.txt and check5.err.txt beside it; started and watched by a Sonnet subagent; no resume; about 11 min.
 - [x] S100 (a) and (b): committed (split out as S132) (`af90447`)
-- [x] S100 (c): committed (split out as S133)
-- [ ] S100 (d): committed
+- [x] S100 (c): committed (split out as S133) (`def120d`)
+- [x] S100 (d): committed (S100 to Waiting)
 - [ ] S102: committed
 - [ ] S103 (a) and (b): committed
 - [ ] S127: committed
@@ -1982,43 +1982,6 @@ starting with a digit) or the import is the cause. Proposed: a probe of which.
 
 Local. Not decided.
 
-### S100 - Library feature parts (.sldlfp): not opened or saved through the server, read as a wrapper, and a save that lost the sketch, reported `ok` - OPEN 2026-11-18
-
-Sorted out of the entries of 2026-11-17 ("a weldment profile made from a vendor's DXF",
-points 3 and 4) and 2026-11-18 ("reading a hand-saved weldment profile", point 2; "a custom
-weldment profile with one size made to work", points 3 and 4), on build `20261117-012659`.
-A weldment profile is a library feature part, the file `weldment_member` reads (S91).
-(a) `doc_open` refuses `.sldlfp` ("can't open '.SLDLFP' files"): a profile could not be read
-back, and a shipped one had to be opened by the user for a comparison; the read tools then
-read it with `doc` given (foreign, not adopted).
-(b) `doc_save` refuses any extension but the native one ("doc_save writes native .sldprt
-files") and `model_export` has no such format, so a custom profile cannot be made end to end:
-the user saved it as `.sldlfp` by hand and added the folder to File Locations. Proposed by
-the session: `doc_save` takes `.sldlfp` for a part (SaveAs3 to that extension), and a tool or
-an option adds a profile folder to the Weldment Profiles file location.
-(c) `feature_list` on a library feature part shows its marked sketch inside a `LibFeat1` of
-type `LibraryFeature`, where the FeatureManager shows the sketch at the top level marked L
-and no `LibFeat1`. A session took that as the profile's fault, which cost two hand re-saves
-(Dissolve Library Feature, Add to Library). Proposed by the session: `feature_list` says the
-wrapper is internal, or lists the sketch as the library feature it is.
-(d) **A result reported `ok` while wrong.** `doc_save` of an adopted library feature part
-reported success and the profile sketch was gone on reopening. On a copy of a shipped
-profile, adopted by `doc_activate {allowEdit:true}`: its configuration table deleted
-(`feature_delete`, one table refused "Could not select"), `config_add` and three
-`config_delete`, `sketch_edit` of the profile sketch, `sketch_delete` of all 16 segments,
-`sketch_add` of 112, `sketch_finish` (4 closed contours), `doc_save` (`savedTo` the .sldlfp,
-41 145 bytes against 74 903 before), `doc_close`. Reopened by the user: no profile sketch,
-`LibFeat1` with no children. Not known which step dropped it; nothing reported a fault. A
-`feature_list` after the save would have caught it before the close. Proposed: a probe of
-which step, and `doc_save` of a library feature part checking its library feature still
-holds its sketch.
-
-Local. Not decided.
-Decided 2026-11-21 by the owner: (a) to (d) taken into the run of 2026-11-21, group 6; not a folder added to File Locations (`## Run 2026-11-21`).
-Decided 2026-11-21 in the plan, not the owner: (d)'s save of a library feature part that no longer holds a sketch is `VERIFY_FAILED`, the file named as written, not `ok` with a warning, because `ok` is what let the session close it.
-(a) and (b) are done: moved to Waiting as S132, 2026-11-24 (the run of 2026-11-21, group 6).
-(c) is done: moved to Waiting as S133, 2026-11-24 (the run of 2026-11-21, group 6).
-
 ### S101 - `sketch_add` of a hundred entities takes minutes and times out - OPEN 2026-11-18
 
 Sorted out of the entry of 2026-11-18 ("a custom weldment profile with one size made to
@@ -2566,5 +2529,94 @@ Decided 2026-11-24 by the run, not the owner: the mark is a `note` on the row, n
 `type` or a hidden row, because the type and the row are what SOLIDWORKS reports and other
 tools (`sketch_edit`, `feature_delete`) address by them; the profile's name is read from the
 row's children, so a profile with no sketch says so.
+Local: on `sw2023`, in the commit that moves it here; not yet in a build. Upstream: not yet
+decided.
+
+### S100 - Library feature parts (.sldlfp): not opened or saved through the server, read as a wrapper, and a save that lost the sketch, reported `ok` - BUILT 2026-11-24, proof: the scenario test of the group 6 build
+
+Sorted out of the entries of 2026-11-17 ("a weldment profile made from a vendor's DXF",
+points 3 and 4) and 2026-11-18 ("reading a hand-saved weldment profile", point 2; "a custom
+weldment profile with one size made to work", points 3 and 4), on build `20261117-012659`.
+A weldment profile is a library feature part, the file `weldment_member` reads (S91).
+(a) `doc_open` refuses `.sldlfp` ("can't open '.SLDLFP' files"): a profile could not be read
+back, and a shipped one had to be opened by the user for a comparison; the read tools then
+read it with `doc` given (foreign, not adopted).
+(b) `doc_save` refuses any extension but the native one ("doc_save writes native .sldprt
+files") and `model_export` has no such format, so a custom profile cannot be made end to end:
+the user saved it as `.sldlfp` by hand and added the folder to File Locations. Proposed by
+the session: `doc_save` takes `.sldlfp` for a part (SaveAs3 to that extension), and a tool or
+an option adds a profile folder to the Weldment Profiles file location.
+(c) `feature_list` on a library feature part shows its marked sketch inside a `LibFeat1` of
+type `LibraryFeature`, where the FeatureManager shows the sketch at the top level marked L
+and no `LibFeat1`. A session took that as the profile's fault, which cost two hand re-saves
+(Dissolve Library Feature, Add to Library). Proposed by the session: `feature_list` says the
+wrapper is internal, or lists the sketch as the library feature it is.
+(d) **A result reported `ok` while wrong.** `doc_save` of an adopted library feature part
+reported success and the profile sketch was gone on reopening. On a copy of a shipped
+profile, adopted by `doc_activate {allowEdit:true}`: its configuration table deleted
+(`feature_delete`, one table refused "Could not select"), `config_add` and three
+`config_delete`, `sketch_edit` of the profile sketch, `sketch_delete` of all 16 segments,
+`sketch_add` of 112, `sketch_finish` (4 closed contours), `doc_save` (`savedTo` the .sldlfp,
+41 145 bytes against 74 903 before), `doc_close`. Reopened by the user: no profile sketch,
+`LibFeat1` with no children. Not known which step dropped it; nothing reported a fault. A
+`feature_list` after the save would have caught it before the close. Proposed: a probe of
+which step, and `doc_save` of a library feature part checking its library feature still
+holds its sketch.
+
+Local. Not decided.
+Decided 2026-11-21 by the owner: (a) to (d) taken into the run of 2026-11-21, group 6; not a folder added to File Locations (`## Run 2026-11-21`).
+Decided 2026-11-21 in the plan, not the owner: (d)'s save of a library feature part that no longer holds a sketch is `VERIFY_FAILED`, the file named as written, not `ok` with a warning, because `ok` is what let the session close it.
+(a) and (b) are done: moved to Waiting as S132, 2026-11-24 (the run of 2026-11-21, group 6).
+(c) is done: moved to Waiting as S133, 2026-11-24 (the run of 2026-11-21, group 6).
+(d) is done, the last point, so S100 moved here, 2026-11-24 (the run of 2026-11-21, group 6).
+Probed live first, step by step on a copy of SOLIDWORKS' ISO square tube, each step's tree
+read and a `.sldlfp` copy written and reopened: opened by `doc_open`, the whole sequence
+(configuration table deleted, `config_add`, the four sizes deleted by `config_delete`,
+`sketch_edit`, the 16 segments deleted and a rectangle added, `sketch_finish`, `doc_save`
+in place) kept `LibFeat1` holding `Sketch1`, reopened too. Opened as the user would and
+adopted by `doc_activate {allowEdit:true}`, as in the finding, `LibFeat1` was gone from the
+tree right after the adoption, and the first copy was 42 030 bytes (the finding's 41 145);
+deleting the table then removed the sketch, and `sketch_edit` found none. A `doc_save
+{mode:"copy"}` of an owned profile to a `.sldprt` did the same; its `.sldlfp` copy after
+reopened with an empty `LibFeat1`.
+Cause: `doc_activate`'s backup is a `SaveAs3` copy to a `.sldprt`, and SOLIDWORKS' save of a
+library feature part to a `.sldprt`, even as a copy, dissolves the library feature of the
+open document; every later save of the `.sldlfp` writes it without its sketch, and
+`doc_save` read back the file's size only. In `docs/solidworks-api-notes.md`.
+Fix: the backup of a library feature part is a `.sldlfp` copy, which keeps it. `doc_save`
+reads the part's library feature before and after the save: a part whose library feature
+held something, or that is a `.sldlfp` document after the save, must still hold something
+there, else `VERIFY_FAILED`, the file named as written ("... it was written without a sketch
+in its library feature ...", or for a copy to a `.sldprt` "SOLIDWORKS dissolved the open
+part's library feature ..."), with a hint to close without saving and reopen. No description
+changed.
+Before: the new `WeldmentLiveTests.A_library_feature_part_adopted_and_redrawn_keeps_its_profile_sketch_when_saved`
+(the finding's sequence on a copy opened raw and adopted, saved in place, reopened) failed,
+"Adopting the part left its library feature without 'Sketch1' (backup ...\lfp_adopt_tube.sldprt):
+... Tables (ConfigTableFolder) [...], Sketch1 (ProfileFeature) [...] ..."; the new
+`WeldmentLiveTests.A_save_that_leaves_a_library_feature_part_without_its_sketch_is_verify_failed`
+(an owned copy saved as a `.sldprt` copy, then in place) failed, "doc_save copy to .sldprt
+reported ok; the open part's library feature now: ... Sketch1 (ProfileFeature) ..." (no
+`LibFeat1`).
+After: both pass (the backup is a `.sldlfp`, the reopened profile's `LibFeat1` holds
+`Sketch1`; the `.sldprt` copy is written and `VERIFY_FAILED` naming it, the save in place
+after it `VERIFY_FAILED` "written without"); live, with the tests that save, adopt and open
+library feature parts, the other four `.sldlfp` tests of `WeldmentLiveTests`, four of
+`M0LiveTests` (save copy, dirty, dirty through another process, foreign),
+`ExportLiveTests.A_saved_part_reopens_as_owned_target_with_its_geometry`,
+`AssemblyLiveTests.An_assembly_adopted_after_the_server_saved_its_parts_does_not_read_as_changed_by_the_user`
+and `TopDownLiveTests.Saved_bodies_become_parts_with_their_volumes_and_an_assembly_of_them`,
+13/13; unit tests 355/355; `check_repo` ok. Not run: `--check-catalog` and the catalog test
+(no description changed).
+Made stricter: a save that leaves a library feature part with an empty library feature, or
+none, is `VERIFY_FAILED` where it was `ok`; a copy of a plain part to a `.sldlfp` is not
+checked (the open document stays the part it was).
+Decided 2026-11-24 by the run, not the owner: the check is "the library feature holds
+something", not "holds a sketch", because a library feature part other than a profile holds
+features (a cut) whose sketch sits under them, and an empty `LibFeat1` is what the probe saw.
+Decided 2026-11-24 by the run, not the owner: a copy to a `.sldprt` of a library feature part
+is written and then `VERIFY_FAILED`, not refused before, because the file written is a good
+part and the fault is the open document's, which the message names; refusing would also
+refuse a part copy nobody saves the profile after.
 Local: on `sw2023`, in the commit that moves it here; not yet in a build. Upstream: not yet
 decided.

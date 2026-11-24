@@ -365,6 +365,14 @@ type libraries and writes `sldworks_api.txt`, `swconst_enums.txt`, `swcommands.t
   segments: a table frame from one 3D sketch is two calls, the top rectangle (miter) and the legs (no corner treatment).
   A `.sldlfp` opens with `OpenDoc6` as `swDocPART`; `SaveAs3` of a part with one sketch to a `.sldlfp` path, nothing
   selected, writes a profile that reopens with its sketch and makes members (VERIFIED 2026-11-24 on 2023 SP3).
+  **`SaveAs3` of a library feature part to a `.sldprt`, even with `swSaveAsOptions_Copy`, dissolves the library feature
+  of the open document**: `LibFeat1` leaves the tree, the sketch stays at the top, and every later save of the `.sldlfp`
+  writes an empty `LibFeat1` (a 74 903-byte shipped profile then saves at about 42 000 bytes and reopens with no sketch;
+  deleting its configuration table then removes the sketch too). A copy to a `.sldlfp` keeps it. Probed step by step
+  on a copy of ISO square tube (VERIFIED 2026-11-24 on 2023 SP3): the configuration table deleted, a configuration
+  added and the others deleted, the sketch edited, its 16 segments deleted and others added, the sketch finished and
+  the part saved in place, each keep the sketch; `doc_activate {allowEdit:true}`'s backup, a `.sldprt` copy, was the
+  step that dropped it (S100 d).
 - **Cut list** (VERIFIED 2026-10-31). The items are the tree's `CutListFolder` features, each `GetSpecificFeature2()` an
   `IBodyFolder` (`GetBodyCount`, `GetBodies`, `GetCutListType()`: `swCutListType_e` 1 solid, 2 sheet metal,
   3 weldment); their parent `SolidBodyFolder` has `GetAutomaticUpdate()` and `UpdateCutList()`. The properties come from

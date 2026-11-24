@@ -2,6 +2,7 @@ using SolidWorks.Interop.sldworks;
 using SolidWorks.Interop.swconst;
 using SolidWorksMcp.Core.Com;
 using SolidWorksMcp.Core.Documents;
+using SolidWorksMcp.Core.Geometry;
 using SolidWorksMcp.Core.Model;
 using SolidWorksMcp.Core.Win32;
 
@@ -172,12 +173,16 @@ public sealed class DocumentService(SwSession session)
             };
         }, null, ct);
 
-    /// <summary>Saves a copy of a user document before the server is allowed to edit it.</summary>
+    /// <summary>
+    /// Saves a copy of a user document before the server is allowed to edit it. A library feature part's copy is a
+    /// .sldlfp: SaveAs3 of one to a .sldprt, even as a copy, dissolves the library feature of the open document, and its
+    /// next save writes the profile without its sketch (S100 d, VERIFIED 2026-11-24 on 2023 SP3).
+    /// </summary>
     private static string? Backup(SwContext ctx, IModelDoc2 doc)
     {
         string ext = doc.GetType() switch
         {
-            (int)swDocumentTypes_e.swDocPART => ".sldprt",
+            (int)swDocumentTypes_e.swDocPART => IsLibFeatPath(DocumentRegistry.SafePath(doc)) ? LibFeatExt : ".sldprt",
             (int)swDocumentTypes_e.swDocASSEMBLY => ".sldasm",
             _ => ".slddrw",
         };
@@ -211,6 +216,7 @@ public sealed class DocumentService(SwSession session)
             string saved;
             string? backup = null;
             List<string> parts;
+            var libBefore = LibraryFeatureContents(target);
             switch (mode.Trim().ToLowerInvariant())
             {
                 case "inplace" or "in_place" or "":
@@ -255,6 +261,7 @@ public sealed class DocumentService(SwSession session)
             var fi = new FileInfo(saved);
             if (!fi.Exists || fi.Length == 0)
                 throw new SwException(ErrorCodes.VerifyFailed, $"SOLIDWORKS reported success but '{saved}' is missing or empty.");
+            CheckLibraryFeature(target, saved, libBefore);
             if (warnings != 0) ctx.Warn($"Save warnings: {SaveWarnings(warnings)}.");
             parts = CheckComponentFiles(ctx, target, saved, parts);
             return new DocResult
@@ -491,6 +498,38 @@ public sealed class DocumentService(SwSession session)
     };
 
     private const string LibFeatExt = ".sldlfp";
+
+    private static bool IsLibFeatPath(string? path) => path?.EndsWith(LibFeatExt, StringComparison.OrdinalIgnoreCase) == true;
+
+    /// <summary>The names under a part's library feature (LibFeat1: a weldment profile's sketch); null when it has none.</summary>
+    internal static List<string>? LibraryFeatureContents(IModelDoc2 d)
+    {
+        if (d.GetType() != (int)swDocumentTypes_e.swDocPART) return null;
+        var lib = Tree.Walk(d).FirstOrDefault(f => f.GetTypeName2() == "LibraryFeature");
+        return lib is null ? null : Tree.Children(lib).Select(c => c.Name).ToList();
+    }
+
+    /// <summary>
+    /// S100 (d): after a save, a part whose library feature held something, or that is now a .sldlfp document, must still
+    /// hold something in its library feature; else the file is VERIFY_FAILED, named as written. A copy of a plain part to
+    /// a .sldlfp is not checked: the open document stays the part it was.
+    /// </summary>
+    internal static void CheckLibraryFeature(IModelDoc2 d, string saved, List<string>? before)
+    {
+        bool held = before is { Count: > 0 };
+        if (!held && !IsLibFeatPath(DocumentRegistry.SafePath(d))) return;
+        var after = LibraryFeatureContents(d);
+        if (after is { Count: > 0 }) return;
+        if (held && !IsLibFeatPath(saved))
+            throw new SwException(ErrorCodes.VerifyFailed,
+                $"Wrote '{saved}', but SOLIDWORKS dissolved the open part's library feature (it held {string.Join(", ", before!)}): " +
+                "a save of it as the .sldlfp would be written without its profile sketch.",
+                "Close it without saving (doc_close discard:true) and open the .sldlfp again; a profile's copy is written as a .sldlfp.");
+        throw new SwException(ErrorCodes.VerifyFailed,
+            $"SOLIDWORKS wrote '{saved}', but it was written without a sketch in its library feature " +
+            $"({(after is null ? "the part has none" : "LibFeat holds nothing")}): as a weldment profile it has no profile.",
+            "Close it without saving and open the last good copy (the file before, or doc_activate's backup).");
+    }
 
     private static string WithNativeExtension(string path, int docType)
     {
