@@ -17,7 +17,7 @@ Closed all the same, its PR named, and an open PR no longer holds an item in Wai
 item sent upstream ends with `**Upstream: PR #9, open.**`, one per PR or issue
 (`merged`, `closed unmerged`; an issue `open` or `closed`), kept to its state.
 
-**Open: S4, S5, S7, S10 to S12, S33, S34, S52, S60, S64, S65, S79 to S82, S85, S86, S92, S94, S96, S99, S101, S105, S109, S111, S115, S123 to S125, S127 to S131.**
+**Open: S4, S5, S7, S10 to S12, S33, S34, S52, S60, S64, S65, S79 to S82, S85, S86, S92, S94, S96, S99, S101, S105, S109, S111, S115, S123 to S125, S128 to S131.**
 Sorted 2026-11-22, the scenario test of build `20261122-194424` (findings 2026-11-22): S98,
 S108, S90, S106, S126, S97 and S104 held and closed, S104 as far as this machine allows (no
 8.3 folder in its File Locations); S1 held for `drw_view_detail` and a view at an angle and
@@ -649,8 +649,8 @@ its point.
 - [x] S100 (c): committed (split out as S133) (`def120d`)
 - [x] S100 (d): committed (S100 to Waiting) (`4b13b83`)
 - [x] S102: committed (`3a19df8`)
-- [x] S103 (a) and (b): committed (the failed-split hint, changed after its live run, is covered by the group's full live tests)
-- [ ] S127: committed
+- [x] S103 (a) and (b): committed (the failed-split hint, changed after its live run, has no live test) (`285249f`)
+- [x] S127: committed
 - [ ] S128: committed
 - [ ] S130: committed
 - [ ] S131: committed
@@ -2137,30 +2137,6 @@ point, small and in the group's files, a later step of this run ... taken into t
 group", because it is a
 small line of the pattern's result, found by group 4's check.
 
-### S127 - A detail view's `centerMm` lies outside its own bounds and changes between `drw_view_detail` and `drw_info`, reported `ok` - OPEN 2026-11-22
-
-Sorted out of the entry of 2026-11-22 (the scenario test of build `20261122-194424`), point
-6. A 2:1 detail of a 1:2 plan placed with no `atMm`: the PDF shows it centred at about [331,
-178]. `drw_view_detail` gave `centerMm` [287.467, 251.306] with `boundsMm` [310.627,
-155.566, 351.307, 201.046], the centre outside its own bounds; the next `drw_info` gave
-`centerMm` [243.967, 328.306] (above the 297 mm sheet) and `boundsMm` [286.627, 133.966,
-375.307, 222.646]. The bounds' centres are right ([331, 178.3]), their sizes differ between
-the two calls (40.7 x 45.5 against 88.7 x 88.7; the detail circle drawn about 64 mm
-across). A 1:1 detail given `atMm` [70, 220]: `centerMm` [194.941, 191.813], its bounds
-centred at [69.9, 220.1]. Sections, auxiliary and named views read right. Reported `ok`
-while wrong: a caller placing an annotation from `centerMm` would put it elsewhere.
-
-Local, small, in group 5's files (`DrawingService.cs`, the detail view and `drw_info`).
-Decided 2026-11-22 by the run, not the owner: a detail view's `centerMm` comes from the same
-source as its bounds (or is the bounds' centre), and reads the same in `drw_view_detail` and
-`drw_info`. Test to start from: a 2:1 detail placed by default: `centerMm` inside its
-`boundsMm` and at their centre, equal across the two calls (fails now: outside its bounds,
-and another value in `drw_info`). Default model.
-Decided 2026-11-22 by the run, not the owner: taken into group 6, by the run's rule "a new
-point, small and in the group's files, a later step of this run ... taken into the next
-group", because it is a read of the detail view in the drawing files group 5 changed,
-needing no choice of the owner's, found by group 5's check.
-
 ### S128 - With no `atMm`, an auxiliary view lands over its parent and the title block though said to be a free spot, and the free-space search does not count tables - OPEN 2026-11-22
 
 Sorted out of the entry of 2026-11-22 (the scenario test of build `20261122-194424`), point
@@ -2635,4 +2611,36 @@ Fix: (a) when the one group made no body and `WeldmentSpec.ParallelSets` (lines 
 Before: `WeldmentLiveTests.Lines_in_two_directions_that_do_not_touch_are_made_as_one_group_per_parallel_set` failed "VERIFY_FAILED: weldment_member: 'Weldment' was created but has no faces, so it changed no geometry. Rolled back: deleted Weldment."; `WeldmentLiveTests.Each_member_gives_its_sections_extents_along_the_model_axes` failed "Assert.NotNull() Failure: Value is null" (the field there, not filled).
 After: both pass, with the rest of `WeldmentLiveTests` and `DrawingLiveTests.Cut_list_table_lists_a_frames_members_and_weld_symbols_read_back` (live, 19/19); unit tests 357/357 (two new in `WeldmentSpecTests`: the parallel sets, the across axes); `check_repo` ok. Not run: `--check-catalog` and the catalog test (no description changed); the hint of a split that also fails (no live case of it).
 Made stricter: nothing weakened; the one-body-per-segment check is unchanged and now names the groups when split.
+Local: on `sw2023`, in the commit that moves it here; not yet in a build. Upstream: not yet decided.
+
+### S127 - A detail view's `centerMm` lies outside its own bounds and changes between `drw_view_detail` and `drw_info`, reported `ok` - BUILT 2026-11-24, proof: the scenario test of the group 6 build
+
+Sorted out of the entry of 2026-11-22 (the scenario test of build `20261122-194424`), point
+6. A 2:1 detail of a 1:2 plan placed with no `atMm`: the PDF shows it centred at about [331,
+178]. `drw_view_detail` gave `centerMm` [287.467, 251.306] with `boundsMm` [310.627,
+155.566, 351.307, 201.046], the centre outside its own bounds; the next `drw_info` gave
+`centerMm` [243.967, 328.306] (above the 297 mm sheet) and `boundsMm` [286.627, 133.966,
+375.307, 222.646]. The bounds' centres are right ([331, 178.3]), their sizes differ between
+the two calls (40.7 x 45.5 against 88.7 x 88.7; the detail circle drawn about 64 mm
+across). A 1:1 detail given `atMm` [70, 220]: `centerMm` [194.941, 191.813], its bounds
+centred at [69.9, 220.1]. Sections, auxiliary and named views read right. Reported `ok`
+while wrong: a caller placing an annotation from `centerMm` would put it elsewhere.
+
+Local, small, in group 5's files (`DrawingService.cs`, the detail view and `drw_info`).
+Decided 2026-11-22 by the run, not the owner: a detail view's `centerMm` comes from the same
+source as its bounds (or is the bounds' centre), and reads the same in `drw_view_detail` and
+`drw_info`. Test to start from: a 2:1 detail placed by default: `centerMm` inside its
+`boundsMm` and at their centre, equal across the two calls (fails now: outside its bounds,
+and another value in `drw_info`). Default model.
+Decided 2026-11-22 by the run, not the owner: taken into group 6, by the run's rule "a new
+point, small and in the group's files, a later step of this run ... taken into the next
+group", because it is a read of the detail view in the drawing files group 5 changed,
+needing no choice of the owner's, found by group 5's check.
+Decided 2026-11-24 by the run, not the owner: a detail view's `centerMm` is its outline's centre, not a corrected `IView.Position`, because the outline is what `boundsMm` reads and reads the same in both calls, while the position was stale in the call that made the view.
+Decided 2026-11-24 by the run, not the owner: `drw_view_edit` move puts a detail view's outline centre on `atMm` (its position shifted by the offset read before the move), because its description says it moves the view's centre there, and a caller moving a detail from its new `centerMm` would otherwise have it land by that offset.
+Cause: `ViewInfo` gave every view's `centerMm` as `IView.Position`. For a detail view that is where the model origin falls at the detail's scale (live: a 2:1 detail of a 1:2 view of a corner, the origin 80 x 40 mm off the outline's centre, outside it), and in the call that made the view it read another, stale value ([260.849, 161.306] there, [217.849, 138.306] in `drw_info`, the outline [253.509, 133.966, 342.189, 222.646] in both). The finding's differing bounds (40.7 x 45.5 against 88.7 x 88.7) did not recur: the outline read the same in both calls here.
+Fix: `ViewInfo` gives a detail view's `centerMm` as its outline's centre, so `drw_view_detail`, `drw_info` and `drw_view_edit` read one value. `MoveView` sets a detail's position to `atMm` plus the position's offset from the outline's centre, and checks the outline's centre read back within 0.05 mm ("outline centre read back"), else puts it back and refuses as before. `DrwView.CenterMm`'s doc and `docs/solidworks-api-notes.md` §9 record it.
+Before: `DrawingLiveTests.Detail_center_is_the_center_of_its_bounds_in_both_reads` failed "drw_view_detail: centerMm [260,849, 161,306] is not the centre of boundsMm [253,509, 133,966, 342,189, 222,646] (drw_view_detail centerMm [260,849, 161,306], boundsMm [253,509, 133,966, 342,189, 222,646]; drw_info centerMm [217,849, 138,306], boundsMm [253,509, 133,966, 342,189, 222,646])".
+After: it passes, its move of the detail included, with `Detail_of_a_corner_has_the_requested_scale`, `Detail_leaves_no_sketch_open`, `Views_move_with_their_aligned_children_and_are_deleted`, `A_section_with_no_atMm_is_placed_so_its_own_label_clears_the_title_block`, `View_moves_and_deletes_that_cannot_work_are_refused` and `Moving_an_annotation_or_a_view_s_label_onto_another_text_is_warned` (live, 7/7); unit tests 357/357; `check_repo` ok. Not run: `--check-catalog` and the catalog test (no description changed).
+Made stricter: a detail's move is checked by its outline's centre, not only by the position SOLIDWORKS echoes back.
 Local: on `sw2023`, in the commit that moves it here; not yet in a build. Upstream: not yet decided.

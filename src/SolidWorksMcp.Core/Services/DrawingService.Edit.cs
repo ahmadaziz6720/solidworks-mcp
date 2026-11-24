@@ -443,19 +443,30 @@ public sealed partial class DrawingService
         var old = hit.View.DrwPosition();
         // The annotations' boxes before the move: a moved view's notes read their old extent after it (live, 2023 SP3).
         var placedBefore = PlacedOnSheet(ctx, drw);
-        hit.View.DrwMoveTo(Units.M(to.X), Units.M(to.Y));
+        // S127: a detail view's Position is where the model origin falls, off its centre: the outline's centre goes to atMm.
+        bool detail = hit.View.Type == (int)swDrawingViewTypes_e.swDrawingDetailView;
+        double offX = detail && old.Length >= 2 ? old[0] - Units.M(before.Cx) : 0, offY = detail && old.Length >= 2 ? old[1] - Units.M(before.Cy) : 0;
+        double wantX = Units.M(to.X) + offX, wantY = Units.M(to.Y) + offY;
+        hit.View.DrwMoveTo(wantX, wantY);
         d.GraphicsRedraw2();
         var pos = hit.View.DrwPosition();
-        bool ok = pos.Length >= 2 && Math.Abs(pos[0] - Units.M(to.X)) <= PosTol && Math.Abs(pos[1] - Units.M(to.Y)) <= PosTol;
+        bool ok = pos.Length >= 2 && Math.Abs(pos[0] - wantX) <= PosTol && Math.Abs(pos[1] - wantY) <= PosTol;
+        double[]? at = pos.Length >= 2 ? [Units.Mm(pos[0] - offX), Units.Mm(pos[1] - offY)] : null;
+        if (ok && detail)
+        {
+            var now = Outline(hit);
+            at = [now.Cx, now.Cy];
+            ok = Math.Abs(now.Cx - to.X) <= 0.05 && Math.Abs(now.Cy - to.Y) <= 0.05;
+        }
         if (!ok)
         {
             string parent = hit.View.DrwBaseView()?.GetName2() is { Length: > 0 } p ? $" It may be aligned with '{p}': move it along that alignment, or move '{p}'." : "";
             if (old.Length >= 2) hit.View.DrwMoveTo(old[0], old[1]);
             throw new SwException(ErrorCodes.VerifyFailed,
-                $"'{hit.Name}' sits at [{(pos.Length < 2 ? "?" : Fmt([pos[0] * 1000, pos[1] * 1000]))}] mm after the move, not [{Fmt([to.X, to.Y])}] mm; it was put back.",
+                $"'{hit.Name}' sits at [{(at is null ? "?" : Fmt(at))}] mm after the move, not [{Fmt([to.X, to.Y])}] mm; it was put back.",
                 parent.Length > 0 ? parent.Trim() : null);
         }
-        var checks = new List<string> { "position read back" };
+        var checks = new List<string> { detail ? "outline centre read back" : "position read back" };
         var moved = new List<string>();
         foreach (var o in others)
         {

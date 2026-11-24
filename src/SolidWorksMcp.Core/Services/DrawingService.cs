@@ -38,7 +38,7 @@ public sealed record DrwView
     /// <summary>Which model direction points to the sheet's right, up and out of the sheet (from the model-to-sheet transform).</summary>
     public DrwAxes? Axes { get; init; }
     public required string Scale { get; init; }
-    /// <summary>The view's position on the sheet (IView.Position).</summary>
+    /// <summary>The view's position on the sheet (IView.Position); a detail view's outline centre (S127).</summary>
     public double[]? CenterMm { get; init; }
     /// <summary>The view's outline on the sheet [xMin, yMin, xMax, yMax].</summary>
     public double[]? BoundsMm { get; init; }
@@ -2336,7 +2336,11 @@ public sealed partial class DrawingService(SwSession session)
             Orientation = xf.Length >= 13 && type != (int)swDrawingViewTypes_e.swDrawingSheet ? DrawingLayout.Classify(DrawingLayout.AxesOf(xf)) : null,
             Axes = xf.Length >= 13 && type != (int)swDrawingViewTypes_e.swDrawingSheet ? DrwAxes.Of(DrawingLayout.AxesOf(xf)) : null,
             Scale = scale,
-            CenterMm = pos.Length >= 2 ? [Math.Round(pos[0] * 1000, 3), Math.Round(pos[1] * 1000, 3)] : null,
+            // S127: a detail view's Position is where the model origin falls at its scale, outside the view and read
+            // stale in the call that made it (live, 2023 SP3): its centre is its outline's.
+            CenterMm = type == (int)swDrawingViewTypes_e.swDrawingDetailView && outline is SheetRect o
+                ? [Math.Round(o.Cx, 3), Math.Round(o.Cy, 3)]
+                : pos.Length >= 2 ? [Math.Round(pos[0] * 1000, 3), Math.Round(pos[1] * 1000, 3)] : null,
             BoundsMm = outline?.ToArray(),
             ModelBoxMm = box?.ToArray(),
             Model = model,

@@ -549,6 +549,49 @@ public class DrawingLiveTests(LiveFixture fx) : LiveTest(fx)
         Assert.Contains((await Drw.InfoAsync(drw)).Sheets[0].Views!, v => v.Name == det.View.Name && v.Type == "detail");
     }
 
+    /// <summary>
+    /// S127: a 2:1 detail of a 1:2 view placed by default. Its centre is the centre of its outline, and drw_info reads
+    /// the same centre and outline as drw_view_detail (IView.Position of a detail lay outside its own bounds, and moved).
+    /// </summary>
+    [Fact]
+    public async Task Detail_center_is_the_center_of_its_bounds_in_both_reads()
+    {
+        var (_, path) = await BlockAsync("drw_detail_center");
+        string drw = await DrawingAsync("drw_detail_center");
+        var front = (await Drw.ViewsStandardAsync(path, ["front"], "1:2", drw)).Views[0];
+        var b = front.ModelBoxMm!;
+        var det = (await Drw.DetailAsync(front.Name, [b[2] - 5, b[3] - 5], 8, "2:1", null, null, drw)).View;
+        var info = (await Drw.InfoAsync(drw)).Sheets[0].Views!.Single(v => v.Name == det.Name);
+        string seen = $" (drw_view_detail centerMm [{string.Join(", ", det.CenterMm!)}], boundsMm [{string.Join(", ", det.BoundsMm!)}]; " +
+                      $"drw_info centerMm [{string.Join(", ", info.CenterMm!)}], boundsMm [{string.Join(", ", info.BoundsMm!)}])";
+        foreach (var (v, what) in new[] { (det, "drw_view_detail"), (info, "drw_info") })
+        {
+            var c = v.CenterMm!;
+            var o = v.BoundsMm!;
+            Assert.True(c[0] >= o[0] && c[0] <= o[2] && c[1] >= o[1] && c[1] <= o[3],
+                $"{what}: centerMm [{c[0]}, {c[1]}] lies outside boundsMm [{string.Join(", ", o)}]" + seen);
+            Assert.True(Math.Abs(c[0] - (o[0] + o[2]) / 2) <= 0.5 && Math.Abs(c[1] - (o[1] + o[3]) / 2) <= 0.5,
+                $"{what}: centerMm [{c[0]}, {c[1]}] is not the centre of boundsMm [{string.Join(", ", o)}]" + seen);
+        }
+        Assert.True(Math.Abs(det.CenterMm![0] - info.CenterMm![0]) <= 0.01 && Math.Abs(det.CenterMm[1] - info.CenterMm[1]) <= 0.01,
+            $"centerMm [{string.Join(", ", det.CenterMm)}] in drw_view_detail, [{string.Join(", ", info.CenterMm!)}] in drw_info");
+        for (int i = 0; i < 4; i++)
+            Assert.True(Math.Abs(det.BoundsMm![i] - info.BoundsMm![i]) <= 0.5,
+                $"boundsMm [{string.Join(", ", det.BoundsMm)}] in drw_view_detail, [{string.Join(", ", info.BoundsMm!)}] in drw_info");
+        // drw_view_edit move takes the same centre: the detail's outline lands centred on atMm, not its model origin.
+        double[] to = [info.CenterMm[0] + 20, info.CenterMm[1] - 10];
+        var moved = await Drw.ViewEditAsync(new DrwViewEditRequest { Doc = drw, Kind = "move", View = det.Name, AtMm = to });
+        var again = (await Drw.InfoAsync(drw)).Sheets[0].Views!.Single(v => v.Name == det.Name);
+        foreach (var (v, what) in new[] { (moved.View, "drw_view_edit"), (again, "drw_info after the move") })
+        {
+            var o = v.BoundsMm!;
+            Assert.True(Math.Abs((o[0] + o[2]) / 2 - to[0]) <= 0.1 && Math.Abs((o[1] + o[3]) / 2 - to[1]) <= 0.1,
+                $"{what}: boundsMm [{string.Join(", ", o)}] are not centred on atMm [{string.Join(", ", to)}]");
+            Assert.Equal(to[0], v.CenterMm![0], 0.1);
+            Assert.Equal(to[1], v.CenterMm[1], 0.1);
+        }
+    }
+
     [Fact]
     public async Task Detail_leaves_no_sketch_open()
     {

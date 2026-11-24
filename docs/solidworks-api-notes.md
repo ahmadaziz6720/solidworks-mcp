@@ -689,6 +689,9 @@ type libraries and writes `sldworks_api.txt`, `swconst_enums.txt`, `swcommands.t
   aligned to it moves with it, and a projected view set off its parent's alignment is kept on it (the position read
   back differs). `SelectByID2(name, "DRAWINGVIEW")` and `DeleteSelection2(0)` delete a view with its annotations; a
   projected view whose parent was deleted stays, a section view goes with its parent (its cut line is in the parent).
+  A detail view's `IView.Position` is not its centre (VERIFIED 2026-11-24, 2023 SP3): it is where the model origin
+  falls at the detail's scale, often outside its outline, and read in the call that made the view it was another,
+  stale value. The server gives a detail's centre as its `GetOutline` centre and moves it by the offset (S127).
 - **Center marks** (VERIFIED). `ActivateView`, then `IView.AutoInsertCenterMarks2(1 /*holes*/, 0, true, true, true, 0.0025,
   0.0005, true, false, 0)`.
 - **Section view** (VERIFIED). Activate the parent view, set `AddToDB = true`, `CreateLine` in **sheet coordinates**,
