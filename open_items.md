@@ -730,8 +730,8 @@ its point.
 - [x] Group 6: scenario test (session id: `c71866a6-d4e8-4628-9225-f00fe0a0daa8`), its entry committed and sorted (entry `bc8c8a9`; ended `EXIT 0` 18:03; S132, S133, S100, S102, S103, S127, S128, S130 and S131 held and closed, S100 whole; S134 and S135 new into group 7; S136 (S14 again, reported `ok` while wrong, a probe first), S137, S138 and S139 new, not in this run; S5 again; release notes updated) (`8a3a447`)
   Started 17:53:58 2026-11-24, free memory 1809 MB with SOLIDWORKS restarted from its exe (twice; under the plan's 2 GB, started anyway); launcher `%LOCALAPPDATA%\solidworks-mcp\livetest\run-1121\check6.ps1`, launcher pid 16492, output check6.out.txt and check6.err.txt beside it; started and watched by a Sonnet subagent (61k tokens); no resume; ended `EXIT 0` 18:03, about 10 min.
 - [x] S80 (a) and (c): committed (split out as S140; sketch_start's description changed: docs/tools.md at the release) (`b33b246`)
-- [x] S82 (a): committed (split out as S141)
-- [ ] S86 (a): committed
+- [x] S82 (a): committed (split out as S141) (`377fbdc`)
+- [x] S86 (a): committed (split out as S142)
 - [ ] S101: probed
 - [ ] S123: committed
 - [ ] S124: committed
@@ -1902,6 +1902,7 @@ Deleting the equation before deleting the geometry held, with no rebuild error 5
 binding went to the name `sketch_constrain` returned. Not said whether S54 (c)'s warning
 fired; the order the session used avoided the case.
 Decided 2026-11-21 by the owner: (a) taken into the run of 2026-11-21, group 7; (b) stays Open (`## Run 2026-11-21`).
+(a) is done: moved to Waiting as S142, 2026-11-24 (the run of 2026-11-21, group 7).
 
 ### S92 - SOLIDWORKS' state that refuses every equation (S58 (b)) again: hints that blame the expression, `equation_list` wrong, a restart not told - OPEN 2026-11-18
 
@@ -2647,5 +2648,52 @@ move uses the same twice.
 Decided 2026-11-24 by the run, not the owner: the warning names the way back as
 `dimension_set` to the value before (after `sketch_finish` in an open sketch), because it is
 the finding's own workaround, held, and the same for every cause.
+Local: on `sw2023`, in the commit that moves it here; not yet in a build. Upstream: not yet
+decided.
+
+### S142 - S86 (a): `sketch_delete` removed a polygon's construction circle with its dimensions and relations, and said only "6 segment(s) gone" - BUILT 2026-11-24, proof: the scenario test of the group 7 build
+
+Point (a) of S86 (S86 stays Open for (b)) (finding 2026-11-16, on build `20261116-124830`):
+`sketch_delete` of a polygon's six lines also removed its construction circle, which carried
+the polygon's centre dimensions, its diameter and an `equal` to another polygon's circle;
+`removed` listed it, the checks said "6 segment(s) gone", and the other polygon was left
+with no size.
+Decided 2026-11-21 by the owner: (a) taken into the run of 2026-11-21, group 7, a warning; (b) stays Open (`## Run 2026-11-21`).
+Cause: SOLIDWORKS deletes a polygon's construction circle with its last line; `sketch_delete`
+compared the sketch before and after only to check that the named segments were gone, so a
+segment that went unnamed was in `removed` and nowhere else.
+Fix: an interop-free rule (`SketchRemoved.Warning`, `src/SolidWorksMcp.Core/Services/SketchRemoved.cs`)
+builds the warning from the segments removed that were not named, the relations that
+touched them and the dimensions the sketch lost. `sketch_delete` reads the sketch's
+relations (`SketchRelations.All`, each with the keys of what it relates), its dimensions and
+who owns each point before the delete; after it, for each segment gone that was not named,
+`SketchRelations.Touching` keeps the relations on that segment or on a point only the
+removed segments owned. Read on 2023 SP3: "sketch_delete also removed a segment not named
+in the call: 'Arc1' (construction circle, diameter 24 mm). Relations that tied it went too:
+tangent: Line1, Arc1; coincident: origin, Arc1 centre; diameter: Arc1. The sketch lost
+dimension(s) in the call: D1@Sketch1 = 24 mm. What they sized or held may now be
+under-defined: sketch_info shows what is left." A warning, the result unchanged (`removed`
+and the checks as before); no description changed, a call that names everything it removes
+warns of nothing.
+Before: the new `SketchEditLiveTests.Delete_of_a_polygons_lines_warns_that_its_construction_circle_went_too`
+(a hexagon, its circle dimensioned Ø24, its six lines deleted) failed, "System.ArgumentNullException
+: Value cannot be null. (Parameter 'collection')" at `Assert.Single(r.Warnings!)` (no warning).
+After: it passes, with `Delete_removes_the_segment`, `Delete_needs_existing_segments_and_an_open_sketch`,
+the five live tests that delete points or a 3D segment (`Pierce_puts_a_point_where_a_line_of_another_sketch_crosses_the_plane`,
+`Pierce_puts_a_point_where_a_model_edge_crosses_the_plane`, `Circular_pattern_rotates_lines_groups_and_points_about_the_center`,
+`Mirror_about_a_slanted_centerline_reverses_an_arc_and_copies_a_point`, `Construction_relation_and_delete_work_in_a_3D_sketch`)
+and `WeldmentLiveTests.A_library_feature_part_adopted_and_redrawn_keeps_its_profile_sketch_when_saved`,
+9/9; unit tests 370/370 (new `SketchRemovedTests`, 3); `check_repo` ok.
+Made stricter: `sketch_delete` warns when a segment that was not named went with the ones that were; nothing that passed is refused.
+Decided 2026-11-24 by the run, not the owner: the dimensions listed are all the sketch lost
+in the call, not only the circle's, because a sketch dimension does not say what it
+measured (no attached entity is read), and the warning says so ("the sketch lost
+dimension(s) in the call"); the relations are the circle's own, exact.
+Decided 2026-11-24 by the run, not the owner: a warning for any segment removed unnamed (a
+polygon's circle is the case met, a slot's or a pattern's centre geometry would be
+another), because the check is the same and the cause is SOLIDWORKS', not the tool's.
+Decided 2026-11-24 by the run, not the owner: the relation that is the dimension itself
+("diameter: Arc1") stays in the list, because filtering it by type name would hide a
+relation of a type not met yet.
 Local: on `sw2023`, in the commit that moves it here; not yet in a build. Upstream: not yet
 decided.

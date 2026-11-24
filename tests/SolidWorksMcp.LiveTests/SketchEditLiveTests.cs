@@ -1835,6 +1835,35 @@ public class SketchEditLiveTests(LiveFixture fx) : LiveTest(fx)
     }
 
     [Fact]
+    public async Task Delete_of_a_polygons_lines_warns_that_its_construction_circle_went_too()
+    {
+        // S86 (a): deleting a polygon's six lines removed its construction circle as well, with the diameter dimension on it
+        // and the relations that tied it, and said only "6 segment(s) gone".
+        var (doc, _, _) = await SketchAsync("s86_delete", "front",
+            new SketchEntity { Kind = "polygon", Center = [0, 0], Sides = 6, CircumradiusMm = 10 },
+            Circle([60, 0], 5));
+        var info = await Ed.InfoAsync(doc, null);
+        var circle = Assert.Single(info.Segments, s => s.Kind == "circle" && s.Construction == true);
+        var lines = Solid(info, "line").Select(s => s.Name).ToList();
+        Assert.Equal(6, lines.Count);
+        var dim = await Ed.DimensionAddAsync(doc, [Seg(circle.Name)], "diameter", valueMm: 24);
+
+        var r = await Ed.DeleteAsync(doc, lines.Select(Seg).ToList());
+        Assert.Contains(circle.Name, r.Removed!);
+        var w = Assert.Single(r.Warnings!);
+        Assert.Contains($"'{circle.Name}'", w, StringComparison.Ordinal);
+        Assert.Contains("not named", w, StringComparison.Ordinal);
+        Assert.Contains(dim.Dimension.Name, w, StringComparison.Ordinal); // the dimension that went with it
+        Assert.Contains("Relations that tied it went too: ", w, StringComparison.Ordinal);
+        Assert.Contains($"coincident: origin, {circle.Name} centre", w, StringComparison.Ordinal); // a relation of the circle itself
+
+        // Naming everything that goes warns of nothing.
+        var (doc2, _, added2) = await SketchAsync("s86_delete_named", "front", Line([0, 0], [50, 0]), Line([0, 10], [50, 10]));
+        var plain = await Ed.DeleteAsync(doc2, [Seg(Name(added2, 0)), Seg(Name(added2, 1))]);
+        Assert.Null(plain.Warnings);
+    }
+
+    [Fact]
     public async Task Delete_needs_existing_segments_and_an_open_sketch()
     {
         var (doc, _, added) = await SketchAsync("delete_neg", "front", Line([0, 0], [50, 0]));

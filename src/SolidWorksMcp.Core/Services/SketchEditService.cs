@@ -2127,6 +2127,10 @@ public sealed class SketchEditService(SwSession session)
             var names = refs.Where(r => r.Obj is ISketchSegment).Select(r => ((ISketchSegment)r.Obj).GetName()).ToList();
             int points = refs.Count(r => r.Obj is ISketchPoint);
             var before = SkState.Take(sketch);
+            // S86 (a): what SOLIDWORKS may remove with them (a polygon's construction circle), read before they go.
+            var relsBefore = SketchRelations.All(sketch);
+            var dimsBefore = FeatureVerifier.Dimensions((IFeature)sketch);
+            var owners = SketchRelations.Owners(sketch.Segments());
             d.ClearSelection2(true);
             SelectAll(d, refs, 0);
             d.EditDelete();
@@ -2145,6 +2149,16 @@ public sealed class SketchEditService(SwSession session)
             var diff = Diff(before, after);
             var checks = new List<string> { names.Count > 0 ? $"{names.Count} segment(s) gone" : $"{before.Points - after.Points} point(s) gone" };
             if (after.Relations < before.Relations) checks.Add($"relations {before.Relations} → {after.Relations}");
+            var unasked = diff.Removed.Where(n => !names.Contains(n)).ToList();
+            if (unasked.Count > 0)
+            {
+                var dimsAfter = FeatureVerifier.Dimensions((IFeature)sketch).Select(x => x.Name).ToHashSet(StringComparer.Ordinal);
+                var lostDims = dimsBefore.Where(x => !dimsAfter.Contains(x.Name))
+                    .Select(x => $"{x.Name} = {Num(x.Value)} {x.Unit}").ToList();
+                var lostRels = SketchRelations.Touching(relsBefore, owners, unasked.ToHashSet(StringComparer.Ordinal));
+                if (SketchRemoved.Warning(unasked.Select(n => Describe(n, before.Segs[n])).ToList(), lostRels, lostDims) is { } w)
+                    ctx.Warn(w);
+            }
             return Change(ctx, d, sketch, "delete", before, after, diff, checks, refs.Select(r => r.Info("segments")).ToList());
         }, RunOptions.Write(doc), ct);
     }
@@ -2383,6 +2397,16 @@ public sealed class SketchEditService(SwSession session)
     }
 
     private static string Num(double v) => Math.Round(v, 3).ToString(System.Globalization.CultureInfo.InvariantCulture);
+
+    /// <summary>"'Arc1' (construction circle, diameter 24 mm)": a segment as the delete's warning names it.</summary>
+    private static string Describe(string name, Geo g) =>
+        $"'{name}' ({(g.Construction ? "construction " : "")}{g.Kind}" + g.Kind switch
+        {
+            "circle" => $", diameter {Num(Units.Mm(2 * g.Radius))} mm)",
+            "arc" => $", radius {Num(Units.Mm(g.Radius))} mm)",
+            "line" => $", {Num(Units.Mm(g.Length))} mm long)",
+            _ => ")",
+        };
 
     private static string Invariant(double v) => v.ToString(System.Globalization.CultureInfo.InvariantCulture);
 

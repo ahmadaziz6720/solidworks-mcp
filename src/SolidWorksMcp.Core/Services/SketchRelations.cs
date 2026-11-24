@@ -153,6 +153,45 @@ internal static class SketchRelations
     private static string Describe(Rel r, Func<string, object, string> label) =>
         $"{TypeName(r.Type)}: {string.Join(", ", r.Keys.Select((k, i) => label(k, r.Entities[i])))}";
 
+    // ------------------------------------------------------------------ sketch_delete
+
+    /// <summary>Every relation of the sketch with the keys of what it relates (empty when they can't be listed).</summary>
+    public static List<Rel> All(ISketch s)
+    {
+        var list = new List<Rel>();
+        try
+        {
+            if (s.RelationManager is not ISketchRelationManager rm) return list;
+            string sk = NameOf(s);
+            foreach (var r in rm.SkRelations((int)swSketchRelationFilterType_e.swAll)) list.Add(Read(r, sk));
+        }
+        catch (Exception ex) when (!ComArgs.IsDisconnect(ex)) { /* informational */ }
+        return list;
+    }
+
+    /// <summary>
+    /// S86 (a): the relations (from <see cref="All"/>, read before a delete) that touched one of the segments in
+    /// <paramref name="gone"/> or a point only they owned (<paramref name="owners"/> from <see cref="Owners"/>), as
+    /// "equal: Arc1, Arc2", each once.
+    /// </summary>
+    public static List<string> Touching(IReadOnlyList<Rel> rels, IReadOnlyDictionary<string, List<string>> owners, IReadOnlySet<string> gone)
+    {
+        bool Mine(string k) => k.StartsWith("s:", StringComparison.Ordinal)
+            ? gone.Contains(k[2..])
+            : owners.TryGetValue(k, out var o) && o.Count > 0 && o.All(x => gone.Contains(x.Split(' ')[0]));
+        string Label(string k) => k switch
+        {
+            _ when k.StartsWith("s:", StringComparison.Ordinal) => k[2..],
+            _ when k.StartsWith("p:", StringComparison.Ordinal) => owners.TryGetValue(k, out var o) && o.Count > 0 ? o[0] : "a point",
+            "origin" => "origin",
+            _ when k.StartsWith("x:", StringComparison.Ordinal) => "a point of another sketch",
+            _ when k.StartsWith("f:", StringComparison.Ordinal) => k[2..],
+            _ => "a model entity",
+        };
+        return rels.Where(r => r.Keys.Any(Mine)).Select(r => $"{TypeName(r.Type)}: {string.Join(", ", r.Keys.Select(Label))}")
+                   .Distinct(StringComparer.Ordinal).ToList();
+    }
+
     // ------------------------------------------------------------------ sketch_add
 
     /// <summary>
