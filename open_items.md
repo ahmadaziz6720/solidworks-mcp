@@ -17,7 +17,7 @@ Closed all the same, its PR named, and an open PR no longer holds an item in Wai
 item sent upstream ends with `**Upstream: PR #9, open.**`, one per PR or issue
 (`merged`, `closed unmerged`; an issue `open` or `closed`), kept to its state.
 
-**Open: S4, S5, S7, S10 to S12, S33, S34, S52, S60, S64, S65, S79 to S82, S85, S86, S92, S94, S96, S99, S101, S105, S109, S111, S115, S123 to S125, S129, S131.**
+**Open: S4, S5, S7, S10 to S12, S33, S34, S52, S60, S64, S65, S79 to S82, S85, S86, S92, S94, S96, S99, S101, S105, S109, S111, S115, S123 to S125, S129.**
 Sorted 2026-11-22, the scenario test of build `20261122-194424` (findings 2026-11-22): S98,
 S108, S90, S106, S126, S97 and S104 held and closed, S104 as far as this machine allows (no
 8.3 folder in its File Locations); S1 held for `drw_view_detail` and a view at an angle and
@@ -652,8 +652,8 @@ its point.
 - [x] S103 (a) and (b): committed (the failed-split hint, changed after its live run, has no live test) (`285249f`)
 - [x] S127: committed (`8f88347`)
 - [x] S128: committed (`abe65d4`)
-- [x] S130: committed
-- [ ] S131: committed
+- [x] S130: committed (`8949e93`)
+- [x] S131: committed
 - [ ] Group 6: full live tests and release (build: )
 - [ ] Group 6: scenario test (session id: ), its entry committed and sorted
 - [ ] S80 (a) and (c): committed
@@ -2154,26 +2154,6 @@ Decided 2026-11-22 by the run, not the owner: left out of the run, by the run's 
 point needing the owner (a choice, a large change), a new Open item, not in this run",
 because it needs a probe first and may be SOLIDWORKS' own: for the next plan.
 
-### S131 - `drw_table_add {kind:"hole"}` with no `face` picks a tab with one hole over a floor with six countersunk holes - OPEN 2026-11-22
-
-Sorted out of the entry of 2026-11-22 (the scenario test of build `20261122-194424`), point
-12. `drw_table_add {kind:"hole"}` on a top plan view with no `face`: one row, a Ø4.5 hole
-through a 5 mm tab, its origin a vertex of the tab, while the floor facing the same way
-holds six countersunk holes. The description says "default: the face toward the viewer with
-the most holes"; whether countersinks count as holes there, or "toward the viewer" means the
-nearest face, is not said. Small; reported `ok`.
-
-Local, small, in group 5's files (`DrawingService.Tables.cs`).
-Decided 2026-11-22 by the run, not the owner: the default face counts countersunk and
-counterbored holes as holes, and the result names the face chosen and its hole count. Test
-to start from: point 12's case, a part with a tab of one plain hole and a floor of six
-countersunk holes facing the same way: the floor chosen, its six holes listed, the face and
-the count named (fails now: the tab, one row). Default model.
-Decided 2026-11-22 by the run, not the owner: taken into group 6, by the run's rule "a new
-point, small and in the group's files, a later step of this run ... taken into the next
-group", because it is the default face's count in the table code group 5 changed (S106),
-needing no choice of the owner's, found by group 5's check.
-
 ## Waiting
 
 ### S89 - SOLIDWORKS started by `sw_connect launch` cannot be reached from a later server process - BUILT 2026-11-22, proof: a session that runs `sw_connect {launch:true}` with SOLIDWORKS closed
@@ -2659,4 +2639,32 @@ Fix: after the view is read, `SectionAsync` warns "'<view>' is at [x, y] mm, not
 Before: `DrawingLiveTests.A_section_given_an_atMm_off_its_alignment_warns_of_where_it_went` failed "no warning that the section is not at atMm: atMm [305, 218,2], centre [305, 178,2]; warnings: " (empty).
 After: it passes (a vertical cut with `atMm` 40 mm off the parent's row warned, `atMm` on the row not), with `Section_through_the_middle_is_a_hatched_section_view`, `A_section_with_no_atMm_is_placed_so_its_own_label_clears_the_title_block`, `Views_move_with_their_aligned_children_and_are_deleted` and `A_section_s_model_box_is_what_lies_behind_the_cut` (live, 5/5; the four others run before a wording change of the warning only); unit tests 358/358; `check_repo` ok. Not run: `--check-catalog` and the catalog test (no description changed). The finding's own case (a section across an auxiliary view) was not rebuilt: the same code path, the alignment being the parent's, shown here with a plain parent.
 Made stricter: a section not where `atMm` asked is no longer silent.
+Local: on `sw2023`, in the commit that moves it here; not yet in a build. Upstream: not yet decided.
+
+### S131 - `drw_table_add {kind:"hole"}` with no `face` picks a tab with one hole over a floor with six countersunk holes - BUILT 2026-11-24, proof: the scenario test of the group 6 build
+
+Sorted out of the entry of 2026-11-22 (the scenario test of build `20261122-194424`), point
+12. `drw_table_add {kind:"hole"}` on a top plan view with no `face`: one row, a Ø4.5 hole
+through a 5 mm tab, its origin a vertex of the tab, while the floor facing the same way
+holds six countersunk holes. The description says "default: the face toward the viewer with
+the most holes"; whether countersinks count as holes there, or "toward the viewer" means the
+nearest face, is not said. Small; reported `ok`.
+
+Local, small, in group 5's files (`DrawingService.Tables.cs`).
+Decided 2026-11-22 by the run, not the owner: the default face counts countersunk and
+counterbored holes as holes, and the result names the face chosen and its hole count. Test
+to start from: point 12's case, a part with a tab of one plain hole and a floor of six
+countersunk holes facing the same way: the floor chosen, its six holes listed, the face and
+the count named (fails now: the tab, one row). Default model.
+Decided 2026-11-22 by the run, not the owner: taken into group 6, by the run's rule "a new
+point, small and in the group's files, a later step of this run ... taken into the next
+group", because it is the default face's count in the table code group 5 changed (S106),
+needing no choice of the owner's, found by group 5's check.
+Decided 2026-11-24 by the run, not the owner: a hole is a full circle on the face that leads, through coaxial cones (a countersink) and annular planes (a counterbore's floor), to a hole's cylinder, and a row's size may read either its bore or its diameter at the face, because the size column of a Hole Wizard hole reads the bore first while a cut's reads the edge, and the X/Y check stays as strict.
+Decided 2026-11-24 by the run, not the owner: the face and its count are named for the default only, as a `resolved` entry "face (default)" with its id and a check line with the runner-up's count, because a given face is already echoed in `resolved` and the check line counts the rows.
+Cause: `HolesOn` counted a circular edge of the face only when the face across it was a hole's cylinder; a countersunk hole's edge on the face meets a cone, so the floor counted 0 and the tab's plain hole won; a counterbored one counted with its counterbore's diameter.
+Fix: `HolesOn` walks from each full circle down the coaxial faces (`BoreOf`: hole cylinders, cones, annular planes, up to six steps) and keeps the smallest hole cylinder as the bore; the size check accepts the bore or the diameter at the face. With no `face`, the result names the face chosen (`resolved` "face (default)", its id) and a check "face F<n> by default: toward the viewer, the most holes, <n> hole(s); next of <k> other face(s): <m>".
+Before: `DrawingLiveTests.Hole_table_default_face_counts_countersunk_holes_and_names_the_face` failed with "rows [A1, 10, 10, <MOD-DIAM> 4,50 <HOLE-DEPTH> 4,00]; checks ['origin' picked at its sheet position | 1 row(s), each hole's X/Y from the origin and size read back | ...]" (the tab, one row).
+After: it passes (a floor with six M4 countersunk holes and one M4 counterbore, a 5 mm tab with a Ø4.5 drill: the floor chosen, 7 rows, Y 15 and 45 from its corner, the face's id in `resolved` and the check), with `Hole_table_lists_the_hole_from_the_lower_left_corner_and_from_a_given_origin`, `A_table_over_a_view_gives_its_extent_and_is_warned_and_so_is_a_note_across_it`, `Tables_that_cant_work_are_refused` and `A_detail_with_no_atMm_is_placed_clear_of_a_hole_table` (live, 5/5); unit tests 358/358; `check_repo` ok. Not run: `--check-catalog` and the catalog test (no description changed). The finding's own part was not rebuilt.
+Made stricter: a countersunk or counterbored hole is counted and checked, and the default face is named with its count.
 Local: on `sw2023`, in the commit that moves it here; not yet in a build. Upstream: not yet decided.

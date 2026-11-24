@@ -92,8 +92,8 @@ public sealed partial class DrawingService
             RunOptions.Write(q.Doc) with { Timeout = Longer(session, 90) }, ct);
     }
 
-    /// <summary>A hole the table should list: its centre (model m) and diameter (m).</summary>
-    private sealed record HoleOnFace(Vec3 Center, double Diameter);
+    /// <summary>A hole the table should list: its centre (model m), its bore and its diameter at the face (m).</summary>
+    private sealed record HoleOnFace(Vec3 Center, double Diameter, double TopDiameter);
 
     private static DrwTableResult HoleTable(SwContext ctx, DrwTableRequest q, string? tpl, (double X, double Y)? at)
     {
@@ -110,8 +110,9 @@ public sealed partial class DrawingService
         var t = new Xform(xf);
         double s = SheetScale(xf, hit.View.ScaleDecimal);
         var resolved = new List<ResolvedInfo>();
+        var checks = new List<string>();
 
-        // The face: given, or the face toward the viewer with the most holes.
+        // The face: given, or the face toward the viewer with the most holes, countersunk and counterbored ones counted (S131).
         IFace2 face;
         if (q.Face is not null)
         {
@@ -121,11 +122,17 @@ public sealed partial class DrawingService
         }
         else
         {
-            face = ((IPartDoc)model).Bodies(swBodyType_e.swSolidBody, visibleOnly: true).SelectMany(b => b.Faces())
-                       .Where(f => Topology.Describe(f) is { Surface: "plane", Normal: Vec3 n } && t.ApplyVector(n).Normalized().Z > 1 - 1e-6)
-                       .Select(f => (F: f, N: HolesOn(f).Count)).Where(x => x.N > 0).OrderByDescending(x => x.N).Select(x => x.F).FirstOrDefault()
-                   ?? throw SwException.InvalidArgument($"No face toward the viewer in '{hit.Name}' has holes.",
-                       "Pass 'face' (a planar face with holes), or use a view that looks at the holes.");
+            var ranked = ((IPartDoc)model).Bodies(swBodyType_e.swSolidBody, visibleOnly: true).SelectMany(b => b.Faces())
+                             .Where(f => Topology.Describe(f) is { Surface: "plane", Normal: Vec3 n } && t.ApplyVector(n).Normalized().Z > 1 - 1e-6)
+                             .Select(f => (F: f, N: HolesOn(f).Count)).Where(x => x.N > 0).OrderByDescending(x => x.N).ToList();
+            if (ranked.Count == 0)
+                throw SwException.InvalidArgument($"No face toward the viewer in '{hit.Name}' has holes.",
+                    "Pass 'face' (a planar face with holes), or use a view that looks at the holes.");
+            face = ranked[0].F;
+            var rf = EntityResolver.Resolve(ctx, model, new EntityRef { Type = "face", At = Units.Mm(Topology.InteriorPoint(face)) }, "face", EntityKind.Face);
+            resolved.Add(rf.Info("face (default)"));
+            string others = ranked.Count > 1 ? $"; next of {ranked.Count - 1} other face(s): {ranked[1].N}" : "";
+            checks.Add($"face {rf.Id ?? rf.Label} by default: toward the viewer, the most holes, {ranked[0].N} hole(s){others}");
         }
         var fg = Topology.Describe(face);
         if (fg is not { Surface: "plane", Normal: Vec3 fnorm })
@@ -150,13 +157,12 @@ public sealed partial class DrawingService
         var expected = holes.Select(h =>
         {
             var c = t.ApplyPoint(h.Center);
-            return (X: Units.Mm((c.X - go.P0.X) / s), Y: Units.Mm((c.Y - go.P0.Y) / s), Dia: Units.Mm(h.Diameter));
+            return (X: Units.Mm((c.X - go.P0.X) / s), Y: Units.Mm((c.Y - go.P0.Y) / s), Dia: Units.Mm(h.Diameter), Top: Units.Mm(h.TopDiameter));
         }).ToList();
 
         var outline = Outline(hit);
         var (x, y) = at ?? (outline.X0, outline.Y0 - 10);
         string path = tpl ?? TableTemplate(ctx, swUserPreferenceStringValue_e.swFileLocationsHoleTableTemplates, "standard hole table--letters.sldholtbt");
-        var checks = new List<string>();
         Activate(drw, hit);
         d.ClearSelection2(true);
         SelectInView(ctx, d, hit, ro, go, t, true, append: false, "origin", checks, pickFirst: true, mark: 1);
@@ -189,7 +195,7 @@ public sealed partial class DrawingService
                 var row = left.FirstOrDefault(r => DrwAnnotationSpec.Number(r[cx]) is double rx && DrwAnnotationSpec.Number(r[cy]) is double ry &&
                                                    Math.Abs(rx - e.X) <= 0.006 && Math.Abs(ry - e.Y) <= 0.006);
                 if (row is null) { problem = $"no row at X {e.X}, Y {e.Y} mm (a Ø{e.Dia} hole)"; break; }
-                if (cs >= 0 && DrwAnnotationSpec.Number(row[cs]) is double dia && Math.Abs(dia - e.Dia) > 0.006)
+                if (cs >= 0 && DrwAnnotationSpec.Number(row[cs]) is double dia && Math.Abs(dia - e.Dia) > 0.006 && Math.Abs(dia - e.Top) > 0.006)
                 {
                     problem = $"the hole at X {e.X}, Y {e.Y} mm reads size '{row[cs]}', not Ø{e.Dia}";
                     break;
@@ -222,18 +228,50 @@ public sealed partial class DrawingService
         };
     }
 
-    /// <summary>The holes through a planar face: its full circular edges whose other face is a hole's cylinder.</summary>
+    /// <summary>
+    /// The holes through a planar face: its full circular edges that open onto a hole's cylinder, directly or through a
+    /// countersink's cone or a counterbore's step (S131).
+    /// </summary>
     private static List<HoleOnFace> HolesOn(IFace2 face)
     {
         var list = new List<HoleOnFace>();
         foreach (var e in face.Edges())
         {
             var g = Topology.Describe(e);
-            if (g is not { Curve: "circle", Closed: true, Center: Vec3 c, Radius: double r }) continue;
-            var other = ComArgs.Objects<IFace2>((object?)e.GetTwoAdjacentFaces2()).FirstOrDefault(f => !ReferenceEquals(f, face) && !f.IsSame(face));
-            if (other is not null && Topology.IsHole(other, Topology.Describe(other))) list.Add(new HoleOnFace(c, 2 * r));
+            if (g is not { Curve: "circle", Closed: true, Center: Vec3 c, Radius: double r, Axis: Vec3 ax }) continue;
+            if (BoreOf(Across(e, face), e, c, ax) is double bore) list.Add(new HoleOnFace(c, bore, 2 * r));
         }
         return list;
+    }
+
+    private static IFace2? Across(IEdge e, IFace2 face) =>
+        ComArgs.Objects<IFace2>((object?)e.GetTwoAdjacentFaces2()).FirstOrDefault(f => !ReferenceEquals(f, face) && !f.IsSame(face));
+
+    /// <summary>
+    /// The smallest hole cylinder's diameter (m) down the faces coaxial with a face's circular edge: hole cylinders,
+    /// cones (a countersink) and annular planes (a counterbore's floor); null when no hole cylinder is met.
+    /// </summary>
+    private static double? BoreOf(IFace2? cur, IEdge entry, Vec3 c, Vec3 ax)
+    {
+        bool OnAxis(Vec3 p) => (p - c).Cross(ax).Length < 1e-6;
+        // A coaxial full circle's centre and radius, else null; the edge came in by is told apart by them.
+        (Vec3 C, double R)? Ring(IEdge x) => Topology.Describe(x) is { Curve: "circle", Closed: true, Center: Vec3 xc, Axis: Vec3 xa, Radius: double xr } &&
+                                             OnAxis(xc) && xa.Cross(ax).Length < 1e-6 ? (xc, xr) : null;
+        var came = Ring(entry);
+        double? bore = null;
+        for (int step = 0; step < 6 && cur is not null && came is not null; step++)
+        {
+            var fg = Topology.Describe(cur);
+            bool along = fg.Axis is Vec3 fa && fg.AxisOrigin is Vec3 fo && fa.Cross(ax).Length < 1e-6 && OnAxis(fo);
+            var edges = cur.Edges().ToList();
+            if (fg.Surface == "cylinder" && along && Topology.IsHole(cur, fg)) bore = Math.Min(bore ?? double.MaxValue, 2 * fg.Radius!.Value);
+            else if (!(fg.Surface == "cone" && along) && !(fg.Surface == "plane" && edges.All(x => Ring(x) is not null))) break;
+            var (from, at) = (cur, came.Value);
+            var next = edges.Select(x => (E: x, K: Ring(x))).FirstOrDefault(x => x.K is (Vec3 kc, double kr) && (kc.DistanceTo(at.C) > 1e-7 || Math.Abs(kr - at.R) > 1e-7));
+            if (next.E is null) break;
+            (cur, came) = (Across(next.E, from), next.K);
+        }
+        return bore;
     }
 
     private static DrwTableResult RevisionTable(SwContext ctx, DrwTableRequest q, string? tpl, (double X, double Y)? at)

@@ -1645,6 +1645,42 @@ public class DrawingLiveTests(LiveFixture fx) : LiveTest(fx)
     }
 
     [Fact]
+    public async Task Hole_table_default_face_counts_countersunk_holes_and_names_the_face()
+    {
+        // S131: a tab with one plain hole was chosen over a floor with six countersunk holes facing the same way.
+        // The block's front face (z = 20) is the floor; a 20 x 20 x 5 tab on it (z = 25) has a Ø4.5 drill.
+        // Before the fix: the tab chosen, one row.
+        var (doc, path) = await BlockAsync("drw_csk");
+        await Sk.StartAsync(doc, new EntityRef { Type = "face", At = [40, 20, 20] }, false);
+        await Sk.AddAsync(doc, [new SketchEntity { Kind = "rectangle", Center = [40, 20, 20], WidthMm = 20, HeightMm = 20 }]);
+        var tab = await Fs.ExtrudeAsync(new ExtrudeRequest { Doc = doc, DepthMm = 5 });
+        Assert.Equal(2000, tab.Verified.VolumeDeltaMm3, 1e-3);
+        var pf = new PartFeatureService(S);
+        await pf.HoleAsync(new HoleRequest { Doc = doc, Points = [[40, 20, 25]], Type = "drill", DiameterMm = 4.5, End = "blind", DepthMm = 4 });
+        await pf.HoleAsync(new HoleRequest
+        {
+            Doc = doc, Points = [[-35, -15, 20], [-15, -15, 20], [5, -15, 20], [-35, 15, 20], [-15, 15, 20], [5, 15, 20]],
+            Type = "countersink", Size = "M4", End = "through_all",
+        });
+        // And a counterbored one, counted too.
+        await pf.HoleAsync(new HoleRequest { Doc = doc, Points = [[25, -15, 20]], Type = "counterbore", Size = "M4", End = "through_all" });
+        await Docs.SaveAsync(doc, "inPlace", null, false);
+        string drw = await DrawingAsync("drw_csk");
+        var front = (await Drw.ViewsStandardAsync(path, ["front"], null, drw)).Views.Single();
+
+        var t = await Drw.TableAddAsync(new DrwTableRequest { Doc = drw, Kind = "hole", View = front.Name });
+        string seen = $"rows [{string.Join(" | ", t.Items.Select(r => string.Join(", ", r)))}]; checks [{string.Join(" | ", t.Checks ?? [])}]";
+        Assert.True(t.Rows == 7, seen);
+        // The floor's lowest-left vertex (-50, -30) is the origin: the holes sit 15 and 45 up.
+        int cy = t.Columns.ToList().FindIndex(c => c.Contains("Y", StringComparison.OrdinalIgnoreCase));
+        Assert.Equal(new double[] { 15, 15, 15, 15, 45, 45, 45 }, t.Items.Select(r => Math.Round(double.Parse(r[cy], CultureInfo.InvariantCulture), 2)).Order().ToArray());
+        // The result names the face chosen and its hole count.
+        var face = Assert.Single(t.Resolved!, r => r.Input.StartsWith("face", StringComparison.Ordinal));
+        Assert.StartsWith("F", face.Id);
+        Assert.Contains(t.Checks!, c => c.Contains($"face {face.Id}", StringComparison.Ordinal) && c.Contains("7 hole(s)", StringComparison.Ordinal));
+    }
+
+    [Fact]
     public async Task A_table_over_a_view_gives_its_extent_and_is_warned_and_so_is_a_note_across_it()
     {
         // S106: a table landed over a view with no extent and no warning, and a note added across it read "clear".
