@@ -939,6 +939,34 @@ public class SketchEditLiveTests(LiveFixture fx) : LiveTest(fx)
     }
 
     [Fact]
+    public async Task Sketch_add_of_a_hundred_lines_finishes_within_its_limit()
+    {
+        // S101: a profile of 112 entities in one sketch_add took 183 to 254 s and ended TIMEOUT at 50 s, completing later.
+        // A closed staircase of 100 lines, each its own entity, end on end.
+        var pts = new List<double[]> { new double[] { 0, 0 } };
+        for (int k = 0; k < 49; k++)
+        {
+            var p = pts[^1];
+            pts.Add([p[0], p[1] + 2]);
+            pts.Add([p[0] + 2, p[1] + 2]);
+        }
+        pts.Add([pts[^1][0], 0]);
+        pts.Add([0, 0]);
+        var lines = pts.Zip(pts.Skip(1), (a, b) => Line(a, b)).ToArray();
+        Assert.Equal(100, lines.Length);
+        string doc = await NewPartAsync("s101_hundred");
+        await Sk.StartAsync(doc, new EntityRef { Name = "front" }, false);
+        var clock = System.Diagnostics.Stopwatch.StartNew();
+        var added = await Sk.AddAsync(doc, lines);
+        double s = clock.Elapsed.TotalSeconds;
+        Assert.Equal(100, added.Entities.Count);
+        Assert.Equal("closed", added.Contours.Status);
+        Assert.Equal(1, added.Contours.ClosedContours);
+        Assert.Equal(100, added.Contours.Segments);
+        Assert.True(s < 30, $"100 lines took {s:0.0} s");
+    }
+
+    [Fact]
     public async Task Sketch_add_merges_an_arc_drawn_on_a_polyline_s_ends_into_one_closed_contour()
     {
         // S65 (e): a polyline and a separate arc drawn on its two ends left those ends unmerged ("ManyOpen"), and no

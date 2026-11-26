@@ -109,6 +109,28 @@ internal static class SketchRelations
 
     public static HashSet<string> PointKeys(ISketch s) => s.Points().Select(PointKey).ToHashSet(StringComparer.Ordinal);
 
+    /// <summary>
+    /// S101: who has each point of the sketch through one sketch_add (<see cref="Owners"/>), read at its first use and kept
+    /// up as each entity draws: read again per entity, it took 115 of the 165 s of 100 lines.
+    /// </summary>
+    internal sealed class PointOwners(ISketch sketch)
+    {
+        private Dictionary<string, List<string>>? _map;
+
+        /// <summary>The owners of <paramref name="key"/> that are no segment in <paramref name="except"/>.</summary>
+        public List<string>? Others(string key, IReadOnlySet<string> except) =>
+            (_map ??= Owners(sketch.Segments())).TryGetValue(key, out var l)
+                ? l.Where(o => !except.Contains(o[..o.LastIndexOf(' ')])).ToList() : null;
+
+        /// <summary>A point of a segment just drawn ("Line5 start"); nothing before the first read, which reads it.</summary>
+        public void Add(string key, string owner)
+        {
+            if (_map is null) return;
+            if (!_map.TryGetValue(key, out var l)) _map[key] = l = [];
+            if (!l.Contains(owner)) l.Add(owner);
+        }
+    }
+
     private static List<ISketchRelation> On(object o) => o switch
     {
         ISketchSegment s => s.SkRelations(),
@@ -200,30 +222,38 @@ internal static class SketchRelations
     /// <paramref name="known"/> (the sketch's points before this entity; this entity's are added to it).
     /// </summary>
     public static (List<string>? Relations, List<string>? Merged) Made(ISketch sketch, IReadOnlyList<ISketchSegment> segs, int newPoints,
-        int relationsBefore, HashSet<string> known)
+        int relationsBefore, HashSet<string> known, PointOwners owners)
     {
         string sk = NameOf(sketch);
         bool is3D = sketch.Is3D();
-        var names = segs.Select(s => s.GetName()).ToHashSet(StringComparer.Ordinal);
+        var names = new HashSet<string>(StringComparer.Ordinal);
         var pts = new Dictionary<string, (string Label, ISketchPoint P)>(StringComparer.Ordinal);
+        var mine = new List<(string Key, string Owner)>();
         foreach (var s in segs)
+        {
+            string n = s.GetName();
+            names.Add(n);
             foreach (var (w, p) in Ends(s))
-                pts.TryAdd(PointKey(p), ($"{s.GetName()} {w}", p));
+            {
+                string k = PointKey(p);
+                pts.TryAdd(k, ($"{n} {w}", p));
+                mine.Add((k, $"{n} {w}"));
+            }
+        }
         var mergedKeys = pts.Keys.Where(known.Contains).ToHashSet(StringComparer.Ordinal);
-
-        Dictionary<string, List<string>>? others = null;
-        Dictionary<string, List<string>> Others() => others ??= Owners(sketch.Segments().Where(s => !names.Contains(s.GetName())));
+        List<string>? Others(string k) => owners.Others(k, names);
 
         List<string>? merged = null;
         if (mergedKeys.Count > 0)
             merged = mergedKeys.Select(k =>
             {
                 var (lbl, p) = pts[k];
-                var o = Others().GetValueOrDefault(k);
+                var o = Others(k);
                 return $"{lbl} merged onto [{Fmt(p, is3D)}]" + (o is { Count: > 0 } ? $" ({string.Join(", ", o.Take(3))})" : "");
             }).ToList();
         known.UnionWith(pts.Keys);
         if (newPoints > pts.Count - mergedKeys.Count) known.UnionWith(PointKeys(sketch)); // free points (a point, a centre)
+        foreach (var (k, o) in mine) owners.Add(k, o);
 
         int now = Count(sketch);
         if (now <= relationsBefore) return (null, merged);
@@ -234,7 +264,7 @@ internal static class SketchRelations
             _ when k.StartsWith("s:", StringComparison.Ordinal) => k[2..],
             _ when k.StartsWith("p:", StringComparison.Ordinal) =>
                 pts.TryGetValue(k, out var v) ? v.Label
-                : Others().GetValueOrDefault(k) is { Count: > 0 } ow ? ow[0]
+                : Others(k) is { Count: > 0 } ow ? ow[0]
                 : o is ISketchPoint p ? $"point [{Fmt(p, is3D)}]" : "a point",
             "origin" => "origin",
             _ when k.StartsWith("x:", StringComparison.Ordinal) && o is ISketchSegment xs => k[2..],

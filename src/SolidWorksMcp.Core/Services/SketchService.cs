@@ -178,6 +178,11 @@ public sealed class SketchService(SwSession session)
             var results = new List<SketchEntityResult>();
             // S56: the points already in the sketch, to tell which ends SOLIDWORKS merged onto one of them.
             var known = SketchRelations.PointKeys(sketch);
+            // S101: the sketch's segment names, its point count and who has each point, read once and kept up as each entity
+            // draws (read again per entity, 100 lines took 165 s, 150 of them in those reads).
+            var names = SegmentNames(sketch);
+            int points = sketch.GetSketchPointsCount2();
+            var owners = new SketchRelations.PointOwners(sketch);
             // S80 (a): each entity's points as asked, its segments and free points, compared with the solved sketch at the end.
             var asked = new List<(List<DrawnPoint> Drawn, List<ISketchSegment> Segs, List<ISketchPoint> Free)>();
             try
@@ -185,20 +190,23 @@ public sealed class SketchService(SwSession session)
                 for (int i = 0; i < entities.Count; i++)
                 {
                     var e = entities[i];
-                    var before = SegmentNames(sketch);
-                    int pointsBefore = sketch.Points().Count, textsBefore = Texts(sketch), relationsBefore = SketchRelations.Count(sketch);
+                    bool text = e.Kind.Trim().Equals("text", StringComparison.OrdinalIgnoreCase);
+                    int textsBefore = text ? Texts(sketch) : 0, relationsBefore = SketchRelations.Count(sketch);
                     var conv = new PointConverter(m2s, is3D, $"entities[{i}]", ctx);
                     var checks = new List<string>();
                     var drawn = new List<DrawnPoint>();
                     var free = new List<ISketchPoint>();
                     Draw(d, sm, e, conv, checks, drawn, free, is3D);
-                    var segs = sketch.Segments().Where(s => !before.Contains(s.GetName())).ToList();
+                    var fresh = NewSegments(sketch, names);
+                    var segs = fresh.Select(x => x.Seg).ToList();
                     asked.Add((drawn, segs, free));
                     created.AddRange(segs);
-                    foreach (var s in segs) entityOf[s.GetName()] = i;
-                    int newPoints = sketch.Points().Count - pointsBefore;
-                    var made = SketchRelations.Made(sketch, segs, newPoints, relationsBefore, known);
-                    results.Add(Check(e, i, segs, newPoints, Texts(sketch) - textsBefore, checks, conv, made));
+                    foreach (var (_, name) in fresh) entityOf[name] = i;
+                    int newPoints = sketch.GetSketchPointsCount2() - points;
+                    points += newPoints;
+                    var made = SketchRelations.Made(sketch, segs, newPoints, relationsBefore, known, owners);
+                    results.Add(Check(e, i, segs, fresh.Select(x => x.Name).ToList(), newPoints,
+                        text ? Texts(sketch) - textsBefore : 0, checks, conv, made));
                     if (SketchDrift.SquareEqual($"entities[{i}] ({results[^1].Kind})", results[^1].Kind, made.Relations) is { } sq) ctx.Warn(sq);
                 }
                 MergeEnds(ctx, d, sketch, created, entityOf, results);
@@ -217,9 +225,9 @@ public sealed class SketchService(SwSession session)
             for (int i = 0; i < asked.Count; i++)
             {
                 var (drawn, segs, free) = asked[i];
-                var solved = Solved(segs, free);
+                var solved = Solved(segs, results[i].Segments, free);
                 if (SketchDrift.Moved($"entities[{i}] ({results[i].Kind})", drawn, solved, results[i].Relations,
-                        segs.Select(s => s.GetName()).ToList(), is3D, MergeTol) is { } moved)
+                        results[i].Segments, is3D, MergeTol) is { } moved)
                     ctx.Warn(moved);
             }
             return new SketchAddResult
@@ -230,7 +238,22 @@ public sealed class SketchService(SwSession session)
                 EndsMerged = results.Sum(r => r.Merged?.Count ?? 0) is > 0 and var n ? n : null,
                 Contours = contours,
             };
-        }, RunOptions.Write(doc), ct);
+        }, RunOptions.Write(doc) with { Timeout = AddLimit(entities) }, ct);
+
+    /// <summary>
+    /// S101: sketch_add's limit, the default or 0.5 s a segment, the longer: what the server reads of each one stays (100
+    /// lines took 17 s once it read the sketch once a call, 165 s before). A rectangle or a slot is 4 segments, a polygon
+    /// its sides and its circle, a polyline a segment a point.
+    /// </summary>
+    private TimeSpan AddLimit(IReadOnlyList<SketchEntity>? entities) =>
+        TimeSpan.FromSeconds(Math.Max(session.Options.DefaultTimeout.TotalSeconds,
+            0.5 * (entities?.Sum(e => e?.Kind?.Trim().ToLowerInvariant() switch
+            {
+                "polyline" => e.Points?.Length ?? 1,
+                "rectangle" or "slot" => 4,
+                "polygon" => (e.Sides ?? 6) + 1,
+                _ => 1,
+            }) ?? 0)));
 
     // ------------------------------------------------------------------ finish
 
@@ -398,15 +421,16 @@ public sealed class SketchService(SwSession session)
     }
 
     /// <summary>S80 (a): the points of what one entity drew, where the solved sketch has them, each with who has it.</summary>
-    private static List<SolvedPoint> Solved(List<ISketchSegment> segs, List<ISketchPoint> free)
+    /// <param name="names">The segments' names, in their order.</param>
+    private static List<SolvedPoint> Solved(List<ISketchSegment> segs, IReadOnlyList<string> names, List<ISketchPoint> free)
     {
         var at = new Dictionary<string, (List<string> Owners, Vec3 At)>(StringComparer.Ordinal);
-        foreach (var s in segs)
-            foreach (var (w, p) in SketchRelations.Ends(s))
+        for (int i = 0; i < segs.Count; i++)
+            foreach (var (w, p) in SketchRelations.Ends(segs[i]))
             {
                 string k = SketchRelations.PointKey(p);
                 if (!at.TryGetValue(k, out var v)) at[k] = v = ([], new Vec3(p.X, p.Y, p.Z));
-                v.Owners.Add($"{s.GetName()} {w}");
+                v.Owners.Add($"{names[i]} {w}");
             }
         var list = at.Values.Select(v => new SolvedPoint(v.Owners, v.At)).ToList();
         list.AddRange(free.Select(p => new SolvedPoint(["a point"], new Vec3(p.X, p.Y, p.Z))));
@@ -416,6 +440,35 @@ public sealed class SketchService(SwSession session)
     private static string Mm6(double m) => (Units.Mm(m) + 0.0).ToString("0.######", System.Globalization.CultureInfo.InvariantCulture);
 
     private static HashSet<string> SegmentNames(ISketch s) => s.Segments().Select(x => x.GetName()).ToHashSet(StringComparer.Ordinal);
+
+    /// <summary>
+    /// S101: the segments an entity just drew, <paramref name="names"/> (the sketch's before it) brought up to the sketch.
+    /// SOLIDWORKS lists new segments after the old ones, so only the last old one and those past it are named, each
+    /// checked; a list in another order (an old name past the old count, a new one at its end, or fewer than before: a
+    /// segment gone) has every name read and <paramref name="names"/> read again.
+    /// </summary>
+    private static List<(ISketchSegment Seg, string Name)> NewSegments(ISketch sketch, HashSet<string> names)
+    {
+        var all = sketch.Segments();
+        var fresh = new List<(ISketchSegment Seg, string Name)>();
+        bool inOrder = all.Count >= names.Count && (names.Count == 0 || names.Contains(all[names.Count - 1].GetName()));
+        for (int k = names.Count; inOrder && k < all.Count; k++)
+        {
+            string n = all[k].GetName();
+            if (names.Contains(n)) inOrder = false;
+            else fresh.Add((all[k], n));
+        }
+        if (inOrder)
+        {
+            foreach (var (_, n) in fresh) names.Add(n);
+            return fresh;
+        }
+        var now = all.Select(s => (Seg: s, Name: s.GetName())).ToList();
+        fresh = now.Where(x => !names.Contains(x.Name)).ToList();
+        names.Clear();
+        names.UnionWith(now.Select(x => x.Name));
+        return fresh;
+    }
 
     private static void DeleteSegments(IModelDoc2 d, List<ISketchSegment> segs)
     {
@@ -712,8 +765,8 @@ public sealed class SketchService(SwSession session)
     }
 
     /// <summary>Tier-B check of one entity: expected segment signature and key geometry read back.</summary>
-    private static SketchEntityResult Check(SketchEntity e, int i, List<ISketchSegment> segs, int newPoints, int newTexts, List<string> checks, PointConverter c,
-        (List<string>? Relations, List<string>? Merged) made)
+    private static SketchEntityResult Check(SketchEntity e, int i, List<ISketchSegment> segs, List<string> names, int newPoints, int newTexts,
+        List<string> checks, PointConverter c, (List<string>? Relations, List<string>? Merged) made)
     {
         string kind = e.Kind.Trim().ToLowerInvariant();
         string a = $"entities[{i}] ({kind})";
@@ -796,7 +849,7 @@ public sealed class SketchService(SwSession session)
         {
             Kind = kind,
             Label = e.Label,
-            Segments = segs.Select(s => s.GetName()).ToList(),
+            Segments = names,
             Sides = sides,
             Diagonals = diagonals,
             ConstructionCircle = constructionCircle,

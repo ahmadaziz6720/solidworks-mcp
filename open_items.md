@@ -17,7 +17,7 @@ Closed all the same, its PR named, and an open PR no longer holds an item in Wai
 item sent upstream ends with `**Upstream: PR #9, open.**`, one per PR or issue
 (`merged`, `closed unmerged`; an issue `open` or `closed`), kept to its state.
 
-**Open: S4, S5, S7, S10 to S12, S33, S34, S60, S64, S65, S79 to S82, S85, S86, S92, S94, S96, S99, S101, S105, S109, S111, S115, S123 to S125, S129, S134 to S139, S143 to S159.**
+**Open: S4, S5, S7, S10 to S12, S33, S34, S60, S64, S65, S79 to S82, S85, S86, S92, S94, S96, S99, S105, S109, S111, S115, S123 to S125, S129, S134 to S139, S143 to S159.**
 Planned 2026-11-27, `## Run 2026-11-27` below, on the owner's opening answer: S52 closed
 (every point held or done), S81 and S109 parked (probed, not reproduced, not met since),
 S158 and S159 filed from the run of 2026-11-21's leftovers at its closing.
@@ -503,7 +503,7 @@ line in `part_derive`'s description, not an `into`).
 ### Where the run stands
 
 - [x] Phase 1: the opening question asked and answered (2026-11-27)
-- [ ] S101: committed
+- [x] S101: committed
 - [ ] S123: committed
 - [ ] S155: probed
 - [ ] S144: probed
@@ -1850,20 +1850,6 @@ starting with a digit) or the import is the cause. Proposed: a probe of which.
 
 Local. Not decided.
 
-### S101 - `sketch_add` of a hundred entities takes minutes and times out - OPEN 2026-11-18
-
-Sorted out of the entry of 2026-11-18 ("a custom weldment profile with one size made to
-work", point 5), on build `20261117-012659`. `sketch_add` of 112 entities (106 lines, 4 arcs,
-2 circles) took 183 s in a library feature part and 254 s in a new part, `TIMEOUT` at 50 s
-both times, completed later (`sw_status` `lateCompletions`, succeeded): about 1.6 to 2.3 s an
-entity. A profile of a hundred segments needs a batch path or a longer limit for large adds.
-`sketch_import` of the same geometry from a DXF was the way that worked (S99).
-
-Proposed: a probe of where the time goes (the per-entity checks, S65 (e)'s merge pass, the
-contour read), then a batch path or a limit that grows with the count. Local. Not decided.
-Decided 2026-11-21 by the owner: taken into the run of 2026-11-21, group 7, a probe first (`## Run 2026-11-21`).
-Carried 2026-11-27 into the run of 2026-11-27, group 1, its change in the tree, not committed, its first step, its decision as written: the run of 2026-11-21 closed on the owner's word (`## Run 2026-11-27`).
-
 ### S105 - No tool hides or shows reference geometry and sketches - OPEN 2026-11-21
 
 Sorted out of the entry of 2026-11-18 ("a weldment frame of 16 members in one custom
@@ -2803,3 +2789,55 @@ Local: on `sw2023`, in the commit that moves it here; not yet in a build. Upstre
 decided.
 Proof moved 2026-11-27: group 7 of the run of 2026-11-21 was never built (that run closed on the owner's word); this point goes into the build of the run of 2026-11-27's group 1, whose scenario test is its proof.
 
+### S101 - `sketch_add` of a hundred entities took minutes and timed out - BUILT 2026-11-27, proof: the scenario test of the group 1 build
+
+Sorted out of the entry of 2026-11-18 ("a custom weldment profile with one size made to
+work", point 5), on build `20261117-012659`. `sketch_add` of 112 entities (106 lines, 4 arcs,
+2 circles) took 183 s in a library feature part and 254 s in a new part, `TIMEOUT` at 50 s
+both times, completed later (`sw_status` `lateCompletions`, succeeded): about 1.6 to 2.3 s an
+entity. A profile of a hundred segments needs a batch path or a longer limit for large adds.
+`sketch_import` of the same geometry from a DXF was the way that worked (S99).
+
+Proposed: a probe of where the time goes (the per-entity checks, S65 (e)'s merge pass, the
+contour read), then a batch path or a limit that grows with the count. Local. Not decided.
+Decided 2026-11-21 by the owner: taken into the run of 2026-11-21, group 7, a probe first (`## Run 2026-11-21`).
+Carried 2026-11-27 into the run of 2026-11-27, group 1, its change in the tree, not committed, its first step, its decision as written: the run of 2026-11-21 closed on the owner's word (`## Run 2026-11-27`).
+Probe (the run of 2026-11-21, on 2023 SP3): 100 lines in one `sketch_add` took 165 s, 150 s
+of it in the server's own reads per entity, not in SOLIDWORKS' drawing: before and after each
+entity it read every segment's name (to find the new ones), every point (to count the new
+ones), the texts, and for the merge and relation labels who owns each point of the sketch
+(115 s of the 165 alone). S65 (e)'s merge pass and the contour read are once a call and
+were not the cost.
+Cause: those reads grow with the sketch, so a call of n entities cost about n² reads.
+Fix (`SketchService.AddAsync`, `SketchRelations.Made`): the sketch's segment names, its point
+count (`GetSketchPointsCount2`) and who owns each point (`SketchRelations.PointOwners`, read at
+its first use) are read once a call and kept up as each entity draws; the new segments are
+those SOLIDWORKS lists past the old count (`NewSegments`), the whole list read again when it
+is not in that order; texts are counted only for a text entity. `sketch_add`'s limit is the
+default or 0.5 s a segment, the longer (`AddLimit`: a rectangle or slot 4, a polygon its
+sides and circle, a polyline a segment a point). The result is unchanged.
+Before: the new `SketchEditLiveTests.Sketch_add_of_a_hundred_lines_finishes_within_its_limit`
+(a closed staircase of 100 lines, each its own entity, under 30 s) failed with the two `src`
+files stashed: "'sketch_add' has been running for 50 s and exceeded its 50 s limit.
+SOLIDWORKS is still executing it and it may still complete — do not simply retry."
+After: it passes (the test 28.6 s in all, its fixture start included; 17 s for the add in the
+probe, from 165 s), with the `sketch_add` tests that call the changed code:
+`Sketch_add_lists_the_relations_and_merges_SOLIDWORKS_made` (S56),
+`Sketch_add_warns_when_SOLIDWORKS_moves_what_it_drew_onto_a_model_edge` and
+`Sketch_add_of_every_kind_drawn_apart_stays_where_it_was_drawn` (S80 (a)),
+`Sketch_add_warns_when_a_rectangle_drawn_square_gets_an_equal` (S140),
+`Sketch_add_merges_an_arc_drawn_on_a_polyline_s_ends_into_one_closed_contour` (S65 (e), S87),
+`A_point_where_offset_arcs_centres_and_line_ends_sit_names_the_one_taken_and_warns_of_the_others`
+and `ModellingLiveTests.Sketch_text_at_its_height_engraves_the_top_face_with_a_cut` (texts
+counted), 8/8; unit tests 370/370; `check_repo` ok.
+Made stricter: nothing refused; a large add gets a limit that grows with its segments.
+Decided 2026-11-27 by the run, not the owner: no batch path, the reads made once a call
+and the limit grown with the count, because the probe put the cost in the server's reads,
+not in drawing one entity at a time, and the result and its checks stay per entity.
+Decided 2026-11-27 by the run, not the owner: the review of the tree's change made the
+order check of `NewSegments` also read the last old segment and, when the list is out of
+order (a segment gone), read the sketch's names again, and made `AddLimit` count a
+rectangle, slot and polygon by their segments, because the change as left missed a new
+segment after a deletion and kept a stale name list, and counted a rectangle as one.
+Local: on `sw2023`, in the commit that moves it here; not yet in a build. Upstream: not yet
+decided.
