@@ -506,8 +506,8 @@ line in `part_derive`'s description, not an `into`).
 - [x] S101: committed (0274bca)
 - [x] S123: committed (36936e0)
 - [x] S155: probed (68e6358)
-- [x] S144: probed
-- [ ] S80 (d): probed
+- [x] S144: probed (323c69d)
+- [x] S80 (d): probed (S160)
 - [ ] Group 1: full live tests and release (build: )
 - [ ] Group 1: scenario test with S140 to S142's proof (session id: ), its entry committed and sorted
 - [ ] S156: committed
@@ -1534,6 +1534,7 @@ than moving the shape. Not reported `ok`. Proposed: a probe of whether the infer
 projected edges makes the rectangle fail; then the hint names model edges under the corners
 as a cause, or the rectangle is drawn as the polyline is. Local. Not decided.
 Decided 2026-11-27 by the owner: (d) taken into the run of 2026-11-27, group 1, a probe first; the rectangle then drawn as the polyline is, or the hint naming model edges under its corners; (b) not in it (`## Run 2026-11-27`).
+(d) is done: moved to Waiting as S160, 2026-11-27 (the run of 2026-11-27, group 1).
 
 ### S81 - "modified outside this server (by the user?)" again after the server's own changes - OPEN 2026-11-16, parked: probed 2026-11-22, not reproduced, taken up when met again
 
@@ -2961,5 +2962,58 @@ because the probe met it on the same reference and the rule `Ref` documents ("{a
 is a model point projected into the sketch") was false for dimensions.
 Decided 2026-11-27 by the run, not the owner: the result field is `centerMm` (sketch
 mm, model mm in a 3D sketch), named as `sketch_info`'s centres are.
+Local: on `sw2023`, in the commit that moves it here; not yet in a build. Upstream: not yet
+decided.
+
+### S160 - S80 (d): `sketch_add` of a corner rectangle on model edges' projection failed as degenerate geometry, its polyline drawn at once - BUILT 2026-11-27, proof: the scenario test of the group 1 build
+
+Point (d) of S80 (S80 stays Open for (b)) (finding 2026-11-24, on build `20261124-174916`): a
+`rectangle {corners}` on the Front plane, its corners on the projection of two model edges
+(a plate's outline over existing members), failed `FEATURE_FAILED: SOLIDWORKS could not
+create the rectangle`, the hint naming degenerate geometry, which it was not; the same four
+corners as a closed `polyline` were drawn at once. Not reported `ok`.
+Decided 2026-11-27 by the owner: (d) taken into the run of 2026-11-27, group 1, a probe first; the rectangle then drawn as the polyline is, or the hint naming model edges under its corners; (b) not in it (`## Run 2026-11-27`).
+Probe (2026-11-27, build `20261124-174916`, 2023 SP3): corners on edges in the sketch plane,
+on edges 10 mm behind it, on vertices of posts through it and on a block's top edge 142 mm in
+front of it were all drawn, related "coincident: a model entity" or "a model edge". It failed
+with a frame outline 142 mm in front of the plane, a post rising from its top edge: a
+rectangle whose first corner lay where that top edge and the post's inner edge meet in
+projection, [[-755, 964], [-105, 974]] and [[-755, 964], [-700, 974]] alike, failed every
+time; the same corners in the other order ([[-700, 974], [-755, 964]]) were drawn, with
+"coincident: a model entity" at that corner. `CreateCornerRectangle` returns nothing and
+leaves nothing in the sketch; a line from the same corner along the top edge was drawn.
+Cause: SOLIDWORKS' inference at the first corner of `CreateCornerRectangle`, on two model
+edges meeting there in projection (`AddToDB` on does not stop it, S140), makes it return
+nothing; the hint then blamed the coordinates.
+Fix: `SketchService.Draw`, a 2D corner rectangle `CreateCornerRectangle` returns nothing for
+(neither side of zero length) is drawn as a closed polyline is (`CornerLines`): four lines
+from the first corner round, each made horizontal or vertical (`sgHORIZONTAL`,
+`sgVERTICAL`), as the corner rectangle's own relations are; its result as a rectangle's
+(sides, relations, S140's drift check of its four corners), with the check "drawn as 4
+lines, made horizontal and vertical: SOLIDWORKS refused it as a corner rectangle, as it does
+a first corner where model edges meet". A line of them that fails deletes the ones drawn and
+is refused with the old hint. A rectangle SOLIDWORKS draws is drawn as before. No
+description changed; no read added (S101).
+Before: the new `SketchEditLiveTests.Sketch_add_draws_a_corner_rectangle_SOLIDWORKS_refuses_on_model_edges_as_four_lines`
+(the frame and the plate's rectangle of the probe) failed: "SwException : SOLIDWORKS could
+not create the rectangle."
+After: it passes (4 lines on the corners asked, 2 horizontal and 2 vertical, 4 points, no
+merge, one closed contour, no drift warning; a rectangle drawn clear of the edges has no
+such check), with the live tests that draw and read rectangles (the relations and merges
+`sketch_add` lists, the three S140 drift tests, the rectangle constrained in one call, the
+dimension on a 100 wide rectangle), 7/7; unit tests 370/370; `check_repo` ok.
+Made stricter: nothing that passed is refused; a corner rectangle refused before is drawn.
+Decided 2026-11-27 by the run, not the owner: the four lines only when SOLIDWORKS returns
+nothing, every rectangle it draws kept as it is, because that keeps the relations it makes
+(the `equal` of one drawn square, S140 (c)) and every result the tests read, the smaller
+change.
+Decided 2026-11-27 by the run, not the owner: the lines, not the corners swapped, because
+the probe showed the inference at the first corner only, and the other corner could stand
+on such edges too; the polyline was drawn at once in the finding.
+Decided 2026-11-27 by the run, not the owner: a check on the entity, not a warning, because
+the shape is the one asked (S140's drift check still compares its corners), only the route
+differs.
+Decided 2026-11-27 by the run, not the owner: the centre rectangle left as it is, because no
+case of it failing was met.
 Local: on `sw2023`, in the commit that moves it here; not yet in a build. Upstream: not yet
 decided.

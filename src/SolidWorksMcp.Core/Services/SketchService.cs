@@ -659,6 +659,8 @@ public sealed class SketchService(SwSession session)
                     At("corners[0]", p1); At("corners[1]", p2);
                     if (!is3D) { At("a corner", new Vec3(p1.X, p2.Y, 0)); At("a corner", new Vec3(p2.X, p1.Y, 0)); }
                     made = (object?)sm.CreateCornerRectangle(p1.X, p1.Y, p1.Z, p2.X, p2.Y, p2.Z);
+                    if (made is null && !is3D && Math.Abs(p1.X - p2.X) >= Tol && Math.Abs(p1.Y - p2.Y) >= Tol)
+                        made = CornerLines(d, sm, p1, p2, notes);
                 }
                 else
                 {
@@ -803,6 +805,33 @@ public sealed class SketchService(SwSession session)
                      })
                 s.ConstructionGeometry = true;
         }
+    }
+
+    /// <summary>
+    /// S80 (d): a corner rectangle SOLIDWORKS refuses (CreateCornerRectangle returns nothing when its first corner lies
+    /// where two model edges meet in projection, the same corners in the other order drawn), drawn as a closed polyline
+    /// is: four lines, each made horizontal or vertical, as a corner rectangle's are.
+    /// </summary>
+    private static ISketchSegment CornerLines(IModelDoc2 d, ISketchManager sm, Vec3 p1, Vec3 p2, List<string> notes)
+    {
+        Vec3[] c = [p1, new(p2.X, p1.Y, 0), p2, new(p1.X, p2.Y, 0)];
+        var lines = new List<ISketchSegment>();
+        for (int k = 0; k < 4; k++)
+        {
+            var (a, b) = (c[k], c[(k + 1) % 4]);
+            if (sm.CreateLine(a.X, a.Y, 0, b.X, b.Y, 0) is { } l) { lines.Add(l); continue; }
+            DeleteSegments(d, lines);
+            throw new SwException(ErrorCodes.FeatureFailed, $"SOLIDWORKS could not create the rectangle, nor its side {k} as a line.",
+                "Check the coordinates (degenerate geometry such as zero size or coincident points fails).");
+        }
+        for (int k = 0; k < 4; k++)
+        {
+            d.ClearSelection2(true);
+            if (lines[k].Select4(false, null)) d.SketchAddConstraints(k % 2 == 0 ? "sgHORIZONTAL" : "sgVERTICAL");
+        }
+        d.ClearSelection2(true);
+        notes.Add("drawn as 4 lines, made horizontal and vertical: SOLIDWORKS refused it as a corner rectangle, as it does a first corner where model edges meet");
+        return lines[0];
     }
 
     /// <summary>Tier-B check of one entity: expected segment signature and key geometry read back.</summary>

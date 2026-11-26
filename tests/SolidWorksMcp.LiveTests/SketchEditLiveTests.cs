@@ -967,6 +967,43 @@ public class SketchEditLiveTests(LiveFixture fx) : LiveTest(fx)
     }
 
     [Fact]
+    public async Task Sketch_add_draws_a_corner_rectangle_SOLIDWORKS_refuses_on_model_edges_as_four_lines()
+    {
+        // S80 (d): a plate's outline on the Front plane over a frame 142 mm in front of it, its first corner where two of
+        // the frame's edges meet in projection (the top edge and a post's inner edge), failed "SOLIDWORKS could not create
+        // the rectangle", the hint naming degenerate geometry; the same corners as a closed polyline were drawn at once.
+        string doc = await NewPartAsync("s80_edges");
+        var plane = await new ReferenceService(S).PlaneAsync(new RefPlaneRequest { Doc = doc, Kind = "offset", Base = new EntityRef { Name = "front" }, OffsetMm = 142 });
+        await Sk.StartAsync(doc, new EntityRef { Name = plane.Feature.Name }, false);
+        await Sk.AddAsync(doc, [new SketchEntity { Kind = "polyline", Closed = true, Points =
+            [[-795, 80], [-105, 80], [-105, 964], [-484, 964], [-484, 1262], [-524, 1262], [-524, 964], [-755, 964], [-755, 1262], [-795, 1262]] }]);
+        await new FeatureService(S).ExtrudeAsync(new ExtrudeRequest { Doc = doc, DepthMm = 40, Direction = "normal" });
+        await Sk.StartAsync(doc, new EntityRef { Name = "front" }, false);
+
+        var added = await Sk.AddAsync(doc, [new SketchEntity { Kind = "rectangle", Corners = [[-755, 964], [-105, 974]] }]);
+        var rect = Assert.Single(added.Entities);
+        Assert.Equal(4, rect.Segments.Count);
+        Assert.Equal(2, rect.Relations!.Count(r => r.StartsWith("horizontal: ")));
+        Assert.Equal(2, rect.Relations!.Count(r => r.StartsWith("vertical: ")));
+        Assert.Contains(rect.Checks!, c => c.StartsWith("drawn as 4 lines"));
+        Assert.Null(rect.Merged); // each line starts where the one before ends: nothing to merge
+        Assert.Equal("closed", added.Contours.Status);
+        Assert.Equal(1, added.Contours.ClosedContours);
+        Assert.DoesNotContain(added.Warnings ?? [], w => w.Contains("is not where it was drawn"));
+        var info = await Ed.InfoAsync(doc, null);
+        var seg = info.Segments.ToDictionary(s => s.Name);
+        Assert.True(Joins(seg[rect.Sides!["bottom"]], [-755, 964], [-105, 964]));
+        Assert.True(Joins(seg[rect.Sides!["right"]], [-105, 964], [-105, 974]));
+        Assert.True(Joins(seg[rect.Sides!["top"]], [-105, 974], [-755, 974]));
+        Assert.True(Joins(seg[rect.Sides!["left"]], [-755, 974], [-755, 964]));
+        Assert.Equal(4, info.Points); // the four lines share their corners
+
+        // One SOLIDWORKS takes stays its own corner rectangle: no such note.
+        var clear = await Sk.AddAsync(doc, [new SketchEntity { Kind = "rectangle", Corners = [[-700, 1000], [-600, 1010]] }]);
+        Assert.DoesNotContain(clear.Entities[0].Checks!, c => c.StartsWith("drawn as 4 lines"));
+    }
+
+    [Fact]
     public async Task Sketch_add_of_a_hundred_lines_finishes_within_its_limit()
     {
         // S101: a profile of 112 entities in one sketch_add took 183 to 254 s and ended TIMEOUT at 50 s, completing later.
