@@ -17,7 +17,16 @@ Closed all the same, its PR named, and an open PR no longer holds an item in Wai
 item sent upstream ends with `**Upstream: PR #9, open.**`, one per PR or issue
 (`merged`, `closed unmerged`; an issue `open` or `closed`), kept to its state.
 
-**Open: S4, S5, S7, S10 to S12, S33, S34, S52, S60, S64, S65, S79 to S82, S85, S86, S92, S94, S96, S99, S101, S105, S109, S111, S115, S123 to S125, S129, S134 to S139.**
+**Open: S4, S5, S7, S10 to S12, S33, S34, S52, S60, S64, S65, S79 to S82, S85, S86, S92, S94, S96, S99, S101, S105, S109, S111, S115, S123 to S125, S129, S134 to S139, S143 to S157.**
+Sorted 2026-11-27, twelve working sessions' entries of 2026-11-24 to 2026-11-26 on build
+`20261124-174916`: S143 to S157 new, reported `ok` while wrong S145 (`parallel: false` for
+parallel cylinders), S148 (a) (a stale subassembly read from its parent), S152 (`0 touching`
+for a part inside a subassembly) and S156 (a pattern count raised with nothing formed); S64
+(q), S65 (m) to (s) and S80 (d) new parts; S64, S65, S92 (twice, with a lead: the state met
+about two hours into a process, negatives read 0, stored values held through rebuilds) and
+S139 met again; S118 checked in S92's state, its own sign not seen alone; S140's case met
+before its fix. Next: the owner's decisions on S143 to S157 and the new parts, for the next
+plan; S156, S145 and S148 first.
 Sorted 2026-11-24, the scenario test of build `20261124-174916` (findings 2026-11-24): S132,
 S133, S100 (whole, its (a) to (d)), S102, S103, S127, S128, S130 and S131 held and closed;
 S134 (a save in place of a library feature part already known dissolved overwrites the only
@@ -1378,6 +1387,19 @@ Decided 2026-11-21 by the owner: (c), (i) and (l) taken into the run of 2026-11-
 (l) done in the run of 2026-11-22, group 4, split out as S120 (Waiting).
 (i) done in the run of 2026-11-22, group 4, split out as S121 (Waiting).
 (c) done in the run of 2026-11-22, group 4, split out as S122 (Waiting).
+Met again 2026-11-24 ((m); findings 2026-11-24, "a multi-body envelope part from a vendor
+drawing", point 1), build `20261124-174916`, twice in one part: a boss whose stems end on a
+leg's end face (`no cap face at 80 mm along [0, 1, 0]`) and a mid-plane boss whose two caps
+met two members' inner faces (`no cap face at 142 mm ...; no cap face at -142 mm`), both
+rolled back though right. Worked round with `keepOnFailure: true` and `body_list` (+26 138
+and +1 817 600, as by hand): four calls lost, which (m)'s proposal would have saved.
+(q) Sorted out of the same entry, point 3, the same build: a mid-plane boss of a plate whose
+end edge met another body's edge along a line only (edge to edge, no face shared) failed
+`FEATURE_FAILED: SOLIDWORKS created no feature (the API returned nothing)`, the hint naming
+profile closure and depth. The cause was the line contact (non-manifold): extended 40 further
+over the member it built at once (+1 725 000 as figured); the unused sketch had to be deleted
+after. Not reported `ok`. Proposed by the session: the hint names edge-only contact with an
+existing body as a cause. Local. Not decided.
 
 ### S65 - Missing options met while modelling - OPEN 2026-11-12
 
@@ -1689,6 +1711,54 @@ part's: the part in kg read `10.49` in `prop_list`, the drawing's note `10489.13
 `ForceRebuild3`, until the drawing's units were set custom with mass in kg by `vba_run`
 (`swUnitSystem` 4, `swUnitsMassPropMass`). `doc_units_set` takes only the four systems.
 Proposed by the session: a `massUnit` option on `doc_units_set`. Local. Not decided.
+Met again 2026-11-25 ((f); findings 2026-11-25, "seven parts and two assemblies modelled
+from a design doc", point 1), build `20261124-174916`: two slots by `{from, to, widthMm}`
+came back as 2 lines and 2 arcs each with no relation; each took 4 `tangent`, 1 `equal` and
+1 `horizontal` before its centres and width defined it, 20 steps a sketch, 19 to 33 s, on two
+plates. Held once added.
+(m) Sorted out of the entry of 2026-11-24 ("a multi-body envelope part from a vendor
+drawing", point 5), on build `20261124-174916`: no tool makes another drawing sheet current.
+`drw_annotation_list {view}` on a view of another sheet was refused "View ... is on sheet
+'Sheet1', not on the current sheet 'Sheet2'. Hint: ... switch sheets in SOLIDWORKS."; worked
+round with `vba_run` (`ActivateSheet`), one call. Proposed by the session: a `sheet`
+argument on the drawing tools, or `drw_sheet_setup {activate}`. Local. Not decided.
+(n) Sorted out of the entry of 2026-11-25 ("seven parts and two assemblies modelled from a
+design doc", point 2), the same build: no dimension from a sketch point to model geometry.
+`sketch_constrain {dimension:"horizontal", entities:[{type:"vertex", at}, {at}]}` was refused
+"resolved to vertex V1, but this parameter needs sketch_segment or sketch_point or origin".
+Wanted: two holes placed from the tip of a tilted plate, so they follow it. Workaround:
+dimensioned from the origin and driven by equations of the tip's globals (4 more equations).
+Proposed by the session: a model vertex or edge allowed as a dimension's entity, as
+SOLIDWORKS allows. Local. Not decided.
+(o) Sorted out of the same entry, point 4: `asm_mate_add {type:"distance"}` takes only a gap
+above 0, so a plane offset driven by a variable now at 0 is made `coincident` and must be
+replaced when the variable changes. Proposed by the session: a distance of 0 allowed, or the
+schema's hint says to use coincident. Local, small. Not decided.
+(p) Sorted out of the entry of 2026-11-25 ("a swept shell part with mirrored tabs", point
+5), the same build: no change to an existing sketch dimension while its sketch is open.
+`dimension_set` refuses an open sketch, and a new dimension on the same point was refused as
+over-defining (right); the line carrying the point was deleted and drawn again, 2 calls more.
+Proposed by the session: `sketch_constrain` takes an existing dimension by name with a new
+value. Local. Not decided.
+(q) Sorted out of the entry of 2026-11-26 ("a printed plate revised", point 2), the same
+build: `sketch_fillet` takes one corner a call: 9 corners of one closed outline cost 9 calls
+(about 1.2k characters each), every one `ok`. Proposed by the session: `corners: [{at,
+radiusMm}, ...]`, one call. Local. Not decided.
+(r) Sorted out of the entry of 2026-11-26 ("a left part remade in place as the mirror of the
+right one", point 1), the same build: `part_derive {kind:"mirror"}` writes a new file only.
+A part whose file an assembly already holds (its fixed base) had to keep its name and path,
+so the mirror was made in place in 3 calls: `part_derive {kind:"insert"}` of the other part,
+`feature_mirror {bodies}` about the Front plane, `body_delete` of the inserted body; each
+held (volumes, reflected vertices). What the route's results lack is S157. Proposed by the
+session: `part_derive mirror` with `into: <the target document>` doing those three, or a
+line in its description that the in-place route exists. Local. Not decided.
+(s) Sorted out of the entry of 2026-11-26 ("two printed parts from a written plan", point
+1), the same build: `config_table` takes a dimension, `$STATE`, `$PRP`, `$MATERIAL` and
+`$CONFIGURATION` columns, but no global variable (SOLIDWORKS' `$VALUE@<name>@equations`). A
+bore set per configuration (five values) could not be the global the plan named; the
+dimension it drives was configured instead, holding the printed radius (D - 0.3)/2, not D.
+Five configurations built and read back right. Proposed by the session: a global-variable
+column, so the configured value is the size the plan names. Local. Not decided.
 
 ### S79 - `doc_undo` undoes the step before an `equation_set`, reported `ok`, and is refused after a chamfer split by `flipEdges` - OPEN 2026-11-16
 
@@ -1770,6 +1840,15 @@ decided.
 Decided 2026-11-21 by the owner: (a) and (c) taken into the run of 2026-11-21, group 7, warnings; (b) stays Open (`## Run 2026-11-21`).
 Decided 2026-11-21 in the plan, not the owner: no option to keep or drop relations to model geometry in this run, because it is a new option the owner was not asked, and the warning shows either case.
 (a) and (c) are done: moved to Waiting as S140, 2026-11-24 (the run of 2026-11-21, group 7).
+(d) Sorted out of the entry of 2026-11-24 ("a multi-body envelope part from a vendor
+drawing", point 2), on build `20261124-174916` (before S140's fix): a `rectangle {corners}`
+on the Front plane, its corners on the projection of two model edges (a plate's outline over
+existing members), failed `FEATURE_FAILED: SOLIDWORKS could not create the rectangle`, the
+hint naming degenerate geometry, which it was not. The same four corners as a closed
+`polyline` were drawn at once. Likely the inference of (a), here refusing outright rather
+than moving the shape. Not reported `ok`. Proposed: a probe of whether the inference to the
+projected edges makes the rectangle fail; then the hint names model edges under the corners
+as a cause, or the rectangle is drawn as the polyline is. Local. Not decided.
 
 ### S81 - "modified outside this server (by the user?)" again after the server's own changes - OPEN 2026-11-16
 
@@ -2007,6 +2086,29 @@ set before the bad read. Point 5's case (whole-number globals, every derived row
 with no warning) is S118. The run's own group 3 release met the state once too: in the full
 `AssemblyLiveTests` run an equation `adoptW` = 12 was refused with S112's message, after
 earlier tests in the same SOLIDWORKS, and passed rerun alone after a restart.
+Met again 2026-11-25 (findings 2026-11-25, "reading two parts the owner had edited by
+hand", point 1), build `20261124-174916`, SOLIDWORKS about 2 h old, no write made: in two
+parts every global with a negative constant read 0 (`-30.578mm`, `-16.284mm`, `-6mm`,
+`-66mm`), every positive one right (`50deg`, `30mm`, `46mm`), and every derived row only its
+literal part (`"X" + 10mm` read 10, `-"Y" - 9mm` read 0), as if each variable on a right-hand
+side were 0 and a negative result clamped to 0; `dimension_list` in the same minute read
+every driven dimension right. S112's warning fired (on the negatives); a session checking a
+positive global alone would have missed the state. New for (c): the state reads negatives as
+0, not only decimals cut at the point.
+A line for (c) 2026-11-25 (findings 2026-11-25, "a new part from a face sketch", point 2):
+on SOLIDWORKS freshly restarted (18:42) the state was not there: negative globals read right
+(`-103.5`, `-36`), and `equation_set` of seven globals, three negative, on a new part read
+back right.
+Met again 2026-11-25 (findings 2026-11-25, "a swept shell part with mirrored tabs", point 1),
+the same build, in that same process about 1 h 50 later: `equation_set` of three positive
+globals on a new empty part refused with the restart message, again after its first feature;
+`equation_list` of an existing part read its negative globals 0 and every dimension row 0,
+with S112's warning (right). New: three rebuilds of that part (an outline sketch edited, a
+cut added) did not apply the zeros, its thickness stayed 6 and every volume matched the hand
+figure (+38 764.1, -190.852): in the state the reads are wrong and the writes refused, while
+the stored values hold through rebuilds. For (c): in both entries of the day the state was
+met about two hours into the process, after sketch edits, mates and saves, no restart
+between. Workaround: no equations, every size typed.
 
 ### S94 - `feature_helix` and `feature_sweep`: where a helix starts, and a profile off the start of a tapered helix, not in the descriptions - OPEN 2026-11-18
 
@@ -2341,6 +2443,260 @@ sets it says so, or leaves the flag as it found it. Local. Not decided.
 Decided 2026-11-24 by the run, not the owner: not taken into this run, because it is a
 behaviour group 6 did not change, found beside its proof, and group 7 is the owner's extras:
 for the next plan.
+Met again 2026-11-24 (findings 2026-11-24, "a multi-body envelope part from a vendor
+drawing", point 6), build `20261124-174916`, on a part: `doc_close {save:false}` of a
+weldment part saved in place earlier was refused `DIRTY` after its drawing had been opened,
+rebuilt, saved and closed, the part not edited since its save; closed with `save: true`.
+Likely the drawing's rebuild updating the cut list. New: a part a drawing uses, not only the
+drawing, reads dirty after calls that edited nothing in it.
+
+### S143 - `sketch_constrain` reads a sketch under-defined, then refuses its dimensions as over-defining - OPEN 2026-11-27
+
+Sorted out of the entry of 2026-11-24 ("a multi-body envelope part from a vendor drawing"),
+point 4, on build `20261124-174916`. A closed 8-line profile (3 lines fixed, 2 horizontal, 1
+vertical, a midpoint to the origin, 3 lengths) came back from `sketch_constrain` with
+`constrained: "under"`; a horizontal and a vertical dimension after it were each refused as
+over-defining ("SOLIDWORKS made it a driven reference dimension"). `sketch_info` and
+`model_review` still read under; the geometry was right. Either the status or the refusal is
+wrong, and nothing said which.
+
+Proposed: a probe of the case: which read gives "under" (the sketch's solve status against
+its points' and segments' own), and whether the refused dimensions were redundant to the
+fixed lines. Local. Not decided.
+
+### S144 - A centre rectangle's centre point cannot be referenced - OPEN 2026-11-27
+
+Sorted out of the entry of 2026-11-25 ("seven parts and two assemblies modelled from a
+design doc"), point 3, on build `20261124-174916`. After `rectangle {center, widthMm,
+heightMm}`, a dimension to `{at: <centre>}` was `ENTITY_AMBIGUOUS` "2 segments pass through
+[46, -66]: Line5, Line6" (the construction diagonals), and to `{type:"sketch_point", at:
+<centre>}` `ENTITY_NOT_FOUND` "No sketch point within 0.01 mm". Workaround: a corner
+dimensioned instead, its equation offset by half the width. Bears on S140's wording ("a
+centre rectangle's own centre point").
+
+Proposed by the session: the result names the centre point, or the diagonals' intersection
+is taken as a point reference. Local. Not decided.
+
+### S145 - `model_measure` of two parallel cylinders reads `parallel: false`, reported `ok` - OPEN 2026-11-27
+
+Sorted out of the entry of 2026-11-25 ("two printed plates trimmed and their bolt pattern cut
+from 2 x 2 to 1 x 2"), point 1, on build `20261124-174916`. Between two cylindrical faces in
+an assembly (a Ø5.5 and a Ø5.2 hole, `face_list` giving both axes `[0,0,1]`, and on the other
+side both `[0,0,-1]`) `model_measure` returned `centerDistanceMm: 0.00497` and `parallel:
+false`, four pairs alike. The axes are parallel; a reader taking the field at its word would
+think the holes skewed. Reported `ok` while wrong.
+
+Proposed by the session: for two cylinders (or cones) `parallel` computed from their axes,
+or left out where the tool did not compute it. Local. Not decided.
+
+### S146 - A two-direction linear pattern's dimensions do not say which direction each belongs to - OPEN 2026-11-27
+
+Sorted out of the entry of 2026-11-25 ("two printed plates trimmed and their bolt pattern cut
+from 2 x 2 to 1 x 2", point 2) and the entry of 2026-11-26 ("two printed parts from a written
+plan", point 2), on build `20261124-174916`. `dimension_list {feature:<linear pattern>}` gives
+two counts and two spacings (`D1` to `D4`), and `feature_pattern_linear`'s own result lists
+`dimensions` as `D4`, `D2`, `D3`, `D1` (the counts marked `count`), with nothing saying which
+spacing or count is direction 1 and which direction 2. Told apart by a `dimension_set` probe
+and `face_list` of the instance cylinders (the volume the same for either direction), or
+guessed and checked only at a second set of variables. Reported `ok`. Bears on S65 (j) (a
+sketch dimension's entities not given).
+
+Proposed by the sessions: each row labelled with its role and direction (`spacing1`,
+`count2`, and the direction's reference), as `sketch_offset` names its distance. Local. Not
+decided.
+
+### S147 - A sketch dimension `D1` of value 0 that no step made appears in the sketch's and its feature's dimensions - OPEN 2026-11-27
+
+Sorted out of three entries on build `20261124-174916`: 2026-11-25 ("a printed nozzle with a
+tilted slot", point 2), 2026-11-25 ("a new part from a face sketch", point 4) and 2026-11-26
+("two printed parts from a written plan", point 3). `sketch_info` and `sketch_finish` list a
+dimension `D1@<sketch>` of value 0 that no call made, and it is in the extrude's
+`dimensions` after. Met: after a `sketch_add` rectangle that SOLIDWORKS related to a model
+edge (it stayed after the four lines were deleted and redrawn); after a `horizontal` relation
+between two circle centres and dimensions to a converted line (in both sketches, and in a
+second part); beside a `sketch_offset`'s `D2 = 2 mm` after a `sketch_convert` of a face's
+outer loop. Nothing reads it, `model_review` says nothing of it, and the geometry was right
+every time. Reported `ok`. Bears on S123 (a) (`sketch_finish` lists a dimension twice).
+
+Proposed: a probe of what `D1` is (an offset's or a converted entity's own parameter, or a
+dimension SOLIDWORKS makes and hides); then the results say what it is, or leave it out.
+Local. Not decided.
+
+### S148 - A subassembly changed in memory reads stale from its open parent, and a forced rebuild dirties every referenced document - OPEN 2026-11-27
+
+Sorted out of the entry of 2026-11-25 ("a printed nozzle with a tilted slot, ... components
+replaced and added in a subassembly read from its parent"), points 3 and 4, on build
+`20261124-174916`. (a) Three components inserted and mated in an open subassembly, unsaved;
+then on its open parent `asm_component_list {allLevels}` listed the subassembly with its old
+9 children and `asm_interference` ran over those 9, both `ok`, with no word that the
+subassembly had changed in memory. Only after `doc_save` of the subassembly and `doc_rebuild
+{force:true}` of the parent did the parent list 12 and the interference cover the new parts:
+a check that can pass on stale data. (b) After that forced rebuild (no errors),
+`model_review` on the parent gave `needs_rebuild`; a plain `doc_rebuild` (0.27 s) cleared it.
+And the forced rebuild left every document the parent references dirty, read-only and
+foreign ones included (about 30), so a session must take care to save only its own.
+
+Proposed by the session: (a) the parent's listing and interference warn when a subassembly
+is dirty or its child count differs from the subassembly document open beside it; (b) the
+forced rebuild's result names the documents it left dirty. Local. Not decided.
+
+### S149 - Calls that cost a long session: `feature_rename` one per call, `sw_status` and `doc_list` every document in full - OPEN 2026-11-27
+
+Sorted out of the entry of 2026-11-25 ("a printed nozzle with a tilted slot"), point 5, the
+paragraph its main agent added from the session's cost (50 min, 273 calls, 375k tokens for
+three new parts, a mount edit and their mates), on build `20261124-174916`. (a) About 15
+calls went on renaming sketches and features one per call: `feature_rename` has no batch
+form. (b) `sw_status` and `doc_list` each returned 36 documents in full, the user's foreign
+ones included, read several times for context beside an all-levels `asm_component_list` of
+46 children: an estimated 60 to 80k tokens, where a filter (dirty only, owned only, one
+assembly's documents) would have done. The server reported success throughout. The same
+paragraph counts about 10 calls on equations set one per call as a missing batch:
+`equation_set {equations}` takes one (S37, closed), and the entry before used it, so that
+part is the session's, not the server's.
+
+Proposed: (a) `feature_rename` taking a list of renames; (b) a filter on `doc_list` and a
+short form of `sw_status`'s document list. Local. Not decided.
+
+### S150 - A leftover `SLDWORKS.exe` of a closed SOLIDWORKS: `NOT_CONNECTED` says "still starting", and `sw_status` may give its start time - OPEN 2026-11-27
+
+Sorted out of two entries of 2026-11-25 on build `20261124-174916`; a case S89's fix
+(Waiting) does not cover, and S116 (closed) again. (a) "reconnecting after the owner
+restarted SOLIDWORKS", point 1: after the owner closed and restarted SOLIDWORKS, `sw_status`
+and `sw_connect` both gave `NOT_CONNECTED: SOLIDWORKS is running (pid …) but can't be reached
+over COM: it may still be starting, or it runs with different privileges …`. The one
+`SLDWORKS.exe` alive had started 4 h before from its exe (no `-Embedding`), with no main
+window (handle 0), a 30 MB working set and `Responding: True`: a SOLIDWORKS that was closed
+but whose process never exited, so no fresh one had started. With no `-Embedding`, S89's
+hint falls back to "still starting", wrong for a process hours old with no window. Cost: the
+run blocked, one owner round trip. (b) "a new part from a face sketch", point 1: with two
+`SLDWORKS.exe` alive (a windowless leftover started 14:44 and the one the server was attached
+to, started 18:42:33), `sw_status` gave `solidWorksStarted` "2026-11-25 14:44:02", the
+leftover's; a later `sw_status` in the same session read 18:42:33. Not proved (it read right
+the second time), but a session asking "was it restarted" of this field may be answered by
+the wrong process. Reported `ok`.
+
+Proposed by the sessions: (a) a process out of the running object table with no main window
+and a start time minutes old or more is reported as a leftover of a closed SOLIDWORKS, the
+hint "end SLDWORKS.exe (pid …) and start SOLIDWORKS from its exe"; (b) `sw_status` reports
+the attached process's id and start time, and lists any other `SLDWORKS.exe` as leftovers.
+Local, in `SessionService` and `SessionNotes`. Not decided.
+
+### S151 - Things a tool's description does not say: a face converted for dimensions, a mirror part's link, an offset plane's sign - OPEN 2026-11-27
+
+Sorted out of two entries of 2026-11-25 on build `20261124-174916`; none a fault, each a line
+a session needed. (a) "a new part from a face sketch", point 3: `sketch_convert` of a whole
+angled face, to dimension from its edges, makes the converted lines real geometry, so the
+sketch had 3 closed contours and a cut would have removed the face's outline; one more call,
+`sketch_construction_set`, made it 2. (b) "two plain plates with a hole cut each", point 2:
+`part_derive {kind:"mirror"}` makes a part of one `Mirror part` feature that stays linked to
+the source file (a change of the source reaches it); its checks name volume and box only.
+(c) The same entry, point 3: `ref_plane {kind:"offset", base: front, offsetMm: -92}` reports
+its dimension as `D1@<plane>: 92` with the plane at Z -92, the sign in the flip, so a later
+`dimension_set` of 92 reads as the same plane.
+
+Proposed: a clause each in the descriptions of `sketch_convert` (convert a face's edges as
+construction to dimension from them), `part_derive` (mirror: linked to the source) and
+`ref_plane` (a negative offset is stored as a flip with a positive value), or usage lines.
+Usage. Not decided.
+
+### S152 - `asm_interference` on a component inside a subassembly answers "0 touching" without saying the subassembly's inner pairs are not checked - OPEN 2026-11-27
+
+Sorted out of two entries of 2026-11-25 on build `20261124-174916` ("a new part from a face
+sketch", point 5; "two plain plates with a hole cut each", point 1). `asm_interference
+{components:[<one part inside a subassembly>], includeCoincident:true}` in the assembly that
+holds the subassembly answered `count 0`, `touching 0`, the check line "listed 2 pair(s): 2
+overlapping, 0 touching ...; 0 of the 2 involve <the part>". The part touches three to five
+neighbours inside its own subassembly (the same call there listed them): the parent does not
+check components of one subassembly against each other, and the result does not say so. A
+reader takes "0 touching" for a part that rests on nothing. Reported `ok`, true for what it
+checked.
+
+Proposed by the sessions: when a component named is inside a subassembly, the result says
+that pairs inside it are not checked and names the subassembly. Local. Not decided.
+
+### S153 - `model_measure` gives nothing for a curve crossing a face, takes no body, and its hint points at a form it refuses - OPEN 2026-11-27
+
+Sorted out of the entry of 2026-11-25 ("a swept shell part with mirrored tabs"), points 2
+and 3, on build `20261124-174916`. (a) Between a sketch spline and a cylindrical face it
+crosses: `NOT_SUPPORTED` "SOLIDWORKS reported no applicable measurement", twice, where a
+distance of 0 (or the crossing point) was expected. Workaround: sketch points on the curve
+either side of the crossing, each measured against the face, `centerDistanceMm` against the
+radius telling the side (121.73 between 120 and 123); 6 calls where 2 were meant. (b) To a
+whole body: `b: {type:'body', at:[...]}` refused "'at' works for face, edge, vertex and
+sketch_point; use 'name' for body", then `b: {type:'body', id:'B13'}` refused "needs face or
+edge or vertex or plane or axis or point or sketch_segment or sketch_point or origin or
+coordsys": the first hint points at a form the tool does not take (S64's kind). Missing: the
+distance from an entity to a body (the minimum over its faces), the plain way to read a
+clearance; each face was measured instead. Not reported `ok`.
+
+Proposed by the session: (a) when Measure returns nothing for a curve and a face, report
+whether they intersect (distance 0); (b) a body allowed as an entity (minimum over its
+faces), or the hint not pointing at `name`. Local. Not decided.
+
+### S154 - `sketch_info` reads a sketch fully defined with relations whose model edges changed under them - OPEN 2026-11-27
+
+Sorted out of the entry of 2026-11-25 ("a swept shell part with mirrored tabs"), point 4, on
+build `20261124-174916`. A sketch with `collinear` relations to a base feature's edges: after
+the base sketch's outline changed (those edges shortened, one cut back by 100), the dependent
+sketch and its cut came back with the rebuild warning `swFeatureErrorUnknown` (`sketch_finish`
+said so, right), while `sketch_info` of it read `constrained: "fully"` and the same relation
+counts, nothing about relations whose external reference was lost; the geometry had not
+moved. Workaround: the two related lines deleted and drawn again with dimensions to the
+origin at the same values, 4 calls a part, `model_review` then clean. Bears on S96
+(`sketch_constrain` does not check a relation to a model edge).
+
+Proposed by the session: `sketch_info` names relations whose external reference is lost
+(dangling), and the warning says "dangling relation" where SOLIDWORKS knows it. Local. Not
+decided.
+
+### S155 - `sketch_add` does not merge the ends of centre-form arcs drawn end to end at the same coordinates - OPEN 2026-11-27
+
+Sorted out of the entry of 2026-11-25 ("a swept shell part with mirrored tabs"), point 6, on
+build `20261124-174916`; S65 (e) again (closed 2026-11-16: `sketch_add` merges ends that
+meet). Arcs drawn in centre form end to end at exactly the same coordinates were not merged
+(the contour `ManyOpen`). Workaround that held on six junctions in three sketches: drawn 0.3
+to 0.6 off and joined by `coincident`. In the same session a polyline whose end lay exactly
+on an existing segment's end merged and said so ("merged onto ... (Line5 start)"), so the
+merge works for lines and misses here.
+
+Proposed: a probe of the case (whether the arcs' computed ends differ from the given
+coordinates by more than the merge tolerance, or centre-form arcs are passed over); then
+they are merged as lines are. Local. Not decided.
+
+### S156 - `dimension_set` of a linear pattern's count adds instances that form nothing, reported `ok` with a volume change of 0 - OPEN 2026-11-27
+
+Sorted out of the entry of 2026-11-26 ("a printed plate revised: a bolt pattern grown"),
+point 1, on build `20261124-174916`. `dimension_set` of a linear pattern's direction-1 count
+from 1 to 2 (a 1 x 2 pattern of a through hole, made with direction 1 unused) reported `ok`,
+`volumeDeltaMm3: 0`, no warning: the new column went along SOLIDWORKS' default sense of
+direction 1, off the body, and formed nothing, where two Ø5.5 x 6 holes (-285.1) were meant.
+Caught only by the hand figure. Workaround: the pattern deleted and made again by
+`feature_pattern_linear {direction:"-x", direction2:"-y"}`, which checked the instance faces
+and flipped direction 1 itself ("SOLIDWORKS' default ran the other way"); 3 calls with the
+rollback. Reported `ok` while wrong. Bears on S125 (an instance that formed nothing) and S7
+(`dimension_set`'s checks).
+
+Proposed by the session: `dimension_set` on a pattern's count checks what
+`feature_pattern_linear` checks (instance faces formed), or at least warns when a count
+change leaves the volume unchanged. Local. Not decided.
+
+### S157 - Results met on the in-place mirror route: an insert names no body, a body delete is named `-1`, a mirror part's delete warns of its folders - OPEN 2026-11-27
+
+Sorted out of the entry of 2026-11-26 ("a left part remade in place as the mirror of the
+right one"), points 2 to 4, on build `20261124-174916`; the route is S65 (r). (a)
+`part_derive {kind:"insert"}` names the new feature but gives no body id, and
+`feature_mirror {bodies:[<that feature's name>]}` was refused `ENTITY_NOT_FOUND: No body
+named '<feature>'`, the body being `<feature>-<other feature>`: one call lost each time until
+`body_list` was read. (b) `body_delete` names its `DeleteBody` feature `-1`, seen twice;
+`feature_rename` of `-1` worked. (c) `feature_delete` of a `MirrorStock` feature (Mirror
+Part) warned ten times "SOLIDWORKS also removed 'Surface Bodies1' (absorbed by ...), which
+was not planned" for the folders that feature carries (`Solid Bodies1`, `Planes1`, their
+`___EndTag___` entries); nothing wrong was removed. None reported `ok` while wrong.
+
+Proposed by the session: (a) the insert's result lists the new bodies' ids, as
+`feature_mirror` and `body_delete` do; (b) a readable default name ("Body-Delete1") or a
+`name` input; (c) those folder types left out of the "not planned" list. Local, small. Not
+decided.
 
 ## Waiting
 
@@ -2516,6 +2872,12 @@ Decided 2026-11-22 by the run, not the owner: the proof moved to a session that 
 state, because the state cannot be brought on at will (S92 (c)'s probe did not reproduce it)
 and a check in the good state shows only that the sign raises no false alarm; the unit tests
 hold the rule meanwhile.
+Checked 2026-11-25 by two working sessions in S92's state (findings 2026-11-25, "reading two
+parts the owner had edited by hand", point 1; "a swept shell part with mirrored tabs", point
+1), build `20261124-174916`: the warning of the state fired both times and was right, but in
+both the negative globals read 0, so S112's own sign fired as well, and in the first the
+derived rows read their literal part, not 0, which this sign does not judge. The widened sign
+alone was not seen live; the proof stays a session in the state whose globals read right.
 
 ### S140 - S80 (a) and (c): `sketch_add` said nothing when SOLIDWORKS moved what it drew, or made a rectangle drawn square equal-sided - BUILT 2026-11-24, proof: the scenario test of the group 7 build
 

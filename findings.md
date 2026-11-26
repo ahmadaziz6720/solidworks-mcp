@@ -2733,6 +2733,8 @@ Build `0.1.0-sw2023-20261124-174916+3276b18`.
    plane: "no faces", its hint to use `bodies` right; with `bodies` it held. `equation_set`
    on a weldment global: volume delta to the hand figure to 0.3 mm³, the cut list followed.
 
+Sorted into S64 (1), met again; S80 (2), part (d); S64 (3), part (q); S143 (4), new; S65 (5), part (m); S139 (6), met again. Not filed (7): held, no item.
+
 **2026-11-25: seven parts and two assemblies modelled from a design doc, printed plates and stock envelopes, then checked against a neighbouring assembly**
 
 Build `0.1.0-sw2023-20261124-174916+3276b18`.
@@ -2768,6 +2770,8 @@ Build `0.1.0-sw2023-20261124-174916+3276b18`.
    back within 1 µm; the interference against the neighbour found 2 overlaps of 1058.4 mm³,
    each cross-checked.
 
+Sorted into S65 (1), met again; S65 (2), part (n); S144 (3), new; S65 (4), part (o). Not filed (5): held, no item.
+
 **2026-11-25: two printed plates trimmed and their bolt pattern cut from 2 x 2 to 1 x 2, read against a neighbour in an assembly**
 
 Build `0.1.0-sw2023-20261124-174916+3276b18`.
@@ -2792,6 +2796,8 @@ Build `0.1.0-sw2023-20261124-174916+3276b18`.
    pattern left as a 1 x 2), the seed moved and an outline line moved in one call,
    -13 254 mm³ against -47 x 47 x 6 by hand, exact on both plates; `asm_interference`
    after it gave each remaining overlap as the strip's 16 x 2.8 x 6 = 268.8 mm³.
+
+Sorted into S145 (1), new; S146 (2), new. Not filed (3, 4): a slow `face_list` not reproduced, a timing note (3); held (4).
 
 **2026-11-25: a printed nozzle with a tilted slot, two stock envelopes and a hose sweep, a mount extended by rollback, components replaced and added in a subassembly read from its parent**
 
@@ -2843,6 +2849,8 @@ Build `0.1.0-sw2023-20261124-174916+3276b18`.
    (`dirty` only, owned only, one assembly's documents) would have done. The server
    reported success throughout.
 
+Sorted into S147 (2), new; S148 (3, 4), new; S149 (5), new. Before its fix: S140 (1), build 20261124-174916.
+
 **2026-11-25: reading two parts the owner had edited by hand, interference, STEP export**
 
 Build `0.1.0-sw2023-20261124-174916+3276b18`, SOLIDWORKS started 16:08, read at about 18:15.
@@ -2861,6 +2869,8 @@ Build `0.1.0-sw2023-20261124-174916+3276b18`, SOLIDWORKS started 16:08, read at 
    (`replaced:true`), and a new STEP, both one solid, AP214; `asm_interference` 0
    overlapping, `model_review` clean on the parts and the assembly.
 
+Sorted into S92 (1), met again; S118 (1), checked. Not filed (2): held, no item.
+
 **2026-11-25: reconnecting after the owner restarted SOLIDWORKS**
 
 Build `0.1.0-sw2023-20261124-174916+3276b18`, server process started 16:32, read at 18:40.
@@ -2877,6 +2887,8 @@ Build `0.1.0-sw2023-20261124-174916+3276b18`, server process started 16:32, read
    a start time minutes old or more is reported as a leftover of a closed SOLIDWORKS,
    the hint "end SLDWORKS.exe (pid …) and start SOLIDWORKS from its exe". Cost here: the
    run blocked, and one owner round trip.
+
+Sorted into S150 (1), new.
 
 **2026-11-25: a new part from a face sketch, an assembly with two concentric mates, interference**
 
@@ -2914,6 +2926,8 @@ Build `0.1.0-sw2023-20261124-174916+3276b18`, SOLIDWORKS started 18:42 by the ow
    constrained, no mate error, the inserted component did not move (origin 0,0,0 before
    and after), `model_measure` centre distance 0 on both pairs. Hand volumes matched on
    every step (cut -95.426 against -95.4, boss 38 400 against 38 400).
+
+Sorted into S150 (1), new, S116 again; S92 (2), a line in (c); S151 (3), new; S147 (4), new; S152 (5), new. Not filed (6): held, no item.
 
 **2026-11-25: a swept shell part with mirrored tabs, two plates' outline sketches grown, an assembly mated by holes**
 
@@ -2974,6 +2988,8 @@ Build `0.1.0-sw2023-20261124-174916+3276b18` (the registration of the entry abov
    mates on a mirrored tab's holes: fully constrained, the component did not move, centre
    distance 0 on the other side's two pairs.
 
+Sorted into S92 (1), met again; S118 (1), checked; S153 (2, 3), new; S154 (4), new; S65 (5), part (p); S155 (6), new, S65 again. Not filed (7, 8): a lesson for callers, measures sent one at a time, `BUSY` by design (7); held (8).
+
 **2026-11-25: two plain plates with a hole cut each, two flat wall parts (one a mirror part), an assembly mated by a face and holes**
 
 Build as the entry above (not read again), same SOLIDWORKS process.
@@ -3002,6 +3018,8 @@ Build as the entry above (not read again), same SOLIDWORKS process.
    a coincident and two concentric mates, the component did not move. `model_measure` of two
    cylindrical faces gave `centerDistanceMm` 0, and of a planar face against `{name:"right"}`
    the plane-to-face distance (30), a way to place a face against a plane no part holds.
+
+Sorted into S152 (1), new; S151 (2, 3), new. Not filed (4): held, no item.
 
 **2026-11-26: a printed plate revised: a bolt pattern grown, sketch rounds, a thinned region and an edge rim**
 
@@ -3032,6 +3050,8 @@ Build `0.1.0-sw2023-20261124-174916+3276b18`.
    batch and back, +13 776.844 against +13 776.8 worked by hand, the part back to the
    same volume.
 
+Sorted into S156 (1), new; S65 (2), part (q). Not filed (3, 4): held, no item.
+
 **2026-11-26: a left part remade in place as the mirror of the right one, two sheet-like parts edited, an assembly's mates remade**
 
 Build `0.1.0-sw2023-20261124-174916+3276b18`.
@@ -3043,6 +3063,8 @@ Build `0.1.0-sw2023-20261124-174916+3276b18`.
 5. Held, worth knowing: `asm_mate_add` took face ids (`F630`, `F655`) copied from an `asm_mate_list` read earlier in the same session, after the parts on the other side of those mates had been rebuilt, and resolved them to the right faces.
 6. Held: `feature_mirror {bodies}` of an inserted body gave 128 894.458 mm³ against the source's 128 894.445 (0.013, tessellation), reported with its reflected-vertex check; read as a match.
 
+Sorted into S65 (1), part (r); S157 (2, 3, 4), new. Not filed (5, 6): held, no item.
+
 **2026-11-26: two printed parts from a written plan, one with five configurations by design table**
 
 Build `0.1.0-sw2023-20261124-174916+3276b18`.
@@ -3052,3 +3074,5 @@ Build `0.1.0-sw2023-20261124-174916+3276b18`.
 3. `sketch_convert` of a face's outer loop then `sketch_offset {chain:true, side:"inward"}`: the sketch then lists `D1@<sketch> = 0 mm` beside the offset's `D2 = 2 mm`, in `sketch_finish`'s and the extrude's `dimensions`. Nothing explains it; `model_review` was clean and the second set held (the offset driven by a variable, 2 to 3). Proposed: the result says what `D1` is (likely the offset feature's own parameter), or leaves it out.
 4. Held, worth knowing: pads drawn 1 mm clear of the rim's edges and set `collinear` with the model edges (10 relations, 8 dimensions, one `sketch_constrain` of 43 s) followed the walls exactly at a second set (+30 798.035, the hand figure to 0.02).
 5. Held: `feature_revolve {cut:true, axis:{name:<centerline>}}` of a half profile on an offset reference plane (centerline drawn past the profile, `collinear` with its edge on the axis), -10.430 against 10.430 by hand, coaxial check passed; its pattern 4 x 2 gave 7 instances at -10.43 each.
+
+Sorted into S65 (1), part (s); S146 (2), new; S147 (3), new. Not filed (4, 5): held, no item.
