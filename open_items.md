@@ -17,7 +17,7 @@ Closed all the same, its PR named, and an open PR no longer holds an item in Wai
 item sent upstream ends with `**Upstream: PR #9, open.**`, one per PR or issue
 (`merged`, `closed unmerged`; an issue `open` or `closed`), kept to its state.
 
-**Open: S4, S5, S7, S10 to S12, S33, S34, S60, S64, S65, S79 to S82, S85, S86, S92, S94, S96, S99, S105, S109, S111, S115, S123 to S125, S129, S134 to S139, S143 to S159.**
+**Open: S4, S5, S7, S10 to S12, S33, S34, S60, S64, S65, S79 to S82, S85, S86, S92, S94, S96, S99, S105, S109, S111, S115, S124, S125, S129, S134 to S139, S143 to S159.**
 Planned 2026-11-27, `## Run 2026-11-27` below, on the owner's opening answer: S52 closed
 (every point held or done), S81 and S109 parked (probed, not reproduced, not met since),
 S158 and S159 filed from the run of 2026-11-21's leftovers at its closing.
@@ -503,8 +503,8 @@ line in `part_derive`'s description, not an `into`).
 ### Where the run stands
 
 - [x] Phase 1: the opening question asked and answered (2026-11-27)
-- [x] S101: committed
-- [ ] S123: committed
+- [x] S101: committed (0274bca)
+- [x] S123: committed
 - [ ] S155: probed
 - [ ] S144: probed
 - [ ] S80 (d): probed
@@ -1930,29 +1930,6 @@ Proposed: `dimension_list` on an assembly lists the components' dimensions by th
 small: not in this run, for the next plan. Not decided.
 Decided 2026-11-27 by the owner: taken into the run of 2026-11-27, group 3: the components' dimensions by the names `dimension_set` takes, capped, no new option (`## Run 2026-11-27`).
 
-### S123 - `sketch_finish` lists a dimension twice, and `sketch_edit` and `sketch_finish` count a sketch's segments apart - OPEN 2026-11-22
-
-Sorted out of the entry of 2026-11-22 (the scenario test of build `20261122-142805`), point
-6, the "Small" in S93's case: a block's sketch reopened and the corner under one edge
-chamfered 10 in the sketch. (a) Both `sketch_finish` results (the close that chamfered and a
-second close unchanged) list `dimensions` `D3@Sketch1` twice, where `dimension_list` of the
-sketch has the one dimension the sketch chamfer made. (b) `sketch_edit` of the same sketch
-reads `segments: 7` where `sketch_finish` reads 5: the rectangle's two construction
-diagonals counted by one and not the other. The model was right; two results that disagree
-with each other and with `dimension_list`. Reported `ok`.
-
-Local, small, in group 7's files (`SketchService.cs`, `SketchEditService.cs`).
-Decided 2026-11-22 by the run, not the owner: (a) `sketch_finish`'s `dimensions` names each
-dimension once; (b) the two tools count a sketch's segments alike, construction lines by
-both or by neither. Test to start from: S93's case of point 6, the sketch chamfer:
-`dimensions` lists `D3@Sketch1` once and the two counts are equal (fails now: twice, 7
-against 5). Sonnet.
-Decided 2026-11-22 by the run, not the owner: taken into group 7, by the run's rule "a new
-point, small and in the group's files, a later step of this run ... taken into the next
-group", because it is two
-small reads of the sketch tools whose files are group 7's, found by group 4's check.
-Carried 2026-11-27 into the run of 2026-11-27, group 1, its decision as written: the run of 2026-11-21 closed on the owner's word (`## Run 2026-11-27`).
-
 ### S124 - `feature_fillet` builds a radius twice the width of the faces it blends, consuming a face, reported `ok` with no warning - OPEN 2026-11-22
 
 Sorted out of the entry of 2026-11-22 (the scenario test of build `20261122-142805`), point
@@ -2839,5 +2816,56 @@ order check of `NewSegments` also read the last old segment and, when the list i
 order (a segment gone), read the sketch's names again, and made `AddLimit` count a
 rectangle, slot and polygon by their segments, because the change as left missed a new
 segment after a deletion and kept a stale name list, and counted a rectangle as one.
+Local: on `sw2023`, in the commit that moves it here; not yet in a build. Upstream: not yet
+decided.
+
+### S123 - `sketch_finish` lists a dimension twice, and `sketch_edit` and `sketch_finish` count a sketch's segments apart - BUILT 2026-11-27, proof: the scenario test of the group 1 build
+
+Sorted out of the entry of 2026-11-22 (the scenario test of build `20261122-142805`), point
+6, the "Small" in S93's case: a block's sketch reopened and the corner under one edge
+chamfered 10 in the sketch. (a) Both `sketch_finish` results (the close that chamfered and a
+second close unchanged) list `dimensions` `D3@Sketch1` twice, where `dimension_list` of the
+sketch has the one dimension the sketch chamfer made. (b) `sketch_edit` of the same sketch
+reads `segments: 7` where `sketch_finish` reads 5: the rectangle's two construction
+diagonals counted by one and not the other. The model was right; two results that disagree
+with each other and with `dimension_list`. Reported `ok`.
+
+Local, small, in group 7's files (`SketchService.cs`, `SketchEditService.cs`).
+Decided 2026-11-22 by the run, not the owner: (a) `sketch_finish`'s `dimensions` names each
+dimension once; (b) the two tools count a sketch's segments alike, construction lines by
+both or by neither. Test to start from: S93's case of point 6, the sketch chamfer:
+`dimensions` lists `D3@Sketch1` once and the two counts are equal (fails now: twice, 7
+against 5). Sonnet.
+Decided 2026-11-22 by the run, not the owner: taken into group 7, by the run's rule "a new
+point, small and in the group's files, a later step of this run ... taken into the next
+group", because it is two
+small reads of the sketch tools whose files are group 7's, found by group 4's check.
+Carried 2026-11-27 into the run of 2026-11-27, group 1, its decision as written: the run of 2026-11-21 closed on the owner's word (`## Run 2026-11-27`).
+Cause: (a) `FeatureVerifier.Dimensions` walks the feature's chain of display dimensions, and the
+sketch chamfer's dimension comes up twice in it, so `sketch_finish` (and `sketch_info` and
+any result that lists a feature's dimensions) named it twice, where `dimension_list` had the
+one. (b) `sketch_finish` counts the segments that are not construction geometry (as its
+`contours` do), and the reopen result of `sketch_edit` counted every segment, the
+rectangle's two diagonals among them: 5 and 7.
+Fix: `FeatureVerifier.Dimensions` lists a dimension once, by its full name; the reopen
+result of `sketch_edit` counts the segments that are not construction geometry
+(`SketchEditService.Reopened`), as `sketch_finish` does. `sketch_info` still lists every
+segment with its `segmentCount`, construction ones included, as it lists them. No
+description changed.
+Before: the new `FeatureManagementLiveTests.Sketch_finish_names_each_dimension_once_and_counts_segments_as_sketch_edit_does`
+(the 100 x 20 x 60 block's sketch reopened and one corner chamfered 10, `sketch_finish`,
+reopened, `sketch_finish` again) failed: "Assert.Equal() Failure: Values differ Expected: 1
+Actual: 2" (`D3@Sketch1` twice; its segment-count line is behind it in the test).
+After: it passes, with the live tests that call the changed code (S93's
+`Sketch_finish_names_a_feature_the_redrawn_sketch_left_with_a_rebuild_warning`,
+`SketchEditLiveTests.Edit_reopens_a_finished_sketch_with_its_frame`,
+`Edit_dimension_finish_rebuilds_the_extrude`, `Editing_tools_need_the_servers_open_sketch`,
+and three `dimension_list` and tolerance tests of `FeatureManagementLiveTests`), 8/8; unit
+tests 370/370; `check_repo` ok.
+Made stricter: nothing refused; two results that disagreed now agree.
+Decided 2026-11-27 by the run, not the owner: both tools count the segments that are not
+construction geometry, not all, because `sketch_finish`'s count and its `contours` already
+leave construction out and a count of the drawn outline is the one a caller compares with
+a contour; `sketch_info` keeps listing all segments.
 Local: on `sw2023`, in the commit that moves it here; not yet in a build. Upstream: not yet
 decided.

@@ -266,12 +266,14 @@ internal static class FeatureVerifier
     public static List<DimensionInfo> Dimensions(IFeature f)
     {
         var list = new List<DimensionInfo>();
+        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         object? dd = f.GetFirstDisplayDimension();
         int guard = 0;
         while (dd is IDisplayDimension disp && guard++ < 200)
         {
+            // S123: a dimension can come up twice in the feature's chain of display dimensions (a sketch chamfer's); list it once.
             var dim = disp.GetDimension2(0);
-            if (dim is not null) list.Add(Dimension(dim));
+            if (dim is not null && seen.Add(dim.FullName)) list.Add(Dimension(dim));
             dd = f.GetNextDisplayDimension(disp);
         }
         return list;

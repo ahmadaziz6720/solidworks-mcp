@@ -251,7 +251,7 @@ public sealed class SketchEditService(SwSession session)
             Sketch = name,
             Frame = is3D ? null : SketchService.Frame(SketchService.SketchToModel(s)),
             ThreeD = is3D ? true : null,
-            Segments = s.Segments().Count,
+            Segments = s.Segments().Count(x => !x.ConstructionGeometry), // as sketch_finish and its contours count (S123)
             Relations = RelationCount(s),
             Constrained = ConstrainedName(s.GetConstrainedStatus()),
             AlreadyOpen = alreadyOpen ? true : null,

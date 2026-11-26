@@ -284,6 +284,30 @@ public class FeatureManagementLiveTests(LiveFixture fx) : LiveTest(fx)
         Assert.DoesNotContain(clean.Warnings ?? [], w => w.Contains("rebuild"));
     }
 
+    [Fact]
+    public async Task Sketch_finish_names_each_dimension_once_and_counts_segments_as_sketch_edit_does()
+    {
+        // S123: the block's sketch reopened and one corner chamfered 10 (the sketch chamfer makes the one dimension).
+        // sketch_finish listed it twice, and read 5 segments where sketch_edit's reopen read 7 (the rectangle's two
+        // construction diagonals, counted by one tool and not the other).
+        var b = await BlockAsync("fm_finish_count");
+        var sk = new SketchService(S);
+        var ed = new SketchEditService(S);
+        await ed.EditAsync(b.Doc, b.Sketch);
+        await ed.ChamferAsync(b.Doc, null, [50, 0, 30], "equal", 10);
+        var r = await sk.FinishAsync(b.Doc);
+        var listed = (await M.DimensionListAsync(b.Doc, b.Sketch)).Dimensions.Select(x => x.Name).ToList();
+        var names = r.Dimensions!.Select(x => x.Name).ToList();
+        Assert.Equal(names.Distinct(StringComparer.OrdinalIgnoreCase).Count(), names.Count);
+        Assert.Equal(listed.Order(), names.Order());
+
+        var again = await ed.EditAsync(b.Doc, b.Sketch);
+        Assert.Equal(r.Segments, again.Segments);
+        var second = await sk.FinishAsync(b.Doc);
+        Assert.Equal(r.Segments, second.Segments);
+        Assert.Equal(second.Dimensions!.Select(x => x.Name).Distinct(StringComparer.OrdinalIgnoreCase).Count(), second.Dimensions!.Count);
+    }
+
     // ------------------------------------------------------------------ feature_delete
 
     [Fact]
