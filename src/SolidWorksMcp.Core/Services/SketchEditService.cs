@@ -2487,7 +2487,8 @@ public sealed class SketchEditService(SwSession session)
         if (r is null) throw SwException.InvalidArgument($"'{arg}' is null; pass e.g. {{name:'Line1'}} or {{at:[x,y]}}.");
         var n = Clone(r);
         bool segOk = allowed.Contains(EntityKind.SketchSegment), ptOk = allowed.Contains(EntityKind.SketchPoint);
-        bool sketchOnly = allowed.All(k => k is EntityKind.SketchSegment or EntityKind.SketchPoint);
+        // S144: the origin is taken by name only, so a dimension's [x, y, z] is a model point to project as well.
+        bool sketchOnly = allowed.All(k => k is EntityKind.SketchSegment or EntityKind.SketchPoint or EntityKind.Origin);
         var kind = EntityResolver.ParseKind(n.Type);
         bool plain = string.IsNullOrWhiteSpace(n.Id) && n.Where is null;
         if (n.At is not null && (n.At.Length is not (2 or 3) || n.At.Any(v => !double.IsFinite(v))))
@@ -2511,7 +2512,7 @@ public sealed class SketchEditService(SwSession session)
                     try { return [EntityResolver.Resolve(ctx, d, n, arg, allowed)]; }
                     catch (SwException ex) when (ex.Code == ErrorCodes.EntityNotFound && segOk) { /* not a point: the segment through it */ }
                 }
-                return [SegmentAt(ctx, d, sketch, n, arg)];
+                return [SegmentAt(ctx, d, sketch, n, arg, pointOk: ptOk)];
             }
             // A name that is a segment of the sketch is that segment; a name that is no feature either is reported as a
             // missing segment (with the sketch_info hint) rather than a missing feature.
@@ -2542,8 +2543,12 @@ public sealed class SketchEditService(SwSession session)
     private static ISketchSegment? FindSegment(ISketch s, string name) =>
         s.Segments().FirstOrDefault(x => string.Equals(x.GetName(), name.Trim(), StringComparison.OrdinalIgnoreCase));
 
-    /// <summary>The segment passing through a sketch point [x,y] mm (lines, arcs and circles).</summary>
-    private static Resolved SegmentAt(SwContext ctx, IModelDoc2 d, ISketch open, EntityRef r, string arg)
+    /// <summary>
+    /// The segment passing through a sketch point [x,y] mm (lines, arcs and circles). With <paramref name="pointOk"/> (a
+    /// sketch point was sought there first and none lay within the tolerance), segments tied through it that cross at the
+    /// sketch point nearest to it, within 1 mm, give that point, with a warning (S144: a centre rectangle's centre).
+    /// </summary>
+    private static Resolved SegmentAt(SwContext ctx, IModelDoc2 d, ISketch open, EntityRef r, string arg, bool pointOk = false)
     {
         var sketch = SketchOf(ctx, d, open, r.Sketch);
         double tol = Units.M(r.TolMm is > 0 ? r.TolMm.Value : EntityResolver.DefaultTolMm);
@@ -2555,6 +2560,14 @@ public sealed class SketchEditService(SwSession session)
             throw new SwException(ErrorCodes.EntityNotFound, $"'{arg}': the sketch has no line, arc or circle near {where}.", "Pass the segment by name (sketch_info lists them).");
         var best = hits[0];
         var tied = hits.Where(h => h.Dist <= best.Dist + Math.Max(1e-9, 1e-3 * tol)).ToList();
+        if (tied.Count > 1 && best.Dist <= tol && pointOk && Crossing(sketch, tied.Select(h => h.Seg).ToList(), p, Math.Max(tol, 1e-3)) is { } x)
+        {
+            string names = string.Join(", ", tied.Select(h => h.Seg.GetName()));
+            string at = TopoQuery.Fmt([Units.Mm(x.P.X), Units.Mm(x.P.Y)]);
+            ctx.Warn($"{arg}: no sketch point within {Invariant(Units.Mm(tol))} mm of {where}, and {names} pass through it; used " +
+                     $"the sketch point [{at}] where they cross, {Invariant(Units.Mm(x.Dist))} mm away.");
+            return new Resolved { Obj = x.P, Kind = EntityKind.SketchPoint, Label = $"sketch point at [{at}] (on {names})", Distance = x.Dist };
+        }
         if (tied.Count > 1 && best.Dist <= tol)
             throw new SwException(ErrorCodes.EntityAmbiguous, $"'{arg}': {tied.Count} segments pass through {where}: {string.Join(", ", tied.Take(6).Select(h => h.Seg.GetName()))}.",
                 "Pass one by name, or a point on just one of them.");
@@ -2568,6 +2581,17 @@ public sealed class SketchEditService(SwSession session)
             ctx.Warn($"{arg}: no segment exactly at {where}; used {best.Seg.GetName()}, {Units.Mm(best.Dist)} mm away.");
         }
         return new Resolved { Obj = best.Seg, Kind = EntityKind.SketchSegment, Label = $"sketch segment {best.Seg.GetName()}", Distance = best.Dist };
+    }
+
+    /// <summary>S144: the sketch point nearest to <paramref name="p"/> within <paramref name="reach"/> when it lies on every one
+    /// of <paramref name="segs"/> (to <see cref="SketchService.MergeTol"/>), else null.</summary>
+    private static (ISketchPoint P, double Dist)? Crossing(ISketch sketch, List<ISketchSegment> segs, Vec3 p, double reach)
+    {
+        var near = sketch.Points().Select(sp => (P: sp, Dist: new Vec3(sp.X, sp.Y, 0).DistanceTo(p)))
+            .Where(x => x.Dist <= reach).OrderBy(x => x.Dist).FirstOrDefault();
+        if (near.P is null) return null;
+        var at = new Vec3(near.P.X, near.P.Y, 0);
+        return segs.All(s => DistanceTo(Read(s), at) <= SketchService.MergeTol) ? near : null;
     }
 
     /// <summary>

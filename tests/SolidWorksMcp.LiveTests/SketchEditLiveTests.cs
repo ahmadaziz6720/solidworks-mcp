@@ -736,6 +736,34 @@ public class SketchEditLiveTests(LiveFixture fx) : LiveTest(fx)
     }
 
     [Fact]
+    public async Task A_centre_rectangle_s_centre_point_is_named_and_dimensioned_to()
+    {
+        // S144: a dimension to a centre rectangle's centre was ENTITY_AMBIGUOUS "2 segments pass through": a point a little
+        // off the centre of a long, low rectangle passes within the tolerance of both diagonals and of no sketch point. As a
+        // sketch point it was ENTITY_NOT_FOUND with no word of the centre point 0.05 mm away; a model point was not projected.
+        var (doc, _, added) = await SketchAsync("s144_centre", "top",
+            new SketchEntity { Kind = "rectangle", Center = [46, -66], WidthMm = 100, HeightMm = 10 });
+        var rect = added.Entities[0];
+        Assert.Equal(46, rect.CenterMm![0], L);
+        Assert.Equal(-66, rect.CenterMm[1], L);
+        var origin = new EntityRef { Name = "origin" };
+
+        var h = await Ed.DimensionAddAsync(doc, [origin, At(46.05, -66)], "horizontal", valueMm: 46);
+        Assert.Equal(46, h.Dimension.Value, L);
+        string w = Assert.Single(h.Warnings ?? [], x => x.Contains("Line5, Line6", StringComparison.Ordinal));
+        Assert.Contains("used the sketch point [46, -66] where they cross, 0.05 mm away", w);
+
+        var miss = await Assert.ThrowsAsync<SwException>(() => Ed.DimensionAddAsync(doc,
+            [origin, new EntityRef { Type = "sketch_point", At = [46.05, -66] }], "vertical"));
+        Assert.Equal(ErrorCodes.EntityNotFound, miss.Code);
+        Assert.Contains("nearest: [46, -66] (on Line5, Line6), 0.05 mm away", miss.Message);
+
+        var v = await Ed.DimensionAddAsync(doc, [origin, new EntityRef { At = [46, 0, 66] }], "vertical", valueMm: 66);
+        Assert.Equal(66, v.Dimension.Value, L);
+        Assert.Contains(v.Resolved!, r => r.Type == "sketch_point");
+    }
+
+    [Fact]
     public async Task Constrain_defines_a_rectangle_fully_in_one_call()
     {
         var (doc, sketch, added) = await SketchAsync("con_rect", "front",

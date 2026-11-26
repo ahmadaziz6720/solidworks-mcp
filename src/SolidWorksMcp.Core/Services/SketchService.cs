@@ -45,6 +45,11 @@ public sealed class SketchEntityResult
     public IReadOnlyDictionary<string, string>? Sides { get; init; }
     /// <summary>Centre rectangle: its two construction diagonals, whose midpoint is the centre.</summary>
     public IReadOnlyList<string>? Diagonals { get; init; }
+    /// <summary>
+    /// Centre rectangle: its centre point (sketch mm; model mm in a 3D sketch) where the solved sketch has it, the point
+    /// coincident with both diagonals, which {at: …} there takes (S144).
+    /// </summary>
+    public double[]? CenterMm { get; set; }
     public string? ConstructionCircle { get; init; }
     /// <summary>Relations SOLIDWORKS made on what this entity drew ("equal: Line1, Line2"), the call's own included.</summary>
     public IReadOnlyList<string>? Relations { get; init; }
@@ -229,6 +234,12 @@ public sealed class SketchService(SwSession session)
                 if (SketchDrift.Moved($"entities[{i}] ({results[i].Kind})", drawn, solved, results[i].Relations,
                         results[i].Segments, is3D, MergeTol) is { } moved)
                     ctx.Warn(moved);
+                if (results[i].Diagonals is [var diag, ..] && segs.FirstOrDefault(s => s.GetName() == diag) is ISketchLine dl &&
+                    dl.SkStart() is { } ds && dl.SkEnd() is { } de)
+                {
+                    var ctr = new Vec3((ds.X + de.X) / 2, (ds.Y + de.Y) / 2, (ds.Z + de.Z) / 2);
+                    results[i].CenterMm = is3D ? Units.Mm(ctr) : [Units.Mm(ctr.X), Units.Mm(ctr.Y)];
+                }
             }
             return new SketchAddResult
             {

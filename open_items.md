@@ -17,7 +17,7 @@ Closed all the same, its PR named, and an open PR no longer holds an item in Wai
 item sent upstream ends with `**Upstream: PR #9, open.**`, one per PR or issue
 (`merged`, `closed unmerged`; an issue `open` or `closed`), kept to its state.
 
-**Open: S4, S5, S7, S10 to S12, S33, S34, S60, S64, S65, S79 to S82, S85, S86, S92, S94, S96, S99, S105, S109, S111, S115, S124, S125, S129, S134 to S139, S143 to S154, S156 to S159.**
+**Open: S4, S5, S7, S10 to S12, S33, S34, S60, S64, S65, S79 to S82, S85, S86, S92, S94, S96, S99, S105, S109, S111, S115, S124, S125, S129, S134 to S139, S143, S145 to S154, S156 to S159.**
 Planned 2026-11-27, `## Run 2026-11-27` below, on the owner's opening answer: S52 closed
 (every point held or done), S81 and S109 parked (probed, not reproduced, not met since),
 S158 and S159 filed from the run of 2026-11-21's leftovers at its closing.
@@ -505,8 +505,8 @@ line in `part_derive`'s description, not an `into`).
 - [x] Phase 1: the opening question asked and answered (2026-11-27)
 - [x] S101: committed (0274bca)
 - [x] S123: committed (36936e0)
-- [x] S155: probed
-- [ ] S144: probed
+- [x] S155: probed (68e6358)
+- [x] S144: probed
 - [ ] S80 (d): probed
 - [ ] Group 1: full live tests and release (build: )
 - [ ] Group 1: scenario test with S140 to S142's proof (session id: ), its entry committed and sorted
@@ -2128,20 +2128,6 @@ its points' and segments' own), and whether the refused dimensions were redundan
 fixed lines. Local. Not decided.
 Decided 2026-11-27 by the owner: taken into the run of 2026-11-27, group 4: a probe first, the status read right or the refusal naming what already defines the entity (`## Run 2026-11-27`).
 
-### S144 - A centre rectangle's centre point cannot be referenced - OPEN 2026-11-27
-
-Sorted out of the entry of 2026-11-25 ("seven parts and two assemblies modelled from a
-design doc"), point 3, on build `20261124-174916`. After `rectangle {center, widthMm,
-heightMm}`, a dimension to `{at: <centre>}` was `ENTITY_AMBIGUOUS` "2 segments pass through
-[46, -66]: Line5, Line6" (the construction diagonals), and to `{type:"sketch_point", at:
-<centre>}` `ENTITY_NOT_FOUND` "No sketch point within 0.01 mm". Workaround: a corner
-dimensioned instead, its equation offset by half the width. Bears on S140's wording ("a
-centre rectangle's own centre point").
-
-Proposed by the session: the result names the centre point, or the diagonals' intersection
-is taken as a point reference. Local. Not decided.
-Decided 2026-11-27 by the owner: taken into the run of 2026-11-27, group 1: a probe first, the centre point resolved and named in the rectangle's result (`## Run 2026-11-27`).
-
 ### S145 - `model_measure` of two parallel cylinders reads `parallel: false`, reported `ok` - OPEN 2026-11-27
 
 Sorted out of the entry of 2026-11-25 ("two printed plates trimmed and their bolt pattern cut
@@ -2914,5 +2900,66 @@ result true with the smaller change.
 Decided 2026-11-27 by the run, not the owner: the warning's band is above 1e-4 mm and up
 to 0.05 mm, because an angle typed to 2 decimals moves a 500 mm arc's end up to 0.044 mm,
 and a gap drawn on purpose to be joined by a relation (0.3 to 0.6 mm in the entry) is wider.
+Local: on `sw2023`, in the commit that moves it here; not yet in a build. Upstream: not yet
+decided.
+
+### S144 - A centre rectangle's centre point could not be referenced - BUILT 2026-11-27, proof: the scenario test of the group 1 build
+
+Sorted out of the entry of 2026-11-25 ("seven parts and two assemblies modelled from a
+design doc"), point 3, on build `20261124-174916`. After `rectangle {center, widthMm,
+heightMm}`, a dimension to `{at: <centre>}` was `ENTITY_AMBIGUOUS` "2 segments pass through
+[46, -66]: Line5, Line6" (the construction diagonals), and to `{type:"sketch_point", at:
+<centre>}` `ENTITY_NOT_FOUND` "No sketch point within 0.01 mm". Workaround: a corner
+dimensioned instead, its equation offset by half the width. Bears on S140's wording ("a
+centre rectangle's own centre point").
+Proposed by the session: the result names the centre point, or the diagonals' intersection
+is taken as a point reference. Local. Not decided.
+Decided 2026-11-27 by the owner: taken into the run of 2026-11-27, group 1: a probe first, the centre point resolved and named in the rectangle's result (`## Run 2026-11-27`).
+Probe (2026-11-27, build `20261124-174916`, 2023 SP3): a centre rectangle leaves a free
+sketch point at its centre, coincident with both diagonals (S140's wording holds). At the
+exact centre, `{at}` and `{type:"sketch_point", at}` both took it, on the top plane, on a
+face, after the rectangle was resized by dimensions, and in a sketch reopened after its
+extrude. Both messages of the entry came back for a point 0.05 mm off the centre of a
+100 x 10 rectangle along its long centre line: no sketch point within 0.01 mm, and both
+diagonals pass within 0.01 mm of it, tied (each at 0.05 x 10/100.5 mm). The probe also
+found a model point `{at:[46, 0, 66]}` (the same centre) to a dimension refused
+`ENTITY_NOT_FOUND` "No sketch point within 0.01 mm of [46, 0, 66]": not projected.
+Cause: (1) `{at}` sought a sketch point within the tolerance, then the segment through it,
+and the diagonals cross where the point is: tied, they were refused, the point beside them
+not offered; (2) the not-found named no point near; (3) the result gave no centre to aim
+at; (4) `Ref` projected a model point only when every allowed kind was a sketch kind, and a
+dimension also allows the origin.
+Fix: (1) `SketchEditService.SegmentAt`, from a plain `{at}` that sought a point first:
+segments tied through it that all pass through the sketch point nearest to it, within
+1 mm (the reach `SegmentAt` already gives a nearest segment), give that point, with a
+warning "entities[1]: no sketch point within 0.01 mm of [46.05, -66], and Line5, Line6 pass
+through it; used the sketch point [46, -66] where they cross, 0.05 mm away."; (2)
+`EntityResolver.SketchPointAt`'s not-found adds "; nearest: [46, -66] (on Line5, Line6),
+0.05 mm away" (new `SketchRelations.Who`: a point's ends, else the segments it is
+coincident with); (3) `sketch_add`'s centre rectangle gives `centerMm`, read from a
+diagonal after the solve; (4) the origin no longer stops the projection. No description
+changed; no read added to `sketch_add` beyond the one diagonal (S101).
+Before: the new `SketchEditLiveTests.A_centre_rectangle_s_centre_point_is_named_and_dimensioned_to`
+failed: "SwException : 'entities[1]': 2 segments pass through [46.05, -66]: Line5, Line6."
+After: it passes, with the live tests that resolve sketch references and read
+`sketch_add`'s result (the diagonals, the rectangle constrained in one call, point to
+point dimensions, the origin, the relations of points, merge and coincident, both pierces,
+the relations of every kind, relation misuse, a point followed through a merge, steps
+checked first, several points at one place, a point in another sketch, the relations
+`sketch_add` lists, the three S140 drift tests and `M0LiveTests.Top_plane_sketch_frame_is_x_0_minus_y`),
+20/20; unit tests 370/370; `check_repo` ok.
+Made stricter: nothing that passed is refused; a point beside tied segments is taken and
+warned of where the call was refused, and a model point to a dimension is projected.
+Decided 2026-11-27 by the run, not the owner: segments tied through the point give the
+sketch point where they all cross, nearest and within 1 mm, with a warning, because the
+call had asked for a point first, tied segments cannot be the answer, and `SegmentAt`
+already takes a nearest segment within 1 mm with a warning; `{type:"sketch_point"}` keeps
+its 0.01 mm and names the nearest point instead, the smaller change for every tool that
+takes a sketch point.
+Decided 2026-11-27 by the run, not the owner: the model point not projected is fixed here,
+because the probe met it on the same reference and the rule `Ref` documents ("{at:[x,y,z]}
+is a model point projected into the sketch") was false for dimensions.
+Decided 2026-11-27 by the run, not the owner: the result field is `centerMm` (sketch
+mm, model mm in a 3D sketch), named as `sketch_info`'s centres are.
 Local: on `sw2023`, in the commit that moves it here; not yet in a build. Upstream: not yet
 decided.

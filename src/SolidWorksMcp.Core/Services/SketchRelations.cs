@@ -107,6 +107,25 @@ internal static class SketchRelations
         return map;
     }
 
+    /// <summary>
+    /// S144: who has a point: the ends it is ("Line1 end", from <see cref="Owners"/>), else the segments it is coincident
+    /// with ("on Line5, Line6": a centre rectangle's centre on its diagonals), else "a free point".
+    /// </summary>
+    public static string Who(ISketchPoint p, IReadOnlyDictionary<string, List<string>> owners)
+    {
+        if (owners.TryGetValue(PointKey(p), out var o) && o.Count > 0) return string.Join(", ", o);
+        var on = new List<string>();
+        try
+        {
+            foreach (var r in p.SkRelations())
+                if (r.GetRelationType() == (int)swConstraintType_e.swConstraintType_COINCIDENT)
+                    foreach (var e in Read(r, "").Entities)
+                        if (e is ISketchSegment s && !on.Contains(s.GetName())) on.Add(s.GetName());
+        }
+        catch (Exception ex) when (!ComArgs.IsDisconnect(ex)) { /* informational */ }
+        return on.Count > 0 ? "on " + string.Join(", ", on) : "a free point";
+    }
+
     public static HashSet<string> PointKeys(ISketch s) => s.Points().Select(PointKey).ToHashSet(StringComparer.Ordinal);
 
     /// <summary>

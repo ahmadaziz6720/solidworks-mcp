@@ -366,8 +366,15 @@ internal static class EntityResolver
         }
         string where = $"[{TopoQuery.Fmt(r.At)}]";
         if (best is null || bestD > tol)
-            throw new SwException(ErrorCodes.EntityNotFound, $"No sketch point within {Units.Mm(tol)} mm of {where} in the sketch.",
+        {
+            // S144: the nearest point named, so a centre rectangle's centre 0.05 mm away is not taken for missing.
+            string nearest = best is null ? "" :
+                $"; nearest: [{TopoQuery.Fmt([Units.Mm(best.X), Units.Mm(best.Y)])}] " +
+                $"({SketchRelations.Who(best, SketchRelations.Owners(sketch.Segments()))}), " +
+                $"{Units.Mm(bestD).ToString(CultureInfo.InvariantCulture)} mm away";
+            throw new SwException(ErrorCodes.EntityNotFound, $"No sketch point within {Units.Mm(tol)} mm of {where} in the sketch{nearest}.",
                 "Use sketch_info to see the sketch's points.");
+        }
         string label = $"sketch point at {where}";
         if (near.Count > 1) label = SeveralPointsAt(ctx, sketch, best, bestD, near, where, tol, argName);
         return new Resolved { Obj = best, Kind = EntityKind.SketchPoint, Label = label };
