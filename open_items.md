@@ -507,7 +507,7 @@ line in `part_derive`'s description, not an `into`).
 - [x] S123: committed (36936e0)
 - [x] S155: probed (68e6358)
 - [x] S144: probed (323c69d)
-- [x] S80 (d): probed (S160)
+- [x] S80 (d): probed (S160, ab67bdc)
 - [ ] Group 1: full live tests and release (build: )
 - [ ] Group 1: scenario test with S140 to S142's proof (session id: ), its entry committed and sorted
 - [ ] S156: committed
