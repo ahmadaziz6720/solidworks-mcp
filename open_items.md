@@ -17,7 +17,7 @@ Closed all the same, its PR named, and an open PR no longer holds an item in Wai
 item sent upstream ends with `**Upstream: PR #9, open.**`, one per PR or issue
 (`merged`, `closed unmerged`; an issue `open` or `closed`), kept to its state.
 
-**Open: S4, S5, S7, S10 to S12, S33, S34, S60, S64, S65, S79 to S82, S85, S86, S92, S94, S96, S99, S105, S109, S111, S115, S124, S125, S129, S134 to S139, S143 to S159.**
+**Open: S4, S5, S7, S10 to S12, S33, S34, S60, S64, S65, S79 to S82, S85, S86, S92, S94, S96, S99, S105, S109, S111, S115, S124, S125, S129, S134 to S139, S143 to S154, S156 to S159.**
 Planned 2026-11-27, `## Run 2026-11-27` below, on the owner's opening answer: S52 closed
 (every point held or done), S81 and S109 parked (probed, not reproduced, not met since),
 S158 and S159 filed from the run of 2026-11-21's leftovers at its closing.
@@ -504,8 +504,8 @@ line in `part_derive`'s description, not an `into`).
 
 - [x] Phase 1: the opening question asked and answered (2026-11-27)
 - [x] S101: committed (0274bca)
-- [x] S123: committed
-- [ ] S155: probed
+- [x] S123: committed (36936e0)
+- [x] S155: probed
 - [ ] S144: probed
 - [ ] S80 (d): probed
 - [ ] Group 1: full live tests and release (build: )
@@ -2324,21 +2324,6 @@ Proposed by the session: `sketch_info` names relations whose external reference 
 decided.
 Decided 2026-11-27 by the owner: taken into the run of 2026-11-27, group 4: `sketch_info` names dangling relations and does not read such a sketch fully defined (`## Run 2026-11-27`).
 
-### S155 - `sketch_add` does not merge the ends of centre-form arcs drawn end to end at the same coordinates - OPEN 2026-11-27
-
-Sorted out of the entry of 2026-11-25 ("a swept shell part with mirrored tabs"), point 6, on
-build `20261124-174916`; S65 (e) again (closed 2026-11-16: `sketch_add` merges ends that
-meet). Arcs drawn in centre form end to end at exactly the same coordinates were not merged
-(the contour `ManyOpen`). Workaround that held on six junctions in three sketches: drawn 0.3
-to 0.6 off and joined by `coincident`. In the same session a polyline whose end lay exactly
-on an existing segment's end merged and said so ("merged onto ... (Line5 start)"), so the
-merge works for lines and misses here.
-
-Proposed: a probe of the case (whether the arcs' computed ends differ from the given
-coordinates by more than the merge tolerance, or centre-form arcs are passed over); then
-they are merged as lines are. Local. Not decided.
-Decided 2026-11-27 by the owner: taken into the run of 2026-11-27, group 1: a probe first, centre-form arcs then merged as lines are (`## Run 2026-11-27`).
-
 ### S156 - `dimension_set` of a linear pattern's count adds instances that form nothing, reported `ok` with a volume change of 0 - OPEN 2026-11-27
 
 Sorted out of the entry of 2026-11-26 ("a printed plate revised: a bolt pattern grown"),
@@ -2867,5 +2852,67 @@ Decided 2026-11-27 by the run, not the owner: both tools count the segments that
 construction geometry, not all, because `sketch_finish`'s count and its `contours` already
 leave construction out and a count of the drawn outline is the one a caller compares with
 a contour; `sketch_info` keeps listing all segments.
+Local: on `sw2023`, in the commit that moves it here; not yet in a build. Upstream: not yet
+decided.
+
+### S155 - `sketch_add` did not merge the ends of centre-form arcs drawn end to end, and said nothing why - BUILT 2026-11-27, proof: the scenario test of the group 1 build
+
+Sorted out of the entry of 2026-11-25 ("a swept shell part with mirrored tabs"), point 6, on
+build `20261124-174916`; S65 (e) again (closed 2026-11-16: `sketch_add` merges ends that
+meet). Arcs drawn in centre form end to end at exactly the same coordinates were not merged
+(the contour `ManyOpen`). Workaround that held on six junctions in three sketches: drawn 0.3
+to 0.6 off and joined by `coincident`. In the same session a polyline whose end lay exactly
+on an existing segment's end merged and said so ("merged onto ... (Line5 start)"), so the
+merge works for lines and misses here.
+
+Proposed: a probe of the case (whether the arcs' computed ends differ from the given
+coordinates by more than the merge tolerance, or centre-form arcs are passed over); then
+they are merged as lines are. Local. Not decided.
+Decided 2026-11-27 by the owner: taken into the run of 2026-11-27, group 1: a probe first, centre-form arcs then merged as lines are (`## Run 2026-11-27`).
+Probe (2026-11-27, build `20261124-174916`, 2023 SP3): every case at exact coordinates
+merged, in one call and across calls: a slot of two lines and two centre-form arcs (front
+plane, and top plane in model coordinates), the arcs drawn before the lines, arcs only end
+to end and an arc on both their ends, an arc ending on a line at 53.13°, and arcs end to
+end in a sketch reopened after its extrude; each read `closed` with every end in
+`merged`. The merge pass does not pass centre-form arcs over. What stayed apart: tangent
+arcs (r 120 and r 60) whose shared end comes from an angle typed to 2 decimals, 36.87 for
+atan(3/4) = 36.8699°: their ends are 0.000107 mm apart, past the 1e-4 mm merge, and
+nothing in the result said so; typed 36.8699 they merged.
+Cause: an arc's end from its centre and angles moves radius × the angle's rounding (60 mm
+× 1.79e-6 rad here), so ends the caller reads as one point are apart by more than the
+merge tolerance, the same as two lines typed that far apart; the result named no such
+pair, so the contour read `ManyOpen` with no reason.
+Fix (`SketchService.MergeEnds`, `NearMisses`): after the merge pass, an end this call drew
+that stays apart from another segment's end by more than 1e-4 mm and at most 0.05 mm
+(`NearTol`) is named in one warning with the gap and where ("Arc2 start 0.000107 mm from
+Arc1 end at [196, 72]"), with the ways to join them (the coordinates, or an arc's angles
+typed to more decimals, or the 3-point form). Read from the ends the merge pass already
+holds: no read of the sketch added (S101). No description changed.
+Before: the new `SketchEditLiveTests.Sketch_add_names_ends_that_nearly_meet_and_stay_apart_as_centre_form_arcs_typed_rounded_do`
+(the slot closed with 4 merges and no warning; the 36.87 arcs warned; the 36.8699 arcs
+merged; a 0.3 mm gap not warned) failed: "Assert.Single() Failure: The collection did not
+contain any matching items ... Collection: []" (no warning; the slot part passed).
+After: it passes, with the live tests that call `sketch_add`'s merge:
+`Merge_and_coincident_join_two_line_ends_into_one_point`,
+`Constrain_follows_a_point_through_a_merge`,
+`Sketch_add_lists_the_relations_and_merges_SOLIDWORKS_made`,
+`Sketch_add_warns_when_SOLIDWORKS_moves_what_it_drew_onto_a_model_edge`,
+`Sketch_add_of_every_kind_drawn_apart_stays_where_it_was_drawn`,
+`Sketch_add_warns_when_a_rectangle_drawn_square_gets_an_equal`,
+`Sketch_add_of_a_hundred_lines_finishes_within_its_limit`,
+`Sketch_add_merges_an_arc_drawn_on_a_polyline_s_ends_into_one_closed_contour`,
+`A_point_where_offset_arcs_centres_and_line_ends_sit_names_the_one_taken_and_warns_of_the_others`,
+`Regions_count_what_a_later_sketch_add_drew` and
+`AdvancedFeatureLiveTests.Sweep_of_a_slot_along_a_line_is_exact_through_its_start_face`,
+12/12; unit tests 370/370; `check_repo` ok.
+Made stricter: nothing refused; ends that nearly meet and stay apart are named, with the gap.
+Decided 2026-11-27 by the run, not the owner: such ends are named in a warning, not merged
+by a wider tolerance, because the probe found the merge already treats centre-form arcs as
+lines (the plan's "merged as lines are" holds) and the gap is in the coordinates the
+caller gave; merging it would move their geometry unasked, and the warning keeps the
+result true with the smaller change.
+Decided 2026-11-27 by the run, not the owner: the warning's band is above 1e-4 mm and up
+to 0.05 mm, because an angle typed to 2 decimals moves a 500 mm arc's end up to 0.044 mm,
+and a gap drawn on purpose to be joined by a relation (0.3 to 0.6 mm in the entry) is wider.
 Local: on `sw2023`, in the commit that moves it here; not yet in a build. Upstream: not yet
 decided.

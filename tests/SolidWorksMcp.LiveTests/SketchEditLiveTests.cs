@@ -1022,6 +1022,42 @@ public class SketchEditLiveTests(LiveFixture fx) : LiveTest(fx)
     }
 
     [Fact]
+    public async Task Sketch_add_names_ends_that_nearly_meet_and_stay_apart_as_centre_form_arcs_typed_rounded_do()
+    {
+        // S155: centre-form arcs end to end "at exactly the same coordinates" stayed apart ("ManyOpen"), with no word why.
+        // Probed: a slot of two lines and two centre-form arcs at exact coordinates merges. Tangent arcs whose shared end
+        // comes from an angle typed to 2 decimals (36.87 for atan(3/4)) are 0.000107 mm apart, past the 1e-4 mm merge.
+        var (doc, _, slot) = await SketchAsync("s155", "front",
+            Line([0, 5], [20, 5]), new SketchEntity { Kind = "arc", Center = [20, 0], RadiusMm = 5, StartDeg = -90, EndDeg = 90 },
+            Line([20, -5], [0, -5]), new SketchEntity { Kind = "arc", Center = [0, 0], RadiusMm = 5, StartDeg = 90, EndDeg = 270 });
+        Assert.True(slot.Contours is { Status: "closed", ClosedContours: 1, OpenContours: 0 }, $"slot contours {slot.Contours.Status}");
+        Assert.Equal(4, slot.EndsMerged);
+        Assert.Null(slot.Warnings);
+
+        // 36.87: the ends stay apart, and the result says which, how far, and why.
+        var rounded = await Sk.AddAsync(doc, [
+            new SketchEntity { Kind = "arc", Center = [100, 0], RadiusMm = 120, StartDeg = 0, EndDeg = 36.87 },
+            new SketchEntity { Kind = "arc", Center = [148, 36], RadiusMm = 60, StartDeg = 36.87, EndDeg = 90 }]);
+        Assert.Null(rounded.EndsMerged);
+        string near = Assert.Single(rounded.Warnings ?? [], w => w.Contains("nearly meet", StringComparison.Ordinal));
+        string a = rounded.Entities[0].Segments[0], b = rounded.Entities[1].Segments[0];
+        Assert.Contains($"{b} start 0.000107 mm from {a} end at [196, 72]", near);
+        Assert.Contains("angles to more decimals", near);
+
+        // 36.8699: within 1e-4 mm, merged as before, no warning.
+        var typed = await Sk.AddAsync(doc, [
+            new SketchEntity { Kind = "arc", Center = [300, 0], RadiusMm = 120, StartDeg = 0, EndDeg = 36.8699 },
+            new SketchEntity { Kind = "arc", Center = [348, 36], RadiusMm = 60, StartDeg = 36.8699, EndDeg = 90 }]);
+        Assert.Equal(1, typed.EndsMerged);
+        Assert.Null(typed.Warnings);
+
+        // A gap drawn on purpose (0.3 mm, to be joined by a relation) is no near miss.
+        var gap = await Sk.AddAsync(doc, [Line([500, 0], [520, 0]), Line([520.3, 0], [540, 10])]);
+        Assert.Null(gap.EndsMerged);
+        Assert.Null(gap.Warnings);
+    }
+
+    [Fact]
     public async Task A_point_where_offset_arcs_centres_and_line_ends_sit_names_the_one_taken_and_warns_of_the_others()
     {
         // S65 (c): 'vertical' between {at} on an arc's centre and the origin failed "conflicts ... no_solution" where three

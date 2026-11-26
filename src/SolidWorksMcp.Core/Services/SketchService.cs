@@ -418,6 +418,36 @@ public sealed class SketchService(SwSession session)
                              $"drawn, more than the {Mm6(onto.Gap)} mm between them.");
             }
         }
+        NearMisses(ctx, ends, is3D);
+    }
+
+    /// <summary>S155: ends closer than this that stay apart are named (an angle typed to 2 decimals moves a 500 mm arc's end
+    /// up to 0.044 mm); a gap drawn on purpose, to be joined by a relation, is wider.</summary>
+    private const double NearTol = 5e-5; // m
+
+    /// <summary>
+    /// S155: an end this call drew that stays apart from another segment's end within <see cref="NearTol"/>, past
+    /// <see cref="MergeTol"/>, is named with its gap: centre-form arcs end to end whose shared end came from an angle typed
+    /// to 2 decimals (36.87 for atan(3/4)) were 0.000107 mm apart, read "ManyOpen", and nothing said why. Not merged: the
+    /// coordinates are the caller's.
+    /// </summary>
+    private static void NearMisses(SwContext ctx, List<EndAt> ends, bool is3D)
+    {
+        var near = new List<string>();
+        foreach (var e in ends.Where(x => x.Order >= 0))
+        {
+            var o = ends.Where(x => x.Seg != e.Seg && x.Key != e.Key && (x.Order < 0 || x.Order < e.Order))
+                .Select(x => (O: x, Gap: x.At.DistanceTo(e.At))).Where(x => x.Gap > MergeTol && x.Gap <= NearTol)
+                .OrderBy(x => x.Gap).FirstOrDefault();
+            if (o.O is null) continue;
+            string where = TopoQuery.Fmt(is3D ? Units.Mm(o.O.At) : [Units.Mm(o.O.At.X), Units.Mm(o.O.At.Y)]);
+            near.Add($"{e.Seg} {e.Which} {Mm6(o.Gap)} mm from {o.O.Seg} {o.O.Which} at [{where}]");
+        }
+        if (near.Count > 0)
+            ctx.Warn($"{near.Count} end(s) nearly meet another but stay apart, past the {Mm6(MergeTol)} mm sketch_add merges " +
+                     $"(the contour reads them open): {string.Join("; ", near.Take(6))}{(near.Count > 6 ? "; …" : "")}. To join " +
+                     "them, type the coordinates, or an arc's angles to more decimals (its end moves radius × the rounding), " +
+                     "or draw the arc start/mid/end.");
     }
 
     /// <summary>S80 (a): the points of what one entity drew, where the solved sketch has them, each with who has it.</summary>
