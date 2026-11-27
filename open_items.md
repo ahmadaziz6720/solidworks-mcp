@@ -17,7 +17,14 @@ Closed all the same, its PR named, and an open PR no longer holds an item in Wai
 item sent upstream ends with `**Upstream: PR #9, open.**`, one per PR or issue
 (`merged`, `closed unmerged`; an issue `open` or `closed`), kept to its state.
 
-**Open: S4, S5, S7, S10 to S12, S33, S34, S60, S64, S65, S79 to S82, S85, S86, S92, S94, S96, S99, S105, S109, S111, S115, S124, S125, S129, S134 to S139, S143, S145 to S154, S156 to S159.**
+**Open: S4, S5, S7, S10 to S12, S33, S34, S60, S64, S65, S79 to S82, S85, S86, S92, S94, S96, S99, S105, S109, S111, S115, S124, S125, S129, S134 to S139, S143, S145 to S154, S156 to S159, S161, S162.**
+Sorted 2026-11-27, the scenario test of build `20261127-085502` (findings 2026-11-27): S101,
+S123, S144, S155, S140, S141, S142 and S160 held and closed, S160 on its own case only (an L
+outline drew as a corner rectangle, the fallback not needed there), S80 (a), (c) and (d),
+S82 (a) and S86 (a) with them; S161 new (`contours.regions` 0 in two shapes S120's rule
+does not cover, the count only; S64 (l) again) and S162 new (a large `sketch_add`'s result
+repeating its per-entity rows, the owner's choice of its shape), not in this run; S5 met
+again. The run goes on with group 2.
 Planned 2026-11-27, `## Run 2026-11-27` below, on the owner's opening answer: S52 closed
 (every point held or done), S81 and S109 parked (probed, not reproduced, not met since),
 S158 and S159 filed from the run of 2026-11-21's leftovers at its closing.
@@ -475,7 +482,9 @@ line in `part_derive`'s description, not an `into`).
   S64 (b) (left out on the owner's word, 2026-11-16); S64 (j), (m) to (p), S65 (b)'s move
   and (f) to (l), S79 (a), S80 (b), S82 (b), S85, S86 (b), S92 (c), S94, S96, S99, S105
   (not in the owner's scope for this run: the next plan); S158 and S159 (the run of
-  2026-11-21's leftovers, filed at its closing: the next plan); S89 and S118 (Waiting,
+  2026-11-21's leftovers, filed at its closing: the next plan); S161 and S162 (filed
+  2026-11-27 from group 1's scenario test: the next plan, S162 the owner's choice of a
+  result's shape); S89 and S118 (Waiting,
   proved by a session that meets their case).
 
 ### Opening answer
@@ -509,7 +518,7 @@ line in `part_derive`'s description, not an `into`).
 - [x] S144: probed (323c69d)
 - [x] S80 (d): probed (S160, ab67bdc)
 - [x] Group 1: full live tests and release (build: 20261127-085502, tag build-20261127-085502, pushed)
-- [ ] Group 1: scenario test with S140 to S142's proof (session id: 69f65c04-85ed-4a72-88e2-1100f3d684b1), its entry committed and sorted
+- [x] Group 1: scenario test with S140 to S142's proof (session id: 69f65c04-85ed-4a72-88e2-1100f3d684b1; all eight held, closed; S161, S162 filed), its entry committed and sorted
 - [ ] S156: committed
 - [ ] S125: committed
 - [ ] S124: committed
@@ -611,6 +620,8 @@ Met again 2026-11-22 (findings 2026-11-22, the scenario test of build `20261122-
 point 13): a STEP export opened by `doc_open`, 16 surface bodies, as before.
 Met again 2026-11-24 (findings 2026-11-24, the scenario test of build `20261124-174916`,
 point 15): a STEP export opened by `doc_open`, 16 surface bodies, as before.
+Met again 2026-11-27 (findings 2026-11-27, the scenario test of build `20261127-085502`,
+point 11): a STEP export opened by `doc_open`, 16 surface bodies, as before.
 
 **Upstream: issue #2, open.**
 
@@ -1083,6 +1094,9 @@ over the member it built at once (+1 725 000 as figured); the unused sketch had 
 after. Not reported `ok`. Proposed by the session: the hint names edge-only contact with an
 existing body as a cause. Local. Not decided.
 Decided 2026-11-27 by the owner: (q) taken into the run of 2026-11-27, group 2, the hint naming edge-only contact; (k) taken into group 2 too, a probe first, each face's own normal read (an extra the owner chose); (b), (j), (m) to (p) not in it (`## Run 2026-11-27`).
+Met again 2026-11-27 ((l); findings 2026-11-27, the scenario test of build
+`20261127-085502`, point 9): `contours.regions` 0 for closed contours in two shapes S120's
+rule (closed 2026-11-22) does not cover, the features right; moved to S161.
 
 ### S65 - Missing options met while modelling - OPEN 2026-11-12
 
@@ -1535,6 +1549,8 @@ projected edges makes the rectangle fail; then the hint names model edges under 
 as a cause, or the rectangle is drawn as the polyline is. Local. Not decided.
 Decided 2026-11-27 by the owner: (d) taken into the run of 2026-11-27, group 1, a probe first; the rectangle then drawn as the polyline is, or the hint naming model edges under its corners; (b) not in it (`## Run 2026-11-27`).
 (d) is done: moved to Waiting as S160, 2026-11-27 (the run of 2026-11-27, group 1).
+(a) and (c) closed 2026-11-27 as S140, (d) as S160: both held in the scenario test of build
+`20261127-085502` (findings 2026-11-27, points 5 and 8). S80 stays Open for (b).
 
 ### S81 - "modified outside this server (by the user?)" again after the server's own changes - OPEN 2026-11-16, parked: probed 2026-11-22, not reproduced, taken up when met again
 
@@ -1622,6 +1638,8 @@ dimension reads the sketch's contours after and warns when one became invalid. L
 decided.
 Decided 2026-11-21 by the owner: (a) taken into the run of 2026-11-21, group 7, a warning as S42 was decided; (b) stays Open (`## Run 2026-11-21`).
 (a) is done: moved to Waiting as S141, 2026-11-24 (the run of 2026-11-21, group 7).
+(a) closed 2026-11-27 as S141: held in the scenario test of build `20261127-085502`
+(findings 2026-11-27, point 6). S82 stays Open for (b).
 
 ### S85 - `feature_delete`'s dry run lists as kept an absorbed sketch the real call removes - OPEN 2026-11-16
 
@@ -1669,6 +1687,8 @@ binding went to the name `sketch_constrain` returned. Not said whether S54 (c)'s
 fired; the order the session used avoided the case.
 Decided 2026-11-21 by the owner: (a) taken into the run of 2026-11-21, group 7; (b) stays Open (`## Run 2026-11-21`).
 (a) is done: moved to Waiting as S142, 2026-11-24 (the run of 2026-11-21, group 7).
+(a) closed 2026-11-27 as S142: held in the scenario test of build `20261127-085502`
+(findings 2026-11-27, point 7). S86 stays Open for (b).
 
 ### S92 - SOLIDWORKS' state that refuses every equation (S58 (b)) again: hints that blame the expression, `equation_list` wrong, a restart not told - OPEN 2026-11-18
 
@@ -2373,6 +2393,40 @@ path's result gives the legs as a new chamfer's does. Local, small. Not decided.
 Decided 2026-11-27 in the plan, not the owner: not in the run of 2026-11-27, for the reason
 S158 gives: the next plan.
 
+### S161 - `contours.regions` reads 0 for a closed contour crossed by a construction centreline, or one that runs past the face's edge - OPEN 2026-11-27
+
+Sorted out of the entry of 2026-11-27 (the scenario test of build `20261127-085502`), point
+9; S64 (l) again, in two shapes S120's rule (closed 2026-11-22: a model edge that is an
+inner loop of the face no longer disqualifies the region, and the regions follow a later
+`sketch_add`) does not cover. (a) A closed polyline with a construction centreline drawn
+across it, on a plane with no model geometry: `closedContours` 1, `regions` 0 at `sketch_add`
+and at `sketch_finish`, met twice (a six-sided outline and a trapezoid); the extrudes from
+them exact (1 617 000 and 55 964.845). (b) Two closed four-sided profiles on a planar face
+that run past the face's outer edge: `closedContours` 2, `regions` 0; the boss from them
+exact (+7 183.229). The same sketches read the same on build `20261117-012659`: not a
+regression. The count only is wrong; the features were right. Reported `ok`.
+
+Proposed: a probe of what SOLIDWORKS gives for these sketches' regions (a construction
+segment across the contour, a face edge the contour crosses); then the regions counted from
+the closed contours where those make them 0, as S64 (l) proposed. Local. Not decided.
+Decided 2026-11-27 by the run, not the owner: left out of the run, by the run's rule "a new
+point needing the owner (a choice, a new option, a large change), a new Open item, not in
+this run", because it needs a probe first and is in no file of group 1's: for the next plan.
+
+### S162 - A large `sketch_add`'s result repeats each entity's check and merge line: 12.7k characters for 100 lines - OPEN 2026-11-27
+
+Sorted out of the entry of 2026-11-27 (the scenario test of build `20261127-085502`), point
+10: a wasteful pattern, small. The 100-line `sketch_add` of S101's proof returned 12.7k
+characters, about 127 a line: each entity repeats `"checks":["1 line created"]` and its merge
+line. Nothing in it was wrong.
+
+Proposed by the session: for a large call, a summary (entities drawn, merges, warnings, the
+contour) with per-entity rows only where something differs. A change to the result's shape,
+the owner's choice. Local. Not decided.
+Decided 2026-11-27 by the run, not the owner: left out of the run, by the run's rule "a new
+point needing the owner (a choice, a new option, a large change), a new Open item, not in
+this run", because the result's shape is the owner's choice: for the next plan.
+
 ## Waiting
 
 ### S89 - SOLIDWORKS started by `sw_connect launch` cannot be reached from a later server process - BUILT 2026-11-22, proof: a session that runs `sw_connect {launch:true}` with SOLIDWORKS closed
@@ -2553,467 +2607,3 @@ parts the owner had edited by hand", point 1; "a swept shell part with mirrored 
 both the negative globals read 0, so S112's own sign fired as well, and in the first the
 derived rows read their literal part, not 0, which this sign does not judge. The widened sign
 alone was not seen live; the proof stays a session in the state whose globals read right.
-
-### S140 - S80 (a) and (c): `sketch_add` said nothing when SOLIDWORKS moved what it drew, or made a rectangle drawn square equal-sided - BUILT 2026-11-24 in build 20261127-085502, proof: the scenario test of build 20261127-085502
-
-Points (a) and (c) of S80 (S80 stays Open for (b)) (findings 2026-11-16, 2026-11-17 and
-2026-11-18, on builds `20261116-124830` to `20261118-060615`): a rectangle drawn on a planar
-face, its bottom on the face's boundary edge, came back with "midpoint: Line3 end, a model
-edge" among its relations and 2.5 tall where 3 was drawn, fully defined, reported `ok`; a
-rectangle drawn 8 x 8 came back with "equal: Line2, Line1", a square for good. Both were
-listed under the entity's `relations`; nothing said the shape was not the one asked.
-Decided 2026-11-21 by the owner: (a) and (c) taken into the run of 2026-11-21, group 7, warnings; (b) stays Open (`## Run 2026-11-21`).
-Cause: `AddToDB` on does not stop SOLIDWORKS relating and snapping what is drawn. Probed
-live on 2023 SP3: a 195 x 5 x 10 block on the front plane, a corner rectangle from
-[100, 40] to [-95, 43] on its front face got "coincident: a model entity, Line1 start" and
-"midpoint: Line3 end, a model edge" (the face's 5 mm left edge, its midpoint 0.5 mm from the
-corner) and read 2.5 tall in `sketch_info`; on a 200 mm block (no edge at x -95) the same
-rectangle got only the coincident and stayed 3 tall. One drawn 1 mm over the first one's
-bottom got "coincident: Line1, …" and was pulled onto it. Without any relation, a point is
-snapped as it is drawn onto the x or y of another entity's point: in one call of fourteen
-kinds, a polygon's vertex moved 0.28 mm onto the height of a slot's end 36 mm away and a
-centre rectangle drawn 6 tall came out 7, no relation added (in
-`docs/solidworks-api-notes.md`). sketch_add compared nothing with what it was asked.
-Fix: `Draw` records each point as asked (sketch m): a line's `from` and `to`, a polyline's
-points, a rectangle's two corners and the two it implies (a centre rectangle's four), a
-circle's, polygon's and ellipse's centre, a polygon's first vertex, an arc's ends (and
-centre), a slot's `from` and `to`, a spline's ends, a point's `at`. After the contour read
-(whose automatic solve off/on solves the sketch) each is matched to the nearest point of its
-entity's segments (ends and centres) or its free point; one farther than `MergeTol` (1e-4 mm)
-moved. The interop-free rule (`SketchDrift.Moved`, `src/SolidWorksMcp.Core/Services/SketchDrift.cs`)
-warns per entity: "entities[0] (rectangle) is not where it was drawn: SOLIDWORKS moved
-corners[1] [-95, 43] to [-95, 42.5] (0.5 mm), a corner [100, 43] to [100, 42.5] (0.5 mm), by
-its relations midpoint: Line3 end, a model edge. Draw it clear of other geometry and model
-edges and place it by dimensions, or sketch_delete it." The relations named are the entity's
-relations to other geometry that name a moved point or its segment (all of them when none
-does; a centre rectangle's own centre point counts as its own); with none, "with no relation
-to other geometry: snapped to it as SOLIDWORKS drew". (c): a rectangle whose relations hold an
-`equal` warns "entities[0] (rectangle) was drawn square, and SOLIDWORKS made its sides equal
-(equal: …): a width and a height driven apart later conflict. For a rectangle that may change
-shape, draw it a closed polyline." (`SketchDrift.SquareEqual`). `sketch_start`'s description
-said "Inference snapping is off while this server draws", false as the probe showed: now
-"SOLIDWORKS may still snap; sketch_add warns of it." (shorter, no bytes added).
-Before: the new `SketchEditLiveTests.Sketch_add_warns_when_SOLIDWORKS_moves_what_it_drew_onto_a_model_edge`
-(the probe's block and rectangle) and `SketchEditLiveTests.Sketch_add_warns_when_a_rectangle_drawn_square_gets_an_equal`
-(a centre rectangle 8 x 8 and a corner one 10 x 12) both failed, "Assert.Single() Failure: The
-collection did not contain any matching items" (no warning).
-After: both pass (the moved warning names corners[1], the implied corner, 0.5 mm and the
-`midpoint` relation and not the corner's `coincident`; the rectangle 1 mm over the first is
-warned naming "coincident: Line1, …"; one drawn clear is not; the 8 x 8 warns naming its
-`equal`, the 10 x 12 does not), with the new
-`Sketch_add_of_every_kind_drawn_apart_stays_where_it_was_drawn` (fourteen kinds, model
-points among them, on a staircase with no two points within 4 mm in x or y: no warning),
-3/3; live, the tests that read what `sketch_add` drew and relates (the relations and merges,
-the arc merged on a polyline, the centre rectangle's diagonals, the rectangle constrained in
-one call, the point followed through a merge, merge and coincident, the three region tests,
-the offset rectangle, a text's position, the 3D sketch, and `M0LiveTests.Top_plane_sketch_frame_is_x_0_minus_y`),
-13/13; unit tests 363/363 (new `SketchDriftTests`, 5); `--check-catalog` ok (165 tools,
-247.6 KB); `ContractTests.Tool_catalog_follows_the_conventions` 1/1; `check_repo` ok.
-`docs/tools.md` to regenerate at the release (`sketch_start` changed).
-Made stricter: `sketch_add` warns when a point it drew is not where it was asked, and when a
-rectangle drawn square was made equal-sided; nothing that passed is refused.
-Decided 2026-11-24 by the run, not the owner: both are warnings, no result field and no
-relation removed, because the relations are already listed per entity, the warning says
-what they did, and removing a relation SOLIDWORKS made is a new behaviour the owner was not
-asked (S80's plan line: no option to keep or drop relations in this run).
-Decided 2026-11-24 by the run, not the owner: the points are read after the sketch is
-solved, each asked point against the nearest point of its own entity, to `MergeTol`
-(1e-4 mm), because the tools check sketch geometry to it and S65 (e)'s merge moves an end by
-up to it; the points a kind does not hold as sketch points (a 3-point arc's mid, a spline's
-inner fit points, a 3D rectangle's implied corners) are not compared.
-Decided 2026-11-24 by the run, not the owner: a point moved with no relation is warned too,
-as snapped, because the probe saw it (the polygon's vertex onto another entity's height) and
-the shape is not the one drawn just the same.
-Decided 2026-11-24 by the run, not the owner: `sketch_start`'s "Inference snapping is off
-while this server draws" replaced, because the probe showed it false and the shorter text
-costs no catalog bytes.
-Local: on `sw2023`, in build `20261127-085502`. Upstream: not yet
-decided.
-Proof moved 2026-11-27: group 7 of the run of 2026-11-21 was never built (that run closed on the owner's word); this point goes into the build of the run of 2026-11-27's group 1, whose scenario test is its proof.
-
-### S141 - S82 (a): `sketch_constrain` angular where two lines meet only virtually turned the shape inside out, reported `ok` - BUILT 2026-11-24 in build 20261127-085502, proof: the scenario test of build 20261127-085502
-
-Point (a) of S82 (S82 stays Open for (b)) (finding 2026-11-16, on build `20261116-124830`):
-an angular dimension between a 3 mm line and a long horizontal line 55 above it, meeting
-only virtually, `valueDeg` 60 with `textAt` in the angle across the vertex: the line turned
-to 120°, a trapezoid's 126 wide top became 6, reported `ok` with "geometry measures 60°";
-only `changed` showed it. S42's sign of a line turned by more than 90° did not fire.
-Decided 2026-11-21 by the owner: (a) taken into the run of 2026-11-21, group 7, a warning as S42 was decided; (b) stays Open (`## Run 2026-11-21`).
-Cause: the value holds on the dimension's own angle, so the read-back and the measure pass;
-the lines turned 60°, no line reversed, so `WarnFlips` named nothing, and an angle gives it
-no value change to compare a move with. S42's mirrored-shape warning is skipped when
-`textAt` picked the supplement. `dimension_set` of a sketch dimension read no sketch at all.
-Reproduced live on 2023 SP3: a trapezoid on the front plane, bottom 70 (fixed), sides
-leaning out 60° to a top 133.508 wide at y 55, the top's ends symmetric about a fixed
-centreline, the right side a 3 mm line and a long one collinear with it; angular 60 between
-the 3 mm line and the top, `textAt` [76.75, 37.7]: "the angle that was 119.999793°… then
-60.000207°", the top 133.508 to 6.492, no warning (the finding's numbers). Then
-`sketch_finish` and `dimension_set` 120 put it back, as the finding's workaround.
-Fix: an interop-free rule (`SketchShrink.Warning`, `src/SolidWorksMcp.Core/Services/SketchShrink.cs`)
-names each line less than half as long after as before, longer than 1e-6 m before, and,
-for a length dimension, shorter by more than twice the value's change (a rectangle 100 set
-to 40 is not warned); up to three lines, the largest drop first. `sketch_dimension_add` and
-`sketch_constrain` (`AddDimension`) call it on the changed lines when a value was set:
-"Step 1: After the angular dimension, a line is less than half as long as before: 'Line4'
-133.509 to 6.491 mm. The value reads back, but the sketch may have turned inside out: if
-that was not meant, sketch_finish, then dimension_set 'D1@Sketch1' back to 120."
-`dimension_set` in a part reads the lines of each sketch whose dimensions it sets before
-the values and after the rebuild (the sketch found again by name) and warns the same,
-"After the dimension_set of 'D1@Sketch1', …: if that was not meant, dimension_set
-'D1@Sketch1' back to 60.000207". A warning, the result unchanged; no description changed.
-Before: the new `SketchEditLiveTests.An_angle_that_turns_the_shape_inside_out_warns_of_the_line_it_shrank`
-(the trapezoid, `sketch_constrain`) and
-`SketchEditLiveTests.Dimension_set_of_a_sketch_angle_that_turns_the_shape_inside_out_warns_of_the_line_it_shrank`
-(the angle dimensioned between the rays, finished, `dimension_set` 120, then 60) both
-failed, "Assert.Single() Failure: The collection did not contain any matching items" (no
-warning; the top read 6.4916 in `changed`).
-After: both pass, with the live tests that run `AddDimension` and `dimension_set` (the
-dimensions that drive a rectangle, a diameter, angles, radial and point-to-point ones, the
-supplement by `textAt` and without it, the origin, an over-defining one, S42's mirrored
-shape in a dimension and in a step, the far move, a rectangle constrained in one call,
-twenty steps on two dozen segments, an edited dimension rebuilding the extrude,
-`FeatureManagementLiveTests`' three `dimension_set` tests and the in-context cover that
-follows a grown box), 20/20; unit tests 367/367 (new `SketchShrinkTests`, 4); `check_repo` ok.
-Made stricter: `sketch_dimension_add`, `sketch_constrain` and `dimension_set` warn when a
-sketch line ends less than half as long as it was; nothing that passed is refused.
-Decided 2026-11-24 by the run, not the owner: lines only, not arcs or circles, because a
-radius or diameter set smaller shrinks an arc's length by more than twice its own change as
-meant, and the finding's collapse was a line.
-Decided 2026-11-24 by the run, not the owner: a length dimension's change explains a drop
-up to twice itself (the sum of the length values set in that sketch for `dimension_set`),
-an angle none, because a width set from 100 to 40 halves its lines as asked, and S42's far
-move uses the same twice.
-Decided 2026-11-24 by the run, not the owner: the warning names the way back as
-`dimension_set` to the value before (after `sketch_finish` in an open sketch), because it is
-the finding's own workaround, held, and the same for every cause.
-Local: on `sw2023`, in build `20261127-085502`. Upstream: not yet
-decided.
-Proof moved 2026-11-27: group 7 of the run of 2026-11-21 was never built (that run closed on the owner's word); this point goes into the build of the run of 2026-11-27's group 1, whose scenario test is its proof.
-
-### S142 - S86 (a): `sketch_delete` removed a polygon's construction circle with its dimensions and relations, and said only "6 segment(s) gone" - BUILT 2026-11-24 in build 20261127-085502, proof: the scenario test of build 20261127-085502
-
-Point (a) of S86 (S86 stays Open for (b)) (finding 2026-11-16, on build `20261116-124830`):
-`sketch_delete` of a polygon's six lines also removed its construction circle, which carried
-the polygon's centre dimensions, its diameter and an `equal` to another polygon's circle;
-`removed` listed it, the checks said "6 segment(s) gone", and the other polygon was left
-with no size.
-Decided 2026-11-21 by the owner: (a) taken into the run of 2026-11-21, group 7, a warning; (b) stays Open (`## Run 2026-11-21`).
-Cause: SOLIDWORKS deletes a polygon's construction circle with its last line; `sketch_delete`
-compared the sketch before and after only to check that the named segments were gone, so a
-segment that went unnamed was in `removed` and nowhere else.
-Fix: an interop-free rule (`SketchRemoved.Warning`, `src/SolidWorksMcp.Core/Services/SketchRemoved.cs`)
-builds the warning from the segments removed that were not named, the relations that
-touched them and the dimensions the sketch lost. `sketch_delete` reads the sketch's
-relations (`SketchRelations.All`, each with the keys of what it relates), its dimensions and
-who owns each point before the delete; after it, for each segment gone that was not named,
-`SketchRelations.Touching` keeps the relations on that segment or on a point only the
-removed segments owned. Read on 2023 SP3: "sketch_delete also removed a segment not named
-in the call: 'Arc1' (construction circle, diameter 24 mm). Relations that tied it went too:
-tangent: Line1, Arc1; coincident: origin, Arc1 centre; diameter: Arc1. The sketch lost
-dimension(s) in the call: D1@Sketch1 = 24 mm. What they sized or held may now be
-under-defined: sketch_info shows what is left." A warning, the result unchanged (`removed`
-and the checks as before); no description changed, a call that names everything it removes
-warns of nothing.
-Before: the new `SketchEditLiveTests.Delete_of_a_polygons_lines_warns_that_its_construction_circle_went_too`
-(a hexagon, its circle dimensioned Ø24, its six lines deleted) failed, "System.ArgumentNullException
-: Value cannot be null. (Parameter 'collection')" at `Assert.Single(r.Warnings!)` (no warning).
-After: it passes, with `Delete_removes_the_segment`, `Delete_needs_existing_segments_and_an_open_sketch`,
-the five live tests that delete points or a 3D segment (`Pierce_puts_a_point_where_a_line_of_another_sketch_crosses_the_plane`,
-`Pierce_puts_a_point_where_a_model_edge_crosses_the_plane`, `Circular_pattern_rotates_lines_groups_and_points_about_the_center`,
-`Mirror_about_a_slanted_centerline_reverses_an_arc_and_copies_a_point`, `Construction_relation_and_delete_work_in_a_3D_sketch`)
-and `WeldmentLiveTests.A_library_feature_part_adopted_and_redrawn_keeps_its_profile_sketch_when_saved`,
-9/9; unit tests 370/370 (new `SketchRemovedTests`, 3); `check_repo` ok.
-Made stricter: `sketch_delete` warns when a segment that was not named went with the ones that were; nothing that passed is refused.
-Decided 2026-11-24 by the run, not the owner: the dimensions listed are all the sketch lost
-in the call, not only the circle's, because a sketch dimension does not say what it
-measured (no attached entity is read), and the warning says so ("the sketch lost
-dimension(s) in the call"); the relations are the circle's own, exact.
-Decided 2026-11-24 by the run, not the owner: a warning for any segment removed unnamed (a
-polygon's circle is the case met, a slot's or a pattern's centre geometry would be
-another), because the check is the same and the cause is SOLIDWORKS', not the tool's.
-Decided 2026-11-24 by the run, not the owner: the relation that is the dimension itself
-("diameter: Arc1") stays in the list, because filtering it by type name would hide a
-relation of a type not met yet.
-Local: on `sw2023`, in build `20261127-085502`. Upstream: not yet
-decided.
-Proof moved 2026-11-27: group 7 of the run of 2026-11-21 was never built (that run closed on the owner's word); this point goes into the build of the run of 2026-11-27's group 1, whose scenario test is its proof.
-
-### S101 - `sketch_add` of a hundred entities took minutes and timed out - BUILT 2026-11-27 in build 20261127-085502, proof: the scenario test of build 20261127-085502
-
-Sorted out of the entry of 2026-11-18 ("a custom weldment profile with one size made to
-work", point 5), on build `20261117-012659`. `sketch_add` of 112 entities (106 lines, 4 arcs,
-2 circles) took 183 s in a library feature part and 254 s in a new part, `TIMEOUT` at 50 s
-both times, completed later (`sw_status` `lateCompletions`, succeeded): about 1.6 to 2.3 s an
-entity. A profile of a hundred segments needs a batch path or a longer limit for large adds.
-`sketch_import` of the same geometry from a DXF was the way that worked (S99).
-
-Proposed: a probe of where the time goes (the per-entity checks, S65 (e)'s merge pass, the
-contour read), then a batch path or a limit that grows with the count. Local. Not decided.
-Decided 2026-11-21 by the owner: taken into the run of 2026-11-21, group 7, a probe first (`## Run 2026-11-21`).
-Carried 2026-11-27 into the run of 2026-11-27, group 1, its change in the tree, not committed, its first step, its decision as written: the run of 2026-11-21 closed on the owner's word (`## Run 2026-11-27`).
-Probe (the run of 2026-11-21, on 2023 SP3): 100 lines in one `sketch_add` took 165 s, 150 s
-of it in the server's own reads per entity, not in SOLIDWORKS' drawing: before and after each
-entity it read every segment's name (to find the new ones), every point (to count the new
-ones), the texts, and for the merge and relation labels who owns each point of the sketch
-(115 s of the 165 alone). S65 (e)'s merge pass and the contour read are once a call and
-were not the cost.
-Cause: those reads grow with the sketch, so a call of n entities cost about n² reads.
-Fix (`SketchService.AddAsync`, `SketchRelations.Made`): the sketch's segment names, its point
-count (`GetSketchPointsCount2`) and who owns each point (`SketchRelations.PointOwners`, read at
-its first use) are read once a call and kept up as each entity draws; the new segments are
-those SOLIDWORKS lists past the old count (`NewSegments`), the whole list read again when it
-is not in that order; texts are counted only for a text entity. `sketch_add`'s limit is the
-default or 0.5 s a segment, the longer (`AddLimit`: a rectangle or slot 4, a polygon its
-sides and circle, a polyline a segment a point). The result is unchanged.
-Before: the new `SketchEditLiveTests.Sketch_add_of_a_hundred_lines_finishes_within_its_limit`
-(a closed staircase of 100 lines, each its own entity, under 30 s) failed with the two `src`
-files stashed: "'sketch_add' has been running for 50 s and exceeded its 50 s limit.
-SOLIDWORKS is still executing it and it may still complete — do not simply retry."
-After: it passes (the test 28.6 s in all, its fixture start included; 17 s for the add in the
-probe, from 165 s), with the `sketch_add` tests that call the changed code:
-`Sketch_add_lists_the_relations_and_merges_SOLIDWORKS_made` (S56),
-`Sketch_add_warns_when_SOLIDWORKS_moves_what_it_drew_onto_a_model_edge` and
-`Sketch_add_of_every_kind_drawn_apart_stays_where_it_was_drawn` (S80 (a)),
-`Sketch_add_warns_when_a_rectangle_drawn_square_gets_an_equal` (S140),
-`Sketch_add_merges_an_arc_drawn_on_a_polyline_s_ends_into_one_closed_contour` (S65 (e), S87),
-`A_point_where_offset_arcs_centres_and_line_ends_sit_names_the_one_taken_and_warns_of_the_others`
-and `ModellingLiveTests.Sketch_text_at_its_height_engraves_the_top_face_with_a_cut` (texts
-counted), 8/8; unit tests 370/370; `check_repo` ok.
-Made stricter: nothing refused; a large add gets a limit that grows with its segments.
-Decided 2026-11-27 by the run, not the owner: no batch path, the reads made once a call
-and the limit grown with the count, because the probe put the cost in the server's reads,
-not in drawing one entity at a time, and the result and its checks stay per entity.
-Decided 2026-11-27 by the run, not the owner: the review of the tree's change made the
-order check of `NewSegments` also read the last old segment and, when the list is out of
-order (a segment gone), read the sketch's names again, and made `AddLimit` count a
-rectangle, slot and polygon by their segments, because the change as left missed a new
-segment after a deletion and kept a stale name list, and counted a rectangle as one.
-Local: on `sw2023`, in build `20261127-085502`. Upstream: not yet
-decided.
-
-### S123 - `sketch_finish` lists a dimension twice, and `sketch_edit` and `sketch_finish` count a sketch's segments apart - BUILT 2026-11-27 in build 20261127-085502, proof: the scenario test of build 20261127-085502
-
-Sorted out of the entry of 2026-11-22 (the scenario test of build `20261122-142805`), point
-6, the "Small" in S93's case: a block's sketch reopened and the corner under one edge
-chamfered 10 in the sketch. (a) Both `sketch_finish` results (the close that chamfered and a
-second close unchanged) list `dimensions` `D3@Sketch1` twice, where `dimension_list` of the
-sketch has the one dimension the sketch chamfer made. (b) `sketch_edit` of the same sketch
-reads `segments: 7` where `sketch_finish` reads 5: the rectangle's two construction
-diagonals counted by one and not the other. The model was right; two results that disagree
-with each other and with `dimension_list`. Reported `ok`.
-
-Local, small, in group 7's files (`SketchService.cs`, `SketchEditService.cs`).
-Decided 2026-11-22 by the run, not the owner: (a) `sketch_finish`'s `dimensions` names each
-dimension once; (b) the two tools count a sketch's segments alike, construction lines by
-both or by neither. Test to start from: S93's case of point 6, the sketch chamfer:
-`dimensions` lists `D3@Sketch1` once and the two counts are equal (fails now: twice, 7
-against 5). Sonnet.
-Decided 2026-11-22 by the run, not the owner: taken into group 7, by the run's rule "a new
-point, small and in the group's files, a later step of this run ... taken into the next
-group", because it is two
-small reads of the sketch tools whose files are group 7's, found by group 4's check.
-Carried 2026-11-27 into the run of 2026-11-27, group 1, its decision as written: the run of 2026-11-21 closed on the owner's word (`## Run 2026-11-27`).
-Cause: (a) `FeatureVerifier.Dimensions` walks the feature's chain of display dimensions, and the
-sketch chamfer's dimension comes up twice in it, so `sketch_finish` (and `sketch_info` and
-any result that lists a feature's dimensions) named it twice, where `dimension_list` had the
-one. (b) `sketch_finish` counts the segments that are not construction geometry (as its
-`contours` do), and the reopen result of `sketch_edit` counted every segment, the
-rectangle's two diagonals among them: 5 and 7.
-Fix: `FeatureVerifier.Dimensions` lists a dimension once, by its full name; the reopen
-result of `sketch_edit` counts the segments that are not construction geometry
-(`SketchEditService.Reopened`), as `sketch_finish` does. `sketch_info` still lists every
-segment with its `segmentCount`, construction ones included, as it lists them. No
-description changed.
-Before: the new `FeatureManagementLiveTests.Sketch_finish_names_each_dimension_once_and_counts_segments_as_sketch_edit_does`
-(the 100 x 20 x 60 block's sketch reopened and one corner chamfered 10, `sketch_finish`,
-reopened, `sketch_finish` again) failed: "Assert.Equal() Failure: Values differ Expected: 1
-Actual: 2" (`D3@Sketch1` twice; its segment-count line is behind it in the test).
-After: it passes, with the live tests that call the changed code (S93's
-`Sketch_finish_names_a_feature_the_redrawn_sketch_left_with_a_rebuild_warning`,
-`SketchEditLiveTests.Edit_reopens_a_finished_sketch_with_its_frame`,
-`Edit_dimension_finish_rebuilds_the_extrude`, `Editing_tools_need_the_servers_open_sketch`,
-and three `dimension_list` and tolerance tests of `FeatureManagementLiveTests`), 8/8; unit
-tests 370/370; `check_repo` ok.
-Made stricter: nothing refused; two results that disagreed now agree.
-Decided 2026-11-27 by the run, not the owner: both tools count the segments that are not
-construction geometry, not all, because `sketch_finish`'s count and its `contours` already
-leave construction out and a count of the drawn outline is the one a caller compares with
-a contour; `sketch_info` keeps listing all segments.
-Local: on `sw2023`, in build `20261127-085502`. Upstream: not yet
-decided.
-
-### S155 - `sketch_add` did not merge the ends of centre-form arcs drawn end to end, and said nothing why - BUILT 2026-11-27 in build 20261127-085502, proof: the scenario test of build 20261127-085502
-
-Sorted out of the entry of 2026-11-25 ("a swept shell part with mirrored tabs"), point 6, on
-build `20261124-174916`; S65 (e) again (closed 2026-11-16: `sketch_add` merges ends that
-meet). Arcs drawn in centre form end to end at exactly the same coordinates were not merged
-(the contour `ManyOpen`). Workaround that held on six junctions in three sketches: drawn 0.3
-to 0.6 off and joined by `coincident`. In the same session a polyline whose end lay exactly
-on an existing segment's end merged and said so ("merged onto ... (Line5 start)"), so the
-merge works for lines and misses here.
-
-Proposed: a probe of the case (whether the arcs' computed ends differ from the given
-coordinates by more than the merge tolerance, or centre-form arcs are passed over); then
-they are merged as lines are. Local. Not decided.
-Decided 2026-11-27 by the owner: taken into the run of 2026-11-27, group 1: a probe first, centre-form arcs then merged as lines are (`## Run 2026-11-27`).
-Probe (2026-11-27, build `20261124-174916`, 2023 SP3): every case at exact coordinates
-merged, in one call and across calls: a slot of two lines and two centre-form arcs (front
-plane, and top plane in model coordinates), the arcs drawn before the lines, arcs only end
-to end and an arc on both their ends, an arc ending on a line at 53.13°, and arcs end to
-end in a sketch reopened after its extrude; each read `closed` with every end in
-`merged`. The merge pass does not pass centre-form arcs over. What stayed apart: tangent
-arcs (r 120 and r 60) whose shared end comes from an angle typed to 2 decimals, 36.87 for
-atan(3/4) = 36.8699°: their ends are 0.000107 mm apart, past the 1e-4 mm merge, and
-nothing in the result said so; typed 36.8699 they merged.
-Cause: an arc's end from its centre and angles moves radius × the angle's rounding (60 mm
-× 1.79e-6 rad here), so ends the caller reads as one point are apart by more than the
-merge tolerance, the same as two lines typed that far apart; the result named no such
-pair, so the contour read `ManyOpen` with no reason.
-Fix (`SketchService.MergeEnds`, `NearMisses`): after the merge pass, an end this call drew
-that stays apart from another segment's end by more than 1e-4 mm and at most 0.05 mm
-(`NearTol`) is named in one warning with the gap and where ("Arc2 start 0.000107 mm from
-Arc1 end at [196, 72]"), with the ways to join them (the coordinates, or an arc's angles
-typed to more decimals, or the 3-point form). Read from the ends the merge pass already
-holds: no read of the sketch added (S101). No description changed.
-Before: the new `SketchEditLiveTests.Sketch_add_names_ends_that_nearly_meet_and_stay_apart_as_centre_form_arcs_typed_rounded_do`
-(the slot closed with 4 merges and no warning; the 36.87 arcs warned; the 36.8699 arcs
-merged; a 0.3 mm gap not warned) failed: "Assert.Single() Failure: The collection did not
-contain any matching items ... Collection: []" (no warning; the slot part passed).
-After: it passes, with the live tests that call `sketch_add`'s merge:
-`Merge_and_coincident_join_two_line_ends_into_one_point`,
-`Constrain_follows_a_point_through_a_merge`,
-`Sketch_add_lists_the_relations_and_merges_SOLIDWORKS_made`,
-`Sketch_add_warns_when_SOLIDWORKS_moves_what_it_drew_onto_a_model_edge`,
-`Sketch_add_of_every_kind_drawn_apart_stays_where_it_was_drawn`,
-`Sketch_add_warns_when_a_rectangle_drawn_square_gets_an_equal`,
-`Sketch_add_of_a_hundred_lines_finishes_within_its_limit`,
-`Sketch_add_merges_an_arc_drawn_on_a_polyline_s_ends_into_one_closed_contour`,
-`A_point_where_offset_arcs_centres_and_line_ends_sit_names_the_one_taken_and_warns_of_the_others`,
-`Regions_count_what_a_later_sketch_add_drew` and
-`AdvancedFeatureLiveTests.Sweep_of_a_slot_along_a_line_is_exact_through_its_start_face`,
-12/12; unit tests 370/370; `check_repo` ok.
-Made stricter: nothing refused; ends that nearly meet and stay apart are named, with the gap.
-Decided 2026-11-27 by the run, not the owner: such ends are named in a warning, not merged
-by a wider tolerance, because the probe found the merge already treats centre-form arcs as
-lines (the plan's "merged as lines are" holds) and the gap is in the coordinates the
-caller gave; merging it would move their geometry unasked, and the warning keeps the
-result true with the smaller change.
-Decided 2026-11-27 by the run, not the owner: the warning's band is above 1e-4 mm and up
-to 0.05 mm, because an angle typed to 2 decimals moves a 500 mm arc's end up to 0.044 mm,
-and a gap drawn on purpose to be joined by a relation (0.3 to 0.6 mm in the entry) is wider.
-Local: on `sw2023`, in build `20261127-085502`. Upstream: not yet
-decided.
-
-### S144 - A centre rectangle's centre point could not be referenced - BUILT 2026-11-27 in build 20261127-085502, proof: the scenario test of build 20261127-085502
-
-Sorted out of the entry of 2026-11-25 ("seven parts and two assemblies modelled from a
-design doc"), point 3, on build `20261124-174916`. After `rectangle {center, widthMm,
-heightMm}`, a dimension to `{at: <centre>}` was `ENTITY_AMBIGUOUS` "2 segments pass through
-[46, -66]: Line5, Line6" (the construction diagonals), and to `{type:"sketch_point", at:
-<centre>}` `ENTITY_NOT_FOUND` "No sketch point within 0.01 mm". Workaround: a corner
-dimensioned instead, its equation offset by half the width. Bears on S140's wording ("a
-centre rectangle's own centre point").
-Proposed by the session: the result names the centre point, or the diagonals' intersection
-is taken as a point reference. Local. Not decided.
-Decided 2026-11-27 by the owner: taken into the run of 2026-11-27, group 1: a probe first, the centre point resolved and named in the rectangle's result (`## Run 2026-11-27`).
-Probe (2026-11-27, build `20261124-174916`, 2023 SP3): a centre rectangle leaves a free
-sketch point at its centre, coincident with both diagonals (S140's wording holds). At the
-exact centre, `{at}` and `{type:"sketch_point", at}` both took it, on the top plane, on a
-face, after the rectangle was resized by dimensions, and in a sketch reopened after its
-extrude. Both messages of the entry came back for a point 0.05 mm off the centre of a
-100 x 10 rectangle along its long centre line: no sketch point within 0.01 mm, and both
-diagonals pass within 0.01 mm of it, tied (each at 0.05 x 10/100.5 mm). The probe also
-found a model point `{at:[46, 0, 66]}` (the same centre) to a dimension refused
-`ENTITY_NOT_FOUND` "No sketch point within 0.01 mm of [46, 0, 66]": not projected.
-Cause: (1) `{at}` sought a sketch point within the tolerance, then the segment through it,
-and the diagonals cross where the point is: tied, they were refused, the point beside them
-not offered; (2) the not-found named no point near; (3) the result gave no centre to aim
-at; (4) `Ref` projected a model point only when every allowed kind was a sketch kind, and a
-dimension also allows the origin.
-Fix: (1) `SketchEditService.SegmentAt`, from a plain `{at}` that sought a point first:
-segments tied through it that all pass through the sketch point nearest to it, within
-1 mm (the reach `SegmentAt` already gives a nearest segment), give that point, with a
-warning "entities[1]: no sketch point within 0.01 mm of [46.05, -66], and Line5, Line6 pass
-through it; used the sketch point [46, -66] where they cross, 0.05 mm away."; (2)
-`EntityResolver.SketchPointAt`'s not-found adds "; nearest: [46, -66] (on Line5, Line6),
-0.05 mm away" (new `SketchRelations.Who`: a point's ends, else the segments it is
-coincident with); (3) `sketch_add`'s centre rectangle gives `centerMm`, read from a
-diagonal after the solve; (4) the origin no longer stops the projection. No description
-changed; no read added to `sketch_add` beyond the one diagonal (S101).
-Before: the new `SketchEditLiveTests.A_centre_rectangle_s_centre_point_is_named_and_dimensioned_to`
-failed: "SwException : 'entities[1]': 2 segments pass through [46.05, -66]: Line5, Line6."
-After: it passes, with the live tests that resolve sketch references and read
-`sketch_add`'s result (the diagonals, the rectangle constrained in one call, point to
-point dimensions, the origin, the relations of points, merge and coincident, both pierces,
-the relations of every kind, relation misuse, a point followed through a merge, steps
-checked first, several points at one place, a point in another sketch, the relations
-`sketch_add` lists, the three S140 drift tests and `M0LiveTests.Top_plane_sketch_frame_is_x_0_minus_y`),
-20/20; unit tests 370/370; `check_repo` ok.
-Made stricter: nothing that passed is refused; a point beside tied segments is taken and
-warned of where the call was refused, and a model point to a dimension is projected.
-Decided 2026-11-27 by the run, not the owner: segments tied through the point give the
-sketch point where they all cross, nearest and within 1 mm, with a warning, because the
-call had asked for a point first, tied segments cannot be the answer, and `SegmentAt`
-already takes a nearest segment within 1 mm with a warning; `{type:"sketch_point"}` keeps
-its 0.01 mm and names the nearest point instead, the smaller change for every tool that
-takes a sketch point.
-Decided 2026-11-27 by the run, not the owner: the model point not projected is fixed here,
-because the probe met it on the same reference and the rule `Ref` documents ("{at:[x,y,z]}
-is a model point projected into the sketch") was false for dimensions.
-Decided 2026-11-27 by the run, not the owner: the result field is `centerMm` (sketch
-mm, model mm in a 3D sketch), named as `sketch_info`'s centres are.
-Local: on `sw2023`, in build `20261127-085502`. Upstream: not yet
-decided.
-
-### S160 - S80 (d): `sketch_add` of a corner rectangle on model edges' projection failed as degenerate geometry, its polyline drawn at once - BUILT 2026-11-27 in build 20261127-085502, proof: the scenario test of build 20261127-085502
-
-Point (d) of S80 (S80 stays Open for (b)) (finding 2026-11-24, on build `20261124-174916`): a
-`rectangle {corners}` on the Front plane, its corners on the projection of two model edges
-(a plate's outline over existing members), failed `FEATURE_FAILED: SOLIDWORKS could not
-create the rectangle`, the hint naming degenerate geometry, which it was not; the same four
-corners as a closed `polyline` were drawn at once. Not reported `ok`.
-Decided 2026-11-27 by the owner: (d) taken into the run of 2026-11-27, group 1, a probe first; the rectangle then drawn as the polyline is, or the hint naming model edges under its corners; (b) not in it (`## Run 2026-11-27`).
-Probe (2026-11-27, build `20261124-174916`, 2023 SP3): corners on edges in the sketch plane,
-on edges 10 mm behind it, on vertices of posts through it and on a block's top edge 142 mm in
-front of it were all drawn, related "coincident: a model entity" or "a model edge". It failed
-with a frame outline 142 mm in front of the plane, a post rising from its top edge: a
-rectangle whose first corner lay where that top edge and the post's inner edge meet in
-projection, [[-755, 964], [-105, 974]] and [[-755, 964], [-700, 974]] alike, failed every
-time; the same corners in the other order ([[-700, 974], [-755, 964]]) were drawn, with
-"coincident: a model entity" at that corner. `CreateCornerRectangle` returns nothing and
-leaves nothing in the sketch; a line from the same corner along the top edge was drawn.
-Cause: SOLIDWORKS' inference at the first corner of `CreateCornerRectangle`, on two model
-edges meeting there in projection (`AddToDB` on does not stop it, S140), makes it return
-nothing; the hint then blamed the coordinates.
-Fix: `SketchService.Draw`, a 2D corner rectangle `CreateCornerRectangle` returns nothing for
-(neither side of zero length) is drawn as a closed polyline is (`CornerLines`): four lines
-from the first corner round, each made horizontal or vertical (`sgHORIZONTAL`,
-`sgVERTICAL`), as the corner rectangle's own relations are; its result as a rectangle's
-(sides, relations, S140's drift check of its four corners), with the check "drawn as 4
-lines, made horizontal and vertical: SOLIDWORKS refused it as a corner rectangle, as it does
-a first corner where model edges meet". A line of them that fails deletes the ones drawn and
-is refused with the old hint. A rectangle SOLIDWORKS draws is drawn as before. No
-description changed; no read added (S101).
-Before: the new `SketchEditLiveTests.Sketch_add_draws_a_corner_rectangle_SOLIDWORKS_refuses_on_model_edges_as_four_lines`
-(the frame and the plate's rectangle of the probe) failed: "SwException : SOLIDWORKS could
-not create the rectangle."
-After: it passes (4 lines on the corners asked, 2 horizontal and 2 vertical, 4 points, no
-merge, one closed contour, no drift warning; a rectangle drawn clear of the edges has no
-such check), with the live tests that draw and read rectangles (the relations and merges
-`sketch_add` lists, the three S140 drift tests, the rectangle constrained in one call, the
-dimension on a 100 wide rectangle), 7/7; unit tests 370/370; `check_repo` ok.
-Made stricter: nothing that passed is refused; a corner rectangle refused before is drawn.
-Decided 2026-11-27 by the run, not the owner: the four lines only when SOLIDWORKS returns
-nothing, every rectangle it draws kept as it is, because that keeps the relations it makes
-(the `equal` of one drawn square, S140 (c)) and every result the tests read, the smaller
-change.
-Decided 2026-11-27 by the run, not the owner: the lines, not the corners swapped, because
-the probe showed the inference at the first corner only, and the other corner could stand
-on such edges too; the polyline was drawn at once in the finding.
-Decided 2026-11-27 by the run, not the owner: a check on the entity, not a warning, because
-the shape is the one asked (S140's drift check still compares its corners), only the route
-differs.
-Decided 2026-11-27 by the run, not the owner: the centre rectangle left as it is, because no
-case of it failing was met.
-Local: on `sw2023`, in build `20261127-085502`. Upstream: not yet
-decided.

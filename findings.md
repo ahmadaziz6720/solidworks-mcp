@@ -3147,3 +3147,5 @@ Build `bin\0.1.0-20261127-085502` (`serverVersion` `0.1.0-sw2023-20261127-085502
     hand-mated two-part assembly read-only: 2 components, the base fixed, the shaft 2 mates
     without error, 127 402.659. A drawing (owner's template, plan 1:2): both sections, 1 and 3
     hatched faces. A bore's equal 2 mm chamfer on a copy of a part: −134.041 with its legs line.
+
+Sorted into S161 (9), new, S64 (l) again; S162 (10), new; S5 (11), met again, the rest of the regression held. Held: S101 (1), S123 (2), S144 (3), S155 (4), S140 (5), S141 (6), S142 (7), S160 (8).
