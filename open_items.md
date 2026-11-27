@@ -509,7 +509,7 @@ line in `part_derive`'s description, not an `into`).
 - [x] S144: probed (323c69d)
 - [x] S80 (d): probed (S160, ab67bdc)
 - [x] Group 1: full live tests and release (build: 20261127-085502, tag build-20261127-085502, pushed)
-- [ ] Group 1: scenario test with S140 to S142's proof (session id: ), its entry committed and sorted
+- [ ] Group 1: scenario test with S140 to S142's proof (session id: 69f65c04-85ed-4a72-88e2-1100f3d684b1), its entry committed and sorted
 - [ ] S156: committed
 - [ ] S125: committed
 - [ ] S124: committed
