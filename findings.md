@@ -3076,3 +3076,74 @@ Build `0.1.0-sw2023-20261124-174916+3276b18`.
 5. Held: `feature_revolve {cut:true, axis:{name:<centerline>}}` of a half profile on an offset reference plane (centerline drawn past the profile, `collinear` with its edge on the axis), -10.430 against 10.430 by hand, coaxial check passed; its pattern 4 x 2 gave 7 instances at -10.43 each.
 
 Sorted into S65 (1), part (s); S146 (2), new; S147 (3), new. Not filed (4, 5): held, no item.
+
+**2026-11-27: scenario test of S101, S123, S140, S141, S142, S144, S155 and S160, with part A rebuilt in full and a short regression run**
+
+Build `bin\0.1.0-20261127-085502` (`serverVersion` `0.1.0-sw2023-20261127-085502+51b6387`).
+
+1. **S101, held.** A closed staircase of 100 lines on the front plane, each its own entity, in
+   one `sketch_add`: 20.66 s (`sw_status` `recentOps`), no `TIMEOUT`, `endsMerged` 100, one
+   closed contour of 100 segments.
+2. **S123, held.** A 100 × 60 × 20 block's sketch reopened (`sketch_edit` `segments: 4`, the
+   centre rectangle's diagonals not counted), one corner chamfered 10 in the sketch:
+   `sketch_finish` `segments: 5` and `dimensions` `D3@<sketch>` once; reopened, `sketch_edit`
+   `segments: 5`, `sketch_finish` the same, `dimension_list` of the sketch the one dimension;
+   volume 119 000 (120 000 − 1 000).
+3. **S144, held.** A centre rectangle 100 × 10 off the origin: the result carries `centerMm`;
+   a horizontal dimension from the origin to `{at:<centre>}` and a vertical one to
+   `{type:"sketch_point", at:<centre>}` were taken (46 and 66, no warning). On a second one,
+   0.05 mm off its centre along the long centre line: `{type:"sketch_point"}` refused
+   `ENTITY_NOT_FOUND` "...; nearest: [-60, 40] (on Line11, Line12), 0.05 mm away"; plain `{at}`
+   took the point with the warning "no sketch point within 0.01 mm of [-59.95, 40], and Line11,
+   Line12 pass through it; used the sketch point [-60, 40] where they cross, 0.05 mm away."; a
+   model point `{at:[-60, 0, -40]}` (the same centre, top plane) projected and taken, 40.
+4. **S155, held.** A slot of two lines and two centre-form arcs at exact coordinates, one call:
+   4 merges, closed. Tangent arcs r 120 and r 60 sharing an end at an angle typed 36.87: the
+   warning "Arc4 start 0.000107 mm from Arc3 end at [196, 72]" with the three ways to join
+   them; the same pair typed 36.8699 merged; two lines 0.3 mm apart not warned.
+5. **S140, held.** (a) On a 195 × 5 × 10 block, a corner rectangle on its front face from
+   [100, 40] to [-95, 43]: the warning names `corners[1]` [-95, 43] to [-95, 42.5] (0.5 mm), the
+   implied corner [100, 43] the same, and the `midpoint` relation to a model edge, not the
+   corner's `coincident`. (c) A centre rectangle 8 × 8 and a corner one 8 × 8 each warned
+   naming their `equal`; a 10 × 12 not.
+6. **S141, held.** A trapezoid on the front plane (bottom 70 fixed, sides 60°, top 133.508
+   wide symmetric about a fixed centreline, the right side a 3 mm line and a long one
+   collinear): `sketch_constrain` angular 60 between the 3 mm line and the top with `textAt`
+   across the vertex warned "'Line5' 133.509 to 6.491 mm ... dimension_set 'D1@Sketch1' back to
+   119.999999"; after `sketch_finish`, `dimension_set` 120 silent, 60 warned the same with
+   "back to 120", 120 again silent and the extrude exact (55 964.845). No false alarm in the
+   design-intent batches of part A (a width 120 → 130 → 120 among four values).
+7. **S142, held.** A hexagon, its construction circle dimensioned Ø24, its six lines deleted:
+   `removed` lists the circle, and the warning names it ("construction circle, diameter 24
+   mm"), the relations that went with it (tangent, diameter) and `D1@<sketch>` = 24 mm lost.
+8. **S160, held on its own case.** A frame outline (a top member and two posts) 142 mm in
+   front of the front plane, extruded 40; on the front plane a corner rectangle from
+   [-755, 964] to [-105, 974]: `checks` "drawn as 4 lines, made horizontal and vertical:
+   SOLIDWORKS refused it as a corner rectangle ...", 2 horizontal and 2 vertical, 4 points, one
+   closed contour, no drift warning; a rectangle clear of the edges drawn as before. A frame of
+   another shape first tried (an L outline 132 to 142 mm in front, corners at its joint) was
+   drawn by SOLIDWORKS as a corner rectangle, with "coincident: a model entity": the fallback
+   is not met there, as its record says.
+9. **S64 (l), met again (S120 closed 2026-11-22), not a regression.** `contours.regions` reads
+   0 for closed contours in two shapes S120's rule does not cover: (a) a closed polyline with a
+   construction centreline drawn across it, on a plane with no model geometry (`closedContours`
+   1, `regions` 0 at `sketch_add` and `sketch_finish`, twice: a six-sided outline and the
+   trapezoid of point 6); the extrudes from them were exact (1 617 000 and 55 964.845);
+   (b) two closed four-sided profiles on a planar face that run past the face's outer edge
+   (`closedContours` 2, `regions` 0); the boss from them +7 183.229, exact. The same sketches read
+   the same on build `20261117-012659`. The count only; the features were right.
+10. **Wasteful pattern, small.** The 100-line `sketch_add` of point 1 returned 12.7k characters
+    (about 127 a line): each entity repeats `"checks":["1 line created"]` and its merge line.
+    For a large call a summary (entities drawn, merges, warnings, contour) with per-entity rows
+    only where something differs would carry the same.
+11. **Regression, held.** Part A rebuilt in full in a new document: volume at each step
+    1 617 000 → 201 850.83 → 160 562.414 → 174 928.873 → −318.086 → 174 346.977, the 7.5°
+    angle taken with `textAt`, both sketches `fully` in one `sketch_constrain` each, no drift
+    warning in any of the four sketches; countersink 6.5 held after a forced rebuild; PETG
+    221.42 g; area 116 546.84; bbox 233 × 68.28 × 174; property linked to the wall reads 3,00;
+    height 70 → 100 and cut profile 80 → 120 volume unchanged; intent (10°, 4, 240, 130)
+    rebuilt, one body, inner face still at z 65, and back to 174 346.977. STEP export and open:
+    16 surface bodies, as before (S5). A two-part hinge assembly read-only: interference 0. A
+    hand-mated two-part assembly read-only: 2 components, the base fixed, the shaft 2 mates
+    without error, 127 402.659. A drawing (owner's template, plan 1:2): both sections, 1 and 3
+    hatched faces. A bore's equal 2 mm chamfer on a copy of a part: −134.041 with its legs line.
