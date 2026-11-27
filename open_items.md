@@ -508,7 +508,7 @@ line in `part_derive`'s description, not an `into`).
 - [x] S155: probed (68e6358)
 - [x] S144: probed (323c69d)
 - [x] S80 (d): probed (S160, ab67bdc)
-- [ ] Group 1: full live tests and release (build: )
+- [x] Group 1: full live tests and release (build: 20261127-085502, tag build-20261127-085502, pushed)
 - [ ] Group 1: scenario test with S140 to S142's proof (session id: ), its entry committed and sorted
 - [ ] S156: committed
 - [ ] S125: committed
@@ -2554,7 +2554,7 @@ both the negative globals read 0, so S112's own sign fired as well, and in the f
 derived rows read their literal part, not 0, which this sign does not judge. The widened sign
 alone was not seen live; the proof stays a session in the state whose globals read right.
 
-### S140 - S80 (a) and (c): `sketch_add` said nothing when SOLIDWORKS moved what it drew, or made a rectangle drawn square equal-sided - BUILT 2026-11-24, proof: the scenario test of the run of 2026-11-27's group 1 build
+### S140 - S80 (a) and (c): `sketch_add` said nothing when SOLIDWORKS moved what it drew, or made a rectangle drawn square equal-sided - BUILT 2026-11-24 in build 20261127-085502, proof: the scenario test of build 20261127-085502
 
 Points (a) and (c) of S80 (S80 stays Open for (b)) (findings 2026-11-16, 2026-11-17 and
 2026-11-18, on builds `20261116-124830` to `20261118-060615`): a rectangle drawn on a planar
@@ -2627,11 +2627,11 @@ the shape is not the one drawn just the same.
 Decided 2026-11-24 by the run, not the owner: `sketch_start`'s "Inference snapping is off
 while this server draws" replaced, because the probe showed it false and the shorter text
 costs no catalog bytes.
-Local: on `sw2023`, in the commit that moves it here; not yet in a build. Upstream: not yet
+Local: on `sw2023`, in build `20261127-085502`. Upstream: not yet
 decided.
 Proof moved 2026-11-27: group 7 of the run of 2026-11-21 was never built (that run closed on the owner's word); this point goes into the build of the run of 2026-11-27's group 1, whose scenario test is its proof.
 
-### S141 - S82 (a): `sketch_constrain` angular where two lines meet only virtually turned the shape inside out, reported `ok` - BUILT 2026-11-24, proof: the scenario test of the run of 2026-11-27's group 1 build
+### S141 - S82 (a): `sketch_constrain` angular where two lines meet only virtually turned the shape inside out, reported `ok` - BUILT 2026-11-24 in build 20261127-085502, proof: the scenario test of build 20261127-085502
 
 Point (a) of S82 (S82 stays Open for (b)) (finding 2026-11-16, on build `20261116-124830`):
 an angular dimension between a 3 mm line and a long horizontal line 55 above it, meeting
@@ -2686,11 +2686,11 @@ move uses the same twice.
 Decided 2026-11-24 by the run, not the owner: the warning names the way back as
 `dimension_set` to the value before (after `sketch_finish` in an open sketch), because it is
 the finding's own workaround, held, and the same for every cause.
-Local: on `sw2023`, in the commit that moves it here; not yet in a build. Upstream: not yet
+Local: on `sw2023`, in build `20261127-085502`. Upstream: not yet
 decided.
 Proof moved 2026-11-27: group 7 of the run of 2026-11-21 was never built (that run closed on the owner's word); this point goes into the build of the run of 2026-11-27's group 1, whose scenario test is its proof.
 
-### S142 - S86 (a): `sketch_delete` removed a polygon's construction circle with its dimensions and relations, and said only "6 segment(s) gone" - BUILT 2026-11-24, proof: the scenario test of the run of 2026-11-27's group 1 build
+### S142 - S86 (a): `sketch_delete` removed a polygon's construction circle with its dimensions and relations, and said only "6 segment(s) gone" - BUILT 2026-11-24 in build 20261127-085502, proof: the scenario test of build 20261127-085502
 
 Point (a) of S86 (S86 stays Open for (b)) (finding 2026-11-16, on build `20261116-124830`):
 `sketch_delete` of a polygon's six lines also removed its construction circle, which carried
@@ -2734,11 +2734,11 @@ another), because the check is the same and the cause is SOLIDWORKS', not the to
 Decided 2026-11-24 by the run, not the owner: the relation that is the dimension itself
 ("diameter: Arc1") stays in the list, because filtering it by type name would hide a
 relation of a type not met yet.
-Local: on `sw2023`, in the commit that moves it here; not yet in a build. Upstream: not yet
+Local: on `sw2023`, in build `20261127-085502`. Upstream: not yet
 decided.
 Proof moved 2026-11-27: group 7 of the run of 2026-11-21 was never built (that run closed on the owner's word); this point goes into the build of the run of 2026-11-27's group 1, whose scenario test is its proof.
 
-### S101 - `sketch_add` of a hundred entities took minutes and timed out - BUILT 2026-11-27, proof: the scenario test of the group 1 build
+### S101 - `sketch_add` of a hundred entities took minutes and timed out - BUILT 2026-11-27 in build 20261127-085502, proof: the scenario test of build 20261127-085502
 
 Sorted out of the entry of 2026-11-18 ("a custom weldment profile with one size made to
 work", point 5), on build `20261117-012659`. `sketch_add` of 112 entities (106 lines, 4 arcs,
@@ -2788,10 +2788,10 @@ order check of `NewSegments` also read the last old segment and, when the list i
 order (a segment gone), read the sketch's names again, and made `AddLimit` count a
 rectangle, slot and polygon by their segments, because the change as left missed a new
 segment after a deletion and kept a stale name list, and counted a rectangle as one.
-Local: on `sw2023`, in the commit that moves it here; not yet in a build. Upstream: not yet
+Local: on `sw2023`, in build `20261127-085502`. Upstream: not yet
 decided.
 
-### S123 - `sketch_finish` lists a dimension twice, and `sketch_edit` and `sketch_finish` count a sketch's segments apart - BUILT 2026-11-27, proof: the scenario test of the group 1 build
+### S123 - `sketch_finish` lists a dimension twice, and `sketch_edit` and `sketch_finish` count a sketch's segments apart - BUILT 2026-11-27 in build 20261127-085502, proof: the scenario test of build 20261127-085502
 
 Sorted out of the entry of 2026-11-22 (the scenario test of build `20261122-142805`), point
 6, the "Small" in S93's case: a block's sketch reopened and the corner under one edge
@@ -2839,10 +2839,10 @@ Decided 2026-11-27 by the run, not the owner: both tools count the segments that
 construction geometry, not all, because `sketch_finish`'s count and its `contours` already
 leave construction out and a count of the drawn outline is the one a caller compares with
 a contour; `sketch_info` keeps listing all segments.
-Local: on `sw2023`, in the commit that moves it here; not yet in a build. Upstream: not yet
+Local: on `sw2023`, in build `20261127-085502`. Upstream: not yet
 decided.
 
-### S155 - `sketch_add` did not merge the ends of centre-form arcs drawn end to end, and said nothing why - BUILT 2026-11-27, proof: the scenario test of the group 1 build
+### S155 - `sketch_add` did not merge the ends of centre-form arcs drawn end to end, and said nothing why - BUILT 2026-11-27 in build 20261127-085502, proof: the scenario test of build 20261127-085502
 
 Sorted out of the entry of 2026-11-25 ("a swept shell part with mirrored tabs"), point 6, on
 build `20261124-174916`; S65 (e) again (closed 2026-11-16: `sketch_add` merges ends that
@@ -2901,10 +2901,10 @@ result true with the smaller change.
 Decided 2026-11-27 by the run, not the owner: the warning's band is above 1e-4 mm and up
 to 0.05 mm, because an angle typed to 2 decimals moves a 500 mm arc's end up to 0.044 mm,
 and a gap drawn on purpose to be joined by a relation (0.3 to 0.6 mm in the entry) is wider.
-Local: on `sw2023`, in the commit that moves it here; not yet in a build. Upstream: not yet
+Local: on `sw2023`, in build `20261127-085502`. Upstream: not yet
 decided.
 
-### S144 - A centre rectangle's centre point could not be referenced - BUILT 2026-11-27, proof: the scenario test of the group 1 build
+### S144 - A centre rectangle's centre point could not be referenced - BUILT 2026-11-27 in build 20261127-085502, proof: the scenario test of build 20261127-085502
 
 Sorted out of the entry of 2026-11-25 ("seven parts and two assemblies modelled from a
 design doc"), point 3, on build `20261124-174916`. After `rectangle {center, widthMm,
@@ -2962,10 +2962,10 @@ because the probe met it on the same reference and the rule `Ref` documents ("{a
 is a model point projected into the sketch") was false for dimensions.
 Decided 2026-11-27 by the run, not the owner: the result field is `centerMm` (sketch
 mm, model mm in a 3D sketch), named as `sketch_info`'s centres are.
-Local: on `sw2023`, in the commit that moves it here; not yet in a build. Upstream: not yet
+Local: on `sw2023`, in build `20261127-085502`. Upstream: not yet
 decided.
 
-### S160 - S80 (d): `sketch_add` of a corner rectangle on model edges' projection failed as degenerate geometry, its polyline drawn at once - BUILT 2026-11-27, proof: the scenario test of the group 1 build
+### S160 - S80 (d): `sketch_add` of a corner rectangle on model edges' projection failed as degenerate geometry, its polyline drawn at once - BUILT 2026-11-27 in build 20261127-085502, proof: the scenario test of build 20261127-085502
 
 Point (d) of S80 (S80 stays Open for (b)) (finding 2026-11-24, on build `20261124-174916`): a
 `rectangle {corners}` on the Front plane, its corners on the projection of two model edges
@@ -3015,5 +3015,5 @@ the shape is the one asked (S140's drift check still compares its corners), only
 differs.
 Decided 2026-11-27 by the run, not the owner: the centre rectangle left as it is, because no
 case of it failing was met.
-Local: on `sw2023`, in the commit that moves it here; not yet in a build. Upstream: not yet
+Local: on `sw2023`, in build `20261127-085502`. Upstream: not yet
 decided.
