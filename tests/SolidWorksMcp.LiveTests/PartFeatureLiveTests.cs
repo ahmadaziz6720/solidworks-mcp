@@ -1077,6 +1077,27 @@ public class PartFeatureLiveTests(LiveFixture fx) : LiveTest(fx)
     }
 
     [Fact]
+    public async Task Linear_pattern_volume_per_instance_leaves_out_an_instance_that_formed_nothing()
+    {
+        // S125: the 10 x 10 x 3 block from x = 10 to 20 patterned toward -x, 4 x 30: two instances land on the block (300
+        // each), the last at x = -80 is off it and adds nothing. The check said "volume change per instance 200 mm³
+        // (3 instance(s))", an average over the instance that formed nothing.
+        string doc = await BlockAsync("lpat_per_instance");
+        await Sk.StartAsync(doc, new EntityRef { At = [15, 20, 10] }, false);
+        await Sk.AddAsync(doc, [new SketchEntity { Kind = "rectangle", Corners = [[10, 20, 5], [20, 20, 15]] }]);
+        var seed = await Fs.ExtrudeAsync(new ExtrudeRequest { Doc = doc, DepthMm = 3 });
+        var r = await Pf.LinearPatternAsync(new LinearPatternRequest
+        {
+            Doc = doc, Features = [seed.Feature.Name], Direction = "-x", Count = 4, SpacingMm = 30,
+        });
+        Assert.Equal(600, r.Verified.VolumeDeltaMm3, V);
+        string per = Assert.Single(r.Verified.Checks!, c => c.Contains("volume change per instance"));
+        Assert.Contains("300 mm³", per);
+        Assert.Contains("2 of 3", per);
+        Assert.Contains("place 4 formed nothing", per);
+    }
+
+    [Fact]
     public async Task Linear_pattern_rejects_bad_input_and_rolls_back_instances_off_the_part()
     {
         string doc = await BlockAsync("lpat_bad");

@@ -17,7 +17,7 @@ Closed all the same, its PR named, and an open PR no longer holds an item in Wai
 item sent upstream ends with `**Upstream: PR #9, open.**`, one per PR or issue
 (`merged`, `closed unmerged`; an issue `open` or `closed`), kept to its state.
 
-**Open: S4, S5, S7, S10 to S12, S33, S34, S60, S64, S65, S79 to S82, S85, S86, S92, S94, S96, S99, S105, S109, S111, S115, S124, S125, S129, S134 to S139, S143, S145 to S154, S157 to S159, S161, S162.**
+**Open: S4, S5, S7, S10 to S12, S33, S34, S60, S64, S65, S79 to S82, S85, S86, S92, S94, S96, S99, S105, S109, S111, S115, S124, S129, S134 to S139, S143, S145 to S154, S157 to S159, S161, S162.**
 Sorted 2026-11-27, the scenario test of build `20261127-085502` (findings 2026-11-27): S101,
 S123, S144, S155, S140, S141, S142 and S160 held and closed, S160 on its own case only (an L
 outline drew as a corner rectangle, the fallback not needed there), S80 (a), (c) and (d),
@@ -519,8 +519,8 @@ line in `part_derive`'s description, not an `into`).
 - [x] S80 (d): probed (S160, ab67bdc)
 - [x] Group 1: full live tests and release (build: 20261127-085502, tag build-20261127-085502, pushed)
 - [x] Group 1: scenario test with S140 to S142's proof (session id: 69f65c04-85ed-4a72-88e2-1100f3d684b1; all eight held, closed; S161, S162 filed), its entry committed and sorted
-- [x] S156: committed
-- [ ] S125: committed
+- [x] S156: committed (889429e)
+- [x] S125: committed
 - [ ] S124: committed
 - [ ] S146: committed
 - [ ] S64 (q): committed
@@ -1975,27 +1975,6 @@ warning in the fillet checks group 4 changed (S122), needing no choice of the ow
 by group 4's check.
 Carried 2026-11-27 into the run of 2026-11-27, group 2, its decision as written: the run of 2026-11-21 closed on the owner's word (`## Run 2026-11-27`).
 
-### S125 - `feature_pattern_linear`'s volume per instance averages over an instance that formed nothing - OPEN 2026-11-22
-
-Sorted out of the entry of 2026-11-22 (the scenario test of build `20261122-142805`), point
-10, in point 2's second case (S84 (b)): a 10 x 10 x 3 block patterned toward −x, 4 x 30,
-the last instance off the block. The result read "volume change per instance 200 mm³ (3
-instance(s))", where two instances added 300 each and the one off the block added nothing.
-The warnings said that 2 of 15 instance faces were not found, so nothing was hidden, but the
-per-instance figure names no instance's real volume. Small; reported `ok`.
-
-Local, small, in group 4's pattern files (`PartFeatureService.cs`).
-Decided 2026-11-22 by the run, not the owner: the per-instance figure is not averaged over
-an instance that formed nothing, or the instance that formed nothing is named beside it.
-Test to start from: point 2's second case, the per-instance figure not averaged over the
-empty instance, or that instance named (fails now: "volume change per instance 200 mm³ (3
-instance(s))"). Sonnet.
-Decided 2026-11-22 by the run, not the owner: taken into group 7, by the run's rule "a new
-point, small and in the group's files, a later step of this run ... taken into the next
-group", because it is a
-small line of the pattern's result, found by group 4's check.
-Carried 2026-11-27 into the run of 2026-11-27, group 2, its decision as written: the run of 2026-11-21 closed on the owner's word (`## Run 2026-11-27`).
-
 ### S129 - An auxiliary view's arrow and letter are drawn about 90 mm from the edge it was made from - OPEN 2026-11-22
 
 Sorted out of the entry of 2026-11-22 (the scenario test of build `20261122-194424`), point
@@ -2652,5 +2631,50 @@ Decided 2026-11-27 by the run, not the owner: the flip is named, not made, by
 option; `feature_pattern_linear` with the direction's sign is the way it names.
 Decided 2026-11-27 by the run, not the owner: both warnings stand when both apply, because
 the volume line also covers a pattern the instance check cannot read, and both are true.
+Local: on `sw2023`, in the commit that moves it here; not yet in a build. Upstream: not yet
+decided.
+
+### S125 - `feature_pattern_linear`'s volume per instance averages over an instance that formed nothing - BUILT 2026-11-27, proof: the scenario test of the group 2 build
+
+Sorted out of the entry of 2026-11-22 (the scenario test of build `20261122-142805`), point
+10, in point 2's second case (S84 (b)): a 10 x 10 x 3 block patterned toward -x, 4 x 30,
+the last instance off the block. The result read "volume change per instance 200 mm³ (3
+instance(s))", where two instances added 300 each and the one off the block added nothing.
+The warnings said that 2 of 15 instance faces were not found, so nothing was hidden, but the
+per-instance figure names no instance's real volume. Small; reported `ok`.
+
+Cause: `PerInstance` divided the volume change by every instance of the pattern. A second
+cause showed when the fix was made: `EmptyInstances` (S156's instance check) counted an
+instance as formed when any of its seed faces matched, and a plane matches by plane alone, so
+the off-block instance's two side faces parallel to the shift matched the seed's own and the
+other instances' (3 of its 5 faces "found"), and it was not seen as empty.
+Fix: the per-instance figure is averaged over the instances that formed, the others named:
+"volume change per instance 300 mm³ (2 of 3 instance(s); place 4 formed nothing and is left
+out)", places counted as S156's warning counts them (the seed is place 1; a grid as (i, j)).
+`feature_pattern_linear` takes the empty instances from the shared
+`PartFeatureService.EmptyInstances` (S156), which now counts only the seed faces the
+instance's shift moves (a plane parallel to the shift lies where another instance's face
+lies), falling back to all the seed's faces when the shift moves none (a cut along its own
+axis). The result's text only; the circular pattern's line is as it was. No description
+changed.
+Before: the new `PartFeatureLiveTests.Linear_pattern_volume_per_instance_leaves_out_an_instance_that_formed_nothing`
+failed: "Assert.Contains() Failure: Sub-string not found; String: "volume change per
+instance 200 mm³ (3 instance(s))"; Not found: "300 mm³"". With only `PerInstance` changed it
+still failed with the same message (the off-block instance not seen as empty), which showed
+the second cause.
+After: it passes; the live tests that call `feature_pattern_linear` or the shared check
+(ten of `PartFeatureLiveTests` with S156's `Dimension_set_of_a_pattern_count_warns_of_instances_that_formed_nothing`,
+and `AdvancedFeatureLiveTests.A_rib_and_its_own_pattern_take_a_second_pattern_for_uneven_spacing`),
+12/12; unit tests 370/370; `check_repo` ok.
+Made stricter: an instance off the body is not counted as formed because some of its planes
+coincide with other instances' planes, so `dimension_set`'s S156 warning also names such an
+instance; the per-instance volume line is no longer an average over an instance that formed
+nothing; nothing that passed is refused.
+Decided 2026-11-27 by the run, not the owner: the instance that formed nothing is left out
+of the average and named beside it (the item's preferred form), because the figure then
+stays the real volume of an instance and the omission is said.
+Decided 2026-11-27 by the run, not the owner: the shared `EmptyInstances` is made stricter
+rather than a second check written for this line, because the item and the plan say to share
+S156's, and the coincident-plane miss would otherwise make the two warnings disagree.
 Local: on `sw2023`, in the commit that moves it here; not yet in a build. Upstream: not yet
 decided.

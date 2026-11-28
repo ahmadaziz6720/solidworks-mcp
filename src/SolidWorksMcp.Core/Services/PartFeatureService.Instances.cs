@@ -19,13 +19,25 @@ public sealed partial class PartFeatureService
     /// <summary>
     /// The instances (0-based grid places, the seed's (0, 0) left out) whose seed faces are all missing from
     /// <paramref name="result"/> where hypothesis <paramref name="h"/> puts them: the instances that formed nothing.
-    /// Shared by feature_pattern_linear and dimension_set's check of an existing pattern (S156).
+    /// Shared by feature_pattern_linear and dimension_set's check of an existing pattern (S156). Only the faces the
+    /// instance's shift moves count (S125): a plane parallel to the shift lies where the seed's own, or another
+    /// instance's, face lies, so it is "found" for an instance off the body. A shift that moves none of them (a cut
+    /// along its own axis) falls back to all the seed's faces.
     /// </summary>
     private static List<(int I, int J)> EmptyInstances(List<FaceSig> seed, List<FaceSig> result, Hypothesis h, Vec3 u1, double s1, int n1,
         Vec3? u2, double s2, int n2) =>
         GridSample(n1, n2)
-            .Where(ij => Score(seed, result, [Rigid.Translate(u1 * (ij.I * s1 * h.S1) + (u2 ?? Vec3.Zero) * (ij.J * s2 * h.S2))]).Matched == 0)
+            .Where(ij =>
+            {
+                var x = Rigid.Translate(u1 * (ij.I * s1 * h.S1) + (u2 ?? Vec3.Zero) * (ij.J * s2 * h.S2));
+                var moved = seed.Where(s => !Same(s, Apply(s, x))).ToList();
+                return Score(moved.Count > 0 ? moved : seed, result, [x]).Matched == 0;
+            })
             .ToList();
+
+    /// <summary>S125: instance places (1-based, the seed's (1, 1) left out) named for a message: "4" along one direction, "(2, 3)" in a grid; the first 8.</summary>
+    private static string EmptyPlaces(IReadOnlyList<(int I, int J)> places, bool grid) =>
+        string.Join(", ", places.Take(8).Select(p => grid ? $"({p.I}, {p.J})" : $"{p.I}")) + (places.Count > 8 ? $" and {places.Count - 8} more" : "");
 
     /// <summary>
     /// S156: checks an existing linear pattern's instances as feature_pattern_linear checks a new one, both senses of each

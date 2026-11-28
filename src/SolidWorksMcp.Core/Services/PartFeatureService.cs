@@ -1401,6 +1401,7 @@ public sealed partial class PartFeatureService(SwSession session)
                 d.ClearSelection2(true);
 
                 Hypothesis? best = null;
+                var empty = new List<(int I, int J)>(); // S125: instances that formed nothing
                 bool reversed = false;
                 (bool, bool)? other = null;
                 int instances = n1 * n2 - 1;
@@ -1441,6 +1442,7 @@ public sealed partial class PartFeatureService(SwSession session)
                                 return []; // taken back below, and that direction tried the other way
                             }
                         }
+                        if (h.Matched < h.Total) empty = EmptyInstances(seedSigs, res, h, dir1.U, s1, n1, dir2?.U, s2, n2);
                         AreaCheck(ctx, seedArea, resArea, instances);
                         PositionsCheck(ctx, h, checks, $"{n1} x {Units.Mm(s1)} mm along [{Dir(dir1.U * h.S1)}]" +
                                                        (dir2 is null ? "" : $" and {n2} x {Units.Mm(s2)} mm along [{Dir(dir2.U * h.S2)}]"));
@@ -1500,7 +1502,7 @@ public sealed partial class PartFeatureService(SwSession session)
                     continue;
                 }
                 var actual = best is null ? dir1.U : dir1.U * best.S1;
-                var extra = new List<string> { PerInstance(o, n1 * n2 - 1) };
+                var extra = new List<string> { PerInstance(o, n1 * n2 - 1, empty.Select(e => (e.I + 1, e.J + 1)).ToList(), n2 > 1) };
                 if (final) extra.Add("the other sense of the direction was tried too: it is the requested one that leaves instances out");
                 if (flip1 || flip2) extra.Add("direction flipped (SOLIDWORKS' default ran the other way)");
                 if (BoxGrowth(o, actual, dir1.Principal) is { } grew) extra.Add(grew);
@@ -2033,8 +2035,16 @@ public sealed partial class PartFeatureService(SwSession session)
     }
 
     /// <summary>The volume change per pattern instance (compare it with the seed's own change).</summary>
-    private static string PerInstance(FeatureOutcome o, int instances) =>
-        $"volume change per instance {Units.Mm3((o.After.Volume - o.Before.Volume) / Math.Max(1, instances))} mm³ ({instances} instance(s))";
+    private static string PerInstance(FeatureOutcome o, int instances, IReadOnlyList<(int I, int J)>? empty = null, bool grid = false)
+    {
+        // S125: an instance that formed nothing is named and left out of the average (places as dimension_set's warning
+        // counts them, the seed being place 1; a grid as (i, j)).
+        int formed = instances - (empty?.Count ?? 0);
+        string tail = empty is not { Count: > 0 } ? $"({instances} instance(s))"
+            : $"({formed} of {instances} instance(s)" +
+              $"; {(empty.Count == 1 ? "place" : "places")} {EmptyPlaces(empty, grid)} formed nothing and {(empty.Count == 1 ? "is" : "are")} left out)";
+        return $"volume change per instance {Units.Mm3((o.After.Volume - o.Before.Volume) / Math.Max(1, formed))} mm³ {tail}";
+    }
 
     /// <summary>Instances are congruent copies of the seed, so their faces' total area is (instances × the seed's) unless they merge.</summary>
     private static void AreaCheck(SwContext ctx, double seedArea, double resArea, int instances)
