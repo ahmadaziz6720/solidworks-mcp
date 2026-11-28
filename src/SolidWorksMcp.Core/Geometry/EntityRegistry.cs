@@ -26,6 +26,15 @@ internal sealed class EntityRegistry
     {
         byte[] persist = ComArgs.Bytes((object?)doc.Extension.GetPersistReference3(entity))
             ?? throw new SwException(ErrorCodes.Internal, $"No persistent reference for this {kind}.");
+        return IdFor(doc, persist, prefix, kind, subKind, localPick);
+    }
+
+    /// <summary>
+    /// The id for an entity by the persistent reference read from it, allocating one if new: for an entity read before a
+    /// feature that may have removed it (S124 names a face a fillet consumed).
+    /// </summary>
+    public string IdFor(IModelDoc2 doc, byte[] persist, char prefix, string kind, string? subKind = null, Vec3? localPick = null)
+    {
         string key = Convert.ToBase64String(persist);
         if (!_byDoc.TryGetValue(doc, out var keys)) _byDoc[doc] = keys = new Dictionary<string, string>(StringComparer.Ordinal);
         if (keys.TryGetValue(key, out var existing))

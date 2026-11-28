@@ -242,4 +242,33 @@ public class ModellingLiveTests(LiveFixture fx) : LiveTest(fx)
         Assert.Contains("round face r 1 mm", ok.Verified.Checks!);
         Assert.Equal("removed", ok.Verified.Material);
     }
+
+    [Fact]
+    public async Task A_fillet_whose_round_reaches_past_the_faces_it_blends_warns_naming_them_and_an_ordinary_one_does_not()
+    {
+        // S124: R20 on the long bottom front edge of a bar of a 10 x 10 section, `propagate` off, was built overflowing the
+        // faces it blends, a face consumed, reported `ok` with no warning. A bar x ±50, y 0..10, z ±5.
+        string doc = await NewPartAsync("fillet_overflow");
+        await Sk.StartAsync(doc, new EntityRef { Name = "top" }, false);
+        await Sk.AddAsync(doc, [new SketchEntity { Kind = "rectangle", Center = [0, 0], WidthMm = 100, HeightMm = 10 }]);
+        await Fs.ExtrudeAsync(new ExtrudeRequest { Doc = doc, DepthMm = 10 });
+        var inspect = new InspectService(S);
+        async Task<string> Face(double[] at) => Assert.Single((await inspect.FaceListAsync(doc, new EntityFilter { Near = at, WithinMm = 0.001 }, 10, 0)).Faces).Id;
+        string front = await Face([0, 5, 5]), bottom = await Face([0, 0, 0]);
+
+        // An ordinary fillet, R1 on the top back edge, well under the faces' 10 mm: no such warning.
+        var ok = await Fs.FilletAsync(doc, [new EntityRef { At = [0, 10, -5] }], null, 1, false, null, false);
+        Assert.Contains("round face r 1 mm", ok.Verified.Checks!);
+        Assert.DoesNotContain(ok.Warnings ?? [], w => w.Contains("reaches past", StringComparison.Ordinal));
+
+        var r = await Fs.FilletAsync(doc, [new EntityRef { At = [0, 0, 5] }], null, 20, false, null, false);
+        string w = Assert.Single(r.Warnings ?? [], x => x.Contains("reaches past", StringComparison.Ordinal));
+        // Both faces of the edge are gone (VERIFIED by a face listing: no face left at z = 5 or y = 0).
+        Assert.StartsWith("The R20 mm fillet reaches past faces it blends: ", w);
+        Assert.Contains($"{front} (plane, normal [0, 0, 1]) is 10 mm wide beside E", w);
+        Assert.Contains($"{bottom} (plane, normal [0, -1, 0]) is 10 mm wide beside E", w);
+        Assert.Equal(2, System.Text.RegularExpressions.Regex.Matches(w, "the round reaching 20 mm into it and is gone after the fillet").Count);
+        var planes = (await inspect.FaceListAsync(doc, new EntityFilter { Surface = "plane" }, 50, 0)).Faces;
+        Assert.DoesNotContain(planes, f => f.Normal is [0, 0, 1] or [0, -1, 0]);
+    }
 }

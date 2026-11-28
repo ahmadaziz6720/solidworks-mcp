@@ -57,4 +57,32 @@ public class FilletJointsTests
         Assert.Null(FilletJoints.Hint(open));
         Assert.Empty(FilletJoints.Open([new EdgeJoint("E1", "E1", MinusX, X)], new HashSet<string> { "E1" }));
     }
+
+    // S124: a constant fillet whose round reaches past a face it blends, or after which such a face is gone, warns naming it.
+
+    [Fact]
+    public void The_round_reaches_r_into_the_faces_of_a_right_angle_more_at_an_acute_edge_less_at_an_obtuse_one()
+    {
+        var front = new Vec3(0, 0, 1);
+        var bottom = new Vec3(0, -1, 0);
+        Assert.Equal(20, FilletOverflow.Reach(20, front, bottom), 9);
+        // An edge of 60° between the faces: the normals 120° apart, r·tan 60°.
+        Assert.Equal(20 * Math.Sqrt(3), FilletOverflow.Reach(20, front, new Vec3(0, -Math.Cos(Math.PI / 6), -Math.Sin(Math.PI / 6))), 9);
+        // An edge of 120°: the normals 60° apart, r·tan 30°.
+        Assert.Equal(20 / Math.Sqrt(3), FilletOverflow.Reach(20, front, new Vec3(0, -Math.Cos(Math.PI / 6), Math.Sin(Math.PI / 6))), 9);
+        Assert.Equal(20, FilletOverflow.Reach(20, Vec3.Zero, bottom)); // a normal not read: r
+    }
+
+    [Fact]
+    public void A_round_past_its_faces_is_warned_of_naming_each_and_an_ordinary_one_is_not()
+    {
+        BlendedFace F(string id, double widthMm, double reachMm, bool gone) => new(id, "plane, normal [0, 0, 1]", "E2", widthMm / 1000, reachMm / 1000, gone);
+        Assert.Null(FilletOverflow.Warning(0.001, [F("F3", 10, 1, false), F("F1", 10, 1, false)]));
+        Assert.Null(FilletOverflow.Warning(0.01, [F("F3", 10, 10, false)])); // reaching exactly to the far edge
+        Assert.Equal("The R20 mm fillet reaches past faces it blends: F3 (plane, normal [0, 0, 1]) is 10 mm wide beside E2, the round " +
+                     "reaching 20 mm into it and is gone after the fillet; F1 (plane, normal [0, 0, 1]) is 10 mm wide beside E2, the round " +
+                     "reaching 20 mm into it. SOLIDWORKS may have run the round over them: check the shape (view_screenshot) or use a smaller radius.",
+            FilletOverflow.Warning(0.02, [F("F3", 10, 20, true), F("F1", 10, 20, false), F("F5", 30, 20, false)]));
+        Assert.Contains("F4 (plane, normal [0, 0, 1]) is gone after the fillet.", FilletOverflow.Warning(0.002, [F("F4", 10, 2, true)]));
+    }
 }

@@ -346,6 +346,7 @@ public sealed partial class FeatureService(SwSession session)
             }
             // S64 (c): read before the call, as a rollback disconnects the edges.
             string? jointHint = propagate ? null : TangentJointHint(ctx, d, targets);
+            var blends = Blends(d, targets, r); // S124: read before the call, which changes the faces beside its edges
             var before = Snapshot.Take(d);
             d.ClearSelection2(true);
             foreach (var t in targets)
@@ -366,9 +367,104 @@ public sealed partial class FeatureService(SwSession session)
             {
                 throw new SwException(ex.Code, ex.Message, jointHint, ex);
             }
+            WarnOverflow(ctx, d, blends, r);
             Rename(ctx, o.Main, name);
             return FeatureVerifier.Result(ctx, d, o, resolved: resolved);
         }, RunOptions.Write(doc), ct);
+
+    /// <summary>
+    /// S124: a face beside an edge of a constant fillet, read before the fillet by persistent references (ids are given
+    /// only to the faces warned of, so the ids listed later do not move on every fillet). <c>Normal</c> and <c>OnPlane</c>
+    /// (a point of the face's plane: the edge's middle) are set for a plane only.
+    /// </summary>
+    private sealed record Blend(byte[] Face, string FaceKind, Vec3? Normal, Vec3 OnPlane, byte[] Edge, string? EdgeId, string EdgeKind,
+        double WidthM, double ReachM);
+
+    /// <summary>The faces beside the edges of the call (and the edges of its faces), with their widths and the round's reach.</summary>
+    private static List<Blend> Blends(IModelDoc2 d, IReadOnlyList<Resolved> targets, double r)
+    {
+        var list = new List<Blend>();
+        try
+        {
+            byte[]? Persist(object x) => ComArgs.Bytes((object?)d.Extension.GetPersistReference3(x));
+            var edges = targets.Where(t => t.Obj is IEdge).Select(t => ((IEdge)t.Obj, t.Id))
+                .Concat(targets.Select(t => t.Obj).OfType<IFace2>().SelectMany(f => f.Edges()).Select(e => (e, (string?)null)));
+            foreach (var (e, id) in edges)
+            {
+                var faces = e.AdjacentFaces();
+                if (faces.Count != 2 || Persist(e) is not { } ep) continue;
+                var eg = Topology.Describe(e);
+                var g = faces.Select(Topology.Describe).ToArray();
+                double reach = FilletOverflow.Reach(r, Topology.OutwardNormal(faces[0], g[0], eg.Mid), Topology.OutwardNormal(faces[1], g[1], eg.Mid));
+                for (int i = 0; i < 2; i++)
+                    if (Persist(faces[i]) is { } fp)
+                        list.Add(new Blend(fp, g[i].Surface, g[i].Surface == "plane" ? g[i].Normal : null, eg.Mid, ep, id, eg.Curve, Width(faces[i], e), reach));
+            }
+        }
+        catch (Exception ex) when (ex is System.Runtime.InteropServices.COMException or InvalidCastException or SwException)
+        {
+            return []; // the warning is a help only
+        }
+        return list;
+    }
+
+    /// <summary>How far a face reaches from an edge of it: the farthest of five points on each edge of its boundary (m).</summary>
+    private static double Width(IFace2 face, IEdge edge)
+    {
+        double w = 0;
+        foreach (var b in face.Edges())
+        {
+            var cp = b.CurveParams();
+            if (cp.Length < 8) continue;
+            for (int k = 0; k <= 4; k++)
+                if (b.EvalAt(cp[6] + (cp[7] - cp[6]) * k / 4) is { Length: >= 3 } p)
+                    w = Math.Max(w, Topology.DistanceToEdge(edge, Vec3.From(p)));
+        }
+        return w;
+    }
+
+    /// <summary>
+    /// S124: warns of a constant fillet whose round reaches past a face it blends, or after which such a face is gone
+    /// (its persistent reference no longer resolves, or a plane's resolves to a face off that plane). A warning only (S42).
+    /// </summary>
+    private static void WarnOverflow(SwContext ctx, IModelDoc2 d, List<Blend> blends, double r)
+    {
+        if (blends.Count == 0) return;
+        try
+        {
+            var faces = new Dictionary<string, BlendedFace>(StringComparer.Ordinal);
+            var gone = new Dictionary<string, bool>(StringComparer.Ordinal);
+            foreach (var b in blends)
+            {
+                string key = Convert.ToBase64String(b.Face);
+                if (!gone.TryGetValue(key, out bool g)) gone[key] = g = Gone(d, b);
+                var f = new BlendedFace("", "", "", b.WidthM, b.ReachM, g);
+                if (!FilletOverflow.Overflows(f)) continue;
+                if (faces.TryGetValue(key, out var old) && old.ReachM - old.WidthM >= f.ReachM - f.WidthM) continue;
+                string desc = b.Normal is Vec3 n ? $"plane, normal [{TopoQuery.Fmt(n.ToArray())}]" : b.FaceKind;
+                faces[key] = f with
+                {
+                    Face = ctx.Entities.IdFor(d, b.Face, 'F', "face", b.FaceKind), Description = desc,
+                    Edge = b.EdgeId ?? ctx.Entities.IdFor(d, b.Edge, 'E', "edge", b.EdgeKind),
+                };
+            }
+            if (FilletOverflow.Warning(r, faces.Values) is string w) ctx.Warn(w);
+        }
+        catch (Exception ex) when (ex is System.Runtime.InteropServices.COMException or InvalidCastException or SwException)
+        {
+            // the warning is a help only
+        }
+    }
+
+    private static bool Gone(IModelDoc2 d, Blend b)
+    {
+        var obj = (object?)d.Extension.GetObjectByPersistReference3(b.Face, out int status);
+        if (status != 0 || obj is not IFace2 f) return true;
+        if (b.Normal is not Vec3 n) return false;
+        var g = Topology.Describe(f);
+        return g.Surface != "plane" || g.Normal is not Vec3 m || !m.IsParallelTo(n, 1e-6) || m.Dot(n) < 0
+               || Math.Abs((Topology.InteriorPoint(f) - b.OnPlane).Dot(n)) > 1e-7;
+    }
 
     /// <summary>
     /// S64 (c): the hint of a fillet with <c>propagate</c> off that fails where an edge of the call ends tangent to an

@@ -33,3 +33,46 @@ internal static class FilletJoints
             : $"{string.Join("; ", open.Select(p => $"edge {p.Edge} ends tangent to {p.Other}"))}, not in the call: " +
               $"turn `propagate` on or add {(open.Select(p => p.Other).Distinct().Count() == 1 ? "it" : "them")}.";
 }
+
+// Interop-free half of a constant fillet's overflow warning (S124).
+
+/// <summary>
+/// A face beside an edge of a constant fillet, read before the fillet: its id and a short description, the edge's id, how
+/// far the face reaches from the edge (m, its boundary's farthest point) and how far the round reaches into it (m), and
+/// whether it is gone after the fillet.
+/// </summary>
+internal sealed record BlendedFace(string Face, string Description, string Edge, double WidthM, double ReachM, bool Gone);
+
+internal static class FilletOverflow
+{
+    /// <summary>
+    /// How far from the edge a round of radius <paramref name="r"/> meets each face: r·tan(α/2), α the angle between the
+    /// faces' outward normals (r at a right angle, more at an acute edge, less at an obtuse one). A normal not read gives r.
+    /// </summary>
+    public static double Reach(double r, Vec3 n1, Vec3 n2)
+    {
+        if (n1.Length == 0 || n2.Length == 0) return r;
+        double a = Math.Acos(Math.Clamp(n1.Normalized().Dot(n2.Normalized()), -1, 1));
+        return r * Math.Tan(Math.Min(a, Math.PI - 1e-6) / 2);
+    }
+
+    /// <summary>Whether the round reaches past the face (beyond a relative 1e-6 of its width), or the face is gone.</summary>
+    public static bool Overflows(BlendedFace f) => f.Gone || f.ReachM > f.WidthM * (1 + 1e-6) + 1e-9;
+
+    /// <summary>The warning of a constant fillet of radius <paramref name="r"/> (m) that overflows faces it blends, or null.</summary>
+    public static string? Warning(double r, IEnumerable<BlendedFace> faces)
+    {
+        var over = faces.Where(Overflows).ToList();
+        if (over.Count == 0) return null;
+        static string Item(BlendedFace f)
+        {
+            var parts = new List<string>();
+            if (f.ReachM > f.WidthM * (1 + 1e-6) + 1e-9)
+                parts.Add($"is {Units.Mm(f.WidthM)} mm wide beside {f.Edge}, the round reaching {Units.Mm(f.ReachM)} mm into it");
+            if (f.Gone) parts.Add("is gone after the fillet");
+            return $"{f.Face} ({f.Description}) {string.Join(" and ", parts)}";
+        }
+        return $"The R{Units.Mm(r)} mm fillet reaches past faces it blends: {string.Join("; ", over.Select(Item))}. " +
+               "SOLIDWORKS may have run the round over them: check the shape (view_screenshot) or use a smaller radius.";
+    }
+}

@@ -17,7 +17,7 @@ Closed all the same, its PR named, and an open PR no longer holds an item in Wai
 item sent upstream ends with `**Upstream: PR #9, open.**`, one per PR or issue
 (`merged`, `closed unmerged`; an issue `open` or `closed`), kept to its state.
 
-**Open: S4, S5, S7, S10 to S12, S33, S34, S60, S64, S65, S79 to S82, S85, S86, S92, S94, S96, S99, S105, S109, S111, S115, S124, S129, S134 to S139, S143, S145 to S154, S157 to S159, S161, S162.**
+**Open: S4, S5, S7, S10 to S12, S33, S34, S60, S64, S65, S79 to S82, S85, S86, S92, S94, S96, S99, S105, S109, S111, S115, S129, S134 to S139, S143, S145 to S154, S157 to S159, S161, S162.**
 Sorted 2026-11-27, the scenario test of build `20261127-085502` (findings 2026-11-27): S101,
 S123, S144, S155, S140, S141, S142 and S160 held and closed, S160 on its own case only (an L
 outline drew as a corner rectangle, the fallback not needed there), S80 (a), (c) and (d),
@@ -520,8 +520,8 @@ line in `part_derive`'s description, not an `into`).
 - [x] Group 1: full live tests and release (build: 20261127-085502, tag build-20261127-085502, pushed)
 - [x] Group 1: scenario test with S140 to S142's proof (session id: 69f65c04-85ed-4a72-88e2-1100f3d684b1; all eight held, closed; S161, S162 filed), its entry committed and sorted
 - [x] S156: committed (889429e)
-- [x] S125: committed
-- [ ] S124: committed
+- [x] S125: committed (fe3de5e)
+- [x] S124: committed
 - [ ] S146: committed
 - [ ] S64 (q): committed
 - [ ] S64 (k): probed
@@ -1951,30 +1951,6 @@ Proposed: `dimension_list` on an assembly lists the components' dimensions by th
 small: not in this run, for the next plan. Not decided.
 Decided 2026-11-27 by the owner: taken into the run of 2026-11-27, group 3: the components' dimensions by the names `dimension_set` takes, capped, no new option (`## Run 2026-11-27`).
 
-### S124 - `feature_fillet` builds a radius twice the width of the faces it blends, consuming a face, reported `ok` with no warning - OPEN 2026-11-22
-
-Sorted out of the entry of 2026-11-22 (the scenario test of build `20261122-142805`), point
-9; the entry named it a new point of S64, filed as an item of its own. On a plate of a 10 x
-10 section, a constant R20 fillet of the long bottom front edge, `propagate` off, meant as a
-probe of the radius hint, built: −4 675.894 mm³ (42 % of the part), `faceCountDelta` −1,
-the box's bottom rising from y −5 to −3.84; `checks` only "volume" and "round face r 20 mm".
-The round runs across most of the front and bottom faces (from the side, a quarter of the
-section cut off by the arc): SOLIDWORKS overflowed the fillet. A session would expect a
-refusal or at least a warning. Reported `ok` while wrong.
-
-Local, in group 4's fillet files (`FeatureService.Fillets.cs`, `FeatureVerifier.cs`).
-Decided 2026-11-22 by the run, not the owner: a constant fillet warns when a face of the
-edge is gone after the fillet, or when the radius exceeds the width of a face it blends,
-naming that face; a warning, as the owner decided warnings for S42, and no new option.
-Test to start from: point 9's case, R20 on the edge of the 10 x 10 section: a warning naming
-the consumed face (fails now: none). Default model.
-Decided 2026-11-22 by the run, not the owner: taken into group 7, by the run's rule "a new
-point, small and in the group's files, a later step of this run ... taken into the next
-group", because it is a
-warning in the fillet checks group 4 changed (S122), needing no choice of the owner's, found
-by group 4's check.
-Carried 2026-11-27 into the run of 2026-11-27, group 2, its decision as written: the run of 2026-11-21 closed on the owner's word (`## Run 2026-11-27`).
-
 ### S129 - An auxiliary view's arrow and letter are drawn about 90 mm from the edge it was made from - OPEN 2026-11-22
 
 Sorted out of the entry of 2026-11-22 (the scenario test of build `20261122-194424`), point
@@ -2676,5 +2652,66 @@ stays the real volume of an instance and the omission is said.
 Decided 2026-11-27 by the run, not the owner: the shared `EmptyInstances` is made stricter
 rather than a second check written for this line, because the item and the plan say to share
 S156's, and the coincident-plane miss would otherwise make the two warnings disagree.
+Local: on `sw2023`, in the commit that moves it here; not yet in a build. Upstream: not yet
+decided.
+
+### S124 - `feature_fillet` builds a radius twice the width of the faces it blends, consuming a face, reported `ok` with no warning - BUILT 2026-11-27, proof: the scenario test of the group 2 build
+
+Sorted out of the entry of 2026-11-22 (the scenario test of build `20261122-142805`), point
+9; the entry named it a new point of S64, filed as an item of its own. On a plate of a 10 x
+10 section, a constant R20 fillet of the long bottom front edge, `propagate` off, meant as a
+probe of the radius hint, built: −4 675.894 mm³ (42 % of the part), `faceCountDelta` −1,
+the box's bottom rising from y −5 to −3.84; `checks` only "volume" and "round face r 20 mm".
+The round runs across most of the front and bottom faces (from the side, a quarter of the
+section cut off by the arc): SOLIDWORKS overflowed the fillet. A session would expect a
+refusal or at least a warning. Reported `ok` while wrong.
+
+Local, in group 4's fillet files (`FeatureService.Fillets.cs`, `FeatureVerifier.cs`).
+Decided 2026-11-22 by the run, not the owner: a constant fillet warns when a face of the
+edge is gone after the fillet, or when the radius exceeds the width of a face it blends,
+naming that face; a warning, as the owner decided warnings for S42, and no new option.
+Test to start from: point 9's case, R20 on the edge of the 10 x 10 section: a warning naming
+the consumed face (fails now: none). Default model.
+Decided 2026-11-22 by the run, not the owner: taken into group 7, by the run's rule "a new
+point, small and in the group's files, a later step of this run ... taken into the next
+group", because it is a
+warning in the fillet checks group 4 changed (S122), needing no choice of the owner's, found
+by group 4's check.
+Carried 2026-11-27 into the run of 2026-11-27, group 2, its decision as written: the run of 2026-11-21 closed on the owner's word (`## Run 2026-11-27`).
+
+Cause: a constant fillet was checked for its volume and a round face of the radius, both of
+which an overflowed round passes, and nothing compared the radius with the faces it blends.
+Fix: `feature_fillet` (constant) reads, before the fillet, each face beside an edge of the
+call (and beside the edges of faces in it): its persistent reference, its width (the
+farthest of five points on each edge of its boundary from the edge) and how far the round
+reaches into it, r·tan(α/2) with α the angle between the two faces' outward normals (r at a
+right angle). After the fillet it warns, naming each face, when the round reaches past a
+face or the face is gone (its reference no longer resolves, or a plane's resolves off that
+plane): "The R20 mm fillet reaches past faces it blends: F3 (plane, normal [0, 0, 1]) is 10
+mm wide beside E2, the round reaching 20 mm into it and is gone after the fillet; ...
+SOLIDWORKS may have run the round over them: check the shape (view_screenshot) or use a
+smaller radius." Ids are given only to the faces warned of (`EntityRegistry.IdFor` by a
+persistent reference, for a face gone after). The text and the reach are interop-free
+(`FilletOverflow` in `Verify/FilletJoints.cs`). A warning only (S42). No description changed.
+Before: the new `ModellingLiveTests.A_fillet_whose_round_reaches_past_the_faces_it_blends_warns_naming_them_and_an_ordinary_one_does_not`
+(a bar x ±50, y 0..10, z ±5; R1 on the top back edge, then R20 on the bottom front edge,
+`propagate` off) failed: "Assert.Single() Failure: The collection did not contain any
+matching items ... Collection: []" (R20 built, −4 703 mm³, no warning at all).
+After: it passes: the R1 fillet gives no such warning; the R20 one names both faces of the
+edge, each 10 mm wide and gone (a face listing after it finds no face at z = 5 or y = 0).
+With it the live tests that call the constant fillet (S64 (c)'s tangent-joint test, five of
+`M0LiveTests`, two of `PartFeatureLiveTests`, two of `FeatureManagementLiveTests`, one of
+`ReferenceLiveTests`), 12/12; unit tests 372/372, the new `FilletJointsTests` cases of the
+reach and the text among them; the LiveTests project offline 125/125 (608 live skipped);
+`check_repo` ok.
+Made stricter: a constant fillet whose round reaches past a face it blends, or consumes it,
+warns naming the face; nothing that passed is refused.
+Decided 2026-11-27 by the run, not the owner: "the radius exceeds the width" is read as the
+round's reach into the face, r·tan(α/2), not the bare radius, because at an edge other than
+a right angle the round meets the face farther (acute) or nearer (obtuse) than r, and the
+bare radius would warn wrongly at an obtuse edge and miss an acute one.
+Decided 2026-11-27 by the run, not the owner: a face's width is its farthest boundary point
+from the edge, because that never warns of a face the round does not pass; a face that is
+narrow only near the edge (an L-shaped face) is caught by the gone check when consumed.
 Local: on `sw2023`, in the commit that moves it here; not yet in a build. Upstream: not yet
 decided.
