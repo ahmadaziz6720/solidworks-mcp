@@ -605,19 +605,25 @@ public sealed partial class PartFeatureService(SwSession session)
     /// <summary>
     /// An edge to chamfer as it was before the chamfer: a line (P a point on it, U its direction) or a circle (P its centre,
     /// U its axis, R its radius); <see cref="Mid"/> finds it again, <see cref="Wedge"/> is the angle between its faces
-    /// (NaN when not read), <see cref="Flip"/> whether its distances go on the other faces.
+    /// (NaN when not read), <see cref="Flip"/> whether its distances go on the other faces, <see cref="Faces"/> its two
+    /// faces as they were (a leg may take one whole).
     /// </summary>
-    private sealed record ChamferEdge(string Label, string Curve, Vec3 P, Vec3 U, double R, Vec3 Mid, double Wedge, bool Flip);
+    private sealed record ChamferEdge(string Label, string Curve, Vec3 P, Vec3 U, double R, Vec3 Mid, double Wedge, bool Flip,
+        IReadOnlyList<SideFace> Faces);
+
+    /// <summary>A face beside an edge before the chamfer: its geometry, its <see cref="SideKey"/> and its description.</summary>
+    private sealed record SideFace(FaceGeom G, string Key, string What);
 
     private static ChamferEdge ChamferEdgeOf(IEdge e, string label, bool flip)
     {
         var g = Topology.Describe(e);
         double wedge = WedgeAt(e, g.Mid);
+        var faces = e.AdjacentFaces().Select(f => { var fg = Topology.Describe(f); return new SideFace(fg, SideKey(f), What(fg)); }).ToList();
         return g switch
         {
-            { Curve: "line", Direction: { } u } => new ChamferEdge(label, "line", g.Start, u, 0, g.Mid, wedge, flip),
-            { Curve: "circle", Center: { } c, Axis: { } ax, Radius: { } r } => new ChamferEdge(label, "circle", c, ax, r, g.Mid, wedge, flip),
-            _ => new ChamferEdge(label, g.Curve, g.Mid, Vec3.Zero, 0, g.Mid, double.NaN, flip),
+            { Curve: "line", Direction: { } u } => new ChamferEdge(label, "line", g.Start, u, 0, g.Mid, wedge, flip, faces),
+            { Curve: "circle", Center: { } c, Axis: { } ax, Radius: { } r } => new ChamferEdge(label, "circle", c, ax, r, g.Mid, wedge, flip, faces),
+            _ => new ChamferEdge(label, g.Curve, g.Mid, Vec3.Zero, 0, g.Mid, double.NaN, flip, faces),
         };
     }
 
@@ -767,14 +773,42 @@ public sealed partial class PartFeatureService(SwSession session)
     {
         var g = Topology.Describe(f);
         string id = ctx.Entities.IdFor(d, f, 'F', "face", g.Surface, Topology.InteriorPoint(f));
-        string what = g switch
-        {
-            { Surface: "plane", Normal: { } n } => $"plane [{Dir(n)}]",
-            { Radius: { } r } => $"{g.Surface} r {Units.Mm(r)}",
-            _ => g.Surface,
-        };
-        return $"{id} ({what})";
+        return $"{id} ({What(g)})";
     }
+
+    private static string What(FaceGeom g) => g switch
+    {
+        { Surface: "plane", Normal: { } n } => $"plane [{Dir(n)}]",
+        { Radius: { } r } => $"{g.Surface} r {Units.Mm(r)}",
+        _ => g.Surface,
+    };
+
+    /// <summary>
+    /// Whether leg <paramref name="v"/> (a <see cref="LegOffsets"/> offset) runs along a face of geometry <paramref name="g"/>:
+    /// a plane holding it beside a line; beside a circle, a plane square to its axis (a radial leg) or a cylinder on it (an
+    /// axial leg). Null where not decided (other faces).
+    /// </summary>
+    private static bool? Holds(FaceGeom g, ChamferEdge e, Vec3 v)
+    {
+        if (v.Length < 1e-9) return null;
+        var u = v / v.Length;
+        if (e.Curve == "line")
+            return g is { Surface: "plane", Normal: { } n } ? Math.Abs(n.Dot(u)) < 1e-4 : null;
+        if (e.Curve != "circle") return null;
+        if (g is { Surface: "plane", Normal: { } pn } && pn.IsParallelTo(e.U, 1e-6)) return Math.Abs(u.Y) < 1e-4;
+        if (g is { Surface: "cylinder", Axis: { } ax } && ax.IsParallelTo(e.U, 1e-6)) return Math.Abs(u.X) < 1e-4;
+        return null;
+    }
+
+    /// <summary>
+    /// The face leg <paramref name="v"/> ran along, as it was before the chamfer, when the face now beside the leg's end
+    /// does not hold it: the leg took that face whole, and <paramref name="beside"/> is the face beyond (S64 (k)). Else null.
+    /// </summary>
+    private static SideFace? TakenWhole(ChamferEdge e, IFace2 beside, Vec3 v) =>
+        Holds(Topology.Describe(beside), e, v) == false ? e.Faces.FirstOrDefault(o => Holds(o.G, e, v) == true) : null;
+
+    /// <summary>The side (<see cref="SideKey"/>) of the face leg <paramref name="v"/> ran along: the one taken whole, if so.</summary>
+    private static string LegKey(ChamferEdge e, IFace2 beside, Vec3 v) => TakenWhole(e, beside, v)?.Key ?? SideKey(beside);
 
     /// <summary>The direction of a face, to tell whether two edges took a distance on the same side: a plane's normal, a curved face's type, radius and axis.</summary>
     private static string SideKey(IFace2 f)
@@ -822,7 +856,7 @@ public sealed partial class PartFeatureService(SwSession session)
         var faces = chamfers.SelectMany(FeatureFaces).ToList();
         return edges.Select(e => ReadEdge(faces, e, ExpectedLegs(e, type, d1, d2, ang), d1, d2, []) is { } r &&
                                  Math.Abs(r.V[0].Length - r.V[1].Length) > RadiusTol && r.Beside[r.First] is { } a && r.Beside[1 - r.First] is { } b
-            ? ((string, string)?)(SideKey(a), SideKey(b)) : null).ToList();
+            ? ((string, string)?)(LegKey(e, a, r.V[r.First]), LegKey(e, b, r.V[1 - r.First])) : null).ToList();
     }
 
     /// <summary>
@@ -919,7 +953,8 @@ public sealed partial class PartFeatureService(SwSession session)
             var v = h.V;
             var beside = h.Beside;
             int first = h.First, second = 1 - first;
-            string Name(int i) => beside[i] is { } nb ? FaceLabel(ctx, d, nb) : "a face not read";
+            string Name(int i) => beside[i] is not { } nb ? "a face not read"
+                : TakenWhole(e, nb, v[i]) is { } o ? $"a face taken whole ({o.What}; the leg ends on {FaceLabel(ctx, d, nb)})" : FaceLabel(ctx, d, nb);
             double At(int i) // the cross-section triangle's angle at the end of leg i
             {
                 var toEdge = -v[i];
@@ -930,7 +965,7 @@ public sealed partial class PartFeatureService(SwSession session)
             perEdge.Add($"{e.Label}: {Units.Mm(v[first].Length)} mm along {n1}, {Units.Mm(v[second].Length)} mm along {n2}; " +
                         $"the chamfer face meets the first at {Units.Deg(At(first))}° and the second at {Units.Deg(At(second))}°");
             if (Math.Abs(v[0].Length - v[1].Length) > RadiusTol && beside[first] is { } bf && beside[second] is { } bs)
-                sides.Add((e.Label, SideKey(bf), SideKey(bs), n1));
+                sides.Add((e.Label, LegKey(e, bf, v[first]), LegKey(e, bs, v[second]), n1));
         }
         if (ok > 0) checks.Add($"legs measured on {ok} edge(s)");
         checks.AddRange(perEdge);

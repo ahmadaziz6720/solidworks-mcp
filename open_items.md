@@ -523,8 +523,8 @@ line in `part_derive`'s description, not an `into`).
 - [x] S125: committed (fe3de5e)
 - [x] S124: committed (4ed7fd4)
 - [x] S146: committed (0b4df4d)
-- [x] S64 (q): committed (S163)
-- [ ] S64 (k): probed
+- [x] S64 (q): committed (S163, ffccaea)
+- [x] S64 (k): probed (S164)
 - [ ] Group 2: full live tests and release (build: )
 - [ ] Group 2: scenario test (session id: ), its entry committed and sorted
 - [ ] S145: committed
@@ -1095,6 +1095,7 @@ after. Not reported `ok`. Proposed by the session: the hint names edge-only cont
 existing body as a cause. Local. Not decided.
 Decided 2026-11-27 by the owner: (q) taken into the run of 2026-11-27, group 2, the hint naming edge-only contact; (k) taken into group 2 too, a probe first, each face's own normal read (an extra the owner chose); (b), (j), (m) to (p) not in it (`## Run 2026-11-27`).
 (q) done in the run of 2026-11-27, group 2, split out as S163 (Waiting).
+(k) done in the run of 2026-11-27, group 2, split out as S164 (Waiting).
 Met again 2026-11-27 ((l); findings 2026-11-27, the scenario test of build
 `20261127-085502`, point 9): `contours.regions` 0 for closed contours in two shapes S120's
 rule (closed 2026-11-22) does not cover, the features right; moved to S161.
@@ -2790,5 +2791,59 @@ causes rather than the server telling it, because telling it needs the new body'
 before SOLIDWORKS refuses (the call returns nothing, and the rollback leaves no body to
 read), and the hint is read only after a failure, where a cause named beside the others costs
 nothing.
+Local: on `sw2023`, in the commit that moves it here; not yet in a build. Upstream: not yet
+decided.
+
+### S164 - A chamfer leg that takes a face whole is named by the face beyond it: both legs of an edge on one plane, and a side swap warned that did not happen - BUILT 2026-11-27, proof: the scenario test of the group 2 build
+
+Split out of S64 (k), sorted from the entry of 2026-11-16 ("an edit to three printed parts",
+point 2), build `20261116-124830`: the leg check of an `angle_distance` 1 / 60° chamfer on
+two edges where a groove's side meets a flat wall, with `flipEdges`, gave both faces of each
+edge the same plane, "edge E24: 1 mm along F252 (plane [-0.866, 0, -0.5]), 1.732051 mm along
+F253 (plane [-0.866, 0, -0.5])", where one of the two is a face square to the axis. The volume
+matched, so the chamfer was right and the reported faces were not. Proposed: a probe of that
+case; each face's own normal read.
+Decided 2026-11-27 by the owner: taken into the run of 2026-11-27, group 2, a probe first,
+each face's own normal read (`## Run 2026-11-27`).
+
+Probe (2026-11-28, build `20261127-085502`): a block with a groove 4 wide and 1 deep, the
+chamfer 1 / 60° on its two top edges. Unflipped, or one edge flipped, an edge put the 1.73 leg
+on the 1 mm side and failed `VERIFY_FAILED` (S64 (j)); both flipped, it built (-34.641 mm3,
+as figured) and read "edge E1: 1 mm along F70 (plane [0, 1, 0]), 1.732051 mm along F71 (plane
+[0, 1, 0])", the same for E2 with F70 again, and warned "The first distance went on plane [0,
+1, 0] for edge E1 but on the other face for edge E2", which was not so.
+Cause: the 1 mm leg took the 1 mm side face whole. The leg check names the face beside each
+leg's end edge (`ReadEdge`: the other face of the chamfer face's boundary edge); with the side
+gone, that is the groove's floor, parallel to the top face, so both legs read one plane, and
+the side key (`SideKey`, the same reading) made both edges' sides look swapped. Normals were
+read right; the face was the wrong one.
+Fix (`PartFeatureService.cs`): each chamfer edge keeps its two faces as they were before the
+chamfer (`ChamferEdge.Faces`: geometry, side key, description). A leg whose face beside its
+end does not hold it (a plane not containing the leg beside a line; beside a circle, a plane
+square to the axis for a radial leg or a cylinder on the axis for an axial one; other faces
+not decided, read as before) is named by the original face that holds it: "1 mm along a face
+taken whole (plane [1, 0, 0]; the leg ends on F70 (plane [0, 1, 0]))". The side key of that
+leg is the original face's, for the mixed-sides warning and for `flipEdges`' side reading
+(`HoldFlips`), which compared the same keys. A text in a result: no description changed.
+Before: the new
+`PartFeatureLiveTests.A_chamfer_leg_that_takes_a_face_whole_names_that_face_not_the_one_beyond`
+failed: "both legs of an edge on one plane: volume | legs measured on 2 edge(s) | edge E1: 1
+mm along F10 (plane [0, 1, 0]), 1,732051 mm along F11 (plane [0, 1, 0]); the chamfer face meets
+the first at 60° and the second at 30° | edge E2: 1 mm along F10 (plane [0, 1, 0]), 1,732051
+mm along F12 (plane [0, 1, 0]); ...".
+After: it passes (the volume -103.923, each edge's 1 mm leg on plane [±1, 0, 0] and its
+1.732051 leg on plane [0, 1, 0], no mixed-sides warning), with the live tests that make a
+chamfer (`PartFeatureLiveTests`' ten chamfer tests and
+`Linear_pattern_along_a_slanted_edge_takes_the_side_the_axis_names`, two auxiliary-view tests
+of `DrawingLiveTests`, two `Sketch_finish_...` tests of `FeatureManagementLiveTests`), 15/15;
+unit tests 377/377; `check_repo` ok. No catalog check: no description changed.
+Made stricter: nothing refused or newly failed; a leg's face is named by the face it took, and
+a mixed-sides warning is no longer given where the sides were not mixed.
+Decided 2026-11-27 by the run, not the owner: a leg that took its face whole names that face
+by its plane as it was, with no id, and the face beyond by its id, because the face is gone
+(an id would point at nothing) and the face beyond is the one a caller can still pick.
+Decided 2026-11-27 by the run, not the owner: a face beside the leg that the check cannot
+decide (a cone, a spline, a cylinder beside a line) keeps the reading as before, because
+naming an original face there would be a guess.
 Local: on `sw2023`, in the commit that moves it here; not yet in a build. Upstream: not yet
 decided.

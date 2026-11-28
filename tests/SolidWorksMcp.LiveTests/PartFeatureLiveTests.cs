@@ -393,6 +393,39 @@ public class PartFeatureLiveTests(LiveFixture fx) : LiveTest(fx)
     }
 
     [Fact]
+    public async Task A_chamfer_leg_that_takes_a_face_whole_names_that_face_not_the_one_beyond()
+    {
+        // S64 (k): a groove 4 wide and 1 deep; an angle_distance chamfer 1 / 60° on its two top edges puts the 1 mm leg on
+        // the 1 mm side face, which goes whole. The leg line named the groove's floor beyond it, so both legs of an edge
+        // read plane [0, 1, 0], and the two edges read as having taken their sides the other way round (warned).
+        string doc = await BlockAsync("chamfer_leg_face_whole");
+        await Sk.StartAsync(doc, new EntityRef { At = [20, 20, 0] }, false);
+        await Sk.AddAsync(doc, [new SketchEntity { Kind = "rectangle", Corners = [[-2, 20, -30], [2, 20, 30]] }]);
+        var groove = await Fs.ExtrudeAsync(new ExtrudeRequest { Doc = doc, Cut = true, DepthMm = 1 });
+        Assert.Equal(-240, groove.Verified.VolumeDeltaMm3, V);
+
+        var c = await Pf.ChamferAsync(new ChamferRequest
+        {
+            Doc = doc, Edges = [new EntityRef { At = [-2, 20, 0] }, new EntityRef { At = [2, 20, 0] }], FlipEdges = [0, 1],
+            Type = "angle_distance", DistanceMm = 1, AngleDeg = 60,
+        });
+        Assert.Equal(-2 * 0.5 * 1 * Math.Sqrt(3) * 60, c.Verified.VolumeDeltaMm3, V);
+        var lines = c.Verified.Checks!.Where(x => Regex.IsMatch(x, @"^edge E\d+: ")).ToList();
+        Assert.Equal(2, lines.Count);
+        string all = string.Join(" | ", c.Verified.Checks!);
+        foreach (var l in lines)
+        {
+            var m = Regex.Match(l, @": 1 mm along (.*?plane \[[-0-9., ]+\].*?), 1[.,]732051 mm along (.*?plane \[[-0-9., ]+\])");
+            Assert.True(m.Success, all);
+            string side = Regex.Match(m.Groups[1].Value, @"plane \[[-0-9., ]+\]").Value, top = Regex.Match(m.Groups[2].Value, @"plane \[[-0-9., ]+\]").Value;
+            Assert.True(side != top, $"both legs of an edge on one plane: {all}");
+            Assert.Matches(@"plane \[-?1, 0, 0\]", side);
+            Assert.Equal("plane [0, 1, 0]", top);
+        }
+        Assert.DoesNotContain(c.Warnings ?? [], w => w.Contains("first distance"));
+    }
+
+    [Fact]
     public async Task Chamfer_edit_changes_edges_flips_and_distances_and_splits_edges_with_their_own()
     {
         // S51 (d): a chamfer with a hole after it; edges added and flipped, distances changed, one edge given its own.
