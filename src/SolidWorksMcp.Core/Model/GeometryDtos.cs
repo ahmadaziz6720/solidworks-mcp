@@ -106,6 +106,8 @@ public sealed class DimensionInfo
     public bool? Driven { get; init; }
     /// <summary>dimension_list: the equation that drives the dimension (its text), when one does (S95).</summary>
     public string? Equation { get; init; }
+    /// <summary>A linear pattern's dimension: what it is and which direction it belongs to: count1 | spacing1 | count2 | spacing2 (S146).</summary>
+    public string? Role { get; init; }
     /// <summary>The tolerance, when it has one (type other than none).</summary>
     public ToleranceInfo? Tolerance { get; init; }
 }

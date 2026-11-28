@@ -915,6 +915,49 @@ public class PartFeatureLiveTests(LiveFixture fx) : LiveTest(fx)
     }
 
     [Fact]
+    public async Task Linear_pattern_dimensions_say_which_direction_each_belongs_to()
+    {
+        // S146: a 2 x 3 pattern's four dimensions (two counts, two spacings) came back as D4, D2, D3, D1 with nothing saying
+        // which count or spacing is direction 1's. Each row now carries its role: count1, spacing1, count2, spacing2.
+        string doc = await BlockAsync("lpat_roles");
+        var seed = await HoleCutAsync(doc, -40, -20);
+        var r = await Pf.LinearPatternAsync(new LinearPatternRequest
+        {
+            Doc = doc, Features = [seed.Feature.Name], Direction = "+x", Count = 2, SpacingMm = 30,
+            Direction2 = "+z", Count2 = 3, Spacing2Mm = 20,
+        });
+        static void AssertRoles(IReadOnlyList<DimensionInfo> dims)
+        {
+            Assert.Equal(4, dims.Count);
+            var expected = new Dictionary<string, double> { ["count1"] = 2, ["spacing1"] = 30, ["count2"] = 3, ["spacing2"] = 20 };
+            foreach (var (role, value) in expected)
+                Assert.Equal(value, Assert.Single(dims, x => x.Role == role).Value);
+        }
+        AssertRoles(r.Dimensions!);
+        var listed = await new FeatureManagementService(S).DimensionListAsync(doc, r.Feature.Name);
+        AssertRoles(listed.Dimensions);
+
+        // Equal counts and equal spacings: the role comes from the dimension, not from its value.
+        string doc2 = await BlockAsync("lpat_roles_equal");
+        var seed2 = await HoleCutAsync(doc2, -40, -20);
+        var q = await Pf.LinearPatternAsync(new LinearPatternRequest
+        {
+            Doc = doc2, Features = [seed2.Feature.Name], Direction = "+x", Count = 2, SpacingMm = 20,
+            Direction2 = "+z", Count2 = 2, Spacing2Mm = 20,
+        });
+        Assert.Equal(["count1", "count2", "spacing1", "spacing2"], q.Dimensions!.Select(x => x.Role!).Order().ToArray());
+
+        // One direction: no second count or spacing exists.
+        string doc3 = await BlockAsync("lpat_roles_one");
+        var seed3 = await HoleCutAsync(doc3, -40, -20);
+        var one = await Pf.LinearPatternAsync(new LinearPatternRequest
+        {
+            Doc = doc3, Features = [seed3.Feature.Name], Direction = "+x", Count = 3, SpacingMm = 20,
+        });
+        Assert.Equal(["count1", "spacing1"], one.Dimensions!.Select(x => x.Role!).Order().ToArray());
+    }
+
+    [Fact]
     public async Task Linear_pattern_runs_direction_2_the_requested_way_when_its_own_way_leaves_the_part()
     {
         // S41: from z = 20 the second row belongs at z = -10. SOLIDWORKS' own sense puts it at z = 50, off the block, where

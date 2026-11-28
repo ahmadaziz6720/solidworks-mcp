@@ -276,7 +276,20 @@ internal static class FeatureVerifier
             if (dim is not null && seen.Add(dim.FullName)) list.Add(Dimension(dim));
             dd = f.GetNextDisplayDimension(disp);
         }
-        return list;
+        return list.Count > 0 && f.GetTypeName2() == "LPattern" ? PatternRoles(f, list) : list;
+    }
+
+    /// <summary>S146: a linear pattern's dimensions with their roles (count1, spacing1, count2, spacing2), read from its definition.</summary>
+    private static List<DimensionInfo> PatternRoles(IFeature f, List<DimensionInfo> dims)
+    {
+        try
+        {
+            if ((object?)f.GetDefinition() is not ILinearPatternFeatureData p) return dims;
+            bool two = p.IsDirection2Specified();
+            return LinearPatternRoles.Apply(dims, p.D1TotalInstances, Units.Mm(p.D1Spacing),
+                two ? p.D2TotalInstances : null, two ? Units.Mm(p.D2Spacing) : null);
+        }
+        catch (Exception ex) when (!ComArgs.IsDisconnect(ex)) { return dims; }
     }
 
     public static DimensionInfo Dimension(IDimension dim)

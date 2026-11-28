@@ -1872,7 +1872,7 @@ internal static class FeatureManagementLogic
     /// </summary>
     public static DimensionInfo WithEquation(DimensionInfo row, IEnumerable<string> equations) =>
         EquationOn(equations, row.Name) is { } equation
-            ? new DimensionInfo { Name = row.Name, Value = row.Value, Unit = row.Unit, Equation = equation.Trim(), Tolerance = row.Tolerance }
+            ? new DimensionInfo { Name = row.Name, Value = row.Value, Unit = row.Unit, Equation = equation.Trim(), Tolerance = row.Tolerance, Role = row.Role }
             : row;
 
     /// <summary>

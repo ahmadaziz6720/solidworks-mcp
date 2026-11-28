@@ -17,7 +17,7 @@ Closed all the same, its PR named, and an open PR no longer holds an item in Wai
 item sent upstream ends with `**Upstream: PR #9, open.**`, one per PR or issue
 (`merged`, `closed unmerged`; an issue `open` or `closed`), kept to its state.
 
-**Open: S4, S5, S7, S10 to S12, S33, S34, S60, S64, S65, S79 to S82, S85, S86, S92, S94, S96, S99, S105, S109, S111, S115, S129, S134 to S139, S143, S145 to S154, S157 to S159, S161, S162.**
+**Open: S4, S5, S7, S10 to S12, S33, S34, S60, S64, S65, S79 to S82, S85, S86, S92, S94, S96, S99, S105, S109, S111, S115, S129, S134 to S139, S143, S145, S147 to S154, S157 to S159, S161, S162.**
 Sorted 2026-11-27, the scenario test of build `20261127-085502` (findings 2026-11-27): S101,
 S123, S144, S155, S140, S141, S142 and S160 held and closed, S160 on its own case only (an L
 outline drew as a corner rectangle, the fallback not needed there), S80 (a), (c) and (d),
@@ -521,8 +521,8 @@ line in `part_derive`'s description, not an `into`).
 - [x] Group 1: scenario test with S140 to S142's proof (session id: 69f65c04-85ed-4a72-88e2-1100f3d684b1; all eight held, closed; S161, S162 filed), its entry committed and sorted
 - [x] S156: committed (889429e)
 - [x] S125: committed (fe3de5e)
-- [x] S124: committed
-- [ ] S146: committed
+- [x] S124: committed (4ed7fd4)
+- [x] S146: committed
 - [ ] S64 (q): committed
 - [ ] S64 (k): probed
 - [ ] Group 2: full live tests and release (build: )
@@ -2117,23 +2117,6 @@ Proposed by the session: for two cylinders (or cones) `parallel` computed from t
 or left out where the tool did not compute it. Local. Not decided.
 Decided 2026-11-27 by the owner: taken into the run of 2026-11-27, group 3: `parallel` from the axes of two cylinders or cones, or left out where not computed (`## Run 2026-11-27`).
 
-### S146 - A two-direction linear pattern's dimensions do not say which direction each belongs to - OPEN 2026-11-27
-
-Sorted out of the entry of 2026-11-25 ("two printed plates trimmed and their bolt pattern cut
-from 2 x 2 to 1 x 2", point 2) and the entry of 2026-11-26 ("two printed parts from a written
-plan", point 2), on build `20261124-174916`. `dimension_list {feature:<linear pattern>}` gives
-two counts and two spacings (`D1` to `D4`), and `feature_pattern_linear`'s own result lists
-`dimensions` as `D4`, `D2`, `D3`, `D1` (the counts marked `count`), with nothing saying which
-spacing or count is direction 1 and which direction 2. Told apart by a `dimension_set` probe
-and `face_list` of the instance cylinders (the volume the same for either direction), or
-guessed and checked only at a second set of variables. Reported `ok`. Bears on S65 (j) (a
-sketch dimension's entities not given).
-
-Proposed by the sessions: each row labelled with its role and direction (`spacing1`,
-`count2`, and the direction's reference), as `sketch_offset` names its distance. Local. Not
-decided.
-Decided 2026-11-27 by the owner: taken into the run of 2026-11-27, group 2: each row of a linear pattern's dimensions carries its role and direction (`count1`, `spacing2`), a field in the result (`## Run 2026-11-27`).
-
 ### S147 - A sketch dimension `D1` of value 0 that no step made appears in the sketch's and its feature's dimensions - OPEN 2026-11-27
 
 Sorted out of three entries on build `20261124-174916`: 2026-11-25 ("a printed nozzle with a
@@ -2713,5 +2696,55 @@ bare radius would warn wrongly at an obtuse edge and miss an acute one.
 Decided 2026-11-27 by the run, not the owner: a face's width is its farthest boundary point
 from the edge, because that never warns of a face the round does not pass; a face that is
 narrow only near the edge (an L-shaped face) is caught by the gone check when consumed.
+Local: on `sw2023`, in the commit that moves it here; not yet in a build. Upstream: not yet
+decided.
+
+### S146 - A two-direction linear pattern's dimensions do not say which direction each belongs to - BUILT 2026-11-27, proof: the scenario test of the group 2 build
+
+Sorted out of the entry of 2026-11-25 ("two printed plates trimmed and their bolt pattern cut
+from 2 x 2 to 1 x 2", point 2) and the entry of 2026-11-26 ("two printed parts from a written
+plan", point 2), on build `20261124-174916`. `dimension_list {feature:<linear pattern>}` gives
+two counts and two spacings (`D1` to `D4`), and `feature_pattern_linear`'s own result lists
+`dimensions` as `D4`, `D2`, `D3`, `D1` (the counts marked `count`), with nothing saying which
+spacing or count is direction 1 and which direction 2. Told apart by a `dimension_set` probe
+and `face_list` of the instance cylinders (the volume the same for either direction), or
+guessed and checked only at a second set of variables. Reported `ok`. Bears on S65 (j) (a
+sketch dimension's entities not given).
+
+Proposed by the sessions: each row labelled with its role and direction (`spacing1`,
+`count2`, and the direction's reference), as `sketch_offset` names its distance. Local. Not
+decided.
+Decided 2026-11-27 by the owner: taken into the run of 2026-11-27, group 2: each row of a linear pattern's dimensions carries its role and direction (`count1`, `spacing2`), a field in the result (`## Run 2026-11-27`).
+
+Cause: a linear pattern's dimensions are D1 and D2 (the counts of direction 1 and 2) and D3
+and D4 (their spacings), and nothing in a result said so: `FeatureVerifier.Dimensions` read
+the display dimensions by name and value only.
+Fix: each row of a linear pattern's dimensions carries `role`: `count1`, `spacing1`,
+`count2` or `spacing2`, in `feature_pattern_linear`'s result, `dimension_list {feature}`,
+`feature_info` and `feature_rename` (all through `FeatureVerifier.Dimensions`, for an
+`LPattern`). A field of the result, no description changed (the catalog's bytes untouched).
+The role comes from the dimension's name (counts by number: D1 is direction 1's, D2 direction
+2's; spacings likewise, D3 and D4; probed live on a 2 x 3 and a 1 x 2 pattern, and a pattern
+of one direction has D1 and D3 only) and is checked against the pattern's definition
+(`ILinearPatternFeatureData`: counts and spacings of both directions); a row whose value the
+definition does not bear out in either order gets no role. The rule is interop-free
+(`Model/LinearPatternRoles.cs`).
+Before: the new `PartFeatureLiveTests.Linear_pattern_dimensions_say_which_direction_each_belongs_to`
+(a 2 x 3 pattern, 30 and 20 mm; then 2 x 2 at 20 and 20 mm; then one direction) failed:
+"Assert.Single() Failure: The collection did not contain any matching items ... Collection:
+[DimensionInfo { ... Name = "D4@LPattern1", Role = null ...}, ...]".
+After: it passes, with the live tests that call the changed code (the two-direction grid, the
+S156 `dimension_set` pattern test, `Dimension_list_returns_the_depth_...`,
+`Dimension_list_gives_the_equation_...`, `Rename_reads_back_...`,
+`Feature_info_reads_the_extrude_and_fillet_definitions`), 6/6; unit tests 377/377, the new
+`LinearPatternRolesTests` (five cases) among them; `check_repo` ok. No catalog check: no
+description changed.
+Made stricter: nothing refused; a role is left out rather than guessed.
+Decided 2026-11-27 by the run, not the owner: the field is named `role` and holds the role
+with its direction in one word (`spacing2`), because the owner's decision names those
+values, and a second field for the direction would only repeat the digit.
+Decided 2026-11-27 by the run, not the owner: the role is read from the dimension's name
+order and checked against the definition, rather than matched by value alone, because equal
+counts or spacings (2 x 2 at the same spacing) cannot be told apart by value.
 Local: on `sw2023`, in the commit that moves it here; not yet in a build. Upstream: not yet
 decided.

@@ -37,6 +37,7 @@
     <Compile Include="..\..\src\SolidWorksMcp.Core\Imaging\Png.cs" Link="Core\Imaging\Png.cs" />
     <Compile Include="..\..\src\SolidWorksMcp.Core\Model\EntityRef.cs" Link="Core\Model\EntityRef.cs" />
     <Compile Include="..\..\src\SolidWorksMcp.Core\Model\GeometryDtos.cs" Link="Core\Model\GeometryDtos.cs" />
+    <Compile Include="..\..\src\SolidWorksMcp.Core\Model\LinearPatternRoles.cs" Link="Core\Model\LinearPatternRoles.cs" />
     <Compile Include="..\..\src\SolidWorksMcp.Core\Model\SketchEntity.cs" Link="Core\Model\SketchEntity.cs" />
     <Compile Include="..\..\src\SolidWorksMcp.Core\Model\ToolResult.cs" Link="Core\Model\ToolResult.cs" />
     <Compile Include="..\..\src\SolidWorksMcp.Core\Prefs\PreferenceJournal.cs" Link="Core\Prefs\PreferenceJournal.cs" />
