@@ -1036,6 +1036,7 @@ public sealed partial class FeatureManagementService(SwSession session)
             WarnShrunkSketches(ctx, d, sketchLines);
 
             var after = Snapshot.Take(d);
+            if (part) WarnPatterns(ctx, d, plan, after.Volume - before.Volume);
             double? asmAfter = part ? null : MassVolume(d);
             // S114 (b): a component's dimension changes the component's own document, which the assembly's undo doesn't reach.
             if (stampsBefore is not null && WarnChangedOthers(ctx, stampsBefore)) ctx.NoUndoStep();
@@ -1119,6 +1120,29 @@ public sealed partial class FeatureManagementService(SwSession session)
                 $"'{p.Name}' back to {FeatureManagementLogic.FromApi(p.Type, p.Previous).ToString(CultureInfo.InvariantCulture)}"));
             if (SketchShrink.Warning($"dimension_set of {names}", lines, explained, undo) is { } w) ctx.Warn(w);
         }
+    }
+
+    /// <summary>
+    /// S156: each linear pattern whose dimension the batch set is checked instance by instance, as feature_pattern_linear
+    /// checks a new one, and the instances that formed nothing are named; a count raised that left the volume unchanged is
+    /// warned of for any feature. Warnings only (S42): the values stay set.
+    /// </summary>
+    private static void WarnPatterns(SwContext ctx, IModelDoc2 d, List<PlannedValue> plan, double volumeDeltaM3)
+    {
+        foreach (string name in plan.Select(p => p.Name.Split('@') is { Length: >= 2 } s ? s[1] : "")
+                     .Where(n => n.Length > 0).Distinct(StringComparer.OrdinalIgnoreCase))
+        {
+            try
+            {
+                if (EntityResolver.FeatureByName(d, name) is { } f && f.GetTypeName2() == "LPattern"
+                    && PartFeatureService.CheckLinearInstances(d, f) is { } c && FeatureManagementLogic.EmptyInstancesWarning(c) is { } w)
+                    ctx.Warn(w);
+            }
+            catch (Exception ex) when (!ComArgs.IsDisconnect(ex)) { /* a check, not the call's work */ }
+        }
+        if (Math.Abs(volumeDeltaM3) >= 1e-12) return; // 0.001 mm³
+        foreach (var p in plan.Where(p => p.Type == (int)swDimensionParamType_e.swDimensionParamTypeInteger && p.Api > p.Previous))
+            ctx.Warn(FeatureManagementLogic.CountVolumeUnchanged(p.Name, p.Previous, p.Api));
     }
 
     private static ISketch? SketchNamed(IModelDoc2 d, string name) =>
@@ -1674,6 +1698,32 @@ internal static class FeatureManagementLogic
     };
 
     public static string ConfigsName(int opt) => opt == (int)swInConfigurationOpts_e.swAllConfiguration ? "all" : "this";
+
+    /// <summary>
+    /// S156: an existing linear pattern's instances that formed nothing, named, with the way out: a direction none of
+    /// whose instances formed anything runs off the body in SOLIDWORKS' own sense, and its flip runs it the other way.
+    /// Null when every instance formed.
+    /// </summary>
+    public static string? EmptyInstancesWarning(LinearInstances c)
+    {
+        if (c.Empty.Count == 0) return null;
+        string shown = string.Join(", ", c.Empty.Take(8).Select(e => $"({e.I}, {e.J})")) + (c.Empty.Count > 8 ? $" and {c.Empty.Count - 8} more" : "");
+        string grid = c.Count2 > 1 ? $"{c.Count1} x {c.Count2}" : $"{c.Count1}";
+        string of = c.Checked < c.Count1 * c.Count2 - 1 ? $" (of {c.Checked} checked)" : "";
+        string? lost = c.Lost1 && c.Lost2 ? "directions 1 and 2 run" : c.Lost1 ? "direction 1 runs" : c.Lost2 ? "direction 2 runs" : null;
+        string way = lost is null
+            ? "They fall past the body's edge or merge with it: lower the count or the spacing, or flip the direction."
+            : $"{char.ToUpperInvariant(lost[0])}{lost[1..]} off the body in SOLIDWORKS' own sense; flipped, it would run the other way: " +
+              $"set the count back, or feature_delete '{c.Pattern}' and make it again by feature_pattern_linear with the direction's sign " +
+              "(+x, -y, ...), which checks each instance and flips the direction itself.";
+        return $"'{c.Pattern}' ({grid}): instance(s) {shown}{of} formed nothing (no faces where the pattern puts them; " +
+               $"counted along direction 1, direction 2, the seed (1, 1)). {way}";
+    }
+
+    /// <summary>S156: a count dimension raised (API values) whose rebuild left the part's volume as it was.</summary>
+    public static string CountVolumeUnchanged(string name, double from, double to) =>
+        $"'{name}' went from {from.ToString(CultureInfo.InvariantCulture)} to {to.ToString(CultureInfo.InvariantCulture)} and the volume " +
+        "did not change: the instances added formed nothing (off the body?) or merge with it.";
 
     /// <summary>swEndConditions_e → the snake_case names feature_extrude uses.</summary>
     public static string EndConditionName(int end) => end switch

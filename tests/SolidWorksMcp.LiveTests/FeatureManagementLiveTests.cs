@@ -953,6 +953,28 @@ public class FeatureManagementLogicTests
         Assert.Equal(expected, FeatureManagementLogic.ParseConfigs(configs));
 
     [Fact]
+    public void Empty_pattern_instances_are_named_with_the_way_out()
+    {
+        // S156: a direction none of whose instances formed anything runs off the body; its flip is the way.
+        string lost = FeatureManagementLogic.EmptyInstancesWarning(new LinearInstances("LPattern1", 2, 2, 3, [(2, 1), (2, 2)], true, false))!;
+        Assert.StartsWith("'LPattern1' (2 x 2): instance(s) (2, 1), (2, 2) formed nothing", lost);
+        Assert.Contains("Direction 1 runs off the body", lost);
+        Assert.Contains("feature_delete 'LPattern1'", lost);
+        // Some instances formed along each direction: the last ones fall past the edge, no direction blamed.
+        string edge = FeatureManagementLogic.EmptyInstancesWarning(new LinearInstances("LPattern2", 4, 1, 3, [(4, 1)], false, false))!;
+        Assert.Contains("(4, 1) formed nothing", edge);
+        Assert.Contains("lower the count or the spacing", edge);
+        Assert.DoesNotContain("off the body in", edge);
+        // A sampled large pattern says how many were checked, and a long list is cut.
+        var many = Enumerable.Range(2, 10).Select(i => (i, 1)).ToList();
+        string big = FeatureManagementLogic.EmptyInstancesWarning(new LinearInstances("LPattern3", 20, 1, 7, many, true, false))!;
+        Assert.Contains("and 2 more (of 7 checked)", big);
+        Assert.Null(FeatureManagementLogic.EmptyInstancesWarning(new LinearInstances("LPattern4", 3, 1, 2, [], false, false)));
+        Assert.Equal("'D1@LPattern1' went from 1 to 2 and the volume did not change: the instances added formed nothing (off the body?) or merge with it.",
+            FeatureManagementLogic.CountVolumeUnchanged("D1@LPattern1", 1, 2));
+    }
+
+    [Fact]
     public void Configuration_names_are_not_supported() =>
         Assert.Equal(ErrorCodes.InvalidArgument, Code(() => FeatureManagementLogic.ParseConfigs("Default")));
 

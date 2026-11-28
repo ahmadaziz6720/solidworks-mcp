@@ -948,6 +948,40 @@ public class PartFeatureLiveTests(LiveFixture fx) : LiveTest(fx)
     }
 
     [Fact]
+    public async Task Dimension_set_of_a_pattern_count_warns_of_instances_that_formed_nothing()
+    {
+        // S156: a 1 x 2 pattern of a hole near the block's +x end, direction 1 unused (count 1). Its direction-1 count
+        // raised to 2 runs the new column along SOLIDWORKS' own sense of the Right plane's normal, +x: x = 60, off the
+        // block, where it forms nothing. It came back ok, volumeDeltaMm3 0, no warning.
+        string doc = await BlockAsync("lpat_count_off");
+        var seed = await HoleCutAsync(doc, 40, -20);
+        var pat = await Pf.LinearPatternAsync(new LinearPatternRequest
+        {
+            Doc = doc, Features = [seed.Feature.Name], Direction = "+x", Count = 1, SpacingMm = 30,
+            Direction2 = "+z", Count2 = 2, Spacing2Mm = 30,
+        });
+        Assert.Equal(seed.Verified.VolumeDeltaMm3, pat.Verified.VolumeDeltaMm3, Vq);
+        var m = new FeatureManagementService(S);
+        var dims = await m.DimensionListAsync(doc, pat.Feature.Name);
+        string count1 = Assert.Single(dims.Dimensions, x => x.Unit == "count" && x.Value == 1).Name;
+        string count2 = Assert.Single(dims.Dimensions, x => x.Unit == "count" && x.Value == 2).Name;
+        // Which spacing is direction 2's the dimensions don't say (S146): both set to 20, direction 1's moving nothing yet.
+        var spacings = dims.Dimensions.Where(x => x.Unit == "mm").Select(x => new DimensionValue { Name = x.Name, Value = 20 }).ToList();
+        Assert.Equal(2, spacings.Count);
+
+        // Direction 2 raised to 3 rows 20 apart: z = -20, 0, 20, all on the block. Every instance formed: no warning.
+        var ok = await m.DimensionSetAsync(doc, [new DimensionValue { Name = count2, Value = 3 }, .. spacings]);
+        Assert.Equal(seed.Verified.VolumeDeltaMm3, ok.VolumeDeltaMm3!.Value, Vq);
+        Assert.Null(ok.Warnings);
+
+        var r = await m.DimensionSetAsync(doc, [new DimensionValue { Name = count1, Value = 2 }]);
+        Assert.Equal(0, r.VolumeDeltaMm3!.Value, Vq);
+        Assert.Contains(r.Warnings ?? [], w => w.Contains("formed nothing") && w.Contains("(2, 1)") && w.Contains("(2, 3)")
+                                                 && w.Contains("Direction 1 runs off the body") && w.Contains("other way"));
+        Assert.Contains(r.Warnings ?? [], w => w.Contains("volume did not change"));
+    }
+
+    [Fact]
     public async Task Linear_pattern_along_a_slanted_edge_takes_the_side_the_axis_names()
     {
         // S41 (b): a 10 mm chamfer on the block's upright corner edge leaves a top edge from (40, 20, 30) to (50, 20, 20).

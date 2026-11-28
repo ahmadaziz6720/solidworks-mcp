@@ -17,7 +17,7 @@ Closed all the same, its PR named, and an open PR no longer holds an item in Wai
 item sent upstream ends with `**Upstream: PR #9, open.**`, one per PR or issue
 (`merged`, `closed unmerged`; an issue `open` or `closed`), kept to its state.
 
-**Open: S4, S5, S7, S10 to S12, S33, S34, S60, S64, S65, S79 to S82, S85, S86, S92, S94, S96, S99, S105, S109, S111, S115, S124, S125, S129, S134 to S139, S143, S145 to S154, S156 to S159, S161, S162.**
+**Open: S4, S5, S7, S10 to S12, S33, S34, S60, S64, S65, S79 to S82, S85, S86, S92, S94, S96, S99, S105, S109, S111, S115, S124, S125, S129, S134 to S139, S143, S145 to S154, S157 to S159, S161, S162.**
 Sorted 2026-11-27, the scenario test of build `20261127-085502` (findings 2026-11-27): S101,
 S123, S144, S155, S140, S141, S142 and S160 held and closed, S160 on its own case only (an L
 outline drew as a corner rectangle, the fallback not needed there), S80 (a), (c) and (d),
@@ -519,7 +519,7 @@ line in `part_derive`'s description, not an `into`).
 - [x] S80 (d): probed (S160, ab67bdc)
 - [x] Group 1: full live tests and release (build: 20261127-085502, tag build-20261127-085502, pushed)
 - [x] Group 1: scenario test with S140 to S142's proof (session id: 69f65c04-85ed-4a72-88e2-1100f3d684b1; all eight held, closed; S161, S162 filed), its entry committed and sorted
-- [ ] S156: committed
+- [x] S156: committed
 - [ ] S125: committed
 - [ ] S124: committed
 - [ ] S146: committed
@@ -2331,24 +2331,6 @@ Proposed by the session: `sketch_info` names relations whose external reference 
 decided.
 Decided 2026-11-27 by the owner: taken into the run of 2026-11-27, group 4: `sketch_info` names dangling relations and does not read such a sketch fully defined (`## Run 2026-11-27`).
 
-### S156 - `dimension_set` of a linear pattern's count adds instances that form nothing, reported `ok` with a volume change of 0 - OPEN 2026-11-27
-
-Sorted out of the entry of 2026-11-26 ("a printed plate revised: a bolt pattern grown"),
-point 1, on build `20261124-174916`. `dimension_set` of a linear pattern's direction-1 count
-from 1 to 2 (a 1 x 2 pattern of a through hole, made with direction 1 unused) reported `ok`,
-`volumeDeltaMm3: 0`, no warning: the new column went along SOLIDWORKS' default sense of
-direction 1, off the body, and formed nothing, where two Ø5.5 x 6 holes (-285.1) were meant.
-Caught only by the hand figure. Workaround: the pattern deleted and made again by
-`feature_pattern_linear {direction:"-x", direction2:"-y"}`, which checked the instance faces
-and flipped direction 1 itself ("SOLIDWORKS' default ran the other way"); 3 calls with the
-rollback. Reported `ok` while wrong. Bears on S125 (an instance that formed nothing) and S7
-(`dimension_set`'s checks).
-
-Proposed by the session: `dimension_set` on a pattern's count checks what
-`feature_pattern_linear` checks (instance faces formed), or at least warns when a count
-change leaves the volume unchanged. Local. Not decided.
-Decided 2026-11-27 by the owner: taken into the run of 2026-11-27, group 2: `dimension_set` of a pattern's count checks each instance formed and warns (a warning, as S42), the empty instances and the flip named (`## Run 2026-11-27`).
-
 ### S157 - Results met on the in-place mirror route: an insert names no body, a body delete is named `-1`, a mirror part's delete warns of its folders - OPEN 2026-11-27
 
 Sorted out of the entry of 2026-11-26 ("a left part remade in place as the mirror of the
@@ -2607,3 +2589,68 @@ parts the owner had edited by hand", point 1; "a swept shell part with mirrored 
 both the negative globals read 0, so S112's own sign fired as well, and in the first the
 derived rows read their literal part, not 0, which this sign does not judge. The widened sign
 alone was not seen live; the proof stays a session in the state whose globals read right.
+
+### S156 - `dimension_set` of a linear pattern's count adds instances that form nothing, reported `ok` with a volume change of 0 - BUILT 2026-11-27, proof: the scenario test of the group 2 build
+
+Sorted out of the entry of 2026-11-26 ("a printed plate revised: a bolt pattern grown"),
+point 1, on build `20261124-174916`. `dimension_set` of a linear pattern's direction-1 count
+from 1 to 2 (a 1 x 2 pattern of a through hole, made with direction 1 unused) reported `ok`,
+`volumeDeltaMm3: 0`, no warning: the new column went along SOLIDWORKS' default sense of
+direction 1, off the body, and formed nothing, where two Ø5.5 x 6 holes (-285.1) were meant.
+Caught only by the hand figure. Workaround: the pattern deleted and made again by
+`feature_pattern_linear {direction:"-x", direction2:"-y"}`, which checked the instance faces
+and flipped direction 1 itself ("SOLIDWORKS' default ran the other way"); 3 calls with the
+rollback. Reported `ok` while wrong. Bears on S125 (an instance that formed nothing) and S7
+(`dimension_set`'s checks).
+
+Proposed by the session: `dimension_set` on a pattern's count checks what
+`feature_pattern_linear` checks (instance faces formed), or at least warns when a count
+change leaves the volume unchanged. Local. Not decided.
+Decided 2026-11-27 by the owner: taken into the run of 2026-11-27, group 2: `dimension_set` of a pattern's count checks each instance formed and warns (a warning, as S42), the empty instances and the flip named (`## Run 2026-11-27`).
+
+Cause: `dimension_set` checked a changed value's read-back, rebuild errors and sketches it
+shrank, and gave the volume change, but nothing of a pattern's instances: a count raised
+along a direction whose sense SOLIDWORKS picks itself (the pattern made with direction 1
+unused, so never proven) put the new column off the body, where cuts form nothing, and the
+call came back `ok` with `volumeDeltaMm3: 0`.
+Fix: `dimension_set` checks each linear pattern whose dimension the batch set, instance by
+instance, as `feature_pattern_linear` checks a new one: the seed's face signatures against
+the pattern's faces at each grid place, both senses of each direction tried (the
+definition's seeds and direction references read, through `AccessSelections` released at
+once when a plain read gives none). The instances that formed nothing are named 1-based
+(along direction 1, direction 2), and a direction none of whose instances formed anything is
+named as running off the body in SOLIDWORKS' own sense, its flip the way (`feature_delete`
+and `feature_pattern_linear` with the direction's sign, which flips it itself), or the count
+set back; otherwise "past the body's edge or merge". Any count dimension raised whose
+rebuild leaves the part's volume unchanged warns as well. Warnings only (S42). The check is
+`PartFeatureService.CheckLinearInstances` over a shared `EmptyInstances` (new
+`PartFeatureService.Instances.cs`), for S125's volume per instance to use; the text is
+`FeatureManagementLogic.EmptyInstancesWarning` and `CountVolumeUnchanged`. No description
+changed.
+Before: the new `PartFeatureLiveTests.Dimension_set_of_a_pattern_count_warns_of_instances_that_formed_nothing`
+(a hole at x 40, z -20 in the 100 x 20 x 60 block, patterned 1 x 2 with direction 1 `+x`
+unused and direction 2 `+z` 30; `D1@LPattern1` set 1 to 2, the new column at x 60, off the
+block) failed: "Assert.Contains() Failure: Filter not matched in collection Collection: []"
+(`volumeDeltaMm3` 0 passed, no warning).
+After: it passes, with a case where every instance forms (direction 2 raised to 3 rows 20
+apart: one hole's volume, no warning); the live tests that call `dimension_set` on a part
+(two of `AdvancedFeatureLiveTests`, five of `FeatureManagementLiveTests`, one each of
+`M0LiveTests`, `ReferenceLiveTests` and `TopDownLiveTests`, two of `SketchEditLiveTests`)
+and S41's `Linear_pattern_runs_direction_2_the_requested_way_when_its_own_way_leaves_the_part`,
+14/14; unit tests 370/370; the LiveTests project offline 125/125 (606 live skipped), the new
+`FeatureManagementLogicTests.Empty_pattern_instances_are_named_with_the_way_out` among them;
+`check_repo` ok.
+Made stricter: `dimension_set` on a part warns of a linear pattern's instances that formed
+nothing and of a count raised with the volume unchanged; nothing that passed is refused.
+Decided 2026-11-27 by the run, not the owner: the instance check runs for any dimension of a
+linear pattern the batch sets, a spacing as well as a count, because a spacing moves
+instances off the body the same way and the check is the same; other patterns (circular,
+curve, fill) get the volume warning only, because the plan names the linear pattern's check
+and the volume warning covers the rest.
+Decided 2026-11-27 by the run, not the owner: the flip is named, not made, by
+`dimension_set`, because no tool flips an existing pattern's direction and the plan adds no
+option; `feature_pattern_linear` with the direction's sign is the way it names.
+Decided 2026-11-27 by the run, not the owner: both warnings stand when both apply, because
+the volume line also covers a pattern the instance check cannot read, and both are true.
+Local: on `sw2023`, in the commit that moves it here; not yet in a build. Upstream: not yet
+decided.
