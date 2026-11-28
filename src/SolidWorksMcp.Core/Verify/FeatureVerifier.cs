@@ -176,7 +176,8 @@ internal static class FeatureVerifier
     private static string? Hint(FeatureSpec spec) => spec.Tool switch
     {
         "feature_extrude" => "For a cut, the direction may point away from the material (use direction 'auto', the default, or " +
-                             "through_all_both); for a boss, check that the profile is closed and the depth positive.",
+                             "through_all_both); for a boss, check that the profile is closed and the depth positive, and that the boss does not meet a body " +
+                             "it merges into along an edge only (a line, no face shared: non-manifold; overlap a face instead).",
         "feature_fillet" => "A radius too large for the adjacent faces fails; try a smaller radius or fewer edges.",
         _ => null,
     };

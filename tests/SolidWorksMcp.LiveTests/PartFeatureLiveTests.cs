@@ -1447,4 +1447,28 @@ public class PartFeatureLiveTests(LiveFixture fx) : LiveTest(fx)
         Assert.Equal(before, await FeatureCountAsync(doc));
         Assert.Equal(vol, (await Ins.ModelInfoAsync(doc)).VolumeMm3!.Value, V);
     }
+
+    [Fact]
+    public async Task A_boss_that_meets_its_body_along_an_edge_only_fails_and_the_hint_names_that()
+    {
+        // S163 (S64 (q)): a mid-plane boss that joins a body by a face and meets another part of the same body along an
+        // edge only (a line, no face shared) is non-manifold: SOLIDWORKS returns nothing, and the hint named only the
+        // profile and the depth.
+        string doc = await NewPartAsync("extrude_edge_contact");
+        // A U-shaped body, 10 high: 50 x 20 with a 10 x 10 notch (volume 9 000 mm3), x 0..50, z 0..20, notch x 20..30, z 0..10.
+        await Sk.StartAsync(doc, new EntityRef { Name = "top" }, false);
+        await Sk.AddAsync(doc, [new SketchEntity { Kind = "polyline", Closed = true, Points = [[0, 0], [20, 0], [20, -10], [30, -10], [30, 0], [50, 0], [50, -20], [0, -20]] }]);
+        var body = await Fs.ExtrudeAsync(new ExtrudeRequest { Doc = doc, DepthMm = 10 });
+        Assert.Equal(9000, body.Verified.VolumeDeltaMm3, V);
+
+        // A plate 20 x 20 on the front plane, 20 thick about it (z -10..10): its bottom face rests on the right arm (x 30..40)
+        // and its edge at x 20, y 10 meets the left arm's top edge along z 0..10.
+        await Sk.StartAsync(doc, new EntityRef { Name = "front" }, false);
+        await Sk.AddAsync(doc, [new SketchEntity { Kind = "polyline", Closed = true, Points = [[20, 10], [40, 10], [40, 30], [20, 30]] }]);
+        var ex = await Assert.ThrowsAsync<SwException>(() => Fs.ExtrudeAsync(new ExtrudeRequest { Doc = doc, End = "mid_plane", DepthMm = 20 }));
+        Assert.Equal(ErrorCodes.FeatureFailed, ex.Code);
+        Assert.True(ex.Hint is not null && ex.Hint.Contains("along an edge", StringComparison.Ordinal),
+            $"the hint names no edge-only contact: {ex.ToAgentText()}");
+        Assert.Equal(9000, (await Ins.ModelInfoAsync(doc)).VolumeMm3!.Value, V);
+    }
 }

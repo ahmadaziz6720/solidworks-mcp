@@ -522,8 +522,8 @@ line in `part_derive`'s description, not an `into`).
 - [x] S156: committed (889429e)
 - [x] S125: committed (fe3de5e)
 - [x] S124: committed (4ed7fd4)
-- [x] S146: committed
-- [ ] S64 (q): committed
+- [x] S146: committed (0b4df4d)
+- [x] S64 (q): committed (S163)
 - [ ] S64 (k): probed
 - [ ] Group 2: full live tests and release (build: )
 - [ ] Group 2: scenario test (session id: ), its entry committed and sorted
@@ -1094,6 +1094,7 @@ over the member it built at once (+1 725 000 as figured); the unused sketch had 
 after. Not reported `ok`. Proposed by the session: the hint names edge-only contact with an
 existing body as a cause. Local. Not decided.
 Decided 2026-11-27 by the owner: (q) taken into the run of 2026-11-27, group 2, the hint naming edge-only contact; (k) taken into group 2 too, a probe first, each face's own normal read (an extra the owner chose); (b), (j), (m) to (p) not in it (`## Run 2026-11-27`).
+(q) done in the run of 2026-11-27, group 2, split out as S163 (Waiting).
 Met again 2026-11-27 ((l); findings 2026-11-27, the scenario test of build
 `20261127-085502`, point 9): `contours.regions` 0 for closed contours in two shapes S120's
 rule (closed 2026-11-22) does not cover, the features right; moved to S161.
@@ -2746,5 +2747,48 @@ values, and a second field for the direction would only repeat the digit.
 Decided 2026-11-27 by the run, not the owner: the role is read from the dimension's name
 order and checked against the definition, rather than matched by value alone, because equal
 counts or spacings (2 x 2 at the same spacing) cannot be told apart by value.
+Local: on `sw2023`, in the commit that moves it here; not yet in a build. Upstream: not yet
+decided.
+
+### S163 - A boss that merges into a body and meets it along an edge only fails `FEATURE_FAILED`, the hint naming profile closure and depth only - BUILT 2026-11-27, proof: the scenario test of the group 2 build
+
+Split out of S64 (q), sorted from the entry of 2026-11-24 ("a multi-body envelope part from a
+vendor drawing", point 3), build `20261124-174916`: a mid-plane boss of a plate whose end edge
+met another body's edge along a line only (edge to edge, no face shared) failed
+`FEATURE_FAILED: SOLIDWORKS created no feature (the API returned nothing)`, the hint naming
+profile closure and depth. The cause was the line contact (non-manifold); the unused sketch
+had to be deleted after. Proposed by the session: the hint names edge-only contact with an
+existing body as a cause.
+Decided 2026-11-27 by the owner: taken into the run of 2026-11-27, group 2, the hint naming
+edge-only contact (`## Run 2026-11-27`).
+
+Cause: `FeatureVerifier.Hint` gave an extrude's failure two causes only, a cut pointing away
+from the material, and for a boss a profile not closed or a depth not positive. SOLIDWORKS
+refuses a boss that would join a body by a face and meet another part of the same body along
+an edge only (the result is non-manifold) and returns nothing.
+Fix: the hint of `feature_extrude`'s failures (`FeatureVerifier.Hint`) adds, for a boss, "and
+that the boss does not meet a body it merges into along an edge only (a line, no face shared:
+non-manifold; overlap a face instead)". A text in a result: no description changed, the
+catalog's bytes untouched. Reproduced by hand first: a U-shaped body (50 x 20 x 10, a 10 x 10
+notch) and a plate 20 x 20 on the front plane, mid-plane 20, its bottom face on one arm and
+its edge on the other arm's top edge along 10 mm: `FEATURE_FAILED ... created no feature`. A
+boss that touched a separate body by an edge only was not refused (a second body, 2 bodies).
+Before: the new
+`PartFeatureLiveTests.A_boss_that_meets_its_body_along_an_edge_only_fails_and_the_hint_names_that`
+failed: "the hint names no edge-only contact: FEATURE_FAILED: feature_extrude: SOLIDWORKS
+created no feature (the API returned nothing). Hint: For a cut, the direction may point away
+from the material (use direction 'auto', the default, or through_all_both); for a boss, check
+that the profile is closed and the depth positive."
+After: it passes (the failure code, the hint naming "along an edge", the volume unchanged at
+9 000 mm3 after the rollback), with the live tests that read an extrude failure
+(`The_servers_own_failed_kept_and_rolled_back_changes_do_not_read_as_the_users`,
+`Mirror_into_the_body_or_about_a_curved_face_is_rejected`), 3/3; unit tests 377/377;
+`check_repo` ok. No catalog check: no description changed.
+Made stricter: nothing refused or newly failed; only the hint's text grows.
+Decided 2026-11-27 by the run, not the owner: the hint lists edge-only contact among the
+causes rather than the server telling it, because telling it needs the new body's geometry
+before SOLIDWORKS refuses (the call returns nothing, and the rollback leaves no body to
+read), and the hint is read only after a failure, where a cause named beside the others costs
+nothing.
 Local: on `sw2023`, in the commit that moves it here; not yet in a build. Upstream: not yet
 decided.
