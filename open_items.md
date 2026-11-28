@@ -524,8 +524,8 @@ line in `part_derive`'s description, not an `into`).
 - [x] S124: committed (4ed7fd4)
 - [x] S146: committed (0b4df4d)
 - [x] S64 (q): committed (S163, ffccaea)
-- [x] S64 (k): probed (S164)
-- [ ] Group 2: full live tests and release (build: )
+- [x] S64 (k): probed (S164, d617e5a)
+- [ ] Group 2: full live tests and release (build: ; live tests on d617e5a running since 2026-11-28 15:50, launcher pid 8728, `run-1127\group2.out.txt`, ends on its `END` line; then flakes, release)
 - [ ] Group 2: scenario test (session id: ), its entry committed and sorted
 - [ ] S145: committed
 - [ ] S152: committed
